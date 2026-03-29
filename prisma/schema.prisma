@@ -1,0 +1,177 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  accountant
+  admin
+  employee
+}
+
+enum Plan {
+  free
+  paid
+}
+
+enum Confidence {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum ClaimStatus {
+  pending_review
+  reviewed
+}
+
+enum ApprovalStatus {
+  pending_approval
+  approved
+  not_approved
+}
+
+enum PaymentStatus {
+  unpaid
+  paid
+}
+
+enum SubmittedVia {
+  whatsapp
+  dashboard
+}
+
+enum SessionState {
+  IDLE
+  COLLECTING
+}
+
+model Firm {
+  id                  String    @id @default(uuid())
+  name                String
+  registration_number String?
+  contact_email       String?
+  contact_phone       String?
+  is_active           Boolean   @default(true)
+  receipt_count       Int       @default(0)
+  plan                Plan      @default(free)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  users      User[]
+  employees  Employee[]
+  claims     Claim[]
+  receipts   Receipt[]
+  categories Category[]
+}
+
+model Employee {
+  id         String   @id @default(uuid())
+  name       String
+  phone      String   @unique
+  email      String?
+  firm_id    String
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  firm    Firm    @relation(fields: [firm_id], references: [id])
+  users   User[]
+  claims  Claim[]
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  name          String
+  role          UserRole
+  firm_id       String?
+  employee_id   String?
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  firm      Firm?     @relation(fields: [firm_id], references: [id])
+  employee  Employee? @relation(fields: [employee_id], references: [id])
+  receipts  Receipt[]
+}
+
+model Category {
+  id         String   @id @default(uuid())
+  firm_id    String
+  name       String
+  tax_code   String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  firm     Firm      @relation(fields: [firm_id], references: [id])
+  claims   Claim[]
+  receipts Receipt[]
+
+  @@unique([firm_id, name])
+}
+
+model Claim {
+  id               String         @id @default(uuid())
+  firm_id          String
+  employee_id      String
+  claim_date       DateTime       @db.Date
+  merchant         String
+  description      String?
+  receipt_number   String?
+  amount           Decimal        @db.Decimal(10, 2)
+  category_id      String
+  confidence       Confidence
+  status           ClaimStatus    @default(pending_review)
+  approval         ApprovalStatus @default(pending_approval)
+  payment_status   PaymentStatus  @default(unpaid)
+  rejection_reason String?
+  file_url         String?
+  file_download_url String?
+  thumbnail_url    String?
+  submitted_via    SubmittedVia
+  created_at       DateTime       @default(now())
+  updated_at       DateTime       @updatedAt
+
+  firm     Firm     @relation(fields: [firm_id], references: [id])
+  employee Employee @relation(fields: [employee_id], references: [id])
+  category Category @relation(fields: [category_id], references: [id])
+}
+
+model Receipt {
+  id                String         @id @default(uuid())
+  firm_id           String
+  uploaded_by       String
+  receipt_date      DateTime       @db.Date
+  merchant          String
+  receipt_number    String?
+  amount            Decimal        @db.Decimal(10, 2)
+  category_id       String
+  confidence        Confidence
+  approval          ApprovalStatus @default(pending_approval)
+  file_url          String?
+  file_download_url String?
+  thumbnail_url     String?
+  submitted_via     SubmittedVia
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
+
+  firm     Firm     @relation(fields: [firm_id], references: [id])
+  uploader User     @relation(fields: [uploaded_by], references: [id])
+  category Category @relation(fields: [category_id], references: [id])
+}
+
+model Session {
+  id              String       @id @default(uuid())
+  phone           String       @unique
+  state           SessionState @default(IDLE)
+  step            String?
+  intent          String?
+  pending_receipt Json?
+  created_at      DateTime     @default(now())
+  updated_at      DateTime     @updatedAt
+}
