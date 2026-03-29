@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { login } from "./actions";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,23 +14,13 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    const result = await login(email, password);
 
-    setLoading(false);
-
-    if (result?.error) {
-      setError("Invalid email or password.");
+    if (result.error) {
+      setError(result.error);
+      setLoading(false);
       return;
     }
-
-    // Fetch session to determine role and redirect
-    const res = await fetch("/api/auth/session");
-    const session = await res.json();
-    const role = session?.user?.role;
 
     const redirectMap: Record<string, string> = {
       accountant: "/accountant/dashboard",
@@ -40,7 +28,7 @@ export default function LoginPage() {
       employee: "/employee/dashboard",
     };
 
-    router.push(redirectMap[role] ?? "/");
+    window.location.href = redirectMap[result.role!] ?? "/";
   }
 
   return (

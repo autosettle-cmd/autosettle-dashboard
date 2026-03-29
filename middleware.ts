@@ -15,8 +15,8 @@ export default withAuth(
 
     // Redirect authenticated users away from /login
     if (pathname === "/login" && token) {
-      const destination = roleRedirects[role] ?? "/login";
-      return NextResponse.redirect(new URL(destination, req.url));
+      const destination = roleRedirects[role];
+      if (destination) return NextResponse.redirect(new URL(destination, req.url));
     }
 
     // Enforce role-based access
