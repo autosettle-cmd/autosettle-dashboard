@@ -2,35 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'accountant') {
+  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
   }
+  const firmId = session.user.firm_id;
 
   const body = await request.json();
-  const { claimIds, action, reason } = body as {
+  const { claimIds, action } = body as {
     claimIds: string[];
-    action: 'approve' | 'reject';
-    reason?: string;
+    action: 'review';
   };
 
   if (!Array.isArray(claimIds) || claimIds.length === 0) {
     return NextResponse.json({ data: null, error: 'claimIds required' }, { status: 400 });
   }
-  if (action !== 'approve' && action !== 'reject') {
+  if (action !== 'review') {
     return NextResponse.json({ data: null, error: 'Invalid action' }, { status: 400 });
   }
-
-  const firmIds = await getAccountantFirmIds(session.user.id);
-  const scope = firmScope(firmIds);
-
-  const updateData =
-    action === 'approve'
-      ? { approval: 'approved' as const, rejection_reason: null as string | null }
-      : { approval: 'not_approved' as const, rejection_reason: (reason ?? null) as string | null };
 
   const CHUNK = 20;
   const chunks: string[][] = [];
@@ -41,8 +32,8 @@ export async function PATCH(request: NextRequest) {
   await Promise.all(
     chunks.map((chunk) =>
       prisma.claim.updateMany({
-        where: { id: { in: chunk }, ...scope },
-        data: updateData,
+        where: { id: { in: chunk }, firm_id: firmId },
+        data: { status: 'reviewed' },
       })
     )
   );

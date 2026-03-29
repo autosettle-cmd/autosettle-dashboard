@@ -2,51 +2,44 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 
 export async function GET() {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'accountant') {
+  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
   }
-
-  const firmIds = await getAccountantFirmIds(session.user.id);
-  const scope = firmScope(firmIds);
+  const firmId = session.user.firm_id;
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const [totalThisMonth, pendingApproval, approvedThisMonth, approvedAmount] = await Promise.all([
+  const [totalClaims, pendingReview, reviewedThisMonth, totalAmountAgg] = await Promise.all([
     prisma.claim.count({
-      where: { ...scope, claim_date: { gte: monthStart, lte: monthEnd } },
+      where: { firm_id: firmId },
     }),
     prisma.claim.count({
-      where: { ...scope, approval: 'pending_approval' },
+      where: { firm_id: firmId, status: 'pending_review' },
     }),
     prisma.claim.count({
       where: {
-        ...scope,
-        approval: 'approved',
+        firm_id: firmId,
+        status: 'reviewed',
         claim_date: { gte: monthStart, lte: monthEnd },
       },
     }),
     prisma.claim.aggregate({
-      where: {
-        ...scope,
-        approval: 'approved',
-        claim_date: { gte: monthStart, lte: monthEnd },
-      },
+      where: { firm_id: firmId },
       _sum: { amount: true },
     }),
   ]);
 
   return NextResponse.json({
     data: {
-      totalThisMonth,
-      pendingApproval,
-      approvedThisMonth,
-      approvedAmountThisMonth: approvedAmount._sum.amount?.toString() ?? '0',
+      totalClaims,
+      pendingReview,
+      reviewedThisMonth,
+      totalAmount: totalAmountAgg._sum.amount?.toString() ?? '0',
     },
     error: null,
   });

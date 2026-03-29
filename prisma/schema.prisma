@@ -62,11 +62,12 @@ model Firm {
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
-  users      User[]
-  employees  Employee[]
-  claims     Claim[]
-  receipts   Receipt[]
-  categories Category[]
+  users           User[]
+  employees       Employee[]
+  claims          Claim[]
+  receipts        Receipt[]
+  categories      Category[]
+  accountantFirms AccountantFirm[]
 }
 
 model Employee {
@@ -96,9 +97,22 @@ model User {
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
-  firm      Firm?     @relation(fields: [firm_id], references: [id])
-  employee  Employee? @relation(fields: [employee_id], references: [id])
-  receipts  Receipt[]
+  firm           Firm?            @relation(fields: [firm_id], references: [id])
+  employee       Employee?        @relation(fields: [employee_id], references: [id])
+  receipts       Receipt[]
+  accountantFirms AccountantFirm[]
+}
+
+model AccountantFirm {
+  id         String   @id @default(uuid())
+  user_id    String
+  firm_id    String
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id])
+  firm Firm @relation(fields: [firm_id], references: [id])
+
+  @@unique([user_id, firm_id])
 }
 
 model Category {

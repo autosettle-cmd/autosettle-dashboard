@@ -23,46 +23,42 @@ export async function GET(request: NextRequest) {
   const where: any = { ...firmScope(firmIds, firmId) };
 
   if (dateFrom || dateTo) {
-    where.claim_date = {};
-    if (dateFrom) where.claim_date.gte = new Date(dateFrom);
-    if (dateTo) where.claim_date.lte = new Date(dateTo);
+    where.receipt_date = {};
+    if (dateFrom) where.receipt_date.gte = new Date(dateFrom);
+    if (dateTo) where.receipt_date.lte = new Date(dateTo);
   }
   if (approval && approval !== 'all') where.approval = approval;
   if (search) {
     where.OR = [
       { merchant: { contains: search, mode: 'insensitive' } },
-      { employee: { name: { contains: search, mode: 'insensitive' } } },
+      { uploader: { name: { contains: search, mode: 'insensitive' } } },
     ];
   }
 
-  const claims = await prisma.claim.findMany({
+  const receipts = await prisma.receipt.findMany({
     where,
     include: {
-      employee: { select: { name: true } },
+      uploader: { select: { name: true } },
       firm: { select: { name: true } },
       category: { select: { name: true } },
     },
-    orderBy: { claim_date: 'desc' },
+    orderBy: { receipt_date: 'desc' },
   });
 
-  const data = claims.map((c) => ({
-    id: c.id,
-    claim_date: c.claim_date,
-    employee_name: c.employee.name,
-    firm_name: c.firm.name,
-    firm_id: c.firm_id,
-    merchant: c.merchant,
-    description: c.description,
-    category_name: c.category.name,
-    amount: c.amount.toString(),
-    status: c.status,
-    approval: c.approval,
-    payment_status: c.payment_status,
-    rejection_reason: c.rejection_reason,
-    thumbnail_url: c.thumbnail_url,
-    file_url: c.file_url,
-    confidence: c.confidence,
-    receipt_number: c.receipt_number,
+  const data = receipts.map((r) => ({
+    id: r.id,
+    receipt_date: r.receipt_date,
+    uploader_name: r.uploader.name,
+    firm_name: r.firm.name,
+    firm_id: r.firm_id,
+    merchant: r.merchant,
+    category_name: r.category.name,
+    amount: r.amount.toString(),
+    approval: r.approval,
+    receipt_number: r.receipt_number,
+    thumbnail_url: r.thumbnail_url,
+    file_url: r.file_url,
+    file_download_url: r.file_download_url,
   }));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });

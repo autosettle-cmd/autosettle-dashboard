@@ -38,6 +38,7 @@ export const authOptions: NextAuthOptions = {
             name: user.name,
             role: user.role,
             firm_id: user.firm_id,
+            employee_id: user.employee_id,
           };
         } catch (error) {
           console.error("Auth error:", error);
@@ -51,6 +52,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.role = user.role;
         token.firm_id = user.firm_id;
+        token.employee_id = user.employee_id;
       }
       return token;
     },
@@ -59,6 +61,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub as string;
         session.user.role = token.role;
         session.user.firm_id = token.firm_id;
+        session.user.employee_id = token.employee_id;
       }
       return session;
     },

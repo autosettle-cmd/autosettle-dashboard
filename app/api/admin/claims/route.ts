@@ -2,32 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'accountant') {
+  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
   }
-
-  const firmIds = await getAccountantFirmIds(session.user.id);
+  const firmId = session.user.firm_id;
 
   const { searchParams } = new URL(request.url);
-  const firmId = searchParams.get('firmId');
   const dateFrom = searchParams.get('dateFrom');
   const dateTo = searchParams.get('dateTo');
-  const approval = searchParams.get('approval');
+  const status = searchParams.get('status');
   const search = searchParams.get('search');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { ...firmScope(firmIds, firmId) };
+  const where: any = { firm_id: firmId };
 
   if (dateFrom || dateTo) {
     where.claim_date = {};
     if (dateFrom) where.claim_date.gte = new Date(dateFrom);
     if (dateTo) where.claim_date.lte = new Date(dateTo);
   }
-  if (approval && approval !== 'all') where.approval = approval;
+  if (status && status !== 'all') where.status = status;
   if (search) {
     where.OR = [
       { merchant: { contains: search, mode: 'insensitive' } },
@@ -39,7 +36,6 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       employee: { select: { name: true } },
-      firm: { select: { name: true } },
       category: { select: { name: true } },
     },
     orderBy: { claim_date: 'desc' },
@@ -49,8 +45,6 @@ export async function GET(request: NextRequest) {
     id: c.id,
     claim_date: c.claim_date,
     employee_name: c.employee.name,
-    firm_name: c.firm.name,
-    firm_id: c.firm_id,
     merchant: c.merchant,
     description: c.description,
     category_name: c.category.name,
@@ -59,10 +53,10 @@ export async function GET(request: NextRequest) {
     approval: c.approval,
     payment_status: c.payment_status,
     rejection_reason: c.rejection_reason,
-    thumbnail_url: c.thumbnail_url,
-    file_url: c.file_url,
-    confidence: c.confidence,
     receipt_number: c.receipt_number,
+    file_url: c.file_url,
+    thumbnail_url: c.thumbnail_url,
+    confidence: c.confidence,
   }));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });

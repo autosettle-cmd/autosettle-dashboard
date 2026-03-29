@@ -21,6 +21,7 @@ export async function login(email: string, password: string) {
         email: user.email,
         role: user.role,
         firm_id: user.firm_id,
+        employee_id: user.employee_id,
       },
       secret: process.env.NEXTAUTH_SECRET!,
       maxAge: 30 * 24 * 60 * 60,

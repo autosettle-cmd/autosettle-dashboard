@@ -18,24 +18,24 @@ export async function GET() {
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
   const [totalThisMonth, pendingApproval, approvedThisMonth, approvedAmount] = await Promise.all([
-    prisma.claim.count({
-      where: { ...scope, claim_date: { gte: monthStart, lte: monthEnd } },
+    prisma.receipt.count({
+      where: { ...scope, receipt_date: { gte: monthStart, lte: monthEnd } },
     }),
-    prisma.claim.count({
+    prisma.receipt.count({
       where: { ...scope, approval: 'pending_approval' },
     }),
-    prisma.claim.count({
+    prisma.receipt.count({
       where: {
         ...scope,
         approval: 'approved',
-        claim_date: { gte: monthStart, lte: monthEnd },
+        receipt_date: { gte: monthStart, lte: monthEnd },
       },
     }),
-    prisma.claim.aggregate({
+    prisma.receipt.aggregate({
       where: {
         ...scope,
         approval: 'approved',
-        claim_date: { gte: monthStart, lte: monthEnd },
+        receipt_date: { gte: monthStart, lte: monthEnd },
       },
       _sum: { amount: true },
     }),
