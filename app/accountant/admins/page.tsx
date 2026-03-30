@@ -3,19 +3,10 @@
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { useState, useEffect } from 'react';
-import { usePathname, useParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface FirmDetail {
-  id: string;
-  name: string;
-  registration_number: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  plan: string;
-}
 
 interface AdminRow {
   id: string;
@@ -23,6 +14,11 @@ interface AdminRow {
   email: string;
   status: string;
   created_at: string;
+}
+
+interface Firm {
+  id: string;
+  name: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -47,77 +43,86 @@ const NAV = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function FirmDetailPage() {
+export default function AdminsPage() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const params = useParams();
   const handleLogout = useLogout();
-  const firmId = params.firmId as string;
 
   // Data
-  const [firm, setFirm]                   = useState<FirmDetail | null>(null);
-  const [firmLoading, setFirmLoading]     = useState(true);
-  const [admins, setAdmins]               = useState<AdminRow[]>([]);
-  const [adminsLoading, setAdminsLoading] = useState(true);
-  const [adminsKey, setAdminsKey]         = useState(0);
+  const [admins, setAdmins]         = useState<AdminRow[]>([]);
+  const [firms, setFirms]           = useState<Firm[]>([]);
+  const [loading, setLoading]       = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Add Admin Modal
-  const [showModal, setShowModal]       = useState(false);
-  const [modalName, setModalName]       = useState('');
-  const [modalEmail, setModalEmail]     = useState('');
-  const [modalPhone, setModalPhone]     = useState('');
+  // Filters
+  const [firmId, setFirmId] = useState('');
+
+  // Modal
+  const [showModal, setShowModal]         = useState(false);
+  const [modalName, setModalName]         = useState('');
+  const [modalEmail, setModalEmail]       = useState('');
+  const [modalPhone, setModalPhone]       = useState('');
   const [modalPassword, setModalPassword] = useState('');
-  const [modalError, setModalError]     = useState('');
-  const [modalSaving, setModalSaving]   = useState(false);
+  const [modalError, setModalError]       = useState('');
+  const [modalSaving, setModalSaving]     = useState(false);
 
-  // ── Fetch firm details ──
+  // Load firms (once)
   useEffect(() => {
-    let cancelled = false;
-    setFirmLoading(true);
-    fetch('/api/firms/details')
+    fetch('/api/firms')
       .then((r) => r.json())
-      .then((j) => {
-        if (!cancelled) {
-          const match = (j.data ?? []).find((f: FirmDetail) => f.id === firmId);
-          setFirm(match ?? null);
-          setFirmLoading(false);
-        }
-      })
-      .catch((e) => { console.error(e); if (!cancelled) setFirmLoading(false); });
-    return () => { cancelled = true; };
-  }, [firmId]);
+      .then((j) => { if (j.data) setFirms(j.data); })
+      .catch(console.error);
+  }, []);
 
-  // ── Fetch admins ──
+  // Load admins (when firmId changes)
   useEffect(() => {
+    if (!firmId) {
+      setAdmins([]);
+      return;
+    }
+
     let cancelled = false;
-    setAdminsLoading(true);
+    setLoading(true);
+
     fetch(`/api/accountant/admins?firmId=${firmId}`)
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) { setAdmins(j.data ?? []); setAdminsLoading(false); } })
-      .catch((e) => { console.error(e); if (!cancelled) setAdminsLoading(false); });
+      .then((j) => { if (!cancelled) { setAdmins(j.data ?? []); setLoading(false); } })
+      .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
+
     return () => { cancelled = true; };
-  }, [firmId, adminsKey]);
+  }, [firmId, refreshKey]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
-  const refreshAdmins = () => setAdminsKey((k) => k + 1);
+  const refresh = () => setRefreshKey((k) => k + 1);
 
-  const openModal = () => {
-    setModalName(''); setModalEmail(''); setModalPhone(''); setModalPassword('');
-    setModalError(''); setModalSaving(false); setShowModal(true);
+  const openAddModal = () => {
+    setModalName('');
+    setModalEmail('');
+    setModalPhone('');
+    setModalPassword('');
+    setModalError('');
+    setModalSaving(false);
+    setShowModal(true);
   };
 
   const submitAdmin = async () => {
-    if (!modalName.trim() || !modalEmail.trim() || !modalPassword.trim()) {
-      setModalError('Name, email, and password are required.');
+    if (!modalName.trim() || !modalEmail.trim() || !modalPhone.trim() || !modalPassword.trim()) {
+      setModalError('All fields are required.');
       return;
     }
     if (modalPassword.length < 8) {
       setModalError('Password must be at least 8 characters.');
       return;
     }
+    if (!firmId) {
+      setModalError('Please select a firm first.');
+      return;
+    }
+
     setModalSaving(true);
     setModalError('');
+
     try {
       const res = await fetch('/api/accountant/admins', {
         method: 'POST',
@@ -125,19 +130,22 @@ export default function FirmDetailPage() {
         body: JSON.stringify({
           name: modalName.trim(),
           email: modalEmail.trim(),
-          phone: modalPhone.trim() || undefined,
+          phone: modalPhone.trim(),
           password: modalPassword,
           firmId,
         }),
       });
+
       const json = await res.json();
+
       if (!res.ok) {
         setModalError(json.error || 'Failed to create admin');
         setModalSaving(false);
         return;
       }
+
       setShowModal(false);
-      refreshAdmins();
+      refresh();
     } catch {
       setModalError('Network error. Please try again.');
       setModalSaving(false);
@@ -163,7 +171,7 @@ export default function FirmDetailPage() {
         </div>
         <nav className="flex-1 px-3 py-2 space-y-0.5">
           {NAV.map(({ label, href, icon }) => {
-            const active = pathname.startsWith(href);
+            const active = pathname === href;
             return (
               <Link key={href} href={href} className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
                 {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
@@ -189,128 +197,82 @@ export default function FirmDetailPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">Firm Details</h1>
+          <h1 className="text-gray-900 font-semibold text-[15px]">Admins</h1>
         </header>
 
-        <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
-          {/* ── Back link ── */}
-          <Link
-            href="/accountant/clients"
-            className="text-[13px] text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 w-fit"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
-            Back to Clients
-          </Link>
+          {/* ── Filter bar ────────────────────────────────── */}
+          <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+            <Select value={firmId} onChange={setFirmId}>
+              <option value="">Select a Firm</option>
+              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </Select>
 
-          {firmLoading ? (
-            <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
-          ) : !firm ? (
-            <div className="px-5 py-12 text-center text-sm text-gray-400">Firm not found.</div>
-          ) : (
-            <>
-              {/* ════════════════════ FIRM INFO CARD ════════════════════ */}
-              <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-                <h2 className="text-[15px] font-semibold text-gray-900 mb-4">{firm.name}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Registration Number</p>
-                    <p className="text-[13px] text-gray-900">{firm.registration_number ?? '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Contact Email</p>
-                    <p className="text-[13px] text-gray-900">{firm.contact_email ?? '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Contact Phone</p>
-                    <p className="text-[13px] text-gray-900">{firm.contact_phone ?? '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Plan</p>
-                    {firm.plan === 'paid' ? (
-                      <span className="badge-green">Paid</span>
-                    ) : (
-                      <span className="badge-gray">Free</span>
-                    )}
-                  </div>
-                </div>
+            {firmId && (
+              <button
+                onClick={openAddModal}
+                className="ml-auto text-sm px-4 py-2 rounded-md font-medium text-white transition-opacity hover:opacity-85"
+                style={{ backgroundColor: '#A60201' }}
+              >
+                Add Admin
+              </button>
+            )}
+          </div>
+
+          {/* ── Table ─────────────────────────────────────── */}
+          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex-1 min-h-0 flex flex-col">
+            {!firmId ? (
+              <div className="px-5 py-10 text-center text-sm text-gray-400">Please select a firm to view admins.</div>
+            ) : loading ? (
+              <div className="px-5 py-10 text-center text-sm text-gray-400">Loading...</div>
+            ) : admins.length === 0 ? (
+              <div className="px-5 py-10 text-center text-sm text-gray-400">No admins found for this firm.</div>
+            ) : (
+              <div className="overflow-auto flex-1 min-h-0">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                      <th className="px-5 py-3">Name</th>
+                      <th className="px-5 py-3">Email</th>
+                      <th className="px-5 py-3">Status</th>
+                      <th className="px-5 py-3">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {admins.map((admin) => (
+                      <tr key={admin.id} className="hover:bg-gray-50/60 transition-colors">
+                        <td className="px-5 py-3 text-gray-900 font-medium">{admin.name}</td>
+                        <td className="px-5 py-3 text-gray-600">{admin.email}</td>
+                        <td className="px-5 py-3">
+                          {admin.status === 'active' ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-green">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-gray">
+                              Inactive
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {/* ════════════════════ QUICK LINKS ════════════════════ */}
-              <div className="flex items-center gap-3">
-                <Link
-                  href={`/accountant/claims?firmId=${firmId}`}
-                  className="text-sm px-4 py-2 rounded-md font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  View Claims
-                </Link>
-                <Link
-                  href={`/accountant/receipts?firmId=${firmId}`}
-                  className="text-sm px-4 py-2 rounded-md font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  View Receipts
-                </Link>
-              </div>
-
-              {/* ════════════════════ ADMINS SECTION ════════════════════ */}
-              <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-[13px] font-semibold text-gray-900">Admins</h2>
-                  <button
-                    onClick={openModal}
-                    className="text-xs px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
-                  >
-                    Add Admin
-                  </button>
-                </div>
-                {adminsLoading ? (
-                  <div className="px-5 py-10 text-center text-sm text-gray-400">Loading...</div>
-                ) : admins.length === 0 ? (
-                  <div className="px-5 py-10 text-center text-sm text-gray-400">No admins found for this firm.</div>
-                ) : (
-                  <div className="overflow-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                          <th className="px-5 py-2.5">Name</th>
-                          <th className="px-5 py-2.5">Email</th>
-                          <th className="px-5 py-2.5">Status</th>
-                          <th className="px-5 py-2.5">Date Added</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {admins.map((admin, i) => (
-                          <tr key={admin.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < admins.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                            <td className="px-5 py-3 text-gray-900 font-medium">{admin.name}</td>
-                            <td className="px-5 py-3 text-gray-600">{admin.email}</td>
-                            <td className="px-5 py-3">
-                              {admin.status === 'active' ? (
-                                <span className="badge-green">Active</span>
-                              ) : (
-                                <span className="badge-gray">Inactive</span>
-                              )}
-                            </td>
-                            <td className="px-5 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
+            )}
+          </div>
 
         </main>
       </div>
 
-      {/* ═══ ADD ADMIN MODAL ═══ */}
+      {/* ═══════════════════════ ADD ADMIN MODAL ═══════════════════════ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin user for this firm.</p>
+            <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
 
             {modalError && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -320,12 +282,12 @@ export default function FirmDetailPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
                   onChange={(e) => setModalName(e.target.value)}
-                  className="input-field w-full"
+                  className={`${inputCls} w-full`}
                   placeholder="Admin name"
                   autoFocus
                 />
@@ -336,27 +298,27 @@ export default function FirmDetailPage() {
                   type="email"
                   value={modalEmail}
                   onChange={(e) => setModalEmail(e.target.value)}
-                  className="input-field w-full"
+                  className={`${inputCls} w-full`}
                   placeholder="admin@example.com"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
                 <input
                   type="text"
                   value={modalPhone}
                   onChange={(e) => setModalPhone(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Optional"
+                  className={`${inputCls} w-full`}
+                  placeholder="e.g. +60123456789"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Password *</label>
                 <input
                   type="password"
                   value={modalPassword}
                   onChange={(e) => setModalPassword(e.target.value)}
-                  className="input-field w-full"
+                  className={`${inputCls} w-full`}
                   placeholder="Min 8 characters"
                 />
               </div>
@@ -384,5 +346,17 @@ export default function FirmDetailPage() {
       )}
 
     </div>
+  );
+}
+
+// ─── Small reusable sub-components ────────────────────────────────────────────
+
+const inputCls = 'input-field';
+
+function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      {children}
+    </select>
   );
 }
