@@ -1,6 +1,6 @@
 "use server";
 
-import { compare } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { encode } from "next-auth/jwt";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
@@ -52,5 +52,42 @@ export async function login(email: string, password: string) {
   } catch (error) {
     console.error("Login error:", error);
     return { error: "Unable to sign in. Please try again." };
+  }
+}
+
+export async function checkEmail(email: string) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true },
+    });
+    if (!user) return { error: "No account found with this email." };
+    return { found: true, name: user.name };
+  } catch {
+    return { error: "Something went wrong. Please try again." };
+  }
+}
+
+export async function resetPassword(email: string, newPassword: string) {
+  if (!newPassword || newPassword.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (!user) return { error: "No account found with this email." };
+
+    const passwordHash = await hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password_hash: passwordHash },
+    });
+
+    return { success: true };
+  } catch {
+    return { error: "Something went wrong. Please try again." };
   }
 }
