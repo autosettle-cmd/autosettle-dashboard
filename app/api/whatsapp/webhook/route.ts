@@ -84,7 +84,7 @@ async function routeMessage(
       break;
 
     case "interactive":
-      await handleInteractiveMessage(message, phone, employee);
+      await handleInteractiveMessage(message, phone);
       break;
 
     case "text": {
@@ -250,7 +250,6 @@ async function handleImageMessage(
 async function handleInteractiveMessage(
   message: Record<string, unknown>,
   phone: string,
-  _employee: EmployeeInfo
 ) {
   const interactive = message.interactive as Record<string, unknown>;
   const buttonReply = interactive?.button_reply as { id: string; title: string } | undefined;
