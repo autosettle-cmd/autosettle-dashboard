@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lookupEmployeeByPhone, EmployeeInfo } from "@/lib/whatsapp/employees";
-import { sendTextMessage, sendInteractiveMenu, sendReaction, sendConfirmationMessage, sendInteractiveButtons } from "@/lib/whatsapp/send";
+import { sendTextMessage, sendReaction, sendConfirmationMessage, sendInteractiveButtons } from "@/lib/whatsapp/send";
 import { downloadWhatsAppImage, runOCR, normaliseOCRText } from "@/lib/whatsapp/ocr";
 import { extractWithGemini } from "@/lib/whatsapp/gemini";
 import { parseGeminiOutput } from "@/lib/whatsapp/parser";
@@ -250,7 +250,7 @@ async function handleImageMessage(
 async function handleInteractiveMessage(
   message: Record<string, unknown>,
   phone: string,
-  employee: EmployeeInfo
+  _employee: EmployeeInfo
 ) {
   const interactive = message.interactive as Record<string, unknown>;
   const buttonReply = interactive?.button_reply as { id: string; title: string } | undefined;

@@ -24,7 +24,8 @@ export async function PATCH(
 
   // reason is optional, acknowledged but not stored on user
   const body = await request.json().catch(() => ({}));
-  const _reason = body.reason;
+  const { reason: _reason } = body;
+  void _reason;
 
   const updated = await prisma.user.update({
     where: { id },
