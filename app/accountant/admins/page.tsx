@@ -96,6 +96,19 @@ export default function AdminsPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  const toggleActive = async (admin: AdminRow) => {
+    try {
+      const res = await fetch(`/api/accountant/admins/${admin.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: admin.status !== 'active' }),
+      });
+      if (res.ok) refresh();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const openAddModal = () => {
     setModalName('');
     setModalEmail('');
@@ -237,6 +250,7 @@ export default function AdminsPage() {
                       <th className="px-5 py-3">Email</th>
                       <th className="px-5 py-3">Status</th>
                       <th className="px-5 py-3">Created</th>
+                      <th className="px-5 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -256,6 +270,14 @@ export default function AdminsPage() {
                           )}
                         </td>
                         <td className="px-5 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
+                        <td className="px-5 py-3">
+                          <button
+                            onClick={() => toggleActive(admin)}
+                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                          >
+                            {admin.status === 'active' ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
