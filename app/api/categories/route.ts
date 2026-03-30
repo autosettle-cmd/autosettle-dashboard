@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
+import { getAccountantFirmIds } from '@/lib/accountant-firms';
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -11,15 +11,74 @@ export async function GET(request: NextRequest) {
   }
 
   const firmIds = await getAccountantFirmIds(session.user.id);
-
   const { searchParams } = new URL(request.url);
   const firmId = searchParams.get('firmId');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { ...firmScope(firmIds, firmId) };
+  if (firmId) {
+    // Validate firmId is in accountant's assigned firms
+    if (firmIds && !firmIds.includes(firmId)) {
+      return NextResponse.json({ data: null, error: 'Firm not in your assigned firms' }, { status: 403 });
+    }
 
-  const categories = await prisma.category.findMany({
-    where,
+    // Get global defaults with overrides for this firm
+    const globals = await prisma.category.findMany({
+      where: { firm_id: null, is_active: true },
+      include: {
+        _count: { select: { claims: true } },
+        overrides: { where: { firm_id: firmId } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    // Get firm-specific categories
+    const firmCats = await prisma.category.findMany({
+      where: { firm_id: firmId, is_active: true },
+      include: {
+        firm: { select: { name: true } },
+        _count: { select: { claims: true } },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const data = [
+      ...globals.map((g) => ({
+        id: g.id,
+        name: g.name,
+        firm_id: null as string | null,
+        firm_name: null as string | null,
+        tax_code: g.tax_code,
+        claims_count: g._count.claims,
+        is_active: g.overrides.length > 0 ? g.overrides[0].is_active : true,
+        is_global: true,
+      })),
+      ...firmCats.map((c) => ({
+        id: c.id,
+        name: c.name,
+        firm_id: c.firm_id as string | null,
+        firm_name: c.firm?.name ?? null,
+        tax_code: c.tax_code,
+        claims_count: c._count.claims,
+        is_active: c.is_active,
+        is_global: false,
+      })),
+    ].sort((a, b) => a.name.localeCompare(b.name));
+
+    return NextResponse.json({ data, error: null, meta: { count: data.length } });
+  }
+
+  // No firmId — return all categories across assigned firms (management view)
+  const assignedFirmFilter = firmIds ? { in: firmIds } : undefined;
+
+  // Global defaults
+  const globals = await prisma.category.findMany({
+    where: { firm_id: null, is_active: true },
+    include: { _count: { select: { claims: true } } },
+    orderBy: { name: 'asc' },
+  });
+
+  // Firm-specific categories across all assigned firms
+  const firmCats = await prisma.category.findMany({
+    where: { firm_id: assignedFirmFilter ? { in: firmIds! } : { not: null } },
     include: {
       firm: { select: { name: true } },
       _count: { select: { claims: true } },
@@ -27,15 +86,28 @@ export async function GET(request: NextRequest) {
     orderBy: [{ firm: { name: 'asc' } }, { name: 'asc' }],
   });
 
-  const data = categories.map((c) => ({
-    id: c.id,
-    name: c.name,
-    firm_name: c.firm.name,
-    firm_id: c.firm_id,
-    tax_code: c.tax_code,
-    claims_count: c._count.claims,
-    is_active: c.is_active,
-  }));
+  const data = [
+    ...globals.map((g) => ({
+      id: g.id,
+      name: g.name,
+      firm_id: null as string | null,
+      firm_name: null as string | null,
+      tax_code: g.tax_code,
+      claims_count: g._count.claims,
+      is_active: true,
+      is_global: true,
+    })),
+    ...firmCats.map((c) => ({
+      id: c.id,
+      name: c.name,
+      firm_id: c.firm_id as string | null,
+      firm_name: c.firm?.name ?? null,
+      tax_code: c.tax_code,
+      claims_count: c._count.claims,
+      is_active: c.is_active,
+      is_global: false,
+    })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });
 }

@@ -13,6 +13,13 @@ enum UserRole {
   employee
 }
 
+enum UserStatus {
+  active
+  pending_onboarding
+  rejected
+  inactive
+}
+
 enum Plan {
   free
   paid
@@ -66,8 +73,9 @@ model Firm {
   employees       Employee[]
   claims          Claim[]
   receipts        Receipt[]
-  categories      Category[]
-  accountantFirms AccountantFirm[]
+  categories             Category[]
+  categoryFirmOverrides  CategoryFirmOverride[]
+  accountantFirms        AccountantFirm[]
 }
 
 model Employee {
@@ -80,22 +88,24 @@ model Employee {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  firm    Firm    @relation(fields: [firm_id], references: [id])
-  users   User[]
-  claims  Claim[]
+  firm         Firm         @relation(fields: [firm_id], references: [id])
+  users        User[]
+  claims       Claim[]
+  messageLogs  MessageLog[]
 }
 
 model User {
-  id            String   @id @default(uuid())
-  email         String   @unique
+  id            String     @id @default(uuid())
+  email         String     @unique
   password_hash String
   name          String
   role          UserRole
+  status        UserStatus @default(active)
   firm_id       String?
   employee_id   String?
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  is_active     Boolean    @default(true)
+  created_at    DateTime   @default(now())
+  updated_at    DateTime   @updatedAt
 
   firm           Firm?            @relation(fields: [firm_id], references: [id])
   employee       Employee?        @relation(fields: [employee_id], references: [id])
@@ -117,17 +127,31 @@ model AccountantFirm {
 
 model Category {
   id         String   @id @default(uuid())
-  firm_id    String
+  firm_id    String?
   name       String
   tax_code   String?
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
 
-  firm     Firm      @relation(fields: [firm_id], references: [id])
-  claims   Claim[]
-  receipts Receipt[]
+  firm      Firm?                @relation(fields: [firm_id], references: [id])
+  claims    Claim[]
+  receipts  Receipt[]
+  overrides CategoryFirmOverride[]
 
   @@unique([firm_id, name])
+}
+
+model CategoryFirmOverride {
+  id          String   @id @default(uuid())
+  category_id String
+  firm_id     String
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+
+  category Category @relation(fields: [category_id], references: [id])
+  firm     Firm     @relation(fields: [firm_id], references: [id])
+
+  @@unique([category_id, firm_id])
 }
 
 model Claim {
@@ -189,4 +213,17 @@ model Session {
   pending_receipt Json?
   created_at      DateTime     @default(now())
   updated_at      DateTime     @updatedAt
+}
+
+model MessageLog {
+  id             String    @id @default(uuid())
+  phone          String
+  employee_id    String?
+  message_type   String
+  ocr_confidence String?
+  processing_ms  Int?
+  error          String?
+  received_at    DateTime  @default(now())
+
+  employee Employee? @relation(fields: [employee_id], references: [id])
 }

@@ -42,7 +42,7 @@ export default withAuth(
       authorized({ token, req }) {
         const { pathname } = req.nextUrl;
         // Allow unauthenticated access to /login and public routes
-        if (pathname === "/login" || pathname === "/") return true;
+        if (pathname === "/login" || pathname === "/signup" || pathname === "/" || pathname.startsWith("/api/whatsapp")) return true;
         return !!token;
       },
     },

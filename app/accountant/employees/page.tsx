@@ -27,12 +27,12 @@ interface Firm {
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const NAV = [
-  { label: 'Dashboard',  href: '/accountant/dashboard'   },
-  { label: 'Claims',     href: '/accountant/claims'      },
-  { label: 'Receipts',   href: '/accountant/receipts'    },
-  { label: 'Clients',    href: '/accountant/clients'     },
-  { label: 'Employees',  href: '/accountant/employees'   },
-  { label: 'Categories', href: '/accountant/categories'  },
+  { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
+  { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { label: 'Receipts',   href: '/accountant/receipts',   icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
+  { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+  { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
+  { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -153,57 +153,52 @@ export default function EmployeesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
 
-      {/* ═══════════════════════ SIDEBAR ═══════════════════════ */}
-      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ backgroundColor: '#152237' }}>
-        <div className="h-16 flex items-center px-6 border-b border-white/10">
-          <span className="text-white font-bold text-xl tracking-tight">Autosettle</span>
+      {/* ═══ SIDEBAR ═══ */}
+      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
+        <div className="h-14 flex items-center gap-2 px-5">
+          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+          </div>
+          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
         </div>
-
-        <nav className="flex-1 py-3">
-          {NAV.map(({ label, href }) => {
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
+          {NAV.map(({ label, href, icon }) => {
             const active = pathname === href;
             return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative flex items-center h-10 px-6 text-sm transition-colors ${
-                  active ? 'text-white bg-white/10' : 'text-white/65 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {active && (
-                  <span
-                    className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
-                    style={{ backgroundColor: '#A60201' }}
-                  />
-                )}
+              <Link key={href} href={href} className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
                 {label}
               </Link>
             );
           })}
         </nav>
-
-        <div className="p-4 border-t border-white/10">
-          <p className="text-white text-sm font-medium truncate">{session?.user?.name ?? '—'}</p>
-          <p className="text-white/50 text-xs mt-0.5 capitalize">{session?.user?.role ?? 'accountant'}</p>
-          <button
-            onClick={handleLogout}
-            className="mt-3 w-full text-xs text-white/60 hover:text-white py-1.5 px-3 rounded border border-white/20 hover:border-white/40 transition-colors text-left"
-          >
-            Sign out
-          </button>
+        <div className="p-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">{(session?.user?.name ?? '?')[0]}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
+              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">Sign out</button>
         </div>
       </aside>
 
-      {/* ═══════════════════════ MAIN ═══════════════════════ */}
+      {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center px-6" style={{ backgroundColor: '#152237' }}>
-          <h1 className="text-white font-semibold text-lg">Employees</h1>
+        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-semibold text-[15px]">Employees</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -230,7 +225,7 @@ export default function EmployeesPage() {
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
               <div className="px-5 py-10 text-center text-sm text-gray-400">Loading...</div>
             ) : employees.length === 0 ? (
@@ -259,11 +254,11 @@ export default function EmployeesPage() {
                         <td className="px-5 py-3 text-gray-900 font-medium text-right">{emp.claims_count}</td>
                         <td className="px-5 py-3">
                           {emp.is_active ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 border border-green-200">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-green">
                               Active
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-gray">
                               Inactive
                             </span>
                           )}
@@ -372,7 +367,7 @@ export default function EmployeesPage() {
 
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
-const inputCls = 'text-sm border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#152237]/20';
+const inputCls = 'input-field';
 
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (

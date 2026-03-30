@@ -10,6 +10,7 @@ async function main() {
   console.log('Seeding database...');
 
   // Clear existing data in dependency order
+  await prisma.categoryFirmOverride.deleteMany();
   await prisma.accountantFirm.deleteMany();
   await prisma.claim.deleteMany();
   await prisma.receipt.deleteMany();
@@ -47,12 +48,30 @@ async function main() {
     },
   });
 
-  // Categories (5 per firm)
-  const catNames = ['Petrol', 'Medical', 'Parking', 'Meals', 'Others'];
-  const [cats1, cats2] = await Promise.all([
-    Promise.all(catNames.map((name) => prisma.category.create({ data: { firm_id: firm1.id, name } }))),
-    Promise.all(catNames.map((name) => prisma.category.create({ data: { firm_id: firm2.id, name } }))),
-  ]);
+  // Global default categories (firm_id = null)
+  const defaultCatNames = [
+    'Advertising & Marketing', 'Automotive', 'Bank & Finance', 'Communication',
+    'Equipment & Hardware', 'Insurance', 'Meals & Entertainment', 'Merchandise & Inventory',
+    'Office Expenses', 'Professional Services', 'Rent & Facilities', 'Repairs & Maintenance',
+    'Software & SaaS', 'Staff Welfare', 'Taxes & Licenses', 'Training & Education',
+    'Travel & Transport', 'Utilities', 'Miscellaneous',
+  ];
+  const defaultCats = await Promise.all(
+    defaultCatNames.map((name) => prisma.category.create({ data: { name } }))
+  );
+
+  // Firm-specific custom categories
+  const customCat1 = await prisma.category.create({ data: { firm_id: firm1.id, name: 'IT Support' } });
+  const customCat2 = await prisma.category.create({ data: { firm_id: firm2.id, name: 'Retail Stock' } });
+
+  // Map some defaults for easy use in claims/receipts
+  const catAutomotive = defaultCats[1];   // Automotive
+  const catMeals = defaultCats[6];        // Meals & Entertainment
+  const catOffice = defaultCats[8];       // Office Expenses
+  const catTravel = defaultCats[16];      // Travel & Transport
+  const catMisc = defaultCats[18];        // Miscellaneous
+  const catMedical = defaultCats[5];      // Insurance (closest to medical)
+  const catParking = defaultCats[16];     // Travel & Transport (parking under travel)
 
   // Employees (2 in firm1, 1 in firm2)
   const [emp1, emp2, emp3] = await Promise.all([
@@ -135,66 +154,66 @@ async function main() {
   await prisma.claim.createMany({
     data: [
       {
-        firm_id: firm1.id, employee_id: emp1.id, category_id: cats1[0].id,
+        firm_id: firm1.id, employee_id: emp1.id, category_id: catAutomotive.id,
         claim_date: daysAgo(2), merchant: 'Petronas KLCC', amount: '120.00',
         confidence: 'HIGH', status: 'reviewed', approval: 'approved',
         payment_status: 'paid', submitted_via: 'dashboard', receipt_number: 'PET-2024-001',
       },
       {
-        firm_id: firm1.id, employee_id: emp1.id, category_id: cats1[3].id,
+        firm_id: firm1.id, employee_id: emp1.id, category_id: catMeals.id,
         claim_date: daysAgo(5), merchant: 'Nasi Kandar Pelita', amount: '45.50',
         confidence: 'HIGH', status: 'reviewed', approval: 'pending_approval',
         payment_status: 'unpaid', submitted_via: 'whatsapp',
         description: 'Team lunch after client meeting',
       },
       {
-        firm_id: firm1.id, employee_id: emp1.id, category_id: cats1[2].id,
+        firm_id: firm1.id, employee_id: emp1.id, category_id: catTravel.id,
         claim_date: daysAgo(8), merchant: 'KLCC Parking Sdn Bhd', amount: '12.00',
         confidence: 'MEDIUM', status: 'pending_review', approval: 'pending_approval',
         payment_status: 'unpaid', submitted_via: 'whatsapp',
       },
       {
-        firm_id: firm1.id, employee_id: emp2.id, category_id: cats1[1].id,
+        firm_id: firm1.id, employee_id: emp2.id, category_id: catMedical.id,
         claim_date: daysAgo(3), merchant: 'Pantai Hospital KL', amount: '350.00',
         confidence: 'HIGH', status: 'reviewed', approval: 'approved',
         payment_status: 'unpaid', submitted_via: 'dashboard',
         description: 'Outpatient consultation and medication',
       },
       {
-        firm_id: firm1.id, employee_id: emp2.id, category_id: cats1[0].id,
+        firm_id: firm1.id, employee_id: emp2.id, category_id: catAutomotive.id,
         claim_date: daysAgo(10), merchant: 'Shell Bangsar', amount: '80.00',
         confidence: 'HIGH', status: 'reviewed', approval: 'not_approved',
         payment_status: 'unpaid', submitted_via: 'whatsapp',
         rejection_reason: 'Duplicate claim — already reimbursed in previous submission.',
       },
       {
-        firm_id: firm1.id, employee_id: emp2.id, category_id: cats1[4].id,
+        firm_id: firm1.id, employee_id: emp2.id, category_id: catOffice.id,
         claim_date: daysAgo(15), merchant: 'Courts Mammoth Midvalley', amount: '899.00',
         confidence: 'LOW', status: 'pending_review', approval: 'pending_approval',
         payment_status: 'unpaid', submitted_via: 'whatsapp',
         description: 'Office supplies — keyboard and mouse',
       },
       {
-        firm_id: firm1.id, employee_id: emp2.id, category_id: cats1[3].id,
+        firm_id: firm1.id, employee_id: emp2.id, category_id: catMeals.id,
         claim_date: daysAgo(1), merchant: 'Restaurant Rebung', amount: '67.80',
         confidence: 'HIGH', status: 'reviewed', approval: 'pending_approval',
         payment_status: 'unpaid', submitted_via: 'dashboard',
         description: 'Client entertainment lunch',
       },
       {
-        firm_id: firm2.id, employee_id: emp3.id, category_id: cats2[0].id,
+        firm_id: firm2.id, employee_id: emp3.id, category_id: catAutomotive.id,
         claim_date: daysAgo(4), merchant: 'BHP Petrol Cheras', amount: '95.00',
         confidence: 'HIGH', status: 'reviewed', approval: 'approved',
         payment_status: 'paid', submitted_via: 'whatsapp',
       },
       {
-        firm_id: firm2.id, employee_id: emp3.id, category_id: cats2[3].id,
+        firm_id: firm2.id, employee_id: emp3.id, category_id: catMeals.id,
         claim_date: daysAgo(7), merchant: "McDonald's Midvalley", amount: '28.50',
         confidence: 'HIGH', status: 'pending_review', approval: 'pending_approval',
         payment_status: 'unpaid', submitted_via: 'whatsapp',
       },
       {
-        firm_id: firm2.id, employee_id: emp3.id, category_id: cats2[2].id,
+        firm_id: firm2.id, employee_id: emp3.id, category_id: catTravel.id,
         claim_date: daysAgo(12), merchant: 'Midvalley Parking', amount: '16.00',
         confidence: 'MEDIUM', status: 'reviewed', approval: 'approved',
         payment_status: 'unpaid', submitted_via: 'dashboard',
@@ -206,29 +225,29 @@ async function main() {
   await prisma.receipt.createMany({
     data: [
       {
-        firm_id: firm1.id, uploaded_by: admin1.id, category_id: cats1[4].id,
+        firm_id: firm1.id, uploaded_by: admin1.id, category_id: catMisc.id,
         receipt_date: daysAgo(1), merchant: 'Popular Bookstore KLCC', amount: '245.00',
         confidence: 'HIGH', approval: 'pending_approval', submitted_via: 'dashboard',
         receipt_number: 'POP-2024-0891',
       },
       {
-        firm_id: firm1.id, uploaded_by: admin1.id, category_id: cats1[3].id,
+        firm_id: firm1.id, uploaded_by: admin1.id, category_id: catMeals.id,
         receipt_date: daysAgo(3), merchant: 'Secret Recipe Bangsar', amount: '78.50',
         confidence: 'HIGH', approval: 'approved', submitted_via: 'dashboard',
       },
       {
-        firm_id: firm1.id, uploaded_by: admin1.id, category_id: cats1[0].id,
+        firm_id: firm1.id, uploaded_by: admin1.id, category_id: catAutomotive.id,
         receipt_date: daysAgo(6), merchant: 'Petronas Damansara', amount: '150.00',
         confidence: 'MEDIUM', approval: 'pending_approval', submitted_via: 'dashboard',
         receipt_number: 'PET-2024-4412',
       },
       {
-        firm_id: firm2.id, uploaded_by: admin2.id, category_id: cats2[1].id,
+        firm_id: firm2.id, uploaded_by: admin2.id, category_id: catMedical.id,
         receipt_date: daysAgo(2), merchant: 'Klinik Kesihatan Cheras', amount: '185.00',
         confidence: 'HIGH', approval: 'pending_approval', submitted_via: 'dashboard',
       },
       {
-        firm_id: firm2.id, uploaded_by: admin2.id, category_id: cats2[4].id,
+        firm_id: firm2.id, uploaded_by: admin2.id, category_id: catMisc.id,
         receipt_date: daysAgo(9), merchant: 'Mr DIY Sunway', amount: '62.30',
         confidence: 'LOW', approval: 'not_approved', submitted_via: 'dashboard',
         receipt_number: 'DIY-2024-0033',
@@ -242,7 +261,7 @@ async function main() {
   console.log(`  Employees: ${emp1.name}, ${emp2.name}, ${emp3.name}`);
   console.log('  Claims: 10 with varied statuses');
   console.log('  Receipts: 5 across 2 firms');
-  console.log('  Categories: 5 per firm (Petrol, Medical, Parking, Meals, Others)');
+  console.log(`  Categories: ${defaultCatNames.length} global defaults + 2 firm-specific (${customCat1.name}, ${customCat2.name})`);
   console.log('  Employee users: 3 (linked to Employee records)');
   console.log('  AccountantFirm assignments: accountant → both firms');
   console.log('\n  Logins (all password123):');

@@ -8,7 +8,14 @@ import { prisma } from "@/lib/prisma";
 export async function login(email: string, password: string) {
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.is_active) return { error: "Invalid email or password." };
+    if (!user) return { error: "Invalid email or password." };
+
+    if (user.status === "pending_onboarding") {
+      return { error: "Your account is pending approval. Please contact your admin to activate your account." };
+    }
+    if (user.status === "rejected" || user.status === "inactive" || !user.is_active) {
+      return { error: "Your account has been deactivated. Please contact your admin." };
+    }
 
     const match = await compare(password, user.password_hash);
     if (!match) return { error: "Invalid email or password." };

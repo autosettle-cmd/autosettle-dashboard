@@ -27,17 +27,15 @@ interface Category {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'bg-amber-100 text-amber-800 border border-amber-200' },
-  reviewed:       { label: 'Reviewed',       cls: 'bg-blue-100  text-blue-800  border border-blue-200'  },
+  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
+  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
 };
 
 const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',  cls: 'bg-amber-100 text-amber-800 border border-amber-200' },
-  approved:         { label: 'Approved', cls: 'bg-green-100 text-green-800 border border-green-200' },
-  not_approved:     { label: 'Rejected', cls: 'bg-red-100   text-red-800   border border-red-200'   },
+  pending_approval: { label: 'Pending',  cls: 'badge-amber' },
+  approved:         { label: 'Approved', cls: 'badge-green' },
+  not_approved:     { label: 'Rejected', cls: 'badge-red'   },
 };
-
-const inputCls = 'text-sm border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#152237]/20';
 
 function formatDate(val: string) {
   if (!val) return '';
@@ -61,8 +59,8 @@ function todayStr() {
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const NAV = [
-  { label: 'Dashboard',  href: '/employee/dashboard' },
-  { label: 'My Claims',  href: '/employee/claims'    },
+  { label: 'Dashboard',  href: '/employee/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
+  { label: 'My Claims',  href: '/employee/claims',    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -191,57 +189,73 @@ export default function EmployeeClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
 
-      {/* ═══════════════════════ SIDEBAR ═══════════════════════ */}
-      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ backgroundColor: '#152237' }}>
-        <div className="h-16 flex items-center px-6 border-b border-white/10">
-          <span className="text-white font-bold text-xl tracking-tight">Autosettle</span>
+      {/* ═══ SIDEBAR ═══ */}
+      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
+        <div className="h-14 flex items-center gap-2 px-5">
+          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+          </div>
+          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
         </div>
 
-        <nav className="flex-1 py-3">
-          {NAV.map(({ label, href }) => {
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
+          {NAV.map(({ label, href, icon }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`relative flex items-center h-10 px-6 text-sm transition-colors ${
-                  active ? 'text-white bg-white/10' : 'text-white/65 hover:text-white hover:bg-white/5'
+                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                  active
+                    ? 'text-white bg-white/[0.1]'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
                 }`}
               >
                 {active && (
-                  <span
-                    className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
-                    style={{ backgroundColor: '#A60201' }}
-                  />
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />
                 )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={icon} />
+                </svg>
                 {label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
-          <p className="text-white text-sm font-medium truncate">{session?.user?.name ?? '—'}</p>
-          <p className="text-white/50 text-xs mt-0.5 capitalize">{session?.user?.role ?? 'employee'}</p>
+        <div className="p-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
+              {(session?.user?.name ?? '?')[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
+              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
-            className="mt-3 w-full text-xs text-white/60 hover:text-white py-1.5 px-3 rounded border border-white/20 hover:border-white/40 transition-colors text-left"
+            className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left"
           >
             Sign out
           </button>
         </div>
       </aside>
 
-      {/* ═══════════════════════ MAIN ═══════════════════════ */}
+      {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center px-6" style={{ backgroundColor: '#152237' }}>
-          <h1 className="text-white font-semibold text-lg">My Claims</h1>
+        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-semibold text-[15px]">My Claims</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Success toast ─────────────────────────────── */}
           {successMsg && (
@@ -252,7 +266,7 @@ export default function EmployeeClaimsPage() {
 
           {/* ── Top bar ───────────────────────────────────── */}
           <div className="flex items-center justify-between flex-shrink-0">
-            <h2 className="text-sm font-semibold text-gray-900">All Claims</h2>
+            <h2 className="text-[13px] font-semibold text-gray-900">All Claims</h2>
             <button
               onClick={openModal}
               className="text-sm px-4 py-2 rounded-md font-medium text-white transition-opacity hover:opacity-85"
@@ -263,48 +277,40 @@ export default function EmployeeClaimsPage() {
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
-              <div className="px-5 py-10 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
             ) : claims.length === 0 ? (
-              <div className="px-5 py-10 text-center text-sm text-gray-400">No claims submitted yet.</div>
+              <div className="px-5 py-12 text-center text-sm text-gray-400">No claims submitted yet.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
-                <table className="w-full text-sm">
+                <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                      <th className="px-5 py-3">Date</th>
-                      <th className="px-5 py-3">Merchant</th>
-                      <th className="px-5 py-3">Category</th>
-                      <th className="px-5 py-3 text-right">Amount</th>
-                      <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3">Approval</th>
-                      <th className="px-5 py-3">Rejection Reason</th>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                      <th className="px-5 py-2.5">Date</th>
+                      <th className="px-5 py-2.5">Merchant</th>
+                      <th className="px-5 py-2.5">Category</th>
+                      <th className="px-5 py-2.5 text-right">Amount</th>
+                      <th className="px-5 py-2.5">Status</th>
+                      <th className="px-5 py-2.5">Approval</th>
+                      <th className="px-5 py-2.5">Rejection Reason</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {claims.map((c) => {
+                  <tbody>
+                    {claims.map((c, i) => {
                       const sCfg = STATUS_CFG[c.status];
                       const aCfg = APPROVAL_CFG[c.approval];
                       return (
-                        <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
-                          <td className="px-5 py-3 text-gray-600">{formatDate(c.claim_date)}</td>
+                        <tr key={c.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <td className="px-5 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                           <td className="px-5 py-3 text-gray-900 font-medium">{c.merchant}</td>
-                          <td className="px-5 py-3 text-gray-600">{c.category_name}</td>
-                          <td className="px-5 py-3 text-gray-900 font-medium text-right">{formatRM(c.amount)}</td>
+                          <td className="px-5 py-3 text-gray-500">{c.category_name}</td>
+                          <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                           <td className="px-5 py-3">
-                            {sCfg && (
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${sCfg.cls}`}>
-                                {sCfg.label}
-                              </span>
-                            )}
+                            {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                           </td>
                           <td className="px-5 py-3">
-                            {aCfg && (
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${aCfg.cls}`}>
-                                {aCfg.label}
-                              </span>
-                            )}
+                            {aCfg && <span className={aCfg.cls}>{aCfg.label}</span>}
                           </td>
                           <td className="px-5 py-3">
                             {c.approval === 'not_approved' && c.rejection_reason ? (
@@ -325,7 +331,7 @@ export default function EmployeeClaimsPage() {
         </main>
       </div>
 
-      {/* ═══════════════════════ SUBMIT CLAIM MODAL ═══════════════════════ */}
+      {/* ═══ SUBMIT CLAIM MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
@@ -345,7 +351,7 @@ export default function EmployeeClaimsPage() {
                   type="date"
                   value={modalDate}
                   onChange={(e) => setModalDate(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   required
                 />
               </div>
@@ -355,7 +361,7 @@ export default function EmployeeClaimsPage() {
                   type="text"
                   value={modalMerchant}
                   onChange={(e) => setModalMerchant(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="e.g. Petronas, Grab, etc."
                   autoFocus
                 />
@@ -366,7 +372,7 @@ export default function EmployeeClaimsPage() {
                   type="number"
                   value={modalAmount}
                   onChange={(e) => setModalAmount(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="0.00"
                   step="0.01"
                   min="0"
@@ -377,7 +383,7 @@ export default function EmployeeClaimsPage() {
                 <select
                   value={modalCategory}
                   onChange={(e) => setModalCategory(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                 >
                   <option value="">Select a category</option>
                   {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
@@ -389,7 +395,7 @@ export default function EmployeeClaimsPage() {
                   type="text"
                   value={modalReceipt}
                   onChange={(e) => setModalReceipt(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Optional"
                 />
               </div>
@@ -398,7 +404,7 @@ export default function EmployeeClaimsPage() {
                 <textarea
                   value={modalDesc}
                   onChange={(e) => setModalDesc(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   rows={2}
                   placeholder="Optional"
                 />

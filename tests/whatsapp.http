@@ -1,0 +1,433 @@
+### ============================================================
+### WhatsApp Backend — Milestone 1: Webhook is alive
+### ============================================================
+###
+### Variables — update these before running
+@baseUrl = http://localhost:3000
+@verifyToken = your-verify-token-here
+
+### -------------------------------------------------------
+### Test 1: GET verification (Meta webhook handshake)
+### Expected: returns "test123" as plain text, status 200
+### -------------------------------------------------------
+GET {{baseUrl}}/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token={{verifyToken}}&hub.challenge=test123
+
+### -------------------------------------------------------
+### Test 2: GET verification — wrong token (should reject)
+### Expected: 403 Forbidden
+### -------------------------------------------------------
+GET {{baseUrl}}/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=wrong-token&hub.challenge=test123
+
+### -------------------------------------------------------
+### Test 3: POST — delivery receipt (no messages, silent drop)
+### Expected: 200, no processing, no errors in logs
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {}
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 4: POST — unknown phone (unregistered user)
+### Expected: 200, logs show unregistered flow,
+###   WhatsApp API called with unregistered message
+###   (will fail to actually send if WHATSAPP_TOKEN not set,
+###    but check server logs for the attempt)
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "60999999999",
+                "type": "text",
+                "text": {
+                  "body": "hello"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 5: POST — registered phone sends text
+### Expected: 200, logs show "Text message from ..."
+###   (replace phone with a real employee phone from your DB)
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "60123456789",
+                "type": "text",
+                "text": {
+                  "body": "hello"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 6: POST — empty entry array (malformed, should not crash)
+### Expected: 200, silent return
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": []
+}
+
+@jeffPhone = 60123458661
+
+### ============================================================
+### WhatsApp Backend — Milestone 2: Send messages back
+### ============================================================
+
+### -------------------------------------------------------
+### Test 7: POST — registered phone sends "hello" (should receive interactive menu)
+### Expected: 200, WhatsApp interactive menu received on phone
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "text",
+                "text": {
+                  "body": "hello"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### ============================================================
+### WhatsApp Backend — Milestone 3: OCR pipeline works
+### ============================================================
+###
+### IMPORTANT: To test this, you need a real WhatsApp image ID.
+### Send a receipt photo to your WhatsApp business number, then
+### check server logs for the image.id value from Meta's webhook.
+### Paste that ID below.
+@testImageId = PASTE_REAL_IMAGE_ID_HERE
+
+### -------------------------------------------------------
+### Test 8: POST — image message from registered phone (OCR pipeline)
+### Expected: 200, server logs show OCR text + Gemini extraction + confidence
+###   You should also receive a WhatsApp message with extracted fields
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "image",
+                "image": {
+                  "id": "{{testImageId}}"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### ============================================================
+### WhatsApp Backend — Milestone 4: Full save flow
+### ============================================================
+###
+### TEST VIA REAL WHATSAPP:
+### Send a real receipt photo to your WhatsApp business number.
+### The pipeline will: OCR → Gemini → confidence route →
+###   HIGH/MEDIUM: thumbs up reaction → Drive upload → DB save → confirmation msg
+###   LOW: send Yes/No buttons with extracted fields
+###
+### VERIFY:
+### 1. Check WhatsApp for confirmation message (or Yes/No buttons if LOW)
+### 2. Check server logs for "Claim saved" and "Uploaded to Drive"
+### 3. Check claims table in TablePlus:
+###    SELECT * FROM "Claim" ORDER BY created_at DESC LIMIT 1;
+### 4. Check message_logs table in TablePlus:
+###    SELECT * FROM "MessageLog" ORDER BY received_at DESC LIMIT 5;
+
+### ============================================================
+### WhatsApp Backend — Milestone 5: Session flow (low confidence)
+### ============================================================
+###
+### HOW TO TEST:
+### 1. First, trigger a LOW confidence receipt:
+###    Send a blurry/partial receipt photo via WhatsApp.
+###    You should receive Yes/No buttons with extracted details.
+###
+### 2. Then test confirm_yes or confirm_no below via REST Client
+###    (or tap the buttons directly on WhatsApp).
+###
+### IMPORTANT: A session must exist for the phone before these work.
+### The LOW confidence path creates the session automatically.
+
+### -------------------------------------------------------
+### Test 9: Button press — confirm_yes
+### Expected: session deleted, claim saved to DB, Drive upload,
+###   confirmation message sent on WhatsApp
+### PREREQUISITE: Send a blurry receipt first to create a session
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "interactive",
+                "interactive": {
+                  "type": "button_reply",
+                  "button_reply": {
+                    "id": "confirm_yes",
+                    "title": "Yes"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 10: Button press — confirm_no
+### Expected: session updated to AWAITING_CORRECTION,
+###   WhatsApp message: "What needs to be corrected?"
+### PREREQUISITE: Send a blurry receipt first to create a session
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "interactive",
+                "interactive": {
+                  "type": "button_reply",
+                  "button_reply": {
+                    "id": "confirm_no",
+                    "title": "No"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### VERIFY in TablePlus:
+### After confirm_yes:
+###   SELECT * FROM "Session" WHERE phone = '60123458661';  -- should be empty
+###   SELECT * FROM "Claim" ORDER BY created_at DESC LIMIT 1;  -- new claim
+### After confirm_no:
+###   SELECT * FROM "Session" WHERE phone = '60123458661';  -- step = AWAITING_CORRECTION
+### -------------------------------------------------------
+
+### ============================================================
+### WhatsApp Backend — Milestone 6: Lisa agent + status checks
+### ============================================================
+###
+### Lisa handles all text messages via Gemini function calling.
+### Test greetings, status queries, and the correction flow.
+
+### -------------------------------------------------------
+### Test 11: Text "hello" — should get interactive menu (IDLE state)
+### Expected: WhatsApp interactive menu received on phone
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "text",
+                "text": {
+                  "body": "hello"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 12: Text "status" — should get pending claims list
+### Expected: WhatsApp message with pending claims summary
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "text",
+                "text": {
+                  "body": "status"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 13: Text "summary" — should get monthly + YTD summary
+### Expected: WhatsApp message with monthly total + YTD breakdown
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "text",
+                "text": {
+                  "body": "summary"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### Test 14: Text correction (AWAITING_CORRECTION flow)
+### PREREQUISITE: Send blurry receipt → tap No → session is AWAITING_CORRECTION
+### Then type the correction (e.g. "merchant is Petronas, amount is 45.50")
+### Expected: Claim saved with corrected values, session deleted, confirmation sent
+### -------------------------------------------------------
+POST {{baseUrl}}/api/whatsapp/webhook
+Content-Type: application/json
+
+{
+  "entry": [
+    {
+      "changes": [
+        {
+          "value": {
+            "messages": [
+              {
+                "from": "{{jeffPhone}}",
+                "type": "text",
+                "text": {
+                  "body": "merchant is Petronas, amount is 45.50"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
+
+### -------------------------------------------------------
+### VERIFY:
+### Test 11: Check WhatsApp for interactive menu
+### Test 12: Check WhatsApp for pending claims list with category grouping
+### Test 13: Check WhatsApp for summary (monthly + YTD)
+### Test 14: Check claims table + session deleted:
+###   SELECT * FROM "Session" WHERE phone = '60123458661';  -- should be empty
+###   SELECT * FROM "Claim" ORDER BY created_at DESC LIMIT 1;  -- corrected values
+### -------------------------------------------------------

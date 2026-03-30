@@ -1,0 +1,50 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+  const firmId = session.user.firm_id;
+
+  const { id } = await params;
+
+  // Verify claim belongs to admin's firm
+  const claim = await prisma.claim.findUnique({
+    where: { id },
+    select: { firm_id: true },
+  });
+
+  if (!claim) {
+    return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
+  }
+  if (claim.firm_id !== firmId) {
+    return NextResponse.json({ data: null, error: 'Not authorized for this claim' }, { status: 403 });
+  }
+
+  const body = await request.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = {
+    status: 'pending_review',
+    approval: 'pending_approval',
+  };
+  if (body.claim_date !== undefined) data.claim_date = new Date(body.claim_date);
+  if (body.merchant !== undefined) data.merchant = body.merchant;
+  if (body.amount !== undefined) data.amount = body.amount;
+  if (body.category_id !== undefined) data.category_id = body.category_id;
+  if (body.receipt_number !== undefined) data.receipt_number = body.receipt_number || null;
+  if (body.description !== undefined) data.description = body.description || null;
+
+  const updated = await prisma.claim.update({
+    where: { id },
+    data,
+  });
+
+  return NextResponse.json({ data: updated, error: null });
+}

@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     merchant: c.merchant,
     description: c.description,
     category_name: c.category.name,
+    category_id: c.category_id,
     amount: c.amount.toString(),
     status: c.status,
     approval: c.approval,

@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     firm_id: r.firm_id,
     merchant: r.merchant,
     category_name: r.category.name,
+    category_id: r.category_id,
     amount: r.amount.toString(),
     approval: r.approval,
     receipt_number: r.receipt_number,

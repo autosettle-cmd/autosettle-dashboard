@@ -21,6 +21,7 @@ interface ClaimRow {
   firm_id: string;
   merchant: string;
   description: string | null;
+  category_id: string;
   category_name: string;
   amount: string;
   status: 'pending_review' | 'reviewed';
@@ -41,19 +42,19 @@ interface Firm {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'bg-amber-100 text-amber-800 border border-amber-200' },
-  reviewed:       { label: 'Reviewed',       cls: 'bg-blue-100  text-blue-800  border border-blue-200'  },
+  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
+  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
 };
 
 const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',      cls: 'bg-amber-100 text-amber-800 border border-amber-200' },
-  approved:         { label: 'Approved',     cls: 'bg-green-100 text-green-800 border border-green-200' },
-  not_approved:     { label: 'Rejected',     cls: 'bg-red-100   text-red-800   border border-red-200'   },
+  pending_approval: { label: 'Pending',      cls: 'badge-amber' },
+  approved:         { label: 'Approved',     cls: 'badge-green' },
+  not_approved:     { label: 'Rejected',     cls: 'badge-red'   },
 };
 
 const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid: { label: 'Unpaid', cls: 'bg-gray-100   text-gray-700   border border-gray-200'   },
-  paid:   { label: 'Paid',   cls: 'bg-purple-100 text-purple-800 border border-purple-200' },
+  unpaid: { label: 'Unpaid', cls: 'badge-gray'   },
+  paid:   { label: 'Paid',   cls: 'badge-purple' },
 };
 
 function formatDate(val: string) {
@@ -127,12 +128,12 @@ function ActionCell({ data, context }: { data: ClaimRow; context: { openPreview:
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const NAV = [
-  { label: 'Dashboard',  href: '/accountant/dashboard'   },
-  { label: 'Claims',     href: '/accountant/claims'      },
-  { label: 'Receipts',   href: '/accountant/receipts'    },
-  { label: 'Clients',    href: '/accountant/clients'     },
-  { label: 'Employees',  href: '/accountant/employees'   },
-  { label: 'Categories', href: '/accountant/categories'  },
+  { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
+  { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { label: 'Receipts',   href: '/accountant/receipts',   icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
+  { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
+  { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
+  { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
 ];
 
 // ─── Preview field helper ─────────────────────────────────────────────────────
@@ -164,6 +165,19 @@ export default function ClaimsPage() {
   const [selectedRows, setSelectedRows] = useState<ClaimRow[]>([]);
   const [previewClaim, setPreviewClaim] = useState<ClaimRow | null>(null);
   const [rejectModal, setRejectModal]   = useState({ open: false, claimIds: [] as string[], reason: '' });
+
+  // Edit mode
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<{
+    claim_date: string;
+    merchant: string;
+    amount: string;
+    category_id: string;
+    receipt_number: string;
+    description: string;
+  } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   // Filters
   const [firmId,         setFirmId]        = useState('');
@@ -203,6 +217,19 @@ export default function ClaimsPage() {
 
     return () => { cancelled = true; };
   }, [firmId, dateRange, customFrom, customTo, approvalFilter, search, refreshKey]);
+
+  // When previewClaim changes, exit edit mode
+  useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
+
+  // Fetch categories for the claim's firm when entering edit mode
+  useEffect(() => {
+    if (editMode && previewClaim) {
+      fetch(`/api/categories?firmId=${previewClaim.firm_id}`)
+        .then(r => r.json())
+        .then(j => setCategories(j.data ?? []))
+        .catch(console.error);
+    }
+  }, [editMode, previewClaim]);
 
   // Toggle firm column visibility
   useEffect(() => {
@@ -291,60 +318,76 @@ export default function ClaimsPage() {
     });
   };
 
+  const saveEdit = async () => {
+    if (!previewClaim || !editData) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/claims/${previewClaim.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData),
+      });
+      if (res.ok) {
+        setEditMode(false);
+        setEditData(null);
+        refresh();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
 
-      {/* ═══════════════════════ SIDEBAR ═══════════════════════ */}
-      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ backgroundColor: '#152237' }}>
-        <div className="h-16 flex items-center px-6 border-b border-white/10">
-          <span className="text-white font-bold text-xl tracking-tight">Autosettle</span>
+      {/* ═══ SIDEBAR ═══ */}
+      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
+        <div className="h-14 flex items-center gap-2 px-5">
+          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+          </div>
+          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
         </div>
-
-        <nav className="flex-1 py-3">
-          {NAV.map(({ label, href }) => {
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
+          {NAV.map(({ label, href, icon }) => {
             const active = pathname === href;
             return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative flex items-center h-10 px-6 text-sm transition-colors ${
-                  active ? 'text-white bg-white/10' : 'text-white/65 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {active && (
-                  <span
-                    className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
-                    style={{ backgroundColor: '#A60201' }}
-                  />
-                )}
+              <Link key={href} href={href} className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
                 {label}
               </Link>
             );
           })}
         </nav>
-
-        <div className="p-4 border-t border-white/10">
-          <p className="text-white text-sm font-medium truncate">{session?.user?.name ?? '—'}</p>
-          <p className="text-white/50 text-xs mt-0.5 capitalize">{session?.user?.role ?? 'accountant'}</p>
-          <button
-            onClick={handleLogout}
-            className="mt-3 w-full text-xs text-white/60 hover:text-white py-1.5 px-3 rounded border border-white/20 hover:border-white/40 transition-colors text-left"
-          >
-            Sign out
-          </button>
+        <div className="p-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">{(session?.user?.name ?? '?')[0]}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
+              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">Sign out</button>
         </div>
       </aside>
 
-      {/* ═══════════════════════ MAIN ═══════════════════════ */}
+      {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center px-6" style={{ backgroundColor: '#152237' }}>
-          <h1 className="text-white font-semibold text-lg">Claims</h1>
+        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-semibold text-[15px]">Claims</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -455,7 +498,30 @@ export default function ClaimsPage() {
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Preview</h2>
-              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (editMode) {
+                      setEditMode(false);
+                      setEditData(null);
+                    } else {
+                      setEditMode(true);
+                      setEditData({
+                        claim_date: previewClaim.claim_date.split('T')[0],
+                        merchant: previewClaim.merchant,
+                        amount: previewClaim.amount,
+                        category_id: previewClaim.category_id,
+                        receipt_number: previewClaim.receipt_number ?? '',
+                        description: previewClaim.description ?? '',
+                      });
+                    }
+                  }}
+                  className={`text-sm px-2.5 py-1 rounded-md transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                >
+                  {editMode ? 'Cancel' : 'Edit'}
+                </button>
+                <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -471,16 +537,50 @@ export default function ClaimsPage() {
                 </div>
               )}
 
-              <dl className="space-y-3">
-                <Field label="Date"        value={formatDate(previewClaim.claim_date)} />
-                <Field label="Merchant"    value={previewClaim.merchant} />
-                <Field label="Employee"    value={previewClaim.employee_name} />
-                <Field label="Firm"        value={previewClaim.firm_name} />
-                <Field label="Category"    value={previewClaim.category_name} />
-                <Field label="Amount"      value={formatRM(previewClaim.amount)} />
-                <Field label="Receipt No." value={previewClaim.receipt_number} />
-                <Field label="Description" value={previewClaim.description} />
-              </dl>
+              {editMode && editData ? (
+                <dl className="space-y-3">
+                  <div>
+                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Date</dt>
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
+                  </div>
+                  <div>
+                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Merchant</dt>
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
+                  </div>
+                  <Field label="Employee" value={previewClaim.employee_name} />
+                  <Field label="Firm" value={previewClaim.firm_name} />
+                  <div>
+                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Category</dt>
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className={`${inputCls} w-full mt-0.5`}>
+                      <option value="">Select category</option>
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Amount (RM)</dt>
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
+                  </div>
+                  <div>
+                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Receipt No.</dt>
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
+                  </div>
+                  <div>
+                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Description</dt>
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
+                  </div>
+                </dl>
+              ) : (
+                <dl className="space-y-3">
+                  <Field label="Date"        value={formatDate(previewClaim.claim_date)} />
+                  <Field label="Merchant"    value={previewClaim.merchant} />
+                  <Field label="Employee"    value={previewClaim.employee_name} />
+                  <Field label="Firm"        value={previewClaim.firm_name} />
+                  <Field label="Category"    value={previewClaim.category_name} />
+                  <Field label="Amount"      value={formatRM(previewClaim.amount)} />
+                  <Field label="Receipt No." value={previewClaim.receipt_number} />
+                  <Field label="Description" value={previewClaim.description} />
+                </dl>
+              )}
 
               <div className="flex flex-wrap gap-2 pt-1">
                 {[
@@ -518,21 +618,34 @@ export default function ClaimsPage() {
             </div>
 
             <div className="p-4 border-t flex gap-3 flex-shrink-0">
-              <button
-                onClick={() => batchAction([previewClaim.id], 'approve')}
-                disabled={previewClaim.approval === 'approved'}
-                className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => setRejectModal({ open: true, claimIds: [previewClaim.id], reason: '' })}
-                disabled={previewClaim.approval === 'not_approved'}
-                className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
-              >
-                Reject
-              </button>
+              {editMode ? (
+                <button
+                  onClick={saveEdit}
+                  disabled={editSaving}
+                  className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                  style={{ backgroundColor: '#A60201' }}
+                >
+                  {editSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => batchAction([previewClaim.id], 'approve')}
+                    disabled={previewClaim.approval === 'approved'}
+                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    style={{ backgroundColor: '#A60201' }}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => setRejectModal({ open: true, claimIds: [previewClaim.id], reason: '' })}
+                    disabled={previewClaim.approval === 'not_approved'}
+                    className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </>
@@ -578,7 +691,7 @@ export default function ClaimsPage() {
 
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
-const inputCls = 'text-sm border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#152237]/20';
+const inputCls = 'input-field';
 
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (

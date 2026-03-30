@@ -23,7 +23,8 @@ export const authOptions: NextAuthOptions = {
             where: { email: credentials.email },
           });
 
-          if (!user || !user.is_active) return null;
+          if (!user) return null;
+          if (user.status !== "active" || !user.is_active) return null;
 
           const passwordMatch = await compare(
             credentials.password,

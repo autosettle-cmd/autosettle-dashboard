@@ -24,11 +24,30 @@ export async function GET() {
     );
   }
 
-  const categories = await prisma.category.findMany({
+  // Get global defaults with overrides for this firm
+  const globals = await prisma.category.findMany({
+    where: { firm_id: null, is_active: true },
+    include: { overrides: { where: { firm_id: firmId } } },
+    orderBy: { name: 'asc' },
+  });
+
+  // Filter out globals disabled for this firm
+  const activeGlobals = globals.filter((g) => {
+    if (g.overrides.length === 0) return true;
+    return g.overrides[0].is_active;
+  });
+
+  // Get firm-specific categories
+  const firmCats = await prisma.category.findMany({
     where: { firm_id: firmId, is_active: true },
     select: { id: true, name: true },
     orderBy: { name: 'asc' },
   });
 
-  return NextResponse.json({ data: categories, error: null });
+  const all = [
+    ...activeGlobals.map((g) => ({ id: g.id, name: g.name })),
+    ...firmCats,
+  ].sort((a, b) => a.name.localeCompare(b.name));
+
+  return NextResponse.json({ data: all, error: null });
 }

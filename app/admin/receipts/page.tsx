@@ -35,9 +35,9 @@ interface Category {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',  cls: 'bg-amber-100 text-amber-800 border border-amber-200' },
-  approved:         { label: 'Approved', cls: 'bg-green-100 text-green-800 border border-green-200' },
-  not_approved:     { label: 'Rejected', cls: 'bg-red-100   text-red-800   border border-red-200'   },
+  pending_approval: { label: 'Pending',  cls: 'badge-amber' },
+  approved:         { label: 'Approved', cls: 'badge-green' },
+  not_approved:     { label: 'Rejected', cls: 'badge-red'   },
 };
 
 function formatDate(val: string) {
@@ -84,7 +84,7 @@ function getDateRange(range: string, customFrom: string, customTo: string) {
 function ApprovalCell({ value }: { value: string }) {
   const cfg = APPROVAL_CFG[value];
   if (!cfg) return null;
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
+  return <span className={cfg.cls}>{cfg.label}</span>;
 }
 
 function EditCell({ data, context }: { data: ReceiptRow; context: { openEdit: (r: ReceiptRow) => void } }) {
@@ -120,10 +120,11 @@ function PreviewCell({ data, context }: { data: ReceiptRow; context: { openPrevi
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const NAV = [
-  { label: 'Dashboard',  href: '/admin/dashboard'   },
-  { label: 'Claims',     href: '/admin/claims'      },
-  { label: 'Receipts',   href: '/admin/receipts'    },
-  { label: 'Employees',  href: '/admin/employees'   },
+  { label: 'Dashboard',  href: '/admin/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
+  { label: 'Claims',     href: '/admin/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+  { label: 'Receipts',   href: '/admin/receipts',   icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
+  { label: 'Employees',  href: '/admin/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
+  { label: 'Categories', href: '/admin/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
 ];
 
 // ─── Preview field helper ─────────────────────────────────────────────────────
@@ -307,57 +308,73 @@ export default function AdminReceiptsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
 
-      {/* ═══════════════════════ SIDEBAR ═══════════════════════ */}
-      <aside className="w-60 flex-shrink-0 flex flex-col" style={{ backgroundColor: '#152237' }}>
-        <div className="h-16 flex items-center px-6 border-b border-white/10">
-          <span className="text-white font-bold text-xl tracking-tight">Autosettle</span>
+      {/* ═══ SIDEBAR ═══ */}
+      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
+        <div className="h-14 flex items-center gap-2 px-5">
+          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+          </div>
+          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
         </div>
 
-        <nav className="flex-1 py-3">
-          {NAV.map(({ label, href }) => {
+        <nav className="flex-1 px-3 py-2 space-y-0.5">
+          {NAV.map(({ label, href, icon }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`relative flex items-center h-10 px-6 text-sm transition-colors ${
-                  active ? 'text-white bg-white/10' : 'text-white/65 hover:text-white hover:bg-white/5'
+                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                  active
+                    ? 'text-white bg-white/[0.1]'
+                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
                 }`}
               >
                 {active && (
-                  <span
-                    className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r"
-                    style={{ backgroundColor: '#A60201' }}
-                  />
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />
                 )}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <path d={icon} />
+                </svg>
                 {label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
-          <p className="text-white text-sm font-medium truncate">{session?.user?.name ?? '—'}</p>
-          <p className="text-white/50 text-xs mt-0.5 capitalize">{session?.user?.role ?? 'admin'}</p>
+        <div className="p-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
+              {(session?.user?.name ?? '?')[0]}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
+              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
-            className="mt-3 w-full text-xs text-white/60 hover:text-white py-1.5 px-3 rounded border border-white/20 hover:border-white/40 transition-colors text-left"
+            className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left"
           >
             Sign out
           </button>
         </div>
       </aside>
 
-      {/* ═══════════════════════ MAIN ═══════════════════════ */}
+      {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center px-6" style={{ backgroundColor: '#152237' }}>
-          <h1 className="text-white font-semibold text-lg">Receipts</h1>
+        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-semibold text-[15px]">Receipts</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 bg-white">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -373,13 +390,13 @@ export default function AdminReceiptsPage() {
                 <input
                   type="date" value={customFrom}
                   onChange={(e) => setCustomFrom(e.target.value)}
-                  className={inputCls}
+                  className="input-field"
                 />
                 <span className="text-gray-400 text-sm">–</span>
                 <input
                   type="date" value={customTo}
                   onChange={(e) => setCustomTo(e.target.value)}
-                  className={inputCls}
+                  className="input-field"
                 />
               </>
             )}
@@ -396,12 +413,12 @@ export default function AdminReceiptsPage() {
               placeholder="Search merchant…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`${inputCls} min-w-[210px]`}
+              className="input-field min-w-[210px]"
             />
           </div>
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-md border border-gray-200" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-md border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ height: '100%' }}>
             <AgGridReact<ReceiptRow>
               onGridReady={onGridReady}
               rowData={receipts}
@@ -417,7 +434,7 @@ export default function AdminReceiptsPage() {
         </main>
       </div>
 
-      {/* ═══════════════════════ EDIT MODAL ═══════════════════════ */}
+      {/* ═══ EDIT MODAL ═══ */}
       {editReceipt && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
@@ -441,7 +458,7 @@ export default function AdminReceiptsPage() {
                   type="date"
                   value={editDate}
                   onChange={(e) => setEditDate(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                 />
               </div>
               <div>
@@ -450,7 +467,7 @@ export default function AdminReceiptsPage() {
                   type="text"
                   value={editMerchant}
                   onChange={(e) => setEditMerchant(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Merchant name"
                 />
               </div>
@@ -461,7 +478,7 @@ export default function AdminReceiptsPage() {
                   step="0.01"
                   value={editAmount}
                   onChange={(e) => setEditAmount(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="0.00"
                 />
               </div>
@@ -470,7 +487,7 @@ export default function AdminReceiptsPage() {
                 <select
                   value={editCategory}
                   onChange={(e) => setEditCategory(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                 >
                   <option value="">Select a category</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -482,7 +499,7 @@ export default function AdminReceiptsPage() {
                   type="text"
                   value={editReceiptNo}
                   onChange={(e) => setEditReceiptNo(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Optional"
                 />
               </div>
@@ -509,7 +526,7 @@ export default function AdminReceiptsPage() {
         </div>
       )}
 
-      {/* ═══════════════════════ RECEIPT PREVIEW ═══════════════════════ */}
+      {/* ═══ RECEIPT PREVIEW ═══ */}
       {previewReceipt && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewReceipt(null)} />
@@ -545,7 +562,7 @@ export default function AdminReceiptsPage() {
                 {(() => {
                   const cfg = APPROVAL_CFG[previewReceipt.approval];
                   return cfg ? (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>
+                    <span className={cfg.cls}>
                       {cfg.label}
                     </span>
                   ) : null;
@@ -569,11 +586,9 @@ export default function AdminReceiptsPage() {
 
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
-const inputCls = 'text-sm border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#152237]/20';
-
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">
       {children}
     </select>
   );

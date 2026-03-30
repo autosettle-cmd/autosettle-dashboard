@@ -2,26 +2,166 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design System Variables ──────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --sidebar: #152237;
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(255, 255, 255, 0.1);
+  --accent: #A60201;
+  --accent-hover: #8B0101;
+  --surface: #ffffff;
+  --surface-secondary: #F8F9FB;
+  --border: #E5E7EB;
+  --border-light: #F0F1F3;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text-primary);
+  background: var(--surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* ─── AG Grid Custom Theme ─────────────────────────────────────────────────── */
+.ag-theme-alpine {
+  --ag-font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ag-font-size: 13px;
+  --ag-row-height: 44px;
+  --ag-header-height: 40px;
+  --ag-header-background-color: #F8F9FB;
+  --ag-header-foreground-color: #6B7280;
+  --ag-header-cell-hover-background-color: #F0F1F3;
+  --ag-border-color: #E5E7EB;
+  --ag-row-border-color: #F0F1F3;
+  --ag-odd-row-background-color: #ffffff;
+  --ag-row-hover-color: #F8F9FB;
+  --ag-selected-row-background-color: #FEF2F2;
+  --ag-range-selection-background-color: rgba(166, 2, 1, 0.08);
+  --ag-checkbox-checked-color: #A60201;
+  --ag-checkbox-unchecked-color: #D1D5DB;
+  --ag-pagination-button-color: #6B7280;
+  --ag-alpine-active-color: #A60201;
+  --ag-input-focus-border-color: #A60201;
+  --ag-cell-horizontal-padding: 16px;
+}
+
+.ag-theme-alpine .ag-header-cell-label {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ag-theme-alpine .ag-header-cell {
+  border-right: none !important;
+}
+
+.ag-theme-alpine .ag-cell {
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.ag-theme-alpine .ag-paging-panel {
+  border-top: 1px solid #E5E7EB;
+  height: 48px;
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.ag-theme-alpine .ag-root-wrapper {
+  border: none !important;
+  border-radius: 0;
+}
+
+/* ─── Form Inputs ──────────────────────────────────────────────────────────── */
+@layer components {
+  .input-field {
+    @apply px-3 py-2 text-sm border border-gray-200 rounded-md bg-white text-gray-900
+           placeholder-gray-400
+           focus:outline-none focus:ring-2 focus:ring-[#A60201]/20 focus:border-[#A60201]/40
+           transition-all duration-150;
   }
+
+  .input-label {
+    @apply block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white rounded-md
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #A60201;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: #8B0101;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700
+           bg-white border border-gray-200 rounded-md hover:bg-gray-50 hover:border-gray-300
+           transition-all duration-150;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold leading-tight tracking-wide;
+  }
+
+  .badge-amber {
+    @apply badge bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20;
+  }
+
+  .badge-blue {
+    @apply badge bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-600/20;
+  }
+
+  .badge-green {
+    @apply badge bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20;
+  }
+
+  .badge-red {
+    @apply badge bg-red-50 text-red-700 ring-1 ring-inset ring-red-600/20;
+  }
+
+  .badge-gray {
+    @apply badge bg-gray-50 text-gray-600 ring-1 ring-inset ring-gray-500/20;
+  }
+
+  .badge-purple {
+    @apply badge bg-purple-50 text-purple-700 ring-1 ring-inset ring-purple-600/20;
+  }
+}
+
+/* ─── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* ─── Page transitions ─────────────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fadeIn 0.3s ease-out;
 }
