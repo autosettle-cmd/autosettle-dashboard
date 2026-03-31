@@ -6,7 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -30,6 +30,8 @@ interface ClaimRow {
   file_url: string | null;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   receipt_number: string | null;
+  type: 'claim' | 'receipt';
+  linked_payment_count: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -103,27 +105,27 @@ function ApprovalCell({ value }: { value: string }) {
   return <span className={cfg.cls}>{cfg.label}</span>;
 }
 
-function ActionCell({ data, context }: { data: ClaimRow; context: { openPreview: (c: ClaimRow) => void } }) {
-  return (
-    <button
-      onClick={() => context.openPreview(data)}
-      className="flex items-center justify-center w-8 h-8 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors"
-      title="View receipt"
-    >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    </button>
-  );
+function LinkedCell({ value }: { value: number }) {
+  return value > 0
+    ? <span className="badge-green">Linked</span>
+    : <span className="badge-gray">Unlinked</span>;
 }
+
+function PaymentStatusCell({ value }: { value: string }) {
+  const cfg = PAYMENT_CFG[value];
+  if (!cfg) return null;
+  return <span className={cfg.cls}>{cfg.label}</span>;
+}
+
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
 const NAV = [
   { label: 'Dashboard',  href: '/admin/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
   { label: 'Claims',     href: '/admin/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Receipts',   href: '/admin/receipts',   icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
+
+  { label: 'Invoices',   href: '/admin/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { label: 'Suppliers',  href: '/admin/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',  href: '/admin/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories', href: '/admin/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
 ];
@@ -146,6 +148,11 @@ export default function AdminClaimsPage() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const handleLogout = useLogout();
+
+  // Tab
+  const [claimTab, setClaimTab] = useState<'claim' | 'receipt'>('claim');
+  const [claimCount, setClaimCount] = useState(0);
+  const [receiptCount, setReceiptCount] = useState(0);
 
   // Data
   const [claims, setClaims]   = useState<ClaimRow[]>([]);
@@ -203,11 +210,15 @@ export default function AdminClaimsPage() {
     }
   };
 
+  // Read initial filters from URL query params (e.g. ?status=pending_review)
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get('status') ?? '';
+
   // Filters
-  const [dateRange,     setDateRange]    = useState('this_month');
+  const [dateRange,     setDateRange]    = useState(initialStatus ? '' : 'this_month');
   const [customFrom,    setCustomFrom]   = useState('');
   const [customTo,      setCustomTo]     = useState('');
-  const [statusFilter,  setStatusFilter] = useState('');
+  const [statusFilter,  setStatusFilter] = useState(initialStatus);
   const [search,        setSearch]       = useState('');
 
   const gridApiRef = useRef<GridApi<ClaimRow> | null>(null);
@@ -219,6 +230,7 @@ export default function AdminClaimsPage() {
 
     const { from, to } = getDateRange(dateRange, customFrom, customTo);
     const p = new URLSearchParams();
+    p.set('type', claimTab);
     if (from)         p.set('dateFrom', from);
     if (to)           p.set('dateTo',   to);
     if (statusFilter) p.set('status',   statusFilter);
@@ -230,11 +242,22 @@ export default function AdminClaimsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [dateRange, customFrom, customTo, statusFilter, search, refreshKey]);
+  }, [claimTab, dateRange, customFrom, customTo, statusFilter, search, refreshKey]);
+
+  // Fetch tab counts
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/admin/claims?type=claim').then((r) => r.json()),
+      fetch('/api/admin/claims?type=receipt').then((r) => r.json()),
+    ]).then(([claimJ, receiptJ]) => {
+      setClaimCount(claimJ.meta?.count ?? 0);
+      setReceiptCount(receiptJ.meta?.count ?? 0);
+    }).catch(console.error);
+  }, [refreshKey]);
 
   // Column definitions
-  const columnDefs = useMemo<ColDef<ClaimRow>[]>(() => [
-    {
+  const columnDefs = useMemo<ColDef<ClaimRow>[]>(() => {
+    const checkboxCol: ColDef<ClaimRow> = {
       checkboxSelection: true,
       headerCheckboxSelection: true,
       width: 48, minWidth: 48, maxWidth: 48,
@@ -242,38 +265,43 @@ export default function AdminClaimsPage() {
       resizable: false,
       sortable: false,
       suppressHeaderMenuButton: true,
-    },
-    {
+    };
+    const dateCol: ColDef<ClaimRow> = {
       field: 'claim_date',
       headerName: 'Date',
       width: 110,
       sort: 'desc',
       valueFormatter: (p) => formatDate(p.value),
       comparator: (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-    },
-    { field: 'employee_name', headerName: 'Employee',   flex: 1, minWidth: 120 },
-    { field: 'merchant',      headerName: 'Merchant',   flex: 1, minWidth: 120 },
-    { field: 'category_name', headerName: 'Category',   width: 110             },
-    {
+    };
+    const merchantCol: ColDef<ClaimRow> = { field: 'merchant', headerName: 'Merchant', flex: 1, minWidth: 120 };
+    const categoryCol: ColDef<ClaimRow> = { field: 'category_name', headerName: 'Category', width: 110 };
+    const amountCol: ColDef<ClaimRow> = {
       field: 'amount',
       headerName: 'Amount (RM)',
       width: 125,
       type: 'rightAligned',
-      valueFormatter: (p) => p.value != null ? Number(p.value).toFixed(2) : '',
+      valueFormatter: (p) => p.value != null ? Number(p.value).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
       comparator: (a, b) => Number(a) - Number(b),
-    },
-    { field: 'status',   headerName: 'Status',   width: 145, cellRenderer: StatusCell   },
-    { field: 'approval', headerName: 'Approval', width: 125, cellRenderer: ApprovalCell },
-    {
-      headerName: '',
-      width: 56, minWidth: 56, maxWidth: 56,
-      sortable: false, resizable: false,
-      suppressHeaderMenuButton: true,
-      cellRenderer: ActionCell,
-    },
-  ], []);
+    };
+    const statusCol: ColDef<ClaimRow> = { field: 'status', headerName: 'Status', width: 145, cellRenderer: StatusCell };
 
-  const gridContext = useMemo(() => ({ openPreview: setPreviewClaim }), []);
+    if (claimTab === 'claim') {
+      return [
+        checkboxCol, dateCol,
+        { field: 'employee_name', headerName: 'Employee', flex: 1, minWidth: 120 },
+        merchantCol, categoryCol, amountCol, statusCol,
+        { field: 'approval', headerName: 'Approval', width: 125, cellRenderer: ApprovalCell },
+      ];
+    } else {
+      return [
+        checkboxCol, dateCol,
+        merchantCol, categoryCol, amountCol, statusCol,
+        { field: 'payment_status', headerName: 'Payment', width: 110, cellRenderer: PaymentStatusCell },
+        { field: 'linked_payment_count', headerName: 'Linked', width: 110, cellRenderer: LinkedCell },
+      ];
+    }
+  }, [claimTab]);
 
   const onGridReady = (e: GridReadyEvent<ClaimRow>) => {
     gridApiRef.current = e.api;
@@ -371,6 +399,27 @@ export default function AdminClaimsPage() {
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
+          {/* ── Tabs ─────────────────────────────────────── */}
+          <div className="flex gap-1 flex-shrink-0">
+            {([['claim', 'Employee Claims', claimCount], ['receipt', 'Receipts', receiptCount]] as const).map(([key, label, count]) => (
+              <button
+                key={key}
+                onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
+                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                  claimTab === key
+                    ? 'text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+                style={claimTab === key ? { backgroundColor: '#152237' } : undefined}
+              >
+                {label}
+                <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>{count}</span>
+              </button>
+            ))}
+          </div>
+
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             <Select value={dateRange} onChange={setDateRange}>
@@ -397,7 +446,7 @@ export default function AdminClaimsPage() {
             )}
 
             <Select value={statusFilter} onChange={setStatusFilter}>
-              <option value="">All</option>
+              <option value="">All Status</option>
               <option value="pending_review">Pending Review</option>
               <option value="reviewed">Reviewed</option>
             </Select>
@@ -423,7 +472,7 @@ export default function AdminClaimsPage() {
               rowSelection="multiple"
               suppressRowClickSelection
               onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
-              context={gridContext}
+              onRowClicked={(e) => { if (e.data) setPreviewClaim(e.data); }}
               overlayNoRowsTemplate="<span style='color:#9ca3af;font-size:14px'>No claims found for the selected filters.</span>"
             />
           </div>
@@ -461,28 +510,7 @@ export default function AdminClaimsPage() {
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    if (editMode) { setEditMode(false); setEditData(null); }
-                    else {
-                      setEditMode(true);
-                      setEditData({
-                        claim_date: previewClaim.claim_date.split('T')[0],
-                        merchant: previewClaim.merchant,
-                        amount: previewClaim.amount,
-                        category_id: previewClaim.category_id,
-                        receipt_number: previewClaim.receipt_number ?? '',
-                        description: previewClaim.description ?? '',
-                      });
-                    }
-                  }}
-                  className={`text-sm px-2.5 py-1 rounded-md transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
-                >
-                  {editMode ? 'Cancel' : 'Edit'}
-                </button>
-                <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
-              </div>
+              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -582,18 +610,42 @@ export default function AdminClaimsPage() {
 
             <div className="p-4 border-t flex gap-3 flex-shrink-0">
               {editMode ? (
-                <button onClick={saveEdit} disabled={editSaving} className="btn-primary w-full py-2">
-                  {editSaving ? 'Saving...' : 'Save Changes'}
-                </button>
+                <>
+                  <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                    {editSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                </>
               ) : (
-                <button
-                  onClick={() => batchReview([previewClaim.id])}
-                  disabled={previewClaim.status === 'reviewed'}
-                  className="w-full py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: '#A60201' }}
-                >
-                  Mark as Reviewed
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      setEditMode(true);
+                      setEditData({
+                        claim_date: previewClaim.claim_date.split('T')[0],
+                        merchant: previewClaim.merchant,
+                        amount: previewClaim.amount,
+                        category_id: previewClaim.category_id,
+                        receipt_number: previewClaim.receipt_number ?? '',
+                        description: previewClaim.description ?? '',
+                      });
+                    }}
+                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                    style={{ backgroundColor: '#A60201' }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => batchReview([previewClaim.id])}
+                    disabled={previewClaim.status === 'reviewed'}
+                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    style={{ backgroundColor: '#152237' }}
+                  >
+                    Mark as Reviewed
+                  </button>
+                </>
               )}
             </div>
           </div>

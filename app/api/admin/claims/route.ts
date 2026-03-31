@@ -15,9 +15,11 @@ export async function GET(request: NextRequest) {
   const dateTo = searchParams.get('dateTo');
   const status = searchParams.get('status');
   const search = searchParams.get('search');
+  const type = searchParams.get('type');
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { firm_id: firmId };
+  if (type && (type === 'claim' || type === 'receipt')) where.type = type;
 
   if (dateFrom || dateTo) {
     where.claim_date = {};
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
     include: {
       employee: { select: { name: true } },
       category: { select: { name: true } },
+      _count: { select: { paymentReceipts: true } },
     },
     orderBy: { claim_date: 'desc' },
   });
@@ -58,6 +61,9 @@ export async function GET(request: NextRequest) {
     file_url: c.file_url,
     thumbnail_url: c.thumbnail_url,
     confidence: c.confidence,
+    submitted_via: c.submitted_via,
+    type: c.type,
+    linked_payment_count: c._count.paymentReceipts,
   }));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });

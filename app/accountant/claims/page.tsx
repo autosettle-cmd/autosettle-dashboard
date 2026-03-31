@@ -32,6 +32,8 @@ interface ClaimRow {
   file_url: string | null;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
   receipt_number: string | null;
+  type: 'claim' | 'receipt';
+  linked_payment_count: number;
 }
 
 interface Firm {
@@ -110,6 +112,18 @@ function ApprovalCell({ value }: { value: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
 }
 
+function LinkedCell({ value }: { value: number }) {
+  return value > 0
+    ? <span className="badge-green">Linked</span>
+    : <span className="badge-gray">Unlinked</span>;
+}
+
+function PaymentStatusCell({ value }: { value: string }) {
+  const cfg = PAYMENT_CFG[value];
+  if (!cfg) return null;
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
+}
+
 function ActionCell({ data, context }: { data: ClaimRow; context: { openPreview: (c: ClaimRow) => void } }) {
   return (
     <button
@@ -130,7 +144,8 @@ function ActionCell({ data, context }: { data: ClaimRow; context: { openPreview:
 const NAV = [
   { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
   { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Receipts',   href: '/accountant/receipts',   icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z' },
+  { label: 'Invoices',   href: '/accountant/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  { label: 'Suppliers',  href: '/accountant/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
@@ -155,6 +170,11 @@ export default function ClaimsPage() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const handleLogout = useLogout();
+
+  // Tab
+  const [claimTab, setClaimTab] = useState<'claim' | 'receipt'>('claim');
+  const [claimCount, setClaimCount] = useState(0);
+  const [receiptCount, setReceiptCount] = useState(0);
 
   // Data
   const [claims, setClaims]   = useState<ClaimRow[]>([]);
@@ -205,6 +225,7 @@ export default function ClaimsPage() {
 
     const { from, to } = getDateRange(dateRange, customFrom, customTo);
     const p = new URLSearchParams();
+    p.set('type', claimTab);
     if (firmId)        p.set('firmId',   firmId);
     if (from)          p.set('dateFrom', from);
     if (to)            p.set('dateTo',   to);
@@ -217,7 +238,20 @@ export default function ClaimsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmId, dateRange, customFrom, customTo, approvalFilter, search, refreshKey]);
+  }, [claimTab, firmId, dateRange, customFrom, customTo, approvalFilter, search, refreshKey]);
+
+  // Fetch tab counts
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (firmId) p.set('firmId', firmId);
+    Promise.all([
+      fetch(`/api/claims?type=claim&${p}`).then((r) => r.json()),
+      fetch(`/api/claims?type=receipt&${p}`).then((r) => r.json()),
+    ]).then(([claimJ, receiptJ]) => {
+      setClaimCount(claimJ.meta?.count ?? 0);
+      setReceiptCount(receiptJ.meta?.count ?? 0);
+    }).catch(console.error);
+  }, [firmId, refreshKey]);
 
   // When previewClaim changes, exit edit mode
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
@@ -238,8 +272,8 @@ export default function ClaimsPage() {
   }, [firmId]);
 
   // Column definitions
-  const columnDefs = useMemo<ColDef<ClaimRow>[]>(() => [
-    {
+  const columnDefs = useMemo<ColDef<ClaimRow>[]>(() => {
+    const checkboxCol: ColDef<ClaimRow> = {
       checkboxSelection: true,
       headerCheckboxSelection: true,
       width: 48, minWidth: 48, maxWidth: 48,
@@ -247,37 +281,53 @@ export default function ClaimsPage() {
       resizable: false,
       sortable: false,
       suppressHeaderMenuButton: true,
-    },
-    {
+    };
+    const dateCol: ColDef<ClaimRow> = {
       field: 'claim_date',
       headerName: 'Date',
       width: 110,
       sort: 'desc',
       valueFormatter: (p) => formatDate(p.value),
       comparator: (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-    },
-    { field: 'employee_name', headerName: 'Employee',   flex: 1, minWidth: 120 },
-    { field: 'firm_name',     headerName: 'Firm',       width: 160             },
-    { field: 'merchant',      headerName: 'Merchant',   flex: 1, minWidth: 120 },
-    { field: 'category_name', headerName: 'Category',   width: 110             },
-    {
+    };
+    const firmCol: ColDef<ClaimRow> = { field: 'firm_name', headerName: 'Firm', width: 160 };
+    const merchantCol: ColDef<ClaimRow> = { field: 'merchant', headerName: 'Merchant', flex: 1, minWidth: 120 };
+    const categoryCol: ColDef<ClaimRow> = { field: 'category_name', headerName: 'Category', width: 110 };
+    const amountCol: ColDef<ClaimRow> = {
       field: 'amount',
       headerName: 'Amount (RM)',
       width: 125,
       type: 'rightAligned',
-      valueFormatter: (p) => p.value != null ? Number(p.value).toFixed(2) : '',
+      valueFormatter: (p) => p.value != null ? Number(p.value).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
       comparator: (a, b) => Number(a) - Number(b),
-    },
-    { field: 'status',   headerName: 'Status',   width: 145, cellRenderer: StatusCell   },
-    { field: 'approval', headerName: 'Approval', width: 125, cellRenderer: ApprovalCell },
-    {
+    };
+    const statusCol: ColDef<ClaimRow> = { field: 'status', headerName: 'Status', width: 145, cellRenderer: StatusCell };
+    const actionCol: ColDef<ClaimRow> = {
       headerName: '',
       width: 56, minWidth: 56, maxWidth: 56,
       sortable: false, resizable: false,
       suppressHeaderMenuButton: true,
       cellRenderer: ActionCell,
-    },
-  ], []);
+    };
+
+    if (claimTab === 'claim') {
+      return [
+        checkboxCol, dateCol,
+        { field: 'employee_name', headerName: 'Employee', flex: 1, minWidth: 120 },
+        firmCol, merchantCol, categoryCol, amountCol, statusCol,
+        { field: 'approval', headerName: 'Approval', width: 125, cellRenderer: ApprovalCell },
+        actionCol,
+      ];
+    } else {
+      return [
+        checkboxCol, dateCol,
+        firmCol, merchantCol, categoryCol, amountCol, statusCol,
+        { field: 'payment_status', headerName: 'Payment', width: 110, cellRenderer: PaymentStatusCell },
+        { field: 'linked_payment_count', headerName: 'Linked', width: 110, cellRenderer: LinkedCell },
+        actionCol,
+      ];
+    }
+  }, [claimTab]);
 
   const gridContext = useMemo(() => ({ openPreview: setPreviewClaim }), []);
 
@@ -389,6 +439,27 @@ export default function ClaimsPage() {
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
+
+          {/* ── Tabs ─────────────────────────────────────── */}
+          <div className="flex gap-1 flex-shrink-0">
+            {([['claim', 'Employee Claims', claimCount], ['receipt', 'Receipts', receiptCount]] as const).map(([key, label, count]) => (
+              <button
+                key={key}
+                onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
+                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                  claimTab === key
+                    ? 'text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                }`}
+                style={claimTab === key ? { backgroundColor: '#152237' } : undefined}
+              >
+                {label}
+                <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>{count}</span>
+              </button>
+            ))}
+          </div>
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
