@@ -1,4 +1,4 @@
-import { GeminiExtractionResult } from "./gemini";
+import { GeminiExtractionResult, GeminiInvoiceResult } from "./gemini";
 
 /**
  * Parse and validate Gemini's JSON output.
@@ -47,6 +47,61 @@ export function parseGeminiOutput(raw: string): GeminiExtractionResult {
       amount: Number(parsed.amount),
       receiptNumber: String(parsed.receiptNumber || ""),
       category: String(parsed.category),
+      confidence: ["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence)
+        ? parsed.confidence
+        : "LOW",
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Parse and validate Gemini's invoice JSON output.
+ */
+export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
+  const fallback: GeminiInvoiceResult = {
+    vendor: "",
+    invoiceNumber: "",
+    issueDate: "",
+    dueDate: "",
+    paymentTerms: "",
+    subtotal: 0,
+    taxAmount: 0,
+    totalAmount: 0,
+    category: "",
+    confidence: "LOW",
+  };
+
+  try {
+    let cleaned = raw
+      .replace(/```json\s*/gi, "")
+      .replace(/```\s*/g, "")
+      .trim();
+
+    if (!cleaned.endsWith("}")) {
+      cleaned = cleaned.replace(/,?\s*$/, "");
+      const quoteCount = (cleaned.match(/"/g) || []).length;
+      if (quoteCount % 2 !== 0) cleaned += '"';
+      cleaned += "}";
+    }
+
+    const parsed = JSON.parse(cleaned);
+
+    if (!parsed.vendor || !parsed.totalAmount) {
+      return { ...fallback, ...parsed, confidence: "LOW" };
+    }
+
+    return {
+      vendor: String(parsed.vendor),
+      invoiceNumber: String(parsed.invoiceNumber || ""),
+      issueDate: String(parsed.issueDate || ""),
+      dueDate: String(parsed.dueDate || ""),
+      paymentTerms: String(parsed.paymentTerms || ""),
+      subtotal: Number(parsed.subtotal || 0),
+      taxAmount: Number(parsed.taxAmount || 0),
+      totalAmount: Number(parsed.totalAmount),
+      category: String(parsed.category || ""),
       confidence: ["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence)
         ? parsed.confidence
         : "LOW",

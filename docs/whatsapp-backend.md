@@ -17,12 +17,13 @@ All data is written to Postgres via Prisma. No Softr API calls.
 
 /lib/whatsapp/
   send.ts                 -- All WhatsApp Cloud API send functions
-  ocr.ts                  -- Google Cloud Vision OCR
-  gemini.ts               -- Gemini extraction + categorisation
-  session.ts              -- Session CRUD (Postgres)
-  claims.ts               -- Claims CRUD (Postgres)
-  employees.ts            -- Employee lookup by phone (Postgres)
-  parser.ts               -- Parse and validate Gemini output
+  ocr.ts                  -- Google Cloud Vision OCR + media download
+  gemini.ts               -- Gemini extraction, classification, invoice extraction, PDF multimodal
+  session.ts              -- Session CRUD (Postgres) with multi-receipt pending map
+  claims.ts               -- Claims + Receipts CRUD (Postgres)
+  invoices.ts             -- Invoice save with supplier auto-matching
+  employees.ts            -- Employee lookup by phone with role detection (Postgres)
+  parser.ts               -- Parse and validate Gemini output (receipt + invoice)
   drive.ts                -- Google Drive upload + thumbnail URL
   errorNotify.ts          -- Telegram error alert (replaces n8n Error Workflow)
 ```
@@ -115,13 +116,17 @@ updatedAt    DateTime
 Functions in /lib/whatsapp/session.ts:
 
 ```
-getSession(phone)          -- get active session for phone, returns null if none
-createSession(phone, data) -- create new session with state=COLLECTING, step=AWAITING_CONFIRMATION
-updateSession(id, updates) -- update state, step, or pendingData
-deleteSession(id)          -- delete session after claim is saved
+getSession(phone)                      -- get active session for phone, returns null if none
+addPendingReceipt(phone, key, data)    -- add receipt to pending map (creates session if needed, appends if exists)
+removePendingReceipt(phone, key)       -- remove one receipt from map; deletes session if map becomes empty
+generateReceiptKey()                   -- generate 4-hex-char unique key for a pending receipt
+updateSession(id, updates)             -- update step or pending_receipt
+deleteSession(id)                      -- delete session entirely
 ```
 
-Rule: Only ONE session per phone at a time. Before creating, check if one already exists.
+Multi-receipt support: pending_receipt is a JSON map keyed by receipt key (e.g. `{ "a1b2": {...}, "c3d4": {...} }`).
+Each LOW confidence receipt gets its own key. Button IDs include the key: `confirm_yes:a1b2`, `confirm_no:a1b2`.
+Each button press only resolves its specific receipt. Session is deleted when the map is empty.
 
 ---
 
@@ -249,11 +254,10 @@ In /lib/whatsapp/parser.ts:
 #### LOW confidence
 
 ```
-1. If session already exists for this phone → skip create, use existing
-2. Create session with pendingData = extracted fields
-3. Send confirmation buttons (Yes / No) with extracted data shown
-   (see Low Confidence Button Message Format below)
-4. Update session step = AWAITING_CONFIRMATION
+1. Generate a unique receipt key via generateReceiptKey()
+2. Add receipt to pending map via addPendingReceipt(phone, key, data)
+3. Send confirmation buttons with keyed IDs: confirm_yes:{key}, confirm_no:{key}
+   Body shows labeled fields: Merchant, Amount, Date, Receipt No, Category
 ```
 
 ---
@@ -272,16 +276,25 @@ buttonId = message.interactive.button_reply?.id
 ### Button routing
 
 ```
-if buttonId === 'confirm_yes'
-  → get session → save claim → delete session → send saved confirmation
+if buttonId starts with 'confirm_yes:'
+  → extract receiptKey from buttonId
+  → get session → look up receipt in pending map by key
+  → upload to Drive → save claim → removePendingReceipt(phone, key)
+  → send saved confirmation
 
-if buttonId === 'confirm_no'
-  → update session step = AWAITING_CORRECTION
+if buttonId starts with 'confirm_no:'
+  → extract receiptKey from buttonId
+  → update session step = AWAITING_CORRECTION:{receiptKey}
   → send message: "What needs to be corrected? Type the correction and I'll update it."
 
 if buttonId starts with 'menu_'
-  → send_interactive_menu (show main menu again) or handle specific menu actions
+  → handle specific menu actions (submit, status, summary, help)
 ```
+
+Text message routing (deterministic, before Lisa):
+- If session is COLLECTING but step is NOT AWAITING_CORRECTION:* → reply "Please use the Yes or No buttons above"
+- If session is COLLECTING + AWAITING_CORRECTION:{key} → route to Lisa for correction parsing
+- Otherwise (IDLE / no session) → route to Lisa for greetings, status queries, etc.
 
 ---
 
@@ -489,6 +502,107 @@ Output: formatted string message matching the existing n8n logic:
 - pending/approved/rejected: show by category grouping with totals
 - rejected: show individual lines (last 30 days only, max 10)
 - all: monthly summary + year-to-date breakdown by category
+
+---
+
+## Admin Role Detection — /lib/whatsapp/employees.ts
+
+```
+lookupEmployeeByPhone(phone) returns:
+  { id, name, phone, email, firmId, firmName, userId, role }
+```
+
+- Joins Employee → User (via employee_id) to get role
+- `role` = "admin" | "employee" (defaults to "employee" if no User linked)
+- `userId` = User.id (needed for Receipt table's `uploaded_by` FK)
+- Admin User must have a linked Employee record with a phone number to be reachable via WhatsApp
+
+---
+
+## Document Type Routing (Admin only)
+
+When `role === "admin"` and message is an image:
+1. Run OCR as normal
+2. Call `classifyDocument(ocrText)` — returns "receipt" | "invoice"
+3. If "invoice" → `extractWithGeminiInvoice()` → `saveInvoice()`
+4. If "receipt" → `extractWithGemini()` → `saveReceipt()` (Receipt table, not Claim table)
+
+When `role === "employee"`:
+- Always → `extractWithGemini()` → `saveClaim()` (Claim table)
+
+---
+
+## PDF Document Handling
+
+When `message.type === "document"` (PDF):
+1. Validate mime_type contains "pdf" (reject other file types)
+2. Download via `downloadWhatsAppMedia(mediaId)`
+3. Send PDF buffer directly to Gemini as multimodal input via `extractInvoiceFromPDF(pdfBuffer, categories)`
+4. Gemini classifies + extracts in ONE call (no Google Vision OCR needed)
+5. Route based on document type (same as image flow)
+
+The `extractInvoiceFromPDF` function sends the PDF as base64 `inlineData` with `mimeType: "application/pdf"`.
+
+---
+
+## Invoice Save — /lib/whatsapp/invoices.ts
+
+```
+saveInvoice({
+  employeeId, firmId, vendor, invoiceNumber, issueDate, dueDate,
+  paymentTerms, subtotal, taxAmount, totalAmount, category,
+  confidence, driveFileId, thumbnailUrl
+})
+```
+
+Supplier matching flow:
+1. Normalize vendor name (lowercase, trim)
+2. Search SupplierAlias for matching alias in this firm
+3. If found + is_confirmed → link, status = confirmed
+4. If found + !is_confirmed → link, status = auto_matched
+5. If not found → create new Supplier + SupplierAlias, status = unmatched
+
+Due date auto-calculation:
+- If dueDate empty but paymentTerms has days (e.g. "30 Days", "Net 30") → calculate from issueDate
+
+---
+
+## Save Receipt (Admin) — /lib/whatsapp/claims.ts
+
+```
+saveReceipt({
+  userId, firmId, receiptDate, merchant, amount,
+  receiptNumber, category, confidence, driveFileId, thumbnailUrl
+})
+```
+
+Saves to the Receipt table (not Claim table). Uses `userId` (User.id) for `uploaded_by`.
+
+---
+
+## Pending Data Types
+
+The `type` field in pending receipt map determines routing on button confirmation:
+- `"receipt"` → saveClaim (employee claim)
+- `"admin_receipt"` → saveReceipt (admin receipt → Receipt table)
+- `"invoice"` → saveInvoice (admin invoice → Invoice table)
+
+---
+
+## Invoice Confirmation Message Format
+
+```
+Invoice saved!
+
+Vendor: [Vendor Name]
+Amount: RM [Amount]
+Issue Date: [Date]
+Due Date: [Date or -]
+Invoice No: [Number or -]
+Category: [Category]
+
+Send your next document
+```
 
 ---
 

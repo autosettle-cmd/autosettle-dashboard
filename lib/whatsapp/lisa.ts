@@ -2,7 +2,7 @@ import { GoogleAuth } from "google-auth-library";
 import { readFileSync } from "fs";
 import { sendTextMessage, sendInteractiveMenu, sendConfirmationMessage } from "@/lib/whatsapp/send";
 import { saveClaim, getClaimsForPhone } from "@/lib/whatsapp/claims";
-import { deleteSession, updateSession } from "@/lib/whatsapp/session";
+import { deleteSession, updateSession, removePendingReceipt } from "@/lib/whatsapp/session";
 import { uploadToDrive } from "@/lib/whatsapp/drive";
 import type { EmployeeInfo } from "@/lib/whatsapp/employees";
 import { sendTelegramAlert } from "@/lib/whatsapp/errorNotify";
@@ -69,17 +69,18 @@ const LISA_TOOLS = [
       },
       {
         name: "save_claim",
-        description: "Save a claim with corrected fields from the pending session data. Only use when session is in AWAITING_CORRECTION state.",
+        description: "Save a claim with corrected fields from the pending session data. Only use when session is in AWAITING_CORRECTION state. You MUST include the receipt_key from the session step.",
         parameters: {
           type: "OBJECT",
           properties: {
+            receipt_key: { type: "STRING", description: "The receipt key being corrected (from the AWAITING_CORRECTION:key step)" },
             date: { type: "STRING", description: "Corrected date in YYYY-MM-DD format, or original if not corrected" },
             merchant: { type: "STRING", description: "Corrected merchant name, or original if not corrected" },
             amount: { type: "NUMBER", description: "Corrected amount, or original if not corrected" },
             receiptNumber: { type: "STRING", description: "Corrected receipt number, or original if not corrected" },
             category: { type: "STRING", description: "Corrected category, or original if not corrected" },
           },
-          required: ["date", "merchant", "amount", "receiptNumber", "category"],
+          required: ["receipt_key", "date", "merchant", "amount", "receiptNumber", "category"],
         },
       },
       {
@@ -114,7 +115,8 @@ Current session:
 - State: ${session?.state || "IDLE"}
 - Step: ${session?.step || ""}
 - Session ID: ${session?.id || ""}
-- Pending Receipt: ${JSON.stringify(session?.pending_receipt || {})}
+- Pending Receipts (map keyed by receipt_key): ${JSON.stringify(session?.pending_receipt || {})}
+${session?.step?.startsWith("AWAITING_CORRECTION:") ? `- Correcting receipt key: ${session.step.split(":")[1]}` : ""}
 
 Current message: ${messageText}
 
@@ -136,13 +138,15 @@ IDLE state (no session):
 - Client explicitly wants to submit (claim, submit, hantar resit, nak claim) → send_message: send a photo of your receipt
 - Everything else including greetings → call send_interactive_menu
 
-COLLECTING + AWAITING_CONFIRMATION:
+COLLECTING (no AWAITING_CORRECTION step):
 - Client sends text → send_message: Please use the Yes or No buttons above
 
-COLLECTING + AWAITING_CORRECTION:
-- Client types correction → parse it, apply to Pending Receipt data
-- call save_claim (with corrected values merged with Pending Receipt)
-- call delete_session
+COLLECTING + AWAITING_CORRECTION:<receipt_key>:
+- The step field contains AWAITING_CORRECTION:<receipt_key> — extract the receipt_key
+- Look up that receipt_key in the Pending Receipts map to get the original data
+- Client types correction → parse it, apply to that receipt's data
+- call save_claim with receipt_key and corrected values merged with that receipt's data
+- Do NOT call delete_session — the system handles cleanup automatically
 - call send_message with brief confirmation like "Updated and saved!"`;
 }
 
@@ -258,7 +262,14 @@ async function executeToolCall(
         await sendTextMessage(phone, "No pending receipt to save. Please send a new receipt photo.");
         return;
       }
-      const pending = session.pending_receipt as Record<string, unknown>;
+      const receiptKey = args.receipt_key as string;
+      const receiptMap = session.pending_receipt as Record<string, Record<string, unknown>>;
+      const pending = receiptKey ? receiptMap[receiptKey] : null;
+
+      if (!pending) {
+        await sendTextMessage(phone, "Could not find that pending receipt. Please send a new receipt photo.");
+        return;
+      }
 
       // Upload image to Drive from stored base64
       const imageBuffer = Buffer.from(pending.imageBuffer as string, "base64");
@@ -279,6 +290,9 @@ async function executeToolCall(
         driveFileId: fileId,
         thumbnailUrl,
       });
+
+      // Remove this receipt from pending map (auto-deletes session if last one)
+      await removePendingReceipt(phone, receiptKey);
 
       await sendConfirmationMessage(phone, {
         merchant,

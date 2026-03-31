@@ -1,6 +1,24 @@
 const VISION_API_URL = "https://vision.googleapis.com/v1/images:annotate";
 
 /**
+ * Download any media from WhatsApp Cloud API by media ID.
+ * Works for images, documents (PDFs), audio, etc.
+ */
+export async function downloadWhatsAppMedia(mediaId: string): Promise<Buffer> {
+  const token = process.env.WHATSAPP_TOKEN!;
+  const metaRes = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!metaRes.ok) throw new Error(`Failed to get media URL: ${metaRes.status}`);
+  const metaJson = (await metaRes.json()) as { url: string };
+  const mediaRes = await fetch(metaJson.url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!mediaRes.ok) throw new Error(`Failed to download media: ${mediaRes.status}`);
+  return Buffer.from(await mediaRes.arrayBuffer());
+}
+
+/**
  * Download image from WhatsApp Cloud API by media ID.
  * Two-step: get URL, then fetch binary.
  */

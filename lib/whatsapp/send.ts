@@ -124,13 +124,40 @@ export async function sendConfirmationMessage(
   const body = [
     "Saved!",
     "",
-    fields.merchant,
-    `RM${fields.amount.toFixed(2)}`,
-    fields.date,
-    fields.receiptNumber || "-",
-    fields.category,
+    `Merchant: ${fields.merchant}`,
+    `Amount: RM ${fields.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `Date: ${fields.date}`,
+    `Receipt No: ${fields.receiptNumber || "-"}`,
+    `Category: ${fields.category}`,
     "",
     "Send your next receipt",
+  ].join("\n");
+
+  await sendTextMessage(to, body);
+}
+
+export async function sendInvoiceConfirmationMessage(
+  to: string,
+  fields: {
+    vendor: string;
+    totalAmount: number;
+    issueDate: string;
+    dueDate: string;
+    invoiceNumber: string;
+    category: string;
+  }
+) {
+  const body = [
+    "Invoice saved!",
+    "",
+    `Vendor: ${fields.vendor}`,
+    `Amount: RM ${fields.totalAmount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    `Issue Date: ${fields.issueDate}`,
+    `Due Date: ${fields.dueDate || "-"}`,
+    `Invoice No: ${fields.invoiceNumber || "-"}`,
+    `Category: ${fields.category}`,
+    "",
+    "Send your next document",
   ].join("\n");
 
   await sendTextMessage(to, body);

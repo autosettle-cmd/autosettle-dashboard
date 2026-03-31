@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
 
+function fmtRM(n: number): string {
+  return `RM ${n.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 interface SaveClaimInput {
   employeeId: string;
   firmId: string;
@@ -49,6 +53,7 @@ export async function saveClaim(input: SaveClaimInput) {
   return claim;
 }
 
+
 export async function getClaimsForPhone(
   phone: string,
   filter: "pending" | "approved" | "rejected" | "all"
@@ -96,13 +101,13 @@ export async function getClaimsForPhone(
 
     const monthName = now.toLocaleString("en-MY", { month: "long" });
     let msg = `Summary for ${employee.name}\n\n`;
-    msg += `${monthName}: RM${monthTotal.toFixed(2)} (${monthClaims.length} claims)\n\n`;
-    msg += `Year-to-date: RM${ytdTotal.toFixed(2)} (${ytdClaims.length} claims)\n`;
+    msg += `${monthName}: ${fmtRM(monthTotal)} (${monthClaims.length} claims)\n\n`;
+    msg += `Year-to-date: ${fmtRM(ytdTotal)} (${ytdClaims.length} claims)\n`;
 
     if (Object.keys(byCategory).length > 0) {
       msg += "\nBy category:\n";
       for (const [cat, total] of Object.entries(byCategory).sort((a, b) => b[1] - a[1])) {
-        msg += `- ${cat}: RM${total.toFixed(2)}\n`;
+        msg += `- ${cat}: ${fmtRM(total)}\n`;
       }
     }
 
@@ -146,9 +151,9 @@ export async function getClaimsForPhone(
     let msg = `Rejected claims (last 30 days):\n\n`;
     for (const c of claims) {
       const date = c.claim_date.toISOString().split("T")[0];
-      msg += `- ${c.merchant} RM${Number(c.amount).toFixed(2)} (${date})${c.rejection_reason ? ` - ${c.rejection_reason}` : ""}\n`;
+      msg += `- ${c.merchant} ${fmtRM(Number(c.amount))} (${date})${c.rejection_reason ? ` - ${c.rejection_reason}` : ""}\n`;
     }
-    msg += `\nTotal: RM${total.toFixed(2)}`;
+    msg += `\nTotal: ${fmtRM(total)}`;
     return msg;
   }
 
@@ -162,9 +167,9 @@ export async function getClaimsForPhone(
   }
 
   const label = filter === "pending" ? "Pending" : "Approved";
-  let msg = `${label} claims: ${claims.length} total (RM${total.toFixed(2)})\n\n`;
+  let msg = `${label} claims: ${claims.length} total (${fmtRM(total)})\n\n`;
   for (const [cat, data] of Object.entries(byCategory).sort((a, b) => b[1].total - a[1].total)) {
-    msg += `- ${cat}: ${data.count} claims, RM${data.total.toFixed(2)}\n`;
+    msg += `- ${cat}: ${data.count} claims, ${fmtRM(data.total)}\n`;
   }
 
   return msg.trim();

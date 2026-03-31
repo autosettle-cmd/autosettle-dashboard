@@ -10,6 +10,10 @@ export async function lookupEmployeeByPhone(phone: string) {
           name: true,
         },
       },
+      users: {
+        select: { id: true, role: true },
+        take: 1,
+      },
     },
   });
 
@@ -22,6 +26,8 @@ export async function lookupEmployeeByPhone(phone: string) {
     email: employee.email,
     firmId: employee.firm.id,
     firmName: employee.firm.name,
+    userId: employee.users[0]?.id ?? null,
+    role: employee.users[0]?.role ?? "employee",
   };
 }
 

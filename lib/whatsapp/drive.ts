@@ -71,6 +71,19 @@ export async function uploadToDrive(
   const data = (await res.json()) as { id: string };
   const fileId = data.id;
 
+  // Make file publicly viewable so thumbnail URL works
+  await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ role: "reader", type: "anyone" }),
+    }
+  );
+
   return {
     fileId,
     thumbnailUrl: getThumbnailUrl(fileId),
