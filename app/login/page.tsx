@@ -106,15 +106,8 @@ export default function LoginPage() {
 
       <div className="relative w-full max-w-[400px] mx-4">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-10">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white text-[22px] font-bold tracking-tight">Autosettle</span>
+        <div className="flex items-center justify-center mb-10">
+          <img src="/logo.png" alt="Autosettle AI Solutions" className="h-14" />
         </div>
 
         {/* Card */}

@@ -16,7 +16,6 @@ Install: npm install ag-grid-react ag-grid-community
 - Wrong role accessing accountant route → redirect to their correct portal
 
 ---
-
 ## Screen 2: Main Dashboard (Overview)
 Top summary bar — 4 stat cards:
 - Total claims this month

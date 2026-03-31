@@ -1,5 +1,15 @@
 # Autosettle — Master Context
 
+## How To Start a Session
+Read this file and all files in /docs/ before doing anything.
+Then fetch these two Notion pages for current build status:
+- Dashboard Build: https://www.notion.so/3329e5f5baeb819fa4bbde374726c16f
+- Next Session: https://www.notion.so/3329e5f5baeb812d9d93d706f5b9325e
+
+Tell me the current status and what's next, then we begin.
+
+---
+
 ## What Is Autosettle
 Autosettle is a Malaysian B2B2C SaaS platform for accounting firms and their SME clients. Clients submit receipts, invoices, and expense claims via WhatsApp. AI extracts and categorises the data. Accountants review and approve via this web dashboard. Employees track their own submissions.
 
@@ -10,13 +20,13 @@ Autosettle is a Malaysian B2B2C SaaS platform for accounting firms and their SME
 - ORM: Prisma
 - Auth: NextAuth.js (email + password, credentials provider)
 - Table component: AG Grid Community (free)
-- Deployment: Vercel (frontend) + VPS (Postgres + n8n)
+- Deployment: Vercel (frontend) + VPS (Postgres + WhatsApp backend)
 
 ## Three User Roles
 
 ### Accountant
-- Manages multiple firms
-- Sees ALL data across ALL firms
+- Manages multiple firms (accountant with zero firm assignments = sees all firms)
+- Sees ALL data across assigned firms
 - Can approve and reject claims and receipts (batch and individual)
 - Can manage firms, employees, and categories
 - After login → redirect to /accountant/dashboard
@@ -31,7 +41,7 @@ Autosettle is a Malaysian B2B2C SaaS platform for accounting firms and their SME
 ### Employee
 - Individual staff under a firm
 - Sees only their own submissions
-- Can submit claims and receipts via dashboard or WhatsApp
+- Can submit claims via dashboard or WhatsApp
 - Read-only on approval status
 - After login → redirect to /employee/dashboard
 
@@ -61,13 +71,13 @@ All DB access goes through /app/api/* route handlers only.
 6. Always handle loading, error, and empty states in every UI component
 
 ## Design System
-- Primary background: #0F172A (dark navy)
-- Surface/cards: #1E293B
-- Accent: #3B82F6 (blue)
+- Sidebar/header background: #152237 (dark navy)
+- Content area: white
+- Accent/buttons: #A60201 (Autosettle red)
 - Success: #22C55E (green)
 - Warning: #EAB308 (yellow)
 - Danger: #EF4444 (red)
-- Text primary: #F8FAFC
+- Text primary: #1E293B
 - Text muted: #94A3B8
 - Font: Inter (Google Fonts)
 - Status badges: Pending review=yellow, Reviewed=blue, Approved=green, Not approved=red, Paid=purple
@@ -75,10 +85,26 @@ All DB access goes through /app/api/* route handlers only.
 ## Project Structure
 /app — Next.js App Router pages
 /app/api — All backend API routes
+/app/api/whatsapp — WhatsApp + OCR backend (replaces n8n)
+/app/api/admin/invoices — Invoice CRUD + stats + aging report APIs
+/app/api/admin/suppliers — Supplier CRUD + alias management APIs
 /app/accountant — Accountant portal pages
-/app/admin — Admin portal pages
+/app/admin — Admin portal pages (dashboard, claims, receipts, invoices, suppliers, employees, categories)
+/app/admin/suppliers — Supplier accounts + integrated aging report (summary cards + detail table)
+/app/admin/invoices/aging — Standalone aging report (redundant, aging is now on suppliers page)
 /app/employee — Employee portal pages
 /components — Shared UI components
 /lib — Shared utilities (db, auth, whatsapp, helpers)
+/lib/whatsapp/invoices.ts — Invoice save with supplier auto-matching
 /prisma — Prisma schema and migrations
-/docs — All spec files (read these before building any feature)
+/docs — All spec files (read before building any feature)
+
+## Docs To Read Before Building Any Feature
+- /docs/database-schema.md — full Postgres schema
+- /docs/user-roles.md — access control rules per role
+- /docs/accountant-portal.md — accountant dashboard spec
+- /docs/design-system.md — colors, fonts, components
+- /docs/auth.md — authentication spec
+- /docs/categories-spec.md — category business rules
+- /docs/signup-spec.md — user onboarding flow
+- /docs/whatsapp-backend.md — WhatsApp and OCR backend spec
