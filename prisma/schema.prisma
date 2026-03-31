@@ -52,9 +52,31 @@ enum SubmittedVia {
   dashboard
 }
 
+enum ClaimType {
+  claim
+  receipt
+}
+
 enum SessionState {
   IDLE
   COLLECTING
+}
+
+enum InvoiceStatus {
+  pending_review
+  reviewed
+}
+
+enum InvoicePaymentStatus {
+  unpaid
+  partially_paid
+  paid
+}
+
+enum SupplierLinkStatus {
+  auto_matched
+  unmatched
+  confirmed
 }
 
 model Firm {
@@ -72,7 +94,10 @@ model Firm {
   users           User[]
   employees       Employee[]
   claims          Claim[]
-  receipts        Receipt[]
+
+  invoices        Invoice[]
+  suppliers       Supplier[]
+  payments        Payment[]
   categories             Category[]
   categoryFirmOverrides  CategoryFirmOverride[]
   accountantFirms        AccountantFirm[]
@@ -91,6 +116,7 @@ model Employee {
   firm         Firm         @relation(fields: [firm_id], references: [id])
   users        User[]
   claims       Claim[]
+  invoices     Invoice[]
   messageLogs  MessageLog[]
 }
 
@@ -109,7 +135,6 @@ model User {
 
   firm           Firm?            @relation(fields: [firm_id], references: [id])
   employee       Employee?        @relation(fields: [employee_id], references: [id])
-  receipts       Receipt[]
   accountantFirms AccountantFirm[]
 }
 
@@ -135,7 +160,7 @@ model Category {
 
   firm      Firm?                @relation(fields: [firm_id], references: [id])
   claims    Claim[]
-  receipts  Receipt[]
+  invoices  Invoice[]
   overrides CategoryFirmOverride[]
 
   @@unique([firm_id, name])
@@ -173,35 +198,118 @@ model Claim {
   file_download_url String?
   thumbnail_url    String?
   submitted_via    SubmittedVia
+  type             ClaimType      @default(claim)
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
 
   firm     Firm     @relation(fields: [firm_id], references: [id])
   employee Employee @relation(fields: [employee_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
+  paymentReceipts PaymentReceipt[]
 }
 
-model Receipt {
-  id                String         @id @default(uuid())
-  firm_id           String
-  uploaded_by       String
-  receipt_date      DateTime       @db.Date
-  merchant          String
-  receipt_number    String?
-  amount            Decimal        @db.Decimal(10, 2)
-  category_id       String
-  confidence        Confidence
-  approval          ApprovalStatus @default(pending_approval)
-  file_url          String?
-  file_download_url String?
-  thumbnail_url     String?
-  submitted_via     SubmittedVia
-  created_at        DateTime       @default(now())
-  updated_at        DateTime       @updatedAt
 
-  firm     Firm     @relation(fields: [firm_id], references: [id])
-  uploader User     @relation(fields: [uploaded_by], references: [id])
-  category Category @relation(fields: [category_id], references: [id])
+model Supplier {
+  id            String   @id @default(uuid())
+  firm_id       String
+  name          String
+  contact_email String?
+  contact_phone String?
+  notes         String?
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  firm     Firm            @relation(fields: [firm_id], references: [id])
+  aliases  SupplierAlias[]
+  invoices Invoice[]
+  payments Payment[]
+
+  @@unique([firm_id, name])
+}
+
+model SupplierAlias {
+  id           String   @id @default(uuid())
+  supplier_id  String
+  alias        String
+  is_confirmed Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  supplier Supplier @relation(fields: [supplier_id], references: [id])
+
+  @@unique([supplier_id, alias])
+}
+
+model Invoice {
+  id                  String               @id @default(uuid())
+  firm_id             String
+  uploaded_by         String
+  supplier_id         String?
+  supplier_link_status SupplierLinkStatus  @default(unmatched)
+  vendor_name_raw     String
+  invoice_number      String?
+  issue_date          DateTime             @db.Date
+  due_date            DateTime?            @db.Date
+  payment_terms       String?
+  subtotal            Decimal?             @db.Decimal(10, 2)
+  tax_amount          Decimal?             @db.Decimal(10, 2)
+  total_amount        Decimal              @db.Decimal(10, 2)
+  category_id         String
+  confidence          Confidence
+  status              InvoiceStatus        @default(pending_review)
+  payment_status      InvoicePaymentStatus @default(unpaid)
+  amount_paid         Decimal              @default(0) @db.Decimal(10, 2)
+  file_url            String?
+  file_download_url   String?
+  thumbnail_url       String?
+  submitted_via       SubmittedVia
+  created_at          DateTime             @default(now())
+  updated_at          DateTime             @updatedAt
+
+  firm     Firm      @relation(fields: [firm_id], references: [id])
+  uploader Employee  @relation(fields: [uploaded_by], references: [id])
+  supplier            Supplier?            @relation(fields: [supplier_id], references: [id])
+  category            Category             @relation(fields: [category_id], references: [id])
+  paymentAllocations  PaymentAllocation[]
+}
+
+model Payment {
+  id           String   @id @default(uuid())
+  firm_id      String
+  supplier_id  String
+  amount       Decimal  @db.Decimal(10, 2)
+  payment_date DateTime @db.Date
+  reference    String?
+  notes        String?
+  created_at   DateTime @default(now())
+
+  firm        Firm                @relation(fields: [firm_id], references: [id])
+  supplier    Supplier            @relation(fields: [supplier_id], references: [id])
+  allocations PaymentAllocation[]
+  receipts    PaymentReceipt[]
+}
+
+model PaymentAllocation {
+  id         String  @id @default(uuid())
+  payment_id String
+  invoice_id String
+  amount     Decimal @db.Decimal(10, 2)
+
+  payment Payment @relation(fields: [payment_id], references: [id])
+  invoice Invoice @relation(fields: [invoice_id], references: [id])
+
+  @@unique([payment_id, invoice_id])
+}
+
+model PaymentReceipt {
+  id         String @id @default(uuid())
+  payment_id String
+  claim_id   String
+
+  payment Payment @relation(fields: [payment_id], references: [id])
+  claim   Claim   @relation(fields: [claim_id], references: [id])
+
+  @@unique([payment_id, claim_id])
 }
 
 model Session {
