@@ -53,7 +53,10 @@ export async function GET(
 
   const payments = await prisma.payment.findMany({
     where: { supplier_id: supplierId, payment_date: { gte: from, lte: to } },
-    select: { id: true, reference: true, payment_date: true, amount: true, notes: true },
+    select: {
+      id: true, reference: true, payment_date: true, amount: true, notes: true,
+      receipts: { include: { claim: { select: { merchant: true, receipt_number: true } } } },
+    },
     orderBy: { payment_date: 'asc' },
   });
 
@@ -73,11 +76,16 @@ export async function GET(
   }
 
   for (const pmt of payments) {
+    const receiptNames = pmt.receipts.map((r) => r.claim.receipt_number || r.claim.merchant);
+    let description = 'Payment';
+    if (receiptNames.length > 0) description += ` — ${receiptNames.join(', ')}`;
+    else if (pmt.notes) description += ` — ${pmt.notes}`;
+
     entries.push({
       date: pmt.payment_date.toISOString(),
       type: 'payment',
       reference: pmt.reference ?? '-',
-      description: pmt.notes ? `Payment — ${pmt.notes}` : 'Payment',
+      description,
       debit: 0,
       credit: Number(pmt.amount),
       balance: 0,

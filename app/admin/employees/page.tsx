@@ -94,6 +94,14 @@ export default function AdminEmployeesPage() {
   const [empError, setEmpError]           = useState('');
   const [empSaving, setEmpSaving]         = useState(false);
 
+  // ── Edit Employee Panel ──
+  const [editEmp, setEditEmp]             = useState<EmployeeRow | null>(null);
+  const [editName, setEditName]           = useState('');
+  const [editPhone, setEditPhone]         = useState('');
+  const [editEmail, setEditEmail]         = useState('');
+  const [editError, setEditError]         = useState('');
+  const [editSaving, setEditSaving]       = useState(false);
+
   // ── Fetch pending ──
   useEffect(() => {
     let cancelled = false;
@@ -200,6 +208,49 @@ export default function AdminEmployeesPage() {
     } catch {
       setAdminError('Network error. Please try again.');
       setAdminSaving(false);
+    }
+  };
+
+  // ── Edit Employee ──
+
+  const openEditPanel = (emp: EmployeeRow) => {
+    setEditEmp(emp);
+    setEditName(emp.name);
+    setEditPhone(emp.phone);
+    setEditEmail(emp.email ?? '');
+    setEditError('');
+    setEditSaving(false);
+  };
+
+  const submitEdit = async () => {
+    if (!editEmp) return;
+    if (!editName.trim() || !editPhone.trim()) {
+      setEditError('Name and phone are required.');
+      return;
+    }
+    setEditSaving(true);
+    setEditError('');
+    try {
+      const res = await fetch(`/api/admin/employees/${editEmp.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName.trim(),
+          phone: editPhone.trim(),
+          email: editEmail.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setEditError(json.error || 'Failed to update employee');
+        setEditSaving(false);
+        return;
+      }
+      setEditEmp(null);
+      refreshEmployees();
+    } catch {
+      setEditError('Network error. Please try again.');
+      setEditSaving(false);
     }
   };
 
@@ -457,7 +508,13 @@ export default function AdminEmployeesPage() {
                             <span className="badge-gray">Inactive</span>
                           )}
                         </td>
-                        <td className="px-5 py-3">
+                        <td className="px-5 py-3 flex items-center gap-2">
+                          <button
+                            onClick={() => openEditPanel(emp)}
+                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                          >
+                            Edit
+                          </button>
                           <button
                             onClick={() => toggleActive(emp)}
                             className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
@@ -552,6 +609,77 @@ export default function AdminEmployeesPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ EDIT EMPLOYEE PANEL ═══ */}
+      {editEmp && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setEditEmp(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-semibold text-sm">Edit Employee</h2>
+              <button onClick={() => setEditEmp(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-auto p-5 space-y-4">
+              {editError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-700">{editError}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="input-field w-full"
+                  placeholder="Employee name"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <input
+                  type="text"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="input-field w-full"
+                  placeholder="e.g. +60123456789"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="input-field w-full"
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            <div className="flex-shrink-0 border-t border-gray-100 p-4 flex gap-3">
+              <button
+                onClick={submitEdit}
+                disabled={editSaving}
+                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                style={{ backgroundColor: '#A60201' }}
+              >
+                {editSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button
+                onClick={() => setEditEmp(null)}
+                disabled={editSaving}
+                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* ═══ ADD EMPLOYEE MODAL ═══ */}

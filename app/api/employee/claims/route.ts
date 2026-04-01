@@ -94,6 +94,7 @@ export async function GET() {
     receipt_number: c.receipt_number,
     file_url: c.file_url,
     thumbnail_url: c.thumbnail_url,
+    confidence: c.confidence,
   }));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });

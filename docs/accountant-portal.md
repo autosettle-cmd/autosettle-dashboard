@@ -134,3 +134,102 @@ See /docs/categories-spec.md for full category logic.
 - [ ] Can accountant edit the Amount field inline, or read-only?
 - [ ] When claim is rejected, is employee notified via WhatsApp automatically?
 - [ ] Does accountant see Confidence score column or is it hidden?
+
+---
+
+## Screen 8: Claims Page — Tabbed (Built 2026-03-31)
+
+Two tabs with count badges:
+- **Employee Claims** (type=claim): Date, Employee, Firm, Merchant, Category, Amount, Status, Approval
+- **Receipts** (type=receipt): Date, Firm, Merchant, Category, Amount, Status, Payment, Linked
+
+Receipt preview panel shows linked payment info (supplier, amount, date, reference) with "Unlink from Payment" button.
+
+---
+
+## Screen 9: Invoices Page (Built 2026-03-31)
+
+AG Grid with columns: Date, Vendor, Invoice #, Due Date, Amount, Paid, Payment Status, Supplier Link.
+Row click → preview panel with Edit + Mark as Reviewed.
+
+---
+
+## Screen 10: Suppliers Page (Built 2026-03-31)
+
+Two sections:
+1. **Aging Report** — 6 summary cards (Current, 1-30, 31-60, 61-90, 90+, Total) + collapsible table grouped by supplier with invoice drill-down. Invoice rows clickable → preview panel.
+2. **Supplier Accounts** — list with accordion drill-down to invoices, edit side panel with alias management.
+
+Supplier rows show: outstanding (black), overdue (red), credit (green).
+- **Pay button** → payment side panel with receipt attachment thumbnails, auto-allocate, supplier credit info
+- **Statement link** → opens in new tab (per-supplier, date range, running balance, receipt details on credits)
+- **Invoice rows** → clickable → invoice preview panel (image, details, payment history)
+- **Payment allocation sub-rows** → receipt links clickable → receipt preview panel
+- **Remove** button on allocations → deletes allocation, recalcs invoice status
+- **Apply Credit** button → allocates excess payment to oldest unpaid invoices
+
+---
+
+## Screen 11: Statement of Account (Built 2026-03-31)
+
+Per-supplier page with date range picker.
+- Opening/closing balance, running balance
+- Debit entries: invoices (Purchase — vendor name)
+- Credit entries: payments with receipt details (Payment — receipt number/merchant)
+- Summary cards: Opening Balance, Total Debit, Total Credit, Closing Balance
+
+---
+
+## Screen 12: Employees/People Page (Built 2026-04-01)
+
+Combined admins + employees on one page (separate "Admins" nav item removed).
+- Firm filter at top
+- **Admins section** — table with name, email, status, created date. Edit panel + activate/deactivate.
+- **Employees section** — table with name, phone, email, firm, claims count, status. Edit panel + activate/deactivate.
+- Add Admin modal (name, email, phone, password, firm)
+- Add Employee modal (name, phone, email, firm)
+
+---
+
+## Screen 13: Clients Page (Built 2026-04-01)
+
+Firm list table with employees count, claims this month, status.
+- **Edit side panel** on each client row: firm name, registration number, contact email, phone, plan (free/paid)
+- Client detail page (`/accountant/clients/[firmId]`) also has Edit button
+
+---
+
+## Screen 14: Categories Page (Updated 2026-04-01)
+
+Default + Custom category sections (when firm selected).
+- **Inline edit** (pencil icon) for both default and custom categories: name + tax code
+- **Delete** (trash icon) for custom categories with confirmation
+- Enable/Disable toggle for all categories
+- Add Custom Category button (only when firm selected)
+
+---
+
+## Dashboard (Updated 2026-04-01)
+
+3×2 stat card grid:
+- Claims This Month | Pending Review (Claims)
+- Receipts This Month | Unallocated Receipts
+- Invoices This Month | Pending Review (Invoices)
+
+Needs Attention: 3 tabs (Claims, Receipts, Invoices) with count badges.
+- Row click → preview panel with full edit mode
+- Claims: approve/reject actions
+- Invoices: mark as reviewed
+- Receipts: unlinked receipts needing payment attachment
+
+---
+
+## Submit Modals (Built 2026-04-01)
+
+All three portals can manually submit documents via dashboard:
+
+**Admin/Accountant Claims:** "Submit New" button → modal with Type (claim/receipt), Date, Merchant, Amount, Category, Receipt Number, Description, File upload. Accountant includes Firm selector.
+
+**Admin/Accountant Invoices:** "Submit New Invoice" button → modal with Vendor, Invoice #, Issue Date, Due Date, Amount, Category, Payment Terms, File upload. Auto supplier matching. Accountant includes Firm selector.
+
+**Employee Claims:** "Submit New Claim" button → modal with file upload (bug fixed: field name corrected).

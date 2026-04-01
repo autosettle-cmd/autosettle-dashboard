@@ -9,29 +9,24 @@ import Link from 'next/link';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClaimStats {
-  total: number;
-  totalAmount: string;
+  thisMonth: number;
+  thisMonthAmount: string;
   pendingReview: number;
   pendingAmount: string;
-  reviewedThisMonth: number;
-  reviewedAmount: string;
-}
-
-interface InvoiceStats {
-  total: number;
-  totalAmount: string;
-  pendingReview: number;
-  overdueCount: number;
-  overdueAmount: string;
 }
 
 interface ReceiptStats {
-  total: number;
-  totalAmount: string;
+  thisMonth: number;
+  thisMonthAmount: string;
   unlinked: number;
   unlinkedAmount: string;
-  linked: number;
-  linkedAmount: string;
+}
+
+interface InvoiceStats {
+  thisMonth: number;
+  thisMonthAmount: string;
+  pendingReview: number;
+  pendingAmount: string;
 }
 
 interface Stats {
@@ -339,20 +334,17 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-y-auto p-6 animate-in">
 
           {/* ── Stats ─────────────────────────────────────── */}
-          <div className="grid grid-cols-3 gap-4 mb-2">
-            <StatCard label="Total Claims"            value={stats?.claims.total ?? null}              amount={stats ? formatRM(stats.claims.totalAmount) : null}     color="default" href="/admin/claims" />
-            <StatCard label="Pending Review (Claims)"  value={stats?.claims.pendingReview ?? null}     amount={stats ? formatRM(stats.claims.pendingAmount) : null}   color="amber"   href="/admin/claims?status=pending_review" />
-            <StatCard label="Reviewed This Month"      value={stats?.claims.reviewedThisMonth ?? null} amount={stats ? formatRM(stats.claims.reviewedAmount) : null}  color="green"   href="/admin/claims?status=reviewed" />
+          <div className="grid grid-cols-2 gap-4 mb-2">
+            <StatCard label="Claims This Month"        value={stats?.claims.thisMonth ?? null}      amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}  color="default" href="/admin/claims" />
+            <StatCard label="Pending Review (Claims)"  value={stats?.claims.pendingReview ?? null}  amount={stats ? formatRM(stats.claims.pendingAmount) : null}    color="amber"   href="/admin/claims?status=pending_review" />
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-2">
-            <StatCard label="Total Receipts"  value={stats?.receipts.total ?? null}    amount={stats ? formatRM(stats.receipts.totalAmount) : null}    color="default" />
-            <StatCard label="Unlinked"        value={stats?.receipts.unlinked ?? null} amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null} color="amber"   />
-            <StatCard label="Linked"          value={stats?.receipts.linked ?? null}   amount={stats ? formatRM(stats.receipts.linkedAmount) : null}   color="green"   />
+          <div className="grid grid-cols-2 gap-4 mb-2">
+            <StatCard label="Receipts This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null} color="default" href="/admin/claims?type=receipt" />
+            <StatCard label="Unallocated Receipts"    value={stats?.receipts.unlinked ?? null}     amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null}  color="amber"   href="/admin/claims?type=receipt" />
           </div>
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <StatCard label="Total Invoices"          value={stats?.invoices.total ?? null}         amount={stats ? formatRM(stats.invoices.totalAmount) : null}   color="default" href="/admin/invoices" />
-            <StatCard label="Pending Review (Invoices)" value={stats?.invoices.pendingReview ?? null} amount={null}                                                   color="amber"   href="/admin/invoices?status=pending_review" />
-            <StatCard label="Overdue"                  value={stats?.invoices.overdueCount ?? null}  amount={stats ? formatRM(stats.invoices.overdueAmount) : null} color="green"   href="/admin/invoices?overdue=true" />
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <StatCard label="Invoices This Month"       value={stats?.invoices.thisMonth ?? null}     amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null} color="default" href="/admin/invoices" />
+            <StatCard label="Pending Review (Invoices)" value={stats?.invoices.pendingReview ?? null} amount={stats ? formatRM(stats.invoices.pendingAmount) : null}   color="amber"   href="/admin/invoices?status=pending_review" />
           </div>
 
           {/* ── Needs Attention ────────────────────────────── */}

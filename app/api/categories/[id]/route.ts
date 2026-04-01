@@ -88,3 +88,42 @@ export async function PATCH(
     }
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'accountant') {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  const category = await prisma.category.findUnique({
+    where: { id },
+    select: { firm_id: true },
+  });
+
+  if (!category) {
+    return NextResponse.json({ data: null, error: 'Category not found' }, { status: 404 });
+  }
+
+  // Only allow deleting firm-specific (custom) categories
+  if (category.firm_id === null) {
+    return NextResponse.json({ data: null, error: 'Cannot delete a default category' }, { status: 403 });
+  }
+
+  const firmIds = await getAccountantFirmIds(session.user.id);
+  if (firmIds && !firmIds.includes(category.firm_id)) {
+    return NextResponse.json({ data: null, error: 'Not authorized for this category' }, { status: 403 });
+  }
+
+  try {
+    await prisma.category.delete({ where: { id } });
+    return NextResponse.json({ data: { id }, error: null });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Failed to delete category';
+    return NextResponse.json({ data: null, error: message }, { status: 500 });
+  }
+}

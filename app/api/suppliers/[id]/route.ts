@@ -36,7 +36,19 @@ export async function GET(
       firm: { select: { name: true } },
       aliases: { orderBy: { created_at: 'asc' } },
       invoices: {
-        include: { category: { select: { name: true } } },
+        include: {
+          category: { select: { name: true } },
+          paymentAllocations: {
+            include: {
+              payment: {
+                select: {
+                  id: true, payment_date: true, reference: true, amount: true,
+                  receipts: { include: { claim: { select: { id: true, merchant: true, receipt_number: true, thumbnail_url: true } } } },
+                },
+              },
+            },
+          },
+        },
         orderBy: { issue_date: 'desc' },
       },
     },
@@ -57,6 +69,22 @@ export async function GET(
     status: inv.status,
     category_name: inv.category.name,
     supplier_link_status: inv.supplier_link_status,
+    vendor_name_raw: inv.vendor_name_raw,
+    description: inv.payment_terms,
+    file_url: inv.file_url,
+    thumbnail_url: inv.thumbnail_url,
+    confidence: inv.confidence,
+    allocations: inv.paymentAllocations.map((a) => ({
+      id: a.id,
+      amount: a.amount.toString(),
+      payment_date: a.payment.payment_date,
+      reference: a.payment.reference,
+      receipts: a.payment.receipts.map((r) => ({
+        id: r.claim.id,
+        merchant: r.claim.merchant,
+        receipt_number: r.claim.receipt_number,
+      })),
+    })),
   }));
 
   return NextResponse.json({

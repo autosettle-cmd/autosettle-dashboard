@@ -83,21 +83,35 @@ All DB access goes through /app/api/* route handlers only.
 - Status badges: Pending review=yellow, Reviewed=blue, Approved=green, Not approved=red, Paid=purple
 
 ## Project Structure
-/app — Next.js App Router pages
-/app/api — All backend API routes
-/app/api/whatsapp — WhatsApp + OCR backend (replaces n8n)
-/app/api/admin/invoices — Invoice CRUD + stats + aging report APIs
-/app/api/admin/suppliers — Supplier CRUD + alias management APIs
-/app/accountant — Accountant portal pages
-/app/admin — Admin portal pages (dashboard, claims, receipts, invoices, suppliers, employees, categories)
-/app/admin/suppliers — Supplier accounts + integrated aging report (summary cards + detail table)
-/app/admin/invoices/aging — Standalone aging report (redundant, aging is now on suppliers page)
-/app/employee — Employee portal pages
-/components — Shared UI components
-/lib — Shared utilities (db, auth, whatsapp, helpers)
-/lib/whatsapp/invoices.ts — Invoice save with supplier auto-matching
-/prisma — Prisma schema and migrations
-/docs — All spec files (read before building any feature)
+
+### Pages
+/app/admin — Admin portal: Dashboard, Claims, Invoices, Suppliers, Employees, Categories
+/app/accountant — Accountant portal: Dashboard, Claims, Invoices, Suppliers, Clients, Employees, Categories
+/app/employee — Employee portal: Dashboard, My Claims
+/app/login — Login page
+
+### API Routes
+/app/api/admin/* — Admin-scoped APIs (single firm)
+/app/api/* (claims, invoices, payments, suppliers, etc.) — Accountant-scoped APIs (multi-firm)
+/app/api/employee/* — Employee-scoped APIs (own data only)
+/app/api/accountant/admins — Accountant admin management API
+/app/api/whatsapp — WhatsApp + OCR backend
+/app/api/payments/apply-credit — Supplier credit allocation
+/app/api/receipts/unlinked — Available receipts for payment linking
+
+### Key Directories
+/lib — Shared utilities (db, auth, whatsapp, payment-utils)
+/lib/whatsapp — WhatsApp backend (claims, invoices, ocr, gemini, parser, send, session, drive)
+/lib/payment-utils.ts — recalcInvoicePayment() for payment status updates
+/prisma — Schema + migrations (11 migrations as of 2026-04-01)
+/docs — Spec files
+
+### UI Patterns
+- NAV is duplicated per page file (not shared component)
+- Preview panels: 400px slide-in from right, dark header #152237
+- All entity references clickable → preview panel (never redirect to filtered table)
+- Edit mode in preview: inline fields with Save/Cancel, resets status on save
+- Statement opens in new tab
 
 ## Docs To Read Before Building Any Feature
 - /docs/database-schema.md — full Postgres schema

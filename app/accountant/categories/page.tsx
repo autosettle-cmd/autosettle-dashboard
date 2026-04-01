@@ -34,7 +34,6 @@ const NAV = [
   { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-  { label: 'Admins',     href: '/accountant/admins',     icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -59,6 +58,16 @@ export default function CategoriesPage() {
   const [modalTaxCode, setModalTaxCode] = useState('');
   const [modalError, setModalError]     = useState('');
   const [modalSaving, setModalSaving]   = useState(false);
+
+  // Inline edit
+  const [editingId, setEditingId]       = useState<string | null>(null);
+  const [editName, setEditName]         = useState('');
+  const [editTaxCode, setEditTaxCode]   = useState('');
+  const [editSaving, setEditSaving]     = useState(false);
+
+  // Delete
+  const [deleteId, setDeleteId]         = useState<string | null>(null);
+  const [deleting, setDeleting]         = useState(false);
 
   // Load firms (once)
   useEffect(() => {
@@ -152,6 +161,64 @@ export default function CategoriesPage() {
     } catch {
       setModalError('Network error. Please try again.');
       setModalSaving(false);
+    }
+  };
+
+  const startEdit = (cat: CategoryRow) => {
+    setEditingId(cat.id);
+    setEditName(cat.name);
+    setEditTaxCode(cat.tax_code ?? '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditTaxCode('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingId || !editName.trim()) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/categories/${editingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName.trim(), tax_code: editTaxCode.trim() || null }),
+      });
+      if (res.ok) {
+        cancelEdit();
+        refresh();
+      } else {
+        const json = await res.json();
+        alert(json.error || 'Failed to save');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const confirmDelete = (cat: CategoryRow) => {
+    setDeleteId(cat.id);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/categories/${deleteId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setDeleteId(null);
+        refresh();
+      } else {
+        const json = await res.json();
+        alert(json.error || 'Failed to delete');
+      }
+    } catch {
+      alert('Network error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -298,9 +365,17 @@ export default function CategoriesPage() {
                       <tbody>
                         {defaultCats.map((cat, i) => (
                           <tr key={cat.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < defaultCats.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                            <td className="px-5 py-3 text-gray-900 font-medium">{cat.name}</td>
+                            <td className="px-5 py-3 text-gray-900 font-medium">
+                              {editingId === cat.id ? (
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-[13px]" autoFocus />
+                              ) : cat.name}
+                            </td>
                             <td className="px-5 py-3"><span className="badge-blue">Default</span></td>
-                            <td className="px-5 py-3 text-gray-600">{cat.tax_code ?? '---'}</td>
+                            <td className="px-5 py-3 text-gray-600">
+                              {editingId === cat.id ? (
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-[13px]" placeholder="Optional" />
+                              ) : (cat.tax_code ?? '---')}
+                            </td>
                             <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-5 py-3">
                               {cat.is_active
@@ -309,12 +384,30 @@ export default function CategoriesPage() {
                               }
                             </td>
                             <td className="px-5 py-3">
-                              <button
-                                onClick={() => toggleActive(cat)}
-                                className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
-                              >
-                                {cat.is_active ? 'Disable' : 'Enable'}
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                {editingId === cat.id ? (
+                                  <>
+                                    <button onClick={saveEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-85 disabled:opacity-40" style={{ backgroundColor: '#A60201' }}>
+                                      {editSaving ? 'Saving...' : 'Save'}
+                                    </button>
+                                    <button onClick={cancelEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button onClick={() => toggleActive(cat)} className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors">
+                                      {cat.is_active ? 'Disable' : 'Enable'}
+                                    </button>
+                                    <button onClick={() => startEdit(cat)} className="p-1.5 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Edit">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -345,9 +438,17 @@ export default function CategoriesPage() {
                       <tbody>
                         {customCats.map((cat, i) => (
                           <tr key={cat.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < customCats.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                            <td className="px-5 py-3 text-gray-900 font-medium">{cat.name}</td>
+                            <td className="px-5 py-3 text-gray-900 font-medium">
+                              {editingId === cat.id ? (
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-[13px]" autoFocus />
+                              ) : cat.name}
+                            </td>
                             <td className="px-5 py-3"><span className="badge-purple">Custom</span></td>
-                            <td className="px-5 py-3 text-gray-600">{cat.tax_code ?? '---'}</td>
+                            <td className="px-5 py-3 text-gray-600">
+                              {editingId === cat.id ? (
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-[13px]" placeholder="Optional" />
+                              ) : (cat.tax_code ?? '---')}
+                            </td>
                             <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-5 py-3">
                               {cat.is_active
@@ -356,12 +457,56 @@ export default function CategoriesPage() {
                               }
                             </td>
                             <td className="px-5 py-3">
-                              <button
-                                onClick={() => toggleActive(cat)}
-                                className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
-                              >
-                                {cat.is_active ? 'Deactivate' : 'Activate'}
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                {editingId === cat.id ? (
+                                  <>
+                                    <button
+                                      onClick={saveEdit}
+                                      disabled={editSaving}
+                                      className="text-xs font-medium px-3 py-1.5 rounded-md text-white transition-opacity hover:opacity-85 disabled:opacity-40"
+                                      style={{ backgroundColor: '#A60201' }}
+                                    >
+                                      {editSaving ? 'Saving...' : 'Save'}
+                                    </button>
+                                    <button
+                                      onClick={cancelEdit}
+                                      disabled={editSaving}
+                                      className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => toggleActive(cat)}
+                                      className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                                    >
+                                      {cat.is_active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button
+                                      onClick={() => startEdit(cat)}
+                                      className="p-1.5 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                                      title="Edit"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                      </svg>
+                                    </button>
+                                    <button
+                                      onClick={() => confirmDelete(cat)}
+                                      className="p-1.5 rounded-md border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                      title="Delete"
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6" />
+                                        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                                      </svg>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -425,6 +570,32 @@ export default function CategoriesPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
+                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* === DELETE CONFIRMATION MODAL === */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-base font-semibold text-gray-900">Delete Category</h3>
+            <p className="text-sm text-gray-500 mt-1 mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={executeDelete}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+              <button
+                onClick={() => setDeleteId(null)}
+                disabled={deleting}
                 className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel

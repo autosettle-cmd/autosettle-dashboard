@@ -14,9 +14,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const firmId = searchParams.get('firmId');
 
-  const firmScope = firmId && firmIds?.includes(firmId)
+  // firmIds=null means super admin (sees all firms)
+  const firmScope = firmId && (firmIds === null || firmIds.includes(firmId))
     ? { firm_id: firmId }
-    : { firm_id: { in: firmIds ?? [] } };
+    : firmIds === null ? {} : { firm_id: { in: firmIds } };
 
   const receipts = await prisma.claim.findMany({
     where: {

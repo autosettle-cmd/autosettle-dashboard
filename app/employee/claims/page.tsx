@@ -12,11 +12,17 @@ interface ClaimRow {
   id: string;
   claim_date: string;
   merchant: string;
+  description: string | null;
   category_name: string;
   amount: string;
   status: 'pending_review' | 'reviewed';
   approval: 'pending_approval' | 'approved' | 'not_approved';
-  rejection_reason?: string;
+  payment_status: 'unpaid' | 'paid';
+  rejection_reason: string | null;
+  receipt_number: string | null;
+  file_url: string | null;
+  thumbnail_url: string | null;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
 }
 
 interface Category {
@@ -36,6 +42,21 @@ const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
   approved:         { label: 'Approved', cls: 'badge-green' },
   not_approved:     { label: 'Rejected', cls: 'badge-red'   },
 };
+
+const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
+  unpaid: { label: 'Unpaid', cls: 'badge-gray'   },
+  paid:   { label: 'Paid',   cls: 'badge-purple' },
+};
+
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div>
+      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+    </div>
+  );
+}
 
 function formatDate(val: string) {
   if (!val) return '';
@@ -74,6 +95,28 @@ export default function EmployeeClaimsPage() {
   const [claims, setClaims]       = useState<ClaimRow[]>([]);
   const [loading, setLoading]     = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Preview + Edit
+  const [previewClaim, setPreviewClaim] = useState<ClaimRow | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState<{ claim_date: string; merchant: string; amount: string; category_id: string; receipt_number: string; description: string } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
+
+  const saveEdit = async () => {
+    if (!previewClaim || !editData) return;
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/employee/claims/${previewClaim.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData),
+      });
+      if (res.ok) { setEditMode(false); setEditData(null); setPreviewClaim(null); setRefreshKey((k) => k + 1); }
+    } catch (e) { console.error(e); }
+    finally { setEditSaving(false); }
+  };
 
   // Modal
   const [showModal, setShowModal]           = useState(false);
@@ -161,7 +204,7 @@ export default function EmployeeClaimsPage() {
       fd.append('category_id', modalCategory);
       if (modalReceipt.trim()) fd.append('receipt_number', modalReceipt.trim());
       if (modalDesc.trim()) fd.append('description', modalDesc.trim());
-      fd.append('receipt_photo', selectedFile);
+      fd.append('file', selectedFile);
 
       const res = await fetch('/api/employee/claims', {
         method: 'POST',
@@ -301,7 +344,7 @@ export default function EmployeeClaimsPage() {
                       const sCfg = STATUS_CFG[c.status];
                       const aCfg = APPROVAL_CFG[c.approval];
                       return (
-                        <tr key={c.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
                           <td className="px-5 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                           <td className="px-5 py-3 text-gray-900 font-medium">{c.merchant}</td>
                           <td className="px-5 py-3 text-gray-500">{c.category_name}</td>
@@ -463,6 +506,126 @@ export default function EmployeeClaimsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ CLAIM PREVIEW PANEL ═══ */}
+      {previewClaim && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-semibold text-sm">Claim Details</h2>
+              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {previewClaim.thumbnail_url ? (
+                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+              ) : (
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+              )}
+
+              {editMode && editData ? (
+                <div className="space-y-3">
+                  <div>
+                    <label className="input-label">Date</label>
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="input-label">Merchant</label>
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="input-label">Amount (RM)</label>
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="input-label">Category</label>
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="input-label">Receipt Number</label>
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="input-label">Description</label>
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
+                  </div>
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
+                    Saving will reset status to Pending Review and approval to Pending.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <dl className="space-y-3">
+                    <Field label="Date" value={formatDate(previewClaim.claim_date)} />
+                    <Field label="Merchant" value={previewClaim.merchant} />
+                    <Field label="Amount" value={formatRM(previewClaim.amount)} />
+                    <Field label="Category" value={previewClaim.category_name} />
+                    <Field label="Receipt No." value={previewClaim.receipt_number} />
+                    <Field label="Description" value={previewClaim.description} />
+                  </dl>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {[STATUS_CFG[previewClaim.status], APPROVAL_CFG[previewClaim.approval], PAYMENT_CFG[previewClaim.payment_status]].filter(Boolean).map((cfg) => (
+                      <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className={`text-xs font-semibold ${
+                      previewClaim.confidence === 'HIGH' ? 'text-green-600' :
+                      previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
+                    }`}>{previewClaim.confidence}</span>
+                  </div>
+                  {previewClaim.rejection_reason && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                      <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
+                    </div>
+                  )}
+                  {previewClaim.file_url && (
+                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                      View full document &rarr;
+                    </a>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+              {editMode ? (
+                <>
+                  <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                    {editSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    setEditMode(true);
+                    setEditData({
+                      claim_date: previewClaim.claim_date.split('T')[0],
+                      merchant: previewClaim.merchant,
+                      amount: previewClaim.amount,
+                      category_id: '',
+                      receipt_number: previewClaim.receipt_number ?? '',
+                      description: previewClaim.description ?? '',
+                    });
+                  }}
+                  className="flex-1 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                  style={{ backgroundColor: '#A60201' }}
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
     </div>

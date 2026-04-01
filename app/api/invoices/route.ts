@@ -3,6 +3,60 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
+import { google } from 'googleapis';
+import { Readable } from 'stream';
+
+async function uploadToGoogleDrive(
+  file: File
+): Promise<{ fileUrl: string; downloadUrl: string; thumbnailUrl: string }> {
+  const credentials = JSON.parse(
+    process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'
+  );
+  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+
+  if (!credentials.client_email || !folderId) {
+    throw new Error('Google Drive credentials not configured');
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/drive.file'],
+  });
+
+  const drive = google.drive({ version: 'v3', auth });
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const stream = Readable.from(buffer);
+
+  const response = await drive.files.create({
+    requestBody: {
+      name: file.name,
+      parents: [folderId],
+    },
+    media: {
+      mimeType: file.type,
+      body: stream,
+    },
+    fields: 'id, webViewLink, webContentLink, thumbnailLink',
+  });
+
+  const fileId = response.data.id!;
+
+  await drive.permissions.create({
+    fileId,
+    requestBody: { role: 'reader', type: 'anyone' },
+  });
+
+  return {
+    fileUrl:
+      response.data.webViewLink ||
+      `https://drive.google.com/file/d/${fileId}/view`,
+    downloadUrl:
+      response.data.webContentLink ||
+      `https://drive.google.com/uc?export=download&id=${fileId}`,
+    thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
+  };
+}
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -81,4 +135,178 @@ export async function GET(request: NextRequest) {
   }));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });
+}
+
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'accountant') {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const firmIds = await getAccountantFirmIds(session.user.id);
+
+  try {
+    const formData = await request.formData();
+
+    const firmId = formData.get('firm_id') as string | null;
+    const vendorName = formData.get('vendor_name') as string | null;
+    const invoiceNumber = formData.get('invoice_number') as string | null;
+    const issueDate = formData.get('issue_date') as string | null;
+    const dueDate = formData.get('due_date') as string | null;
+    const totalAmountStr = formData.get('total_amount') as string | null;
+    const categoryId = formData.get('category_id') as string | null;
+    const paymentTerms = formData.get('payment_terms') as string | null;
+    const file = formData.get('file') as File | null;
+
+    if (!firmId || !vendorName || !issueDate || !totalAmountStr || !categoryId) {
+      return NextResponse.json(
+        { data: null, error: 'Missing required fields: firm_id, vendor_name, issue_date, total_amount, category_id' },
+        { status: 400 }
+      );
+    }
+
+    // Validate accountant has access to this firm
+    if (firmIds && !firmIds.includes(firmId)) {
+      return NextResponse.json(
+        { data: null, error: 'You do not have access to this firm' },
+        { status: 403 }
+      );
+    }
+
+    const totalAmount = parseFloat(totalAmountStr);
+    if (isNaN(totalAmount) || totalAmount <= 0) {
+      return NextResponse.json(
+        { data: null, error: 'Invalid total_amount' },
+        { status: 400 }
+      );
+    }
+
+    // Find an employee record to use as uploaded_by — use the first admin employee in the firm
+    const uploaderEmployee = await prisma.employee.findFirst({
+      where: { firm_id: firmId },
+      orderBy: { created_at: 'asc' },
+    });
+
+    if (!uploaderEmployee) {
+      return NextResponse.json(
+        { data: null, error: 'No employee found in this firm to assign as uploader' },
+        { status: 400 }
+      );
+    }
+
+    // ── Supplier matching ──
+    const normalizedVendor = vendorName.toLowerCase().trim();
+
+    const existingAlias = await prisma.supplierAlias.findFirst({
+      where: {
+        alias: normalizedVendor,
+        supplier: { firm_id: firmId },
+      },
+      include: { supplier: true },
+    });
+
+    let supplierId: string;
+    let linkStatus: 'auto_matched' | 'unmatched' | 'confirmed';
+
+    if (existingAlias) {
+      supplierId = existingAlias.supplier_id;
+      linkStatus = existingAlias.is_confirmed ? 'confirmed' : 'auto_matched';
+    } else {
+      const newSupplier = await prisma.supplier.create({
+        data: {
+          firm_id: firmId,
+          name: vendorName,
+          aliases: {
+            create: {
+              alias: normalizedVendor,
+              is_confirmed: false,
+            },
+          },
+        },
+      });
+      supplierId = newSupplier.id;
+      linkStatus = 'unmatched';
+    }
+
+    // ── Calculate due date from payment terms if not provided ──
+    let computedDueDate = dueDate || null;
+    if (!computedDueDate && paymentTerms && issueDate) {
+      const daysMatch =
+        paymentTerms.match(/(\d+)\s*(?:days?|d)/i) ??
+        paymentTerms.match(/net\s*(\d+)/i);
+      if (daysMatch) {
+        const days = parseInt(daysMatch[1], 10);
+        const d = new Date(issueDate);
+        d.setDate(d.getDate() + days);
+        computedDueDate = d.toISOString().split('T')[0];
+      }
+    }
+
+    // ── Upload file to Google Drive ──
+    let fileUrl: string | null = null;
+    let fileDownloadUrl: string | null = null;
+    let thumbnailUrl: string | null = null;
+
+    if (file) {
+      try {
+        const uploaded = await uploadToGoogleDrive(file);
+        fileUrl = uploaded.fileUrl;
+        fileDownloadUrl = uploaded.downloadUrl;
+        thumbnailUrl = uploaded.thumbnailUrl;
+      } catch (err) {
+        console.warn('Google Drive upload failed, creating invoice without file URLs:', err);
+      }
+    }
+
+    // ── Create the invoice ──
+    const invoice = await prisma.invoice.create({
+      data: {
+        firm_id: firmId,
+        uploaded_by: uploaderEmployee.id,
+        supplier_id: supplierId,
+        supplier_link_status: linkStatus,
+        vendor_name_raw: vendorName,
+        invoice_number: invoiceNumber || null,
+        issue_date: new Date(issueDate),
+        due_date: computedDueDate ? new Date(computedDueDate) : null,
+        payment_terms: paymentTerms || null,
+        total_amount: totalAmount,
+        category_id: categoryId,
+        confidence: 'HIGH',
+        status: 'pending_review',
+        payment_status: 'unpaid',
+        amount_paid: 0,
+        file_url: fileUrl,
+        file_download_url: fileDownloadUrl,
+        thumbnail_url: thumbnailUrl,
+        submitted_via: 'dashboard',
+      },
+      include: {
+        category: { select: { name: true } },
+        supplier: { select: { id: true, name: true } },
+      },
+    });
+
+    const data = {
+      id: invoice.id,
+      vendor_name_raw: invoice.vendor_name_raw,
+      invoice_number: invoice.invoice_number,
+      issue_date: invoice.issue_date,
+      due_date: invoice.due_date,
+      total_amount: invoice.total_amount.toString(),
+      category_name: invoice.category.name,
+      supplier_name: invoice.supplier?.name ?? null,
+      supplier_link_status: invoice.supplier_link_status,
+      status: invoice.status,
+      payment_status: invoice.payment_status,
+    };
+
+    return NextResponse.json({ data, error: null }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating invoice:', error);
+    return NextResponse.json(
+      { data: null, error: 'Failed to create invoice' },
+      { status: 500 }
+    );
+  }
 }

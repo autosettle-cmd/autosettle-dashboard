@@ -15,6 +15,23 @@ interface Alias {
   is_confirmed: boolean;
 }
 
+interface AllocationRow {
+  id: string;
+  amount: string;
+  payment_date: string;
+  reference: string | null;
+  receipts?: { id: string; merchant: string; receipt_number: string | null }[];
+}
+
+interface ReceiptInfo {
+  id: string;
+  merchant: string;
+  receipt_number: string | null;
+  amount?: string;
+  claim_date?: string;
+  thumbnail_url?: string | null;
+}
+
 interface InvoiceRow {
   id: string;
   invoice_number: string | null;
@@ -26,6 +43,11 @@ interface InvoiceRow {
   status: string;
   category_name: string;
   supplier_link_status: string;
+  vendor_name_raw?: string;
+  file_url?: string | null;
+  thumbnail_url?: string | null;
+  confidence?: string;
+  allocations?: AllocationRow[];
 }
 
 interface Supplier {
@@ -136,7 +158,6 @@ const NAV = [
   { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-  { label: 'Admins',     href: '/accountant/admins',     icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ];
 
 // ─── Field helper ─────────────────────────────────────────────────────────────
@@ -177,7 +198,7 @@ export default function AccountantSuppliersPage() {
   const [agingData, setAgingData] = useState<AgingSupplier[]>([]);
   const [agingSummary, setAgingSummary] = useState<AgingSummary | null>(null);
   const [agingExpanded, setAgingExpanded] = useState<string | null>(null);
-  const [showAging, setShowAging] = useState(true);
+  const [showAging, setShowAging] = useState(false);
 
   // Firms
   const [firms, setFirms] = useState<FirmOption[]>([]);
@@ -187,6 +208,10 @@ export default function AccountantSuppliersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<InvoiceRow[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  // Preview panels
+  const [previewInvoice, setPreviewInvoice] = useState<InvoiceRow | null>(null);
+  const [previewReceipt, setPreviewReceipt] = useState<ReceiptInfo | null>(null);
 
   // Edit side panel
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
@@ -482,7 +507,8 @@ export default function AccountantSuppliersPage() {
                 <h2 className="text-[13px] font-semibold text-gray-900">Aging Report — Accounts Payable</h2>
                 <button
                   onClick={() => setShowAging(!showAging)}
-                  className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
+                  style={{ backgroundColor: '#2563EB' }}
                 >
                   {showAging ? 'Collapse' : 'Expand'}
                 </button>
@@ -544,7 +570,23 @@ export default function AccountantSuppliersPage() {
                             <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-bold text-gray-900">{formatRM(s.total)}</td>
                           </tr>
                           {agingExpanded === s.supplier_id && s.invoices.map((inv) => (
-                            <tr key={inv.id} className="bg-gray-50/50 border-b border-gray-50/80 text-[11px]">
+                            <tr
+                              key={inv.id}
+                              className="bg-gray-50/50 border-b border-gray-50/80 text-[11px] cursor-pointer hover:bg-gray-100/60 transition-colors"
+                              onClick={() => setPreviewInvoice({
+                                id: inv.id,
+                                invoice_number: inv.invoice_number,
+                                issue_date: inv.issue_date,
+                                due_date: inv.due_date,
+                                total_amount: inv.balance,
+                                amount_paid: '0',
+                                payment_status: inv.payment_status as 'unpaid' | 'partially_paid' | 'paid',
+                                status: '',
+                                category_name: inv.category_name,
+                                supplier_link_status: '',
+                                vendor_name_raw: s.supplier_name,
+                              })}
+                            >
                               <td className="px-4 py-2 pl-10 text-gray-500">
                                 {formatDate(inv.issue_date)} · <span className="text-gray-700 font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
                               </td>
@@ -624,13 +666,6 @@ export default function AccountantSuppliersPage() {
                         {s.firm_name && (
                           <span className="text-[11px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 flex-shrink-0">{s.firm_name}</span>
                         )}
-                        <Link
-                          href={`/accountant/suppliers/${s.id}/statement`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] text-blue-500 hover:text-blue-700 hover:underline flex-shrink-0"
-                        >
-                          Statement
-                        </Link>
                       </div>
                       <p className="text-[11px] text-gray-400 truncate">
                         {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''} · {s.invoice_count} invoice{s.invoice_count !== 1 ? 's' : ''}
@@ -648,7 +683,7 @@ export default function AccountantSuppliersPage() {
                       )}
                     </div>
 
-                    {/* Pay button */}
+                    {/* Action buttons */}
                     <button
                       onClick={(e) => { e.stopPropagation(); openPayment(s); }}
                       className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
@@ -656,8 +691,15 @@ export default function AccountantSuppliersPage() {
                     >
                       Pay
                     </button>
-
-                    {/* Edit button */}
+                    <Link
+                      href={`/accountant/suppliers/${s.id}/statement`}
+                      target="_blank"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
+                      style={{ backgroundColor: '#2563EB' }}
+                    >
+                      Statement
+                    </Link>
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(s); }}
                       className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
@@ -692,26 +734,69 @@ export default function AccountantSuppliersPage() {
                             {expandedInvoices.map((inv, i) => {
                               const pmtCfg = PAYMENT_CFG[inv.payment_status];
                               return (
-                                <tr key={inv.id} className={`text-[12px] hover:bg-white/60 transition-colors ${i < expandedInvoices.length - 1 ? 'border-b border-gray-100' : ''}`}>
-                                  <td className="px-5 py-2.5 pl-14 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
-                                  <td className="px-3 py-2.5 text-gray-700 font-medium">{inv.invoice_number ?? '-'}</td>
-                                  <td className="px-3 py-2.5 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                                  <td className="px-3 py-2.5 text-gray-500">{inv.category_name}</td>
-                                  <td className="px-3 py-2.5 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                                  <td className="px-3 py-2.5 text-gray-500 text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
-                                  <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
-                                  <td className="px-3 py-2.5">
-                                    {inv.payment_status !== 'paid' && (
-                                      <span className={`text-[11px] font-medium ${
-                                        agingBucket(inv.due_date) === 'Current' ? 'text-green-600' :
-                                        agingBucket(inv.due_date) === '90+' ? 'text-red-600' :
-                                        'text-amber-600'
-                                      }`}>
-                                        {agingBucket(inv.due_date)}
-                                      </span>
-                                    )}
-                                  </td>
-                                </tr>
+                                <React.Fragment key={inv.id}>
+                                  <tr
+                                    className={`text-[12px] hover:bg-white/60 transition-colors cursor-pointer ${i < expandedInvoices.length - 1 && !(inv.allocations?.length) ? 'border-b border-gray-100' : ''}`}
+                                    onClick={() => setPreviewInvoice(inv)}
+                                  >
+                                    <td className="px-5 py-2.5 pl-14 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
+                                    <td className="px-3 py-2.5 text-gray-700 font-medium">{inv.invoice_number ?? '-'}</td>
+                                    <td className="px-3 py-2.5 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                                    <td className="px-3 py-2.5 text-gray-500">{inv.category_name}</td>
+                                    <td className="px-3 py-2.5 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                                    <td className="px-3 py-2.5 text-gray-500 text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
+                                    <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
+                                    <td className="px-3 py-2.5">
+                                      {inv.payment_status !== 'paid' && (
+                                        <span className={`text-[11px] font-medium ${
+                                          agingBucket(inv.due_date) === 'Current' ? 'text-green-600' :
+                                          agingBucket(inv.due_date) === '90+' ? 'text-red-600' :
+                                          'text-amber-600'
+                                        }`}>
+                                          {agingBucket(inv.due_date)}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  {inv.allocations && inv.allocations.length > 0 && inv.allocations.map((alloc) => (
+                                    <tr key={alloc.id} className="text-[11px] bg-gray-50/50 border-b border-gray-50">
+                                      <td className="px-5 py-1.5 pl-20 text-gray-400" colSpan={3}>
+                                        <span>Payment: {formatDate(alloc.payment_date)}{alloc.reference ? ` · ${alloc.reference}` : ''}</span>
+                                        {alloc.receipts && alloc.receipts.length > 0 && (
+                                          <span className="ml-2">
+                                            {alloc.receipts.map((r) => (
+                                              <button
+                                                key={r.id}
+                                                onClick={(e) => { e.stopPropagation(); setPreviewReceipt(r); }}
+                                                className="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-700 hover:underline"
+                                              >
+                                                Receipt: {r.receipt_number || r.merchant}
+                                              </button>
+                                            ))}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td colSpan={3} className="px-3 py-1.5 text-right text-gray-500 tabular-nums">
+                                        {formatRM(alloc.amount)}
+                                      </td>
+                                      <td colSpan={2} className="px-3 py-1.5">
+                                        <button
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if (!confirm('Remove this payment allocation?')) return;
+                                            try {
+                                              const res = await fetch(`/api/payments/allocations/${alloc.id}`, { method: 'DELETE' });
+                                              if (res.ok) refresh();
+                                            } catch (err) { console.error(err); }
+                                          }}
+                                          className="text-red-500 hover:text-red-700 font-medium"
+                                        >
+                                          Remove
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
                               );
                             })}
                           </tbody>
@@ -994,6 +1079,98 @@ export default function AccountantSuppliersPage() {
               </button>
               <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ INVOICE PREVIEW ═══ */}
+      {previewInvoice && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
+              <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {previewInvoice.thumbnail_url ? (
+                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+              ) : (
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
+              )}
+              <dl className="space-y-3">
+                <Field label="Vendor" value={previewInvoice.vendor_name_raw} />
+                <Field label="Invoice No." value={previewInvoice.invoice_number} />
+                <Field label="Issue Date" value={formatDate(previewInvoice.issue_date)} />
+                <Field label="Due Date" value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
+                <Field label="Total Amount" value={formatRM(previewInvoice.total_amount)} />
+                <Field label="Amount Paid" value={formatRM(previewInvoice.amount_paid)} />
+                <Field label="Category" value={previewInvoice.category_name} />
+              </dl>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {PAYMENT_CFG[previewInvoice.payment_status] && (
+                  <span className={PAYMENT_CFG[previewInvoice.payment_status].cls}>{PAYMENT_CFG[previewInvoice.payment_status].label}</span>
+                )}
+              </div>
+              {previewInvoice.allocations && previewInvoice.allocations.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Payment History</p>
+                  <div className="space-y-1.5">
+                    {previewInvoice.allocations.map((a) => (
+                      <div key={a.id} className="text-xs text-gray-600 bg-gray-50 rounded px-3 py-2 flex justify-between">
+                        <span>{formatDate(a.payment_date)}{a.reference ? ` · ${a.reference}` : ''}</span>
+                        <span className="font-semibold tabular-nums">{formatRM(a.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {previewInvoice.file_url && (
+                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                  View full document &rarr;
+                </a>
+              )}
+            </div>
+            <div className="p-4 border-t flex-shrink-0">
+              <button
+                onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
+                className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                style={{ backgroundColor: '#152237' }}
+              >
+                Open in Invoices
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ RECEIPT PREVIEW ═══ */}
+      {previewReceipt && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewReceipt(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
+              <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {previewReceipt.thumbnail_url ? (
+                <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+              ) : (
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
+              )}
+              <dl className="space-y-3">
+                <Field label="Merchant" value={previewReceipt.merchant} />
+                <Field label="Receipt No." value={previewReceipt.receipt_number} />
+                {previewReceipt.amount && <Field label="Amount" value={formatRM(previewReceipt.amount)} />}
+                {previewReceipt.claim_date && <Field label="Date" value={formatDate(previewReceipt.claim_date)} />}
+              </dl>
+            </div>
+            <div className="p-4 border-t flex-shrink-0">
+              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                Close
               </button>
             </div>
           </div>

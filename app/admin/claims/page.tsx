@@ -5,7 +5,7 @@ import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
-import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -32,9 +32,20 @@ interface ClaimRow {
   receipt_number: string | null;
   type: 'claim' | 'receipt';
   linked_payment_count: number;
+  linked_payments: { payment_id: string; amount: string; payment_date: string; reference: string | null; supplier_name: string }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+function todayStr() {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+}
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   pending_review: { label: 'Pending Review', cls: 'badge-amber' },
@@ -180,8 +191,33 @@ function AdminClaimsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editCategories, setEditCategories] = useState<{ id: string; name: string }[]>([]);
 
+  // Submit modal
+  const [showModal, setShowModal]           = useState(false);
+  const [modalCategories, setModalCategories] = useState<Category[]>([]);
+  const [modalType, setModalType]           = useState<'claim' | 'receipt'>('claim');
+  const [modalDate, setModalDate]           = useState(todayStr());
+  const [modalMerchant, setModalMerchant]   = useState('');
+  const [modalAmount, setModalAmount]       = useState('');
+  const [modalCategory, setModalCategory]   = useState('');
+  const [modalReceipt, setModalReceipt]     = useState('');
+  const [modalDesc, setModalDesc]           = useState('');
+  const [selectedFile, setSelectedFile]     = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl]         = useState<string | null>(null);
+  const [modalError, setModalError]         = useState('');
+  const [modalSaving, setModalSaving]       = useState(false);
+  const [successMsg, setSuccessMsg]         = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
+
+  // Load categories for modal + edit
+  useEffect(() => {
+    fetch('/api/admin/categories')
+      .then((r) => r.json())
+      .then((j) => { setModalCategories(j.data ?? []); setEditCategories(j.data ?? []); })
+      .catch(console.error);
+  }, []);
 
   // Fetch categories for edit dropdown
   useEffect(() => {
@@ -217,6 +253,12 @@ function AdminClaimsPage() {
   // Read initial filters from URL query params (e.g. ?status=pending_review)
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status') ?? '';
+  const initialType = searchParams.get('type');
+
+  // Set initial tab from URL
+  useEffect(() => {
+    if (initialType === 'receipt') setClaimTab('receipt');
+  }, [initialType]);
 
   // Filters
   const [dateRange,     setDateRange]    = useState(initialStatus ? '' : 'this_month');
@@ -314,6 +356,78 @@ function AdminClaimsPage() {
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   const refresh = () => setRefreshKey((k) => k + 1);
+
+  const openModal = useCallback(() => {
+    setModalType(claimTab);
+    setModalDate(todayStr());
+    setModalMerchant('');
+    setModalAmount('');
+    setModalCategory(modalCategories.length === 1 ? modalCategories[0].id : '');
+    setModalReceipt('');
+    setModalDesc('');
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setModalError('');
+    setModalSaving(false);
+    setShowModal(true);
+  }, [claimTab, modalCategories]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+  };
+
+  const clearFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const submitClaim = async () => {
+    if (!modalDate || !modalMerchant.trim() || !modalAmount || !modalCategory) {
+      setModalError('Date, merchant, amount, and category are required.');
+      return;
+    }
+
+    setModalSaving(true);
+    setModalError('');
+
+    try {
+      const fd = new FormData();
+      fd.append('type', modalType);
+      fd.append('claim_date', modalDate);
+      fd.append('merchant', modalMerchant.trim());
+      fd.append('amount', modalAmount);
+      fd.append('category_id', modalCategory);
+      if (modalReceipt.trim()) fd.append('receipt_number', modalReceipt.trim());
+      if (modalDesc.trim()) fd.append('description', modalDesc.trim());
+      if (selectedFile) fd.append('file', selectedFile);
+
+      const res = await fetch('/api/admin/claims', {
+        method: 'POST',
+        body: fd,
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        setModalError(json.error || 'Failed to submit');
+        setModalSaving(false);
+        return;
+      }
+
+      setShowModal(false);
+      refresh();
+      setSuccessMsg(`${modalType === 'claim' ? 'Claim' : 'Receipt'} submitted successfully!`);
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch {
+      setModalError('Network error. Please try again.');
+      setModalSaving(false);
+    }
+  };
 
   const batchReview = async (claimIds: string[]) => {
     try {
@@ -462,7 +576,22 @@ function AdminClaimsPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="input-field min-w-[210px]"
             />
+
+            <button
+              onClick={openModal}
+              className="ml-auto text-sm px-4 py-2 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
+              style={{ backgroundColor: '#A60201' }}
+            >
+              + Submit New
+            </button>
           </div>
+
+          {/* ── Success message ──────────────────────────── */}
+          {successMsg && (
+            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm text-green-700">{successMsg}</p>
+            </div>
+          )}
 
           {/* ── AG Grid ───────────────────────────────────── */}
           <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-md border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ height: '100%' }}>
@@ -483,6 +612,102 @@ function AdminClaimsPage() {
 
         </main>
       </div>
+
+      {/* ═══ SUBMIT MODAL ═══ */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
+            <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below.</p>
+
+            {modalError && (
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-700">{modalError}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Type *</label>
+                <select
+                  value={modalType}
+                  onChange={(e) => setModalType(e.target.value as 'claim' | 'receipt')}
+                  className="input-field w-full"
+                >
+                  <option value="claim">Claim</option>
+                  <option value="receipt">Receipt</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
+                <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-field w-full" required />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className="input-field w-full" placeholder="e.g. Petronas, Grab, etc." autoFocus />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className="input-field w-full" placeholder="0.00" step="0.01" min="0" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className="input-field w-full">
+                  <option value="">Select a category</option>
+                  {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className="input-field w-full" placeholder="Optional" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" rows={2} placeholder="Optional" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo</label>
+                <div
+                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {selectedFile ? (
+                    <div className="space-y-2">
+                      {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />}
+                      <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-gray-500">Click or drag to upload receipt photo</p>
+                      <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={submitClaim}
+                disabled={modalSaving}
+                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                style={{ backgroundColor: '#A60201' }}
+              >
+                {modalSaving ? 'Submitting...' : `Submit ${modalType === 'claim' ? 'Claim' : 'Receipt'}`}
+              </button>
+              <button
+                onClick={() => setShowModal(false)}
+                disabled={modalSaving}
+                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ BATCH BAR ═══ */}
       {selectedRows.length > 0 && (
@@ -586,6 +811,33 @@ function AdminClaimsPage() {
                       </span>
                     ))}
                   </div>
+
+                  {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                      <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
+                      {previewClaim.linked_payments.map((lp) => (
+                        <div key={lp.payment_id} className="text-sm text-blue-800">
+                          <p className="font-medium">{lp.supplier_name}</p>
+                          <p className="text-xs text-blue-600">
+                            {formatRM(lp.amount)} &middot; {formatDate(lp.payment_date)}
+                            {lp.reference ? ` · ${lp.reference}` : ''}
+                          </p>
+                        </div>
+                      ))}
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Unlink this receipt from its payment?')) return;
+                          try {
+                            const res = await fetch(`/api/admin/claims/${previewClaim.id}/payment-link`, { method: 'DELETE' });
+                            if (res.ok) { setPreviewClaim(null); refresh(); }
+                          } catch (e) { console.error(e); }
+                        }}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Unlink from Payment
+                      </button>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>

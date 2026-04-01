@@ -43,7 +43,6 @@ const NAV = [
   { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-  { label: 'Admins',     href: '/accountant/admins',     icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ];
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -61,6 +60,16 @@ export default function FirmDetailPage() {
   const [admins, setAdmins]               = useState<AdminRow[]>([]);
   const [adminsLoading, setAdminsLoading] = useState(true);
   const [adminsKey, setAdminsKey]         = useState(0);
+
+  // Edit firm panel
+  const [showEditPanel, setShowEditPanel]       = useState(false);
+  const [editName, setEditName]                 = useState('');
+  const [editRegNumber, setEditRegNumber]       = useState('');
+  const [editEmail, setEditEmail]               = useState('');
+  const [editPhone, setEditPhone]               = useState('');
+  const [editPlan, setEditPlan]                 = useState('free');
+  const [editSaving, setEditSaving]             = useState(false);
+  const [firmRefreshKey, setFirmRefreshKey]     = useState(0);
 
   // Add Admin Modal
   const [showModal, setShowModal]       = useState(false);
@@ -86,7 +95,7 @@ export default function FirmDetailPage() {
       })
       .catch((e) => { console.error(e); if (!cancelled) setFirmLoading(false); });
     return () => { cancelled = true; };
-  }, [firmId]);
+  }, [firmId, firmRefreshKey]);
 
   // ── Fetch admins ──
   useEffect(() => {
@@ -102,6 +111,35 @@ export default function FirmDetailPage() {
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   const refreshAdmins = () => setAdminsKey((k) => k + 1);
+
+  const openEditPanel = () => {
+    if (!firm) return;
+    setEditName(firm.name);
+    setEditRegNumber(firm.registration_number ?? '');
+    setEditEmail(firm.contact_email ?? '');
+    setEditPhone(firm.contact_phone ?? '');
+    setEditPlan(firm.plan);
+    setShowEditPanel(true);
+  };
+
+  const saveEdit = async () => {
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/firms/${firmId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editName.trim(),
+          registrationNumber: editRegNumber.trim(),
+          contactEmail: editEmail.trim(),
+          contactPhone: editPhone.trim(),
+          plan: editPlan,
+        }),
+      });
+      if (res.ok) { setShowEditPanel(false); setFirmRefreshKey((k) => k + 1); }
+    } catch (e) { console.error(e); }
+    finally { setEditSaving(false); }
+  };
 
   const openModal = () => {
     setModalName(''); setModalEmail(''); setModalPhone(''); setModalPassword('');
@@ -212,7 +250,15 @@ export default function FirmDetailPage() {
             <>
               {/* ════════════════════ FIRM INFO CARD ════════════════════ */}
               <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-                <h2 className="text-[15px] font-semibold text-gray-900 mb-4">{firm.name}</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[15px] font-semibold text-gray-900">{firm.name}</h2>
+                  <button
+                    onClick={openEditPanel}
+                    className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                  >
+                    Edit
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Registration Number</p>
@@ -305,6 +351,56 @@ export default function FirmDetailPage() {
 
         </main>
       </div>
+
+      {/* ═══ EDIT FIRM SIDE PANEL ═══ */}
+      {showEditPanel && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowEditPanel(false)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-semibold text-sm">Edit Client</h2>
+              <button onClick={() => setShowEditPanel(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div className="space-y-3">
+                <div>
+                  <label className="input-label">Firm Name *</label>
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" />
+                </div>
+                <div>
+                  <label className="input-label">Registration Number</label>
+                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="input-label">Contact Email</label>
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="input-label">Contact Phone</label>
+                  <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="input-label">Plan</label>
+                  <select value={editPlan} onChange={(e) => setEditPlan(e.target.value)} className="input-field w-full">
+                    <option value="free">Free</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                {editSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <button onClick={() => setShowEditPanel(false)} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ═══ ADD ADMIN MODAL ═══ */}
       {showModal && (

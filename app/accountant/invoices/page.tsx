@@ -134,7 +134,6 @@ const NAV = [
   { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-  { label: 'Admins',     href: '/accountant/admins',     icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
 ];
 
 // ─── Preview field helper ─────────────────────────────────────────────────────
@@ -189,6 +188,60 @@ function AccountantInvoicesPage() {
   // Create new supplier
   const [creatingSupplier, setCreatingSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
+
+  // Submit new invoice modal
+  const [showNewInvoice, setShowNewInvoice] = useState(false);
+  const [newInvSubmitting, setNewInvSubmitting] = useState(false);
+  const [newInvError, setNewInvError] = useState('');
+  const [newInv, setNewInv] = useState({
+    firm_id: '',
+    vendor_name: '',
+    invoice_number: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    total_amount: '',
+    category_id: '',
+    payment_terms: '',
+  });
+  const [newInvFile, setNewInvFile] = useState<File | null>(null);
+
+  // Fetch categories when modal opens
+  useEffect(() => {
+    if (showNewInvoice) {
+      fetch('/api/admin/categories').then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
+    }
+  }, [showNewInvoice]);
+
+  const submitNewInvoice = async () => {
+    if (!newInv.firm_id || !newInv.vendor_name || !newInv.issue_date || !newInv.total_amount || !newInv.category_id) {
+      setNewInvError('Please fill in all required fields including Firm.');
+      return;
+    }
+    setNewInvSubmitting(true);
+    setNewInvError('');
+    try {
+      const fd = new FormData();
+      fd.append('firm_id', newInv.firm_id);
+      fd.append('vendor_name', newInv.vendor_name);
+      if (newInv.invoice_number) fd.append('invoice_number', newInv.invoice_number);
+      fd.append('issue_date', newInv.issue_date);
+      if (newInv.due_date) fd.append('due_date', newInv.due_date);
+      fd.append('total_amount', newInv.total_amount);
+      fd.append('category_id', newInv.category_id);
+      if (newInv.payment_terms) fd.append('payment_terms', newInv.payment_terms);
+      if (newInvFile) fd.append('file', newInvFile);
+
+      const res = await fetch('/api/invoices', { method: 'POST', body: fd });
+      const j = await res.json();
+      if (!res.ok) { setNewInvError(j.error || 'Failed to create invoice'); return; }
+
+      setShowNewInvoice(false);
+      setNewInv({ firm_id: '', vendor_name: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '' });
+      setNewInvFile(null);
+      refresh();
+    } catch (e) { console.error(e); setNewInvError('Network error'); }
+    finally { setNewInvSubmitting(false); }
+  };
 
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); setCreatingSupplier(false); }, [previewInvoice]);
@@ -451,6 +504,16 @@ function AccountantInvoicesPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="input-field min-w-[210px]"
             />
+
+            <div className="ml-auto">
+              <button
+                onClick={() => setShowNewInvoice(true)}
+                className="px-4 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                style={{ backgroundColor: '#A60201' }}
+              >
+                + Submit New Invoice
+              </button>
+            </div>
           </div>
 
           {/* ── AG Grid ───────────────────────────────────── */}
@@ -469,6 +532,100 @@ function AccountantInvoicesPage() {
 
         </main>
       </div>
+
+      {/* ═══ SUBMIT NEW INVOICE MODAL ═══ */}
+      {showNewInvoice && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowNewInvoice(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: '#152237' }}>
+                <h2 className="text-white font-semibold text-sm">Submit New Invoice</h2>
+                <button onClick={() => setShowNewInvoice(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {newInvError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{newInvError}</p>}
+
+                <div>
+                  <label className="input-label">Firm *</label>
+                  <select value={newInv.firm_id} onChange={(e) => setNewInv({ ...newInv, firm_id: e.target.value })} className="input-field w-full">
+                    <option value="">Select firm</option>
+                    {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="input-label">Vendor Name *</label>
+                  <input type="text" value={newInv.vendor_name} onChange={(e) => setNewInv({ ...newInv, vendor_name: e.target.value })} className="input-field w-full" placeholder="e.g. ABC Supplies Sdn Bhd" />
+                </div>
+
+                <div>
+                  <label className="input-label">Invoice Number</label>
+                  <input type="text" value={newInv.invoice_number} onChange={(e) => setNewInv({ ...newInv, invoice_number: e.target.value })} className="input-field w-full" placeholder="Optional" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="input-label">Issue Date *</label>
+                    <input type="date" value={newInv.issue_date} onChange={(e) => setNewInv({ ...newInv, issue_date: e.target.value })} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="input-label">Due Date</label>
+                    <input type="date" value={newInv.due_date} onChange={(e) => setNewInv({ ...newInv, due_date: e.target.value })} className="input-field w-full" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="input-label">Total Amount (RM) *</label>
+                    <input type="number" step="0.01" value={newInv.total_amount} onChange={(e) => setNewInv({ ...newInv, total_amount: e.target.value })} className="input-field w-full" placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className="input-label">Payment Terms</label>
+                    <input type="text" value={newInv.payment_terms} onChange={(e) => setNewInv({ ...newInv, payment_terms: e.target.value })} className="input-field w-full" placeholder="e.g. Net 30" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="input-label">Category *</label>
+                  <select value={newInv.category_id} onChange={(e) => setNewInv({ ...newInv, category_id: e.target.value })} className="input-field w-full">
+                    <option value="">Select category</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="input-label">Invoice Image</label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => setNewInvFile(e.target.files?.[0] ?? null)}
+                    className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 px-5 py-4 border-t">
+                <button
+                  onClick={submitNewInvoice}
+                  disabled={newInvSubmitting}
+                  className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                  style={{ backgroundColor: '#A60201' }}
+                >
+                  {newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
+                </button>
+                <button
+                  onClick={() => setShowNewInvoice(false)}
+                  className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
       {previewInvoice && (
