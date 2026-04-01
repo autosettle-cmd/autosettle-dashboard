@@ -9,6 +9,7 @@ import { saveClaim, logMessage, getClaimsForPhone } from "@/lib/whatsapp/claims"
 import { saveInvoice } from "@/lib/whatsapp/invoices";
 import { getSession, addPendingReceipt, removePendingReceipt, generateReceiptKey, updateSession } from "@/lib/whatsapp/session";
 import { handleLisa } from "@/lib/whatsapp/lisa";
+import { startMileageFlow, handleMileageStep, confirmMileageClaim, rejectMileageClaim } from "@/lib/whatsapp/mileage";
 import { sendTelegramAlert } from "@/lib/whatsapp/errorNotify";
 import { prisma } from "@/lib/prisma";
 
@@ -89,7 +90,7 @@ async function routeMessage(
       break;
 
     case "interactive":
-      await handleInteractiveMessage(message, phone);
+      await handleInteractiveMessage(message, phone, employee);
       break;
 
     case "text": {
@@ -97,10 +98,17 @@ async function routeMessage(
       console.log(`[WhatsApp] Text message from ${phone}: "${textBody}"`);
       const session = await getSession(phone);
 
-      // If session is COLLECTING but NOT awaiting correction, tell user to use buttons
+      // Mileage flow — deterministic step-by-step collection (no LLM needed)
+      if (session?.step?.startsWith("MILEAGE_") && session.step !== "MILEAGE_CONFIRM") {
+        await handleMileageStep(phone, employee, textBody);
+        break;
+      }
+
+      // If session is COLLECTING but NOT awaiting correction and NOT mileage, tell user to use buttons
       if (
         session?.state === "COLLECTING" &&
-        !session.step?.startsWith("AWAITING_CORRECTION:")
+        !session.step?.startsWith("AWAITING_CORRECTION:") &&
+        !session.step?.startsWith("MILEAGE_")
       ) {
         await sendTextMessage(phone, "Please use the Yes or No buttons above to confirm your receipt.");
         break;
@@ -557,6 +565,7 @@ async function handleDocumentMessage(
 async function handleInteractiveMessage(
   message: Record<string, unknown>,
   phone: string,
+  employee: EmployeeInfo,
 ) {
   const interactive = message.interactive as Record<string, unknown>;
   const buttonReply = interactive?.button_reply as { id: string; title: string } | undefined;
@@ -690,8 +699,20 @@ async function handleInteractiveMessage(
       "What needs to be corrected? Type the correction and I'll update it."
     );
     console.log(`[WhatsApp] Receipt ${receiptKey} set to AWAITING_CORRECTION for ${phone}`);
+  } else if (buttonId === "mileage_yes") {
+    await confirmMileageClaim(phone);
+  } else if (buttonId === "mileage_no") {
+    await rejectMileageClaim(phone);
   } else if (buttonId === "menu_submit") {
+    // Show sub-options: Receipt or Mileage
+    await sendInteractiveButtons(phone, "What would you like to submit?", [
+      { id: "submit_receipt", title: "Receipt" },
+      { id: "submit_mileage", title: "Mileage" },
+    ]);
+  } else if (buttonId === "submit_receipt") {
     await sendTextMessage(phone, "Sure! Just snap a photo of your receipt and send it here. I'll take care of the rest.");
+  } else if (buttonId === "submit_mileage") {
+    await startMileageFlow(phone, employee);
   } else if (buttonId === "menu_status") {
     const statusMsg = await getClaimsForPhone(phone, "pending");
     await sendTextMessage(phone, statusMsg);

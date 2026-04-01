@@ -2,6 +2,7 @@ import { GoogleAuth } from "google-auth-library";
 import { readFileSync } from "fs";
 import { sendTextMessage, sendInteractiveMenu, sendConfirmationMessage } from "@/lib/whatsapp/send";
 import { saveClaim, getClaimsForPhone } from "@/lib/whatsapp/claims";
+import { startMileageFlow } from "@/lib/whatsapp/mileage";
 import { deleteSession, updateSession, removePendingReceipt } from "@/lib/whatsapp/session";
 import { uploadToDrive } from "@/lib/whatsapp/drive";
 import type { EmployeeInfo } from "@/lib/whatsapp/employees";
@@ -84,6 +85,14 @@ const LISA_TOOLS = [
         },
       },
       {
+        name: "start_mileage_claim",
+        description: "Start a mileage claim collection flow. Use when employee wants to log a trip/mileage/perjalanan. Only when session is IDLE (no pending receipts).",
+        parameters: {
+          type: "OBJECT",
+          properties: {},
+        },
+      },
+      {
         name: "delete_session",
         description: "Delete the current session after saving the claim",
         parameters: {
@@ -135,7 +144,8 @@ Status query routing:
 - summary / this month / ringkasan / how much → call get_status with filter=all
 
 IDLE state (no session):
-- Client explicitly wants to submit (claim, submit, hantar resit, nak claim) → send_message: send a photo of your receipt
+- Client wants mileage claim (mileage, log trip, tuntut mileage, perjalanan, jarak) → call start_mileage_claim
+- Client explicitly wants to submit receipt (claim, submit, hantar resit, nak claim, receipt) → send_message: send a photo of your receipt
 - Everything else including greetings → call send_interactive_menu
 
 COLLECTING (no AWAITING_CORRECTION step):
@@ -301,6 +311,11 @@ async function executeToolCall(
         receiptNumber: (args.receiptNumber as string) ?? (pending.receiptNumber as string),
         category: (args.category as string) || (pending.category as string),
       });
+      break;
+    }
+
+    case "start_mileage_claim": {
+      await startMileageFlow(phone, employee);
       break;
     }
 

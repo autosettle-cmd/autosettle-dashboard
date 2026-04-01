@@ -1,0 +1,26 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'accountant') {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const firmIds = await getAccountantFirmIds(session.user.id);
+
+  const { searchParams } = new URL(request.url);
+  const firmId = searchParams.get('firmId');
+  const scope = firmScope(firmIds, firmId);
+
+  const [claim, receipt, mileage] = await Promise.all([
+    prisma.claim.count({ where: { ...scope, type: 'claim' } }),
+    prisma.claim.count({ where: { ...scope, type: 'receipt' } }),
+    prisma.claim.count({ where: { ...scope, type: 'mileage' } }),
+  ]);
+
+  return NextResponse.json({ data: { claim, receipt, mileage }, error: null });
+}

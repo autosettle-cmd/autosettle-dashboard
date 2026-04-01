@@ -2,30 +2,44 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getAccountantFirmIds } from '@/lib/accountant-firms';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+  if (!session) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
   }
-  const firmId = session.user.firm_id;
+
+  const role = session.user.role;
   const { id } = await params;
 
-  // Verify user belongs to admin's firm and is pending
+  // Find the pending user
   const user = await prisma.user.findFirst({
-    where: { id, firm_id: firmId, status: 'pending_onboarding' },
+    where: { id, status: 'pending_onboarding' },
   });
   if (!user) {
     return NextResponse.json({ data: null, error: 'User not found or not pending' }, { status: 404 });
   }
 
-  // reason is optional, acknowledged but not stored on user
+  // Verify access
+  if (role === 'admin') {
+    if (!session.user.firm_id || user.firm_id !== session.user.firm_id) {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
+  } else if (role === 'accountant') {
+    const firmIds = await getAccountantFirmIds(session.user.id);
+    if (firmIds && user.firm_id && !firmIds.includes(user.firm_id)) {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
+  } else {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
   const body = await request.json().catch(() => ({}));
-  const { reason: _reason } = body;
-  void _reason;
+  void body;
 
   const updated = await prisma.user.update({
     where: { id },

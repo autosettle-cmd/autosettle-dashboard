@@ -101,9 +101,10 @@ All DB access goes through /app/api/* route handlers only.
 
 ### Key Directories
 /lib — Shared utilities (db, auth, whatsapp, payment-utils)
-/lib/whatsapp — WhatsApp backend (claims, invoices, ocr, gemini, parser, send, session, drive)
+/lib/whatsapp — WhatsApp backend (claims, invoices, mileage, ocr, gemini, parser, send, session, drive)
+/lib/mileage.ts — Mileage rate lookup + amount calculation
 /lib/payment-utils.ts — recalcInvoicePayment() for payment status updates
-/prisma — Schema + migrations (11 migrations as of 2026-04-01)
+/prisma — Schema + migrations (13 migrations as of 2026-04-01)
 /docs — Spec files
 
 ### UI Patterns

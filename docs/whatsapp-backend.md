@@ -21,6 +21,7 @@ All data is written to Postgres via Prisma. No Softr API calls.
   gemini.ts               -- Gemini extraction, classification, invoice extraction, PDF multimodal
   session.ts              -- Session CRUD (Postgres) with multi-receipt pending map
   claims.ts               -- Claims + Receipts CRUD (Postgres)
+  mileage.ts              -- Mileage claim flow: step-by-step collection (deterministic, no LLM), confirm/reject
   invoices.ts             -- Invoice save with supplier auto-matching
   employees.ts            -- Employee lookup by phone with role detection (Postgres)
   parser.ts               -- Parse and validate Gemini output (receipt + invoice)
@@ -292,9 +293,47 @@ if buttonId starts with 'menu_'
 ```
 
 Text message routing (deterministic, before Lisa):
-- If session is COLLECTING but step is NOT AWAITING_CORRECTION:* → reply "Please use the Yes or No buttons above"
+- If session step starts with MILEAGE_ (and not MILEAGE_CONFIRM) → route to handleMileageStep (deterministic, no LLM)
+- If session is COLLECTING but step is NOT AWAITING_CORRECTION:* and NOT MILEAGE_* → reply "Please use the Yes or No buttons above"
 - If session is COLLECTING + AWAITING_CORRECTION:{key} → route to Lisa for correction parsing
-- Otherwise (IDLE / no session) → route to Lisa for greetings, status queries, etc.
+- Otherwise (IDLE / no session) → route to Lisa for greetings, status queries, mileage intent, etc.
+
+Interactive button routing (in addition to confirm_yes/confirm_no):
+- `menu_submit` → shows sub-options: "Receipt" and "Mileage" buttons
+- `submit_receipt` → "Send a photo of your receipt"
+- `submit_mileage` → starts mileage flow
+- `mileage_yes` → confirm and save mileage claim
+- `mileage_no` → restart mileage flow
+
+---
+
+## Mileage Claim Flow (/lib/whatsapp/mileage.ts)
+
+Deterministic step-by-step collection — no LLM needed per step.
+
+**Trigger:** Employee texts "mileage", "log trip", "tuntut mileage" etc. (Lisa detects intent → calls start_mileage_claim tool), or taps Submit → Mileage from menu.
+
+**Session steps:** MILEAGE_FROM → MILEAGE_TO → MILEAGE_DISTANCE → MILEAGE_PURPOSE → MILEAGE_CONFIRM
+
+**Flow:**
+```
+Employee: "mileage"
+Bot: "Let's log your mileage claim. Where did you start from?"
+Employee: "PJ office"
+Bot: "Where did you travel to?"
+Employee: "Shah Alam client"
+Bot: "How far was the trip in km?"
+Employee: "25"
+Bot: "What was the purpose of this trip?"
+Employee: "Client meeting"
+Bot: [sends confirmation with Yes/No buttons]
+     "From: PJ office → To: Shah Alam client
+      Distance: 25 km | Amount: RM 13.75 (25 km × RM 0.55/km)"
+Employee: [Yes] → saves claim with type=mileage, auto-calculated amount, category="Travel & Transport"
+Employee: [No] → restarts from MILEAGE_FROM
+```
+
+**Saved claim fields:** type=mileage, merchant="Mileage Claim", confidence=HIGH, file_url=null, category="Travel & Transport", amount=distance_km × firm mileage rate (default RM 0.55/km)
 
 ---
 
@@ -343,7 +382,8 @@ Status query routing:
 - summary / this month / ringkasan / how much → call get_status with filter=all
 
 IDLE state (no session):
-- Client explicitly wants to submit (claim, submit, hantar resit, nak claim) → send_message: send a photo of your receipt
+- Client wants mileage claim (mileage, log trip, tuntut mileage, perjalanan, jarak) → call start_mileage_claim
+- Client explicitly wants to submit receipt (claim, submit, hantar resit, nak claim, receipt) → send_message: send a photo of your receipt
 - Everything else including greetings → call send_interactive_menu
 
 COLLECTING + AWAITING_CONFIRMATION:
@@ -373,6 +413,10 @@ get_status(filter: 'pending' | 'approved' | 'rejected' | 'all')
 save_claim(fields: ClaimFields)
   → saves to claims table
   → sends confirmation message
+
+start_mileage_claim()
+  → calls startMileageFlow(phone, employee)
+  → creates session with step=MILEAGE_FROM, sends first prompt
 
 delete_session(session_id: string)
   → calls deleteSession(session_id)

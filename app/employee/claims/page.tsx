@@ -23,6 +23,11 @@ interface ClaimRow {
   file_url: string | null;
   thumbnail_url: string | null;
   confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  type?: 'claim' | 'receipt' | 'mileage';
+  from_location?: string | null;
+  to_location?: string | null;
+  distance_km?: string | null;
+  trip_purpose?: string | null;
 }
 
 interface Category {
@@ -121,6 +126,7 @@ export default function EmployeeClaimsPage() {
   // Modal
   const [showModal, setShowModal]           = useState(false);
   const [categories, setCategories]         = useState<Category[]>([]);
+  const [claimType, setClaimType]           = useState<'receipt' | 'mileage'>('receipt');
   const [modalDate, setModalDate]           = useState(todayStr());
   const [modalMerchant, setModalMerchant]   = useState('');
   const [modalAmount, setModalAmount]       = useState('');
@@ -133,6 +139,13 @@ export default function EmployeeClaimsPage() {
   const [modalSaving, setModalSaving]       = useState(false);
   const [successMsg, setSuccessMsg]         = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Mileage-specific fields
+  const [mileageFrom, setMileageFrom]       = useState('');
+  const [mileageTo, setMileageTo]           = useState('');
+  const [mileageDistance, setMileageDistance] = useState('');
+  const [mileagePurpose, setMileagePurpose] = useState('');
+  const mileageRate = 0.55;
 
   // Load claims
   useEffect(() => {
@@ -160,6 +173,7 @@ export default function EmployeeClaimsPage() {
   const refresh = () => setRefreshKey((k) => k + 1);
 
   const openModal = () => {
+    setClaimType('receipt');
     setModalDate(todayStr());
     setModalMerchant('');
     setModalAmount('');
@@ -168,6 +182,10 @@ export default function EmployeeClaimsPage() {
     setModalDesc('');
     setSelectedFile(null);
     setPreviewUrl(null);
+    setMileageFrom('');
+    setMileageTo('');
+    setMileageDistance('');
+    setMileagePurpose('');
     setModalError('');
     setModalSaving(false);
     setShowModal(true);
@@ -188,9 +206,16 @@ export default function EmployeeClaimsPage() {
   };
 
   const submitClaim = async () => {
-    if (!modalDate || !modalMerchant.trim() || !modalAmount || !modalCategory || !selectedFile) {
-      setModalError('Date, merchant, amount, category, and receipt photo are required.');
-      return;
+    if (claimType === 'mileage') {
+      if (!modalDate || !mileageFrom.trim() || !mileageTo.trim() || !mileageDistance || !mileagePurpose.trim()) {
+        setModalError('Date, from, to, distance, and purpose are required.');
+        return;
+      }
+    } else {
+      if (!modalDate || !modalMerchant.trim() || !modalAmount || !modalCategory || !selectedFile) {
+        setModalError('Date, merchant, amount, category, and receipt photo are required.');
+        return;
+      }
     }
 
     setModalSaving(true);
@@ -199,12 +224,21 @@ export default function EmployeeClaimsPage() {
     try {
       const fd = new FormData();
       fd.append('claim_date', modalDate);
-      fd.append('merchant', modalMerchant.trim());
-      fd.append('amount', modalAmount);
-      fd.append('category_id', modalCategory);
-      if (modalReceipt.trim()) fd.append('receipt_number', modalReceipt.trim());
-      if (modalDesc.trim()) fd.append('description', modalDesc.trim());
-      fd.append('file', selectedFile);
+
+      if (claimType === 'mileage') {
+        fd.append('type', 'mileage');
+        fd.append('from_location', mileageFrom.trim());
+        fd.append('to_location', mileageTo.trim());
+        fd.append('distance_km', mileageDistance);
+        fd.append('trip_purpose', mileagePurpose.trim());
+      } else {
+        fd.append('merchant', modalMerchant.trim());
+        fd.append('amount', modalAmount);
+        fd.append('category_id', modalCategory);
+        if (modalReceipt.trim()) fd.append('receipt_number', modalReceipt.trim());
+        if (modalDesc.trim()) fd.append('description', modalDesc.trim());
+        if (selectedFile) fd.append('file', selectedFile);
+      }
 
       const res = await fetch('/api/employee/claims', {
         method: 'POST',
@@ -221,7 +255,7 @@ export default function EmployeeClaimsPage() {
 
       setShowModal(false);
       refresh();
-      setSuccessMsg('Claim submitted successfully!');
+      setSuccessMsg(claimType === 'mileage' ? 'Mileage claim submitted!' : 'Claim submitted successfully!');
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch {
       setModalError('Network error. Please try again.');
@@ -346,7 +380,14 @@ export default function EmployeeClaimsPage() {
                       return (
                         <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
                           <td className="px-5 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
-                          <td className="px-5 py-3 text-gray-900 font-medium">{c.merchant}</td>
+                          <td className="px-5 py-3 text-gray-900 font-medium">
+                            {c.type === 'mileage' ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold flex-shrink-0">M</span>
+                                {c.from_location} &rarr; {c.to_location}
+                              </span>
+                            ) : c.merchant}
+                          </td>
                           <td className="px-5 py-3 text-gray-500">{c.category_name}</td>
                           <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                           <td className="px-5 py-3">
@@ -381,6 +422,22 @@ export default function EmployeeClaimsPage() {
             <h3 className="text-base font-semibold text-gray-900">Submit New Claim</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
 
+            {/* ── Type Toggle ── */}
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
+              <button
+                onClick={() => setClaimType('receipt')}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Receipt Claim
+              </button>
+              <button
+                onClick={() => setClaimType('mileage')}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'mileage' ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                Mileage Claim
+              </button>
+            </div>
+
             {modalError && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-sm text-red-700">{modalError}</p>
@@ -398,93 +455,154 @@ export default function EmployeeClaimsPage() {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
-                <input
-                  type="text"
-                  value={modalMerchant}
-                  onChange={(e) => setModalMerchant(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="e.g. Petronas, Grab, etc."
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
-                <input
-                  type="number"
-                  value={modalAmount}
-                  onChange={(e) => setModalAmount(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
-                <select
-                  value={modalCategory}
-                  onChange={(e) => setModalCategory(e.target.value)}
-                  className="input-field w-full"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
-                <input
-                  type="text"
-                  value={modalReceipt}
-                  onChange={(e) => setModalReceipt(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Optional"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
-                <textarea
-                  value={modalDesc}
-                  onChange={(e) => setModalDesc(e.target.value)}
-                  className="input-field w-full"
-                  rows={2}
-                  placeholder="Optional"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo *</label>
-                <div
-                  className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  {selectedFile ? (
-                    <div className="space-y-2">
-                      {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />}
-                      <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); clearFile(); }}
-                        className="text-xs text-red-500 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm text-gray-500">Click or drag to upload receipt photo</p>
-                      <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+
+              {claimType === 'mileage' ? (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <input
+                      type="text"
+                      value={mileageFrom}
+                      onChange={(e) => setMileageFrom(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="e.g. PJ Office"
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <input
+                      type="text"
+                      value={mileageTo}
+                      onChange={(e) => setMileageTo(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="e.g. Shah Alam client office"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <input
+                      type="number"
+                      value={mileageDistance}
+                      onChange={(e) => setMileageDistance(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="e.g. 25"
+                      step="0.1"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <input
+                      type="text"
+                      value={mileagePurpose}
+                      onChange={(e) => setMileagePurpose(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="e.g. Client meeting with ABC Sdn Bhd"
+                    />
+                  </div>
+                  {mileageDistance && parseFloat(mileageDistance) > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <p className="text-sm text-blue-800 font-medium">
+                        Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-xs text-blue-600 mt-0.5">
+                        {mileageDistance} km x RM {mileageRate.toFixed(2)}/km
+                      </p>
                     </div>
                   )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                    ref={fileInputRef}
-                  />
-                </div>
-              </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <input
+                      type="text"
+                      value={modalMerchant}
+                      onChange={(e) => setModalMerchant(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="e.g. Petronas, Grab, etc."
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <input
+                      type="number"
+                      value={modalAmount}
+                      onChange={(e) => setModalAmount(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <select
+                      value={modalCategory}
+                      onChange={(e) => setModalCategory(e.target.value)}
+                      className="input-field w-full"
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <input
+                      type="text"
+                      value={modalReceipt}
+                      onChange={(e) => setModalReceipt(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <textarea
+                      value={modalDesc}
+                      onChange={(e) => setModalDesc(e.target.value)}
+                      className="input-field w-full"
+                      rows={2}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo *</label>
+                    <div
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      {selectedFile ? (
+                        <div className="space-y-2">
+                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />}
+                          <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); clearFile(); }}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-500">Click or drag to upload receipt photo</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        ref={fileInputRef}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="flex gap-3 mt-5">
@@ -494,7 +612,7 @@ export default function EmployeeClaimsPage() {
                 className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: '#A60201' }}
               >
-                {modalSaving ? 'Submitting...' : 'Submit Claim'}
+                {modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage Claim' : 'Submit Claim'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
@@ -519,7 +637,14 @@ export default function EmployeeClaimsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {previewClaim.thumbnail_url ? (
+              {previewClaim.type === 'mileage' ? (
+                <div className="w-full rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-1.5">
+                  <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Mileage Claim</p>
+                  <p className="text-sm text-blue-900">{previewClaim.from_location} &rarr; {previewClaim.to_location}</p>
+                  <p className="text-sm text-blue-800">{previewClaim.distance_km} km</p>
+                  {previewClaim.trip_purpose && <p className="text-xs text-blue-600">{previewClaim.trip_purpose}</p>}
+                </div>
+              ) : previewClaim.thumbnail_url ? (
                 <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>

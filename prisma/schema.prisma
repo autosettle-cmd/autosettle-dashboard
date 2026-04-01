@@ -55,6 +55,7 @@ enum SubmittedVia {
 enum ClaimType {
   claim
   receipt
+  mileage
 }
 
 enum SessionState {
@@ -101,6 +102,7 @@ model Firm {
   categories             Category[]
   categoryFirmOverrides  CategoryFirmOverride[]
   accountantFirms        AccountantFirm[]
+  mileage_rate_per_km    Decimal?  @db.Decimal(4, 2)
 }
 
 model Employee {
@@ -199,6 +201,10 @@ model Claim {
   thumbnail_url    String?
   submitted_via    SubmittedVia
   type             ClaimType      @default(claim)
+  from_location    String?
+  to_location      String?
+  distance_km      Decimal?       @db.Decimal(8, 2)
+  trip_purpose     String?
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
 
@@ -206,6 +212,10 @@ model Claim {
   employee Employee @relation(fields: [employee_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
   paymentReceipts PaymentReceipt[]
+
+  @@index([firm_id, type, claim_date])
+  @@index([firm_id, type, status])
+  @@index([firm_id, claim_date])
 }
 
 
@@ -271,6 +281,9 @@ model Invoice {
   supplier            Supplier?            @relation(fields: [supplier_id], references: [id])
   category            Category             @relation(fields: [category_id], references: [id])
   paymentAllocations  PaymentAllocation[]
+
+  @@index([firm_id, status])
+  @@index([firm_id, issue_date])
 }
 
 model Payment {

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import { getFirmMileageRate, calculateMileageAmount } from '@/lib/mileage';
 
 async function uploadToGoogleDrive(
   file: File
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { firm_id: firmId };
-  if (type && (type === 'claim' || type === 'receipt')) where.type = type;
+  if (type && (type === 'claim' || type === 'receipt' || type === 'mileage')) where.type = type;
 
   if (dateFrom || dateTo) {
     where.claim_date = {};
@@ -125,6 +126,10 @@ export async function GET(request: NextRequest) {
     confidence: c.confidence,
     submitted_via: c.submitted_via,
     type: c.type,
+    from_location: c.from_location,
+    to_location: c.to_location,
+    distance_km: c.distance_km?.toString() ?? null,
+    trip_purpose: c.trip_purpose,
     linked_payment_count: c._count.paymentReceipts,
     linked_payments: c.paymentReceipts.map((pr) => ({
       payment_id: pr.payment.id,
@@ -163,8 +168,90 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-
     const claimType = (formData.get('type') as string | null) || 'claim';
+
+    if (claimType === 'mileage') {
+      // ── Mileage claim ──
+      const claimDate = formData.get('claim_date') as string | null;
+      const fromLocation = formData.get('from_location') as string | null;
+      const toLocation = formData.get('to_location') as string | null;
+      const distanceStr = formData.get('distance_km') as string | null;
+      const tripPurpose = formData.get('trip_purpose') as string | null;
+
+      if (!claimDate || !fromLocation || !toLocation || !distanceStr || !tripPurpose) {
+        return NextResponse.json(
+          { data: null, error: 'Missing required fields: claim_date, from_location, to_location, distance_km, trip_purpose' },
+          { status: 400 }
+        );
+      }
+
+      const distanceKm = parseFloat(distanceStr);
+      if (isNaN(distanceKm) || distanceKm <= 0) {
+        return NextResponse.json({ data: null, error: 'Invalid distance' }, { status: 400 });
+      }
+
+      const rate = await getFirmMileageRate(firmId);
+      const amount = calculateMileageAmount(distanceKm, rate);
+
+      const category = await prisma.category.findFirst({
+        where: {
+          name: 'Travel & Transport',
+          OR: [{ firm_id: firmId }, { firm_id: null }],
+          is_active: true,
+        },
+      });
+
+      if (!category) {
+        return NextResponse.json({ data: null, error: 'Travel & Transport category not found' }, { status: 400 });
+      }
+
+      const claim = await prisma.claim.create({
+        data: {
+          firm_id: firmId,
+          employee_id: employee.id,
+          claim_date: new Date(claimDate),
+          merchant: 'Mileage Claim',
+          amount,
+          category_id: category.id,
+          status: 'pending_review',
+          approval: 'pending_approval',
+          payment_status: 'unpaid',
+          confidence: 'HIGH',
+          submitted_via: 'dashboard',
+          type: 'mileage',
+          from_location: fromLocation,
+          to_location: toLocation,
+          distance_km: distanceKm,
+          trip_purpose: tripPurpose,
+        },
+        include: {
+          employee: { select: { name: true } },
+          category: { select: { name: true } },
+        },
+      });
+
+      return NextResponse.json({
+        data: {
+          id: claim.id,
+          claim_date: claim.claim_date,
+          employee_name: claim.employee.name,
+          merchant: claim.merchant,
+          category_name: claim.category.name,
+          amount: claim.amount.toString(),
+          status: claim.status,
+          approval: claim.approval,
+          payment_status: claim.payment_status,
+          type: claim.type,
+          from_location: claim.from_location,
+          to_location: claim.to_location,
+          distance_km: claim.distance_km?.toString(),
+          trip_purpose: claim.trip_purpose,
+        },
+        error: null,
+      }, { status: 201 });
+    }
+
+    // ── Receipt / standard claim ──
     const claimDate = formData.get('claim_date') as string | null;
     const merchant = formData.get('merchant') as string | null;
     const amountStr = formData.get('amount') as string | null;

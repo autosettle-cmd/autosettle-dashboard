@@ -136,6 +136,34 @@ export async function sendConfirmationMessage(
   await sendTextMessage(to, body);
 }
 
+export async function sendMileageConfirmationMessage(
+  to: string,
+  fields: {
+    from: string;
+    to: string;
+    distanceKm: number;
+    amount: number;
+    rate: number;
+  }
+) {
+  const fmtAmount = fields.amount.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtRate = fields.rate.toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const body = [
+    "Mileage claim saved!",
+    "",
+    `From: ${fields.from}`,
+    `To: ${fields.to}`,
+    `Distance: ${fields.distanceKm} km`,
+    `Amount: RM ${fmtAmount} (${fields.distanceKm} km x RM ${fmtRate}/km)`,
+    `Category: Travel & Transport`,
+    "",
+    "Log another trip or send a receipt!",
+  ].join("\n");
+
+  await sendTextMessage(to, body);
+}
+
 export async function sendInvoiceConfirmationMessage(
   to: string,
   fields: {

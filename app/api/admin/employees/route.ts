@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       _count: { select: { claims: true } },
+      users: { where: { role: 'employee' }, select: { status: true }, take: 1 },
     },
     orderBy: { name: 'asc' },
   });
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
     email: e.email,
     claims_count: e._count.claims,
     is_active: e.is_active,
+    user_status: e.users[0]?.status ?? null,
   }));
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });

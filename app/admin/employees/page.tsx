@@ -15,6 +15,7 @@ interface EmployeeRow {
   email: string | null;
   claims_count: number;
   is_active: boolean;
+  user_status: string | null;
 }
 
 interface PendingRow {
@@ -502,7 +503,11 @@ export default function AdminEmployeesPage() {
                         <td className="px-5 py-3 text-gray-600">{emp.email ?? '—'}</td>
                         <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{emp.claims_count}</td>
                         <td className="px-5 py-3">
-                          {emp.is_active ? (
+                          {emp.user_status === 'pending_onboarding' ? (
+                            <span className="badge-amber">Pending</span>
+                          ) : emp.user_status === 'rejected' ? (
+                            <span className="badge-red">Rejected</span>
+                          ) : emp.is_active ? (
                             <span className="badge-green">Active</span>
                           ) : (
                             <span className="badge-gray">Inactive</span>

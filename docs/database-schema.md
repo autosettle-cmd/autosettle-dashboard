@@ -33,6 +33,7 @@ All tables use UUID primary keys. All timestamps are UTC.
 | is_active | Boolean | Default true |
 | receipt_count | Int | Free tier tracking, cap at 500 |
 | plan | Enum | free / paid |
+| mileage_rate_per_km | Decimal(4,2)? | RM per km for mileage claims. Default fallback: 0.55 (LHDN standard) |
 | created_at | DateTime | |
 | updated_at | DateTime | |
 
@@ -73,8 +74,23 @@ All tables use UUID primary keys. All timestamps are UTC.
 | file_download_url | String? | |
 | thumbnail_url | String? | |
 | submitted_via | Enum | whatsapp / dashboard |
+| type | Enum | claim / receipt / mileage. Default: claim |
+| from_location | String? | Mileage only: trip start location |
+| to_location | String? | Mileage only: trip end location |
+| distance_km | Decimal(8,2)? | Mileage only: km traveled |
+| trip_purpose | String? | Mileage only: reason for trip |
 | created_at | DateTime | |
 | updated_at | DateTime | |
+
+Indexes:
+- `(firm_id, type, claim_date)` — tab filtering + date range queries
+- `(firm_id, type, status)` — pending review queries
+- `(firm_id, claim_date)` — date-range-only queries
+
+Claim types:
+- `claim` — standard employee expense claim (receipt photo required)
+- `receipt` — payment receipt proof uploaded by admin
+- `mileage` — distance-based claim, no receipt. Amount auto-calculated: distance_km × firm mileage rate (default RM 0.55/km). merchant is always "Mileage Claim", category auto-set to "Travel & Transport"
 
 Status flow:
 pending_review → reviewed (Admin action)
@@ -194,6 +210,10 @@ Maps variant vendor names to a single supplier account (e.g. "mcdonalds", "the g
 | submitted_via | Enum | whatsapp / dashboard |
 | created_at | DateTime | |
 | updated_at | DateTime | |
+
+Indexes:
+- `(firm_id, status)` — pending invoice queries
+- `(firm_id, issue_date)` — monthly invoice queries
 
 Supplier link flow:
 - unmatched → new supplier auto-created, needs admin confirmation

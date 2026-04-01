@@ -1,0 +1,20 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+  const firmId = session.user.firm_id;
+
+  const [claim, receipt, mileage] = await Promise.all([
+    prisma.claim.count({ where: { firm_id: firmId, type: 'claim' } }),
+    prisma.claim.count({ where: { firm_id: firmId, type: 'receipt' } }),
+    prisma.claim.count({ where: { firm_id: firmId, type: 'mileage' } }),
+  ]);
+
+  return NextResponse.json({ data: { claim, receipt, mileage }, error: null });
+}

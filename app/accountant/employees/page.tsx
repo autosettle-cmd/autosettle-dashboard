@@ -17,6 +17,17 @@ interface EmployeeRow {
   firm_id: string;
   claims_count: number;
   is_active: boolean;
+  user_status: string | null;
+}
+
+interface PendingRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  firm_name: string;
+  firm_id: string | null;
+  created_at: string;
 }
 
 interface AdminRow {
@@ -62,6 +73,11 @@ export default function PeoplePage() {
   // ── Firms ──
   const [firms, setFirms] = useState<Firm[]>([]);
   const [firmId, setFirmId] = useState('');
+
+  // ── Pending Approval data ──
+  const [pending, setPending]               = useState<PendingRow[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [pendingKey, setPendingKey]         = useState(0);
 
   // ── Admins data ──
   const [admins, setAdmins]               = useState<AdminRow[]>([]);
@@ -118,6 +134,19 @@ export default function PeoplePage() {
       .catch(console.error);
   }, []);
 
+  // ── Fetch pending ──
+  useEffect(() => {
+    let cancelled = false;
+    setPendingLoading(true);
+    const p = new URLSearchParams();
+    if (firmId) p.set('firmId', firmId);
+    fetch(`/api/admin/employees/pending?${p}`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) { setPending(j.data ?? []); setPendingLoading(false); } })
+      .catch((e) => { console.error(e); if (!cancelled) setPendingLoading(false); });
+    return () => { cancelled = true; };
+  }, [firmId, pendingKey]);
+
   // ── Fetch admins ──
   useEffect(() => {
     if (!firmId) {
@@ -153,8 +182,23 @@ export default function PeoplePage() {
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
+  const refreshPending   = () => setPendingKey((k) => k + 1);
   const refreshAdmins    = () => setAdminsKey((k) => k + 1);
   const refreshEmployees = () => setEmpKey((k) => k + 1);
+
+  const handleApprove = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/employees/${id}/approve`, { method: 'PATCH' });
+      if (res.ok) { refreshPending(); refreshEmployees(); }
+    } catch (e) { console.error(e); }
+  };
+
+  const handleReject = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/employees/${id}/reject`, { method: 'PATCH' });
+      if (res.ok) { refreshPending(); refreshEmployees(); }
+    } catch (e) { console.error(e); }
+  };
 
   // ── Toggle admin active ──
   const toggleAdminActive = async (admin: AdminRow) => {
@@ -442,6 +486,55 @@ export default function PeoplePage() {
             </div>
           </div>
 
+          {/* ════════════════════ SECTION 0: PENDING APPROVAL ════════════════════ */}
+          {!pendingLoading && pending.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+                <h2 className="text-[13px] font-semibold text-amber-700">Pending Approval</h2>
+                <span className="badge-amber">{pending.length}</span>
+              </div>
+              <div className="overflow-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                      <th className="px-5 py-2.5">Name</th>
+                      <th className="px-5 py-2.5">Email</th>
+                      <th className="px-5 py-2.5">Phone</th>
+                      <th className="px-5 py-2.5">Firm</th>
+                      <th className="px-5 py-2.5">Date Requested</th>
+                      <th className="px-5 py-2.5">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pending.map((row, i) => (
+                      <tr key={row.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < pending.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        <td className="px-5 py-3 text-gray-900 font-medium">{row.name}</td>
+                        <td className="px-5 py-3 text-gray-600">{row.email}</td>
+                        <td className="px-5 py-3 text-gray-600">{row.phone || '—'}</td>
+                        <td className="px-5 py-3 text-gray-600">{row.firm_name}</td>
+                        <td className="px-5 py-3 text-gray-600">{formatDate(row.created_at)}</td>
+                        <td className="px-5 py-3 flex items-center gap-3">
+                          <button
+                            onClick={() => handleApprove(row.id)}
+                            className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(row.id)}
+                            className="text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* ════════════════════ SECTION 1: ADMINS ════════════════════ */}
           <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
@@ -538,7 +631,11 @@ export default function PeoplePage() {
                         <td className="px-5 py-3 text-gray-600">{emp.firm_name}</td>
                         <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{emp.claims_count}</td>
                         <td className="px-5 py-3">
-                          {emp.is_active ? (
+                          {emp.user_status === 'pending_onboarding' ? (
+                            <span className="badge-amber">Pending</span>
+                          ) : emp.user_status === 'rejected' ? (
+                            <span className="badge-red">Rejected</span>
+                          ) : emp.is_active ? (
                             <span className="badge-green">Active</span>
                           ) : (
                             <span className="badge-gray">Inactive</span>
