@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Recalc each affected invoice
-    const affectedInvoiceIds = [...new Set(allocationsToCreate.map((a) => a.invoice_id))];
+    const affectedInvoiceIds = Array.from(new Set(allocationsToCreate.map((a) => a.invoice_id)));
     for (const invId of affectedInvoiceIds) {
       await recalcInvoicePayment(invId);
     }

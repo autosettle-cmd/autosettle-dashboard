@@ -5,7 +5,7 @@ import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -144,7 +144,11 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function AdminClaimsPage() {
+export default function AdminClaimsPageWrapper() {
+  return <Suspense><AdminClaimsPage /></Suspense>;
+}
+
+function AdminClaimsPage() {
   const { data: session } = useSession();
   const pathname = usePathname();
   const handleLogout = useLogout();

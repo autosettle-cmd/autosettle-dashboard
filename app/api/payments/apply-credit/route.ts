@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   }
 
   const supplier = await prisma.supplier.findUnique({ where: { id: supplier_id }, select: { firm_id: true } });
-  if (!supplier || !firmIds.includes(supplier.firm_id)) {
+  if (!supplier || !firmIds || !firmIds.includes(supplier.firm_id)) {
     return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
   }
 
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const affectedInvoiceIds = [...new Set(allocationsToCreate.map((a) => a.invoice_id))];
+    const affectedInvoiceIds = Array.from(new Set(allocationsToCreate.map((a) => a.invoice_id)));
     for (const invId of affectedInvoiceIds) {
       await recalcInvoicePayment(invId);
     }

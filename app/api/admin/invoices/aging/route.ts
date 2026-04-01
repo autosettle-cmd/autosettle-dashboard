@@ -3,18 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-interface AgingInvoice {
-  id: string;
-  invoice_number: string | null;
-  issue_date: Date;
-  due_date: Date | null;
-  total_amount: number;
-  amount_paid: number;
-  payment_status: string;
-  category_name: string;
-  vendor_name_raw: string;
-}
-
 interface SupplierBucket {
   supplier_id: string;
   supplier_name: string;

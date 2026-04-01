@@ -649,7 +649,7 @@ export default function AdminSuppliersPage() {
                           <tbody>
                             {expandedInvoices.map((inv, i) => {
                               const pmtCfg = PAYMENT_CFG[inv.payment_status];
-                              const balance = Number(inv.total_amount) - Number(inv.amount_paid);
+                              // balance available via inv.total_amount - inv.amount_paid if needed
                               return (
                                 <tr key={inv.id} className={`text-[12px] hover:bg-white/60 transition-colors ${i < expandedInvoices.length - 1 ? 'border-b border-gray-100' : ''}`}>
                                   <td className="px-5 py-2.5 pl-14 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>

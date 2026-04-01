@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         where: { id: cid },
         select: { firm_id: true, type: true, paymentReceipts: { take: 1 } },
       });
-      if (!receipt || !firmIds.includes(receipt.firm_id) || receipt.type !== 'receipt') {
+      if (!receipt || !firmIds || !firmIds.includes(receipt.firm_id) || receipt.type !== 'receipt') {
         return NextResponse.json({ data: null, error: 'Receipt not found' }, { status: 404 });
       }
       if (receipt.paymentReceipts.length > 0) {
