@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autosettle — Data Flow</title>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/theme/black.css">
+  <style>
+    :root {
+      --sidebar: #152237;
+      --accent: #A60201;
+      --accent-light: rgba(166, 2, 1, 0.15);
+      --surface: #1a2d47;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
+    .reveal { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    .reveal .slides { text-align: left; }
+    .reveal h1, .reveal h2, .reveal h3 { color: #fff; font-weight: 700; text-transform: none; letter-spacing: -0.02em; }
+    .reveal h1 { font-size: 2.4em; }
+    .reveal h2 { font-size: 1.6em; border-bottom: 3px solid var(--accent); padding-bottom: 0.3em; display: inline-block; margin-bottom: 0.6em; }
+    .reveal h3 { font-size: 1.1em; color: var(--muted); font-weight: 600; margin-bottom: 0.4em; }
+    .reveal p, .reveal li { color: var(--text); font-size: 0.7em; line-height: 1.6; }
+    .reveal ul { list-style: none; padding: 0; }
+    .reveal ul li { padding-left: 1.2em; position: relative; margin-bottom: 0.35em; }
+    .reveal ul li::before { content: '›'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+    .reveal .slides section { background: var(--sidebar); }
+    section.title-slide { text-align: center !important; }
+    .accent { color: var(--accent) !important; }
+    .green { color: var(--green) !important; }
+    .amber { color: var(--amber) !important; }
+    .blue { color: var(--blue) !important; }
+    .red { color: var(--red) !important; }
+    .purple { color: var(--purple) !important; }
+    .muted { color: var(--muted) !important; }
+    .bold { font-weight: 700; }
+
+    /* Flow boxes */
+    .flow { display: flex; flex-direction: column; gap: 8px; margin: 0.6em 0; }
+    .flow-h { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
+    .box {
+      background: var(--surface);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.65em;
+      line-height: 1.5;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+    }
+    .box-accent { border-left: 4px solid var(--accent); }
+    .box-green { border-left: 4px solid var(--green); }
+    .box-amber { border-left: 4px solid var(--amber); }
+    .box-blue { border-left: 4px solid var(--blue); }
+    .box-red { border-left: 4px solid var(--red); }
+    .box-purple { border-left: 4px solid var(--purple); }
+    .box .label {
+      font-size: 0.75em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .box-accent .label { color: var(--accent); }
+    .box-green .label { color: var(--green); }
+    .box-amber .label { color: var(--amber); }
+    .box-blue .label { color: var(--blue); }
+    .box-red .label { color: var(--red); }
+    .box-purple .label { color: var(--purple); }
+
+    .arrow { text-align: center; font-size: 1.4em; color: var(--muted); line-height: 1; padding: 2px 0; }
+    .arrow-right { font-size: 1.2em; color: var(--muted); align-self: center; flex-shrink: 0; }
+
+    /* Role badges */
+    .role {
+      display: inline-block;
+      font-size: 0.6em;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      vertical-align: middle;
+    }
+    .role-employee { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .role-admin { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .role-accountant { background: rgba(168,85,247,0.15); color: var(--purple); }
+
+    /* Status pills */
+    .status {
+      display: inline-block;
+      font-size: 0.6em;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.03em;
+    }
+    .status-pending { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .status-reviewed { background: rgba(59,130,246,0.15); color: var(--blue); }
+    .status-approved { background: rgba(16,185,129,0.15); color: var(--green); }
+    .status-rejected { background: rgba(239,68,68,0.15); color: var(--red); }
+    .status-paid { background: rgba(168,85,247,0.15); color: var(--purple); }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+    /* Table */
+    .tbl { width: 100%; border-collapse: collapse; font-size: 0.6em; margin: 0.5em 0; }
+    .tbl th { background: rgba(255,255,255,0.05); color: var(--muted); font-size: 0.8em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 12px; text-align: left; }
+    .tbl td { padding: 8px 12px; border-top: 1px solid rgba(255,255,255,0.05); color: var(--text); }
+    .tbl tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .reveal .progress { color: var(--accent); }
+    .reveal .controls button { color: var(--accent) !important; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- ═══ SLIDE 1: Title ═══ -->
+      <section class="title-slide">
+        <div style="margin-bottom: 1em;">
+          <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, #A60201, #8B0101);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+        </div>
+        <h1>Autosettle</h1>
+        <p style="text-align:center; font-size:0.9em; color:var(--muted);">Data Flow &amp; Approval System</p>
+        <p style="text-align:center; font-size:0.55em; color:rgba(255,255,255,0.25); margin-top:2em;">Use arrow keys to navigate</p>
+      </section>
+
+      <!-- ═══ SLIDE 2: Three Roles ═══ -->
+      <section>
+        <h2>Three Roles</h2>
+        <div class="grid-3">
+          <div class="box box-blue">
+            <span class="label">Employee</span>
+            Submits claims, receipts, and mileage via <strong>WhatsApp</strong> or <strong>Dashboard</strong>.<br><br>
+            Views own claims and approval status. Cannot approve or create payments.
+          </div>
+          <div class="box box-amber">
+            <span class="label">Admin</span>
+            Submits claims + invoices. <strong>Reviews</strong> claims (marks as reviewed).<br><br>
+            Manages employees, categories, suppliers, bank statements. Cannot approve claims.
+          </div>
+          <div class="box box-purple">
+            <span class="label">Accountant</span>
+            <strong>Approves / rejects</strong> claims. Creates <strong>payments</strong>. Links receipts to invoices.<br><br>
+            Manages bank recon, aging reports, SOA. Full financial control.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 3: Submission Channels ═══ -->
+      <section>
+        <h2>Claim / Receipt Submission</h2>
+        <h3>4 channels, same destination</h3>
+        <div class="flow-h" style="margin-top: 0.8em;">
+          <div class="box box-blue" style="flex:1;">
+            <span class="label">WhatsApp</span>
+            Employee sends photo/PDF<br>
+            OCR auto-extracts fields<br>
+            Confirm or correct via chat
+          </div>
+          <div class="box box-blue" style="flex:1;">
+            <span class="label">Employee Dashboard</span>
+            Upload receipt + fill form<br>
+            OCR auto-fills on upload<br>
+            Amend → Submit
+          </div>
+          <div class="box box-amber" style="flex:1;">
+            <span class="label">Admin Dashboard</span>
+            Submit on behalf of employee<br>
+            Supports claim / receipt / mileage<br>
+            Same OCR auto-fill
+          </div>
+          <div class="box box-purple" style="flex:1;">
+            <span class="label">Accountant Dashboard</span>
+            Submit for any managed firm<br>
+            Select firm → fill form<br>
+            Same OCR auto-fill
+          </div>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="box box-accent" style="text-align:center;">
+          <span class="label">Claim Created</span>
+          <span class="status status-pending">Pending Review</span>&nbsp;
+          <span class="status status-pending">Pending Approval</span>&nbsp;
+          <span class="status" style="background:rgba(255,255,255,0.05); color:var(--muted);">Unpaid</span>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 4: OCR Pipeline ═══ -->
+      <section>
+        <h2>OCR Pipeline</h2>
+        <h3>Automatic data extraction on upload</h3>
+        <div class="flow" style="margin-top: 0.8em;">
+          <div class="flow-h">
+            <div class="box box-blue" style="flex:1;">
+              <span class="label">Image Upload</span>
+              JPG / PNG receipt photo
+            </div>
+            <div class="box box-accent" style="flex:1;">
+              <span class="label">PDF Upload</span>
+              Invoice or receipt PDF
+            </div>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="flow-h">
+            <div class="box box-blue" style="flex:1;">
+              <span class="label">Google Vision OCR</span>
+              TEXT_DETECTION → raw text
+            </div>
+            <div class="box box-accent" style="flex:1;">
+              <span class="label">Gemini Native PDF</span>
+              Reads PDF directly (no OCR needed)
+            </div>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="box box-amber" style="text-align:center;">
+            <span class="label">Gemini AI Classification + Extraction</span>
+            Classify: receipt or invoice?<br>
+            Extract: date, merchant/vendor, amount, receipt/invoice number, category, payment terms
+          </div>
+          <div class="arrow">▼</div>
+          <div class="box box-green" style="text-align:center;">
+            <span class="label">Auto-Fill Form</span>
+            Fields populate instantly — user reviews &amp; amends if needed
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 5: Review Phase ═══ -->
+      <section>
+        <h2>Review Phase</h2>
+        <h3><span class="role role-admin">Admin</span> reviews submitted claims</h3>
+        <div class="flow" style="margin-top: 0.8em;">
+          <div class="box box-amber">
+            <span class="label">What "Review" means</span>
+            Admin checks the claim details are correct — merchant, amount, category, receipt image.
+            This is a <strong>data accuracy check</strong>, not a financial approval.
+          </div>
+          <div class="arrow">▼</div>
+          <div class="flow-h">
+            <div class="box box-blue" style="text-align:center;">
+              <span class="label">Before</span>
+              <span class="status status-pending">Pending Review</span>
+            </div>
+            <span class="arrow-right">→</span>
+            <div class="box box-green" style="text-align:center;">
+              <span class="label">After</span>
+              <span class="status status-reviewed">Reviewed</span>
+            </div>
+          </div>
+          <div class="box" style="border-left: 4px solid var(--amber);">
+            <span class="label" style="color:var(--amber);">Note</span>
+            Batch operation — admin can select multiple claims and review at once.<br>
+            If admin <strong>edits</strong> a claim, it resets back to <span class="status status-pending">Pending Review</span>.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 6: Approval Phase ═══ -->
+      <section>
+        <h2>Approval Phase</h2>
+        <h3><span class="role role-accountant">Accountant</span> approves or rejects</h3>
+        <div class="flow" style="margin-top: 0.8em;">
+          <div class="box box-blue" style="text-align:center;">
+            <span class="label">Reviewed Claim</span>
+            <span class="status status-reviewed">Reviewed</span>&nbsp;
+            <span class="status status-pending">Pending Approval</span>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="flow-h">
+            <div class="box box-green" style="flex:1; text-align:center;">
+              <span class="label">Approved ✓</span>
+              <span class="status status-approved">Approved</span><br><br>
+              Claim proceeds to payment phase.<br>
+              Employee can see approval status.
+            </div>
+            <div class="box box-red" style="flex:1; text-align:center;">
+              <span class="label">Rejected ✗</span>
+              <span class="status status-rejected">Not Approved</span><br><br>
+              Rejection reason stored.<br>
+              Employee sees reason in dashboard.<br>
+              Flow ends (can resubmit).
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 7: Invoice Flow ═══ -->
+      <section>
+        <h2>Invoice Flow</h2>
+        <h3>No approval step — simpler lifecycle</h3>
+        <div class="flow" style="margin-top: 0.8em;">
+          <div class="flow-h">
+            <div class="box box-amber" style="flex:1;">
+              <span class="label">Submit</span>
+              Admin or Accountant uploads invoice (WhatsApp/Dashboard).<br>
+              Auto supplier matching via aliases.
+            </div>
+            <span class="arrow-right">→</span>
+            <div class="box box-blue" style="flex:1;">
+              <span class="label">Review</span>
+              Verify vendor, amount, dates are correct.<br>
+              Confirm supplier link.
+            </div>
+            <span class="arrow-right">→</span>
+            <div class="box box-purple" style="flex:1;">
+              <span class="label">Payment</span>
+              Allocate payment to invoice.<br>
+              Partial or full payment.
+            </div>
+          </div>
+          <div style="margin-top: 0.6em;">
+            <div class="box" style="border-left: 4px solid var(--green);">
+              <span class="label" style="color: var(--green);">Payment Status Transitions</span>
+              <span class="status" style="background:rgba(255,255,255,0.05); color:var(--muted);">Unpaid</span>
+              &nbsp;→&nbsp;
+              <span class="status status-pending">Partially Paid</span>
+              &nbsp;→&nbsp;
+              <span class="status status-paid">Paid</span>
+              <br><br>
+              <span class="muted" style="font-size:0.85em;">Auto-calculated: sum of PaymentAllocations vs total_amount</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 8: Payment Creation ═══ -->
+      <section>
+        <h2>Payment Creation</h2>
+        <h3><span class="role role-accountant">Accountant</span> links everything together</h3>
+        <div class="flow" style="margin-top: 0.6em;">
+          <div class="box box-purple">
+            <span class="label">Payment Record</span>
+            <div class="grid-2" style="gap:6px; margin-top:4px;">
+              <div><span class="muted">Supplier:</span> ABC Supplies Sdn Bhd</div>
+              <div><span class="muted">Amount:</span> RM 5,000.00</div>
+              <div><span class="muted">Reference:</span> FPX-20260404</div>
+              <div><span class="muted">Direction:</span> Outgoing</div>
+            </div>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="flow-h">
+            <div class="box box-amber" style="flex:1;">
+              <span class="label">Invoice Allocations</span>
+              <table class="tbl">
+                <tr><th>Invoice</th><th>Allocated</th></tr>
+                <tr><td>INV-001</td><td>RM 3,000</td></tr>
+                <tr><td>INV-002</td><td>RM 2,000</td></tr>
+              </table>
+              <span class="muted" style="font-size:0.85em;">Updates invoice payment_status automatically</span>
+            </div>
+            <div class="box box-blue" style="flex:1;">
+              <span class="label">Receipt Linkage</span>
+              <table class="tbl">
+                <tr><th>Receipt</th><th>Amount</th></tr>
+                <tr><td>Shell Petrol R-0042</td><td>RM 150</td></tr>
+              </table>
+              <span class="muted" style="font-size:0.85em;">Sets receipt claim payment_status → Paid</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 9: Supplier Credit ═══ -->
+      <section>
+        <h2>Supplier Credit</h2>
+        <h3>Unallocated payment amounts become credit</h3>
+        <div class="flow" style="margin-top: 0.8em;">
+          <div class="flow-h">
+            <div class="box box-purple" style="flex:1; text-align:center;">
+              <span class="label">Payment</span>
+              RM 5,000
+            </div>
+            <span class="arrow-right">−</span>
+            <div class="box box-amber" style="flex:1; text-align:center;">
+              <span class="label">Allocated</span>
+              RM 4,500
+            </div>
+            <span class="arrow-right">=</span>
+            <div class="box box-green" style="flex:1; text-align:center;">
+              <span class="label">Credit Balance</span>
+              RM 500
+            </div>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="box box-green">
+            <span class="label">Apply Credit (FIFO)</span>
+            "Apply Credit" button finds all unallocated credit for the supplier, then auto-allocates to the <strong>oldest unpaid invoices first</strong>.<br><br>
+            Creates new PaymentAllocation records → recalculates each invoice's payment_status.
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 10: Statement of Account ═══ -->
+      <section>
+        <h2>Statement of Account</h2>
+        <h3>Per-supplier ledger</h3>
+        <table class="tbl" style="margin-top: 0.6em;">
+          <tr><th>Date</th><th>Description</th><th>Reference</th><th style="text-align:right">Debit</th><th style="text-align:right">Credit</th><th style="text-align:right">Balance</th></tr>
+          <tr><td colspan="6" style="color:var(--muted); font-size:0.85em; font-style:italic;">Opening Balance</td></tr>
+          <tr>
+            <td>01/03</td><td>Purchase Invoice</td><td>INV-001</td>
+            <td style="text-align:right; color:var(--red);">3,000.00</td><td></td><td style="text-align:right">3,000.00</td>
+          </tr>
+          <tr>
+            <td>15/03</td><td>Purchase Invoice</td><td>INV-002</td>
+            <td style="text-align:right; color:var(--red);">2,000.00</td><td></td><td style="text-align:right">5,000.00</td>
+          </tr>
+          <tr>
+            <td>04/04</td><td>Payment (FPX)</td><td>FPX-20260404</td>
+            <td></td><td style="text-align:right; color:var(--green);">5,000.00</td><td style="text-align:right">0.00</td>
+          </tr>
+          <tr><td colspan="5" style="font-weight:700;">Closing Balance</td><td style="text-align:right; font-weight:700;">0.00</td></tr>
+        </table>
+        <div class="flow-h" style="margin-top: 0.6em;">
+          <div class="box box-accent" style="flex:1; font-size:0.6em;">
+            <span class="label">Debit (we owe)</span>
+            Purchase Invoices<br>Incoming Payments (customer pays us back)
+          </div>
+          <div class="box box-green" style="flex:1; font-size:0.6em;">
+            <span class="label">Credit (we pay)</span>
+            Outgoing Payments<br>Sales Invoices (we invoice them)
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 11: Bank Reconciliation ═══ -->
+      <section>
+        <h2>Bank Reconciliation</h2>
+        <h3>Match bank transactions to system payments</h3>
+        <div class="flow" style="margin-top: 0.6em;">
+          <div class="box box-amber">
+            <span class="label">1. Upload Bank Statement PDF</span>
+            Admin uploads Maybank PDF (WhatsApp or Dashboard).<br>
+            Parser extracts: date, description, reference, debit/credit, balance.
+          </div>
+          <div class="arrow">▼</div>
+          <div class="box box-blue">
+            <span class="label">2. Auto-Match (3 Passes)</span>
+            <div class="grid-3" style="gap:6px; margin-top:6px;">
+              <div class="box" style="padding:8px 10px; font-size:0.9em; border-left:3px solid var(--green); background:rgba(16,185,129,0.05);">
+                <strong class="green">Pass 1: Reference</strong><br>
+                Exact ref match<br>± RM 0.01 amount<br>± 5 days
+              </div>
+              <div class="box" style="padding:8px 10px; font-size:0.9em; border-left:3px solid var(--amber); background:rgba(245,158,11,0.05);">
+                <strong class="amber">Pass 2: Amount+Date</strong><br>
+                Exact amount<br>± 3 days<br>1 candidate only
+              </div>
+              <div class="box" style="padding:8px 10px; font-size:0.9em; border-left:3px solid var(--red); background:rgba(239,68,68,0.05);">
+                <strong class="red">Pass 3: Supplier Name</strong><br>
+                Name in description<br>Exact amount<br>1 candidate only
+              </div>
+            </div>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="flow-h">
+            <div class="box box-green" style="flex:1; text-align:center;">
+              <span class="label">Matched</span>
+              Linked to Payment → shows invoices + receipts
+            </div>
+            <div class="box box-amber" style="flex:1; text-align:center;">
+              <span class="label">Unmatched</span>
+              Manual match or exclude
+            </div>
+            <div class="box" style="flex:1; text-align:center; border-left:4px solid var(--muted);">
+              <span class="label" style="color:var(--muted);">Excluded</span>
+              Bank charges, transfers, personal
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 12: Aging Report ═══ -->
+      <section>
+        <h2>Aging Report</h2>
+        <h3>Accounts Payable by age</h3>
+        <table class="tbl" style="margin-top: 0.6em;">
+          <tr>
+            <th>Supplier</th>
+            <th style="text-align:right; color:var(--green);">0–30 Days</th>
+            <th style="text-align:right; color:var(--amber);">31–60 Days</th>
+            <th style="text-align:right; color:var(--red);">61–90 Days</th>
+            <th style="text-align:right; color:var(--red);">90+ Days</th>
+            <th style="text-align:right;">Total</th>
+          </tr>
+          <tr>
+            <td>ABC Supplies</td>
+            <td style="text-align:right">3,000</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right; font-weight:700;">3,000</td>
+          </tr>
+          <tr>
+            <td>Tenaga Nasional</td>
+            <td style="text-align:right">1,200</td>
+            <td style="text-align:right">1,200</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">2,400</td>
+            <td style="text-align:right; font-weight:700;">4,800</td>
+          </tr>
+          <tr>
+            <td>Alam Flora</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right">500</td>
+            <td style="text-align:right">—</td>
+            <td style="text-align:right; font-weight:700;">500</td>
+          </tr>
+          <tr style="border-top:2px solid rgba(255,255,255,0.1);">
+            <td style="font-weight:700;">Total</td>
+            <td style="text-align:right; font-weight:700; color:var(--green);">4,200</td>
+            <td style="text-align:right; font-weight:700; color:var(--amber);">1,200</td>
+            <td style="text-align:right; font-weight:700; color:var(--red);">500</td>
+            <td style="text-align:right; font-weight:700; color:var(--red);">2,400</td>
+            <td style="text-align:right; font-weight:700;">8,300</td>
+          </tr>
+        </table>
+        <div class="box" style="margin-top:0.5em; font-size:0.6em; border-left:4px solid var(--amber);">
+          <span class="label" style="color:var(--amber);">How it works</span>
+          Only shows invoices where <span class="status" style="background:rgba(255,255,255,0.05); color:var(--muted);">Unpaid</span> or <span class="status status-pending">Partially Paid</span>.<br>
+          Balance = total_amount − amount_paid. Bucketed by invoice issue_date age.
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 13: Entity Map ═══ -->
+      <section>
+        <h2>Entity Relationships</h2>
+        <div class="flow" style="margin-top: 0.6em;">
+          <div class="flow-h">
+            <div class="box box-blue" style="text-align:center; flex:1;">
+              <span class="label">Employee</span>
+              submits
+            </div>
+            <span class="arrow-right">→</span>
+            <div class="box box-accent" style="text-align:center; flex:2;">
+              <span class="label">Claim / Receipt</span>
+              type: claim | receipt | mileage
+            </div>
+          </div>
+          <div style="text-align:center;"><span class="muted" style="font-size:0.7em;">PaymentReceipt ↓ (junction)</span></div>
+          <div class="flow-h">
+            <div class="box box-amber" style="text-align:center; flex:1;">
+              <span class="label">Supplier</span>
+              vendor entity
+            </div>
+            <span class="arrow-right">←</span>
+            <div class="box box-purple" style="text-align:center; flex:2;">
+              <span class="label">Payment</span>
+              amount, reference, direction
+            </div>
+            <span class="arrow-right">→</span>
+            <div class="box box-green" style="text-align:center; flex:1;">
+              <span class="label">Bank Transaction</span>
+              matched_payment_id
+            </div>
+          </div>
+          <div style="text-align:center;"><span class="muted" style="font-size:0.7em;">PaymentAllocation ↓ (junction)</span></div>
+          <div class="flow-h" style="justify-content:center;">
+            <div class="box box-amber" style="text-align:center; flex:0 1 60%;">
+              <span class="label">Invoice</span>
+              amount_paid (sum of allocations) → payment_status auto-calculated
+            </div>
+          </div>
+          <div class="arrow">▼</div>
+          <div class="flow-h">
+            <div class="box" style="flex:1; text-align:center; border-left:4px solid var(--amber);">
+              <span class="label" style="color:var(--amber);">Statement of Account</span>
+              Invoices (debit) + Payments (credit) = Balance
+            </div>
+            <div class="box" style="flex:1; text-align:center; border-left:4px solid var(--red);">
+              <span class="label" style="color:var(--red);">Aging Report</span>
+              Unpaid invoices bucketed by age
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══ SLIDE 14: Role Summary ═══ -->
+      <section>
+        <h2>Who Does What</h2>
+        <table class="tbl" style="margin-top: 0.6em;">
+          <tr><th>Action</th><th><span class="role role-employee">Employee</span></th><th><span class="role role-admin">Admin</span></th><th><span class="role role-accountant">Accountant</span></th></tr>
+          <tr><td>Submit Claims/Receipts</td><td class="green">✓</td><td class="green">✓</td><td class="green">✓</td></tr>
+          <tr><td>Submit Invoices</td><td class="red">✗</td><td class="green">✓</td><td class="green">✓</td></tr>
+          <tr><td>Review Claims</td><td class="red">✗</td><td class="green">✓</td><td class="red">✗</td></tr>
+          <tr><td>Approve / Reject Claims</td><td class="red">✗</td><td class="red">✗</td><td class="green">✓</td></tr>
+          <tr><td>Create Payments</td><td class="red">✗</td><td class="red">✗</td><td class="green">✓</td></tr>
+          <tr><td>Upload Bank Statements</td><td class="red">✗</td><td class="green">✓</td><td class="green">✓</td></tr>
+          <tr><td>Bank Reconciliation</td><td class="red">✗</td><td class="green">✓</td><td class="green">✓</td></tr>
+          <tr><td>View Aging Report</td><td class="red">✗</td><td class="green">✓</td><td class="green">✓</td></tr>
+          <tr><td>Manage Suppliers</td><td class="red">✗</td><td class="green">✓</td><td class="green">✓</td></tr>
+          <tr><td>Manage Employees</td><td class="red">✗</td><td class="green">✓</td><td class="green">✓</td></tr>
+        </table>
+      </section>
+
+      <!-- ═══ SLIDE 15: End ═══ -->
+      <section class="title-slide">
+        <div style="margin-bottom: 1em;">
+          <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg, #A60201, #8B0101);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+        </div>
+        <h1 style="font-size:1.8em;">End of Overview</h1>
+        <p style="text-align:center; color:var(--muted); font-size:0.7em; margin-top:1em;">
+          Submission → Review → Approval → Payment → SOA → Bank Recon
+        </p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script>
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      transitionSpeed: 'fast',
+      controls: true,
+      progress: true,
+      center: true,
+      width: 1100,
+      height: 700,
+    });
+  </script>
+</body>
+</html>

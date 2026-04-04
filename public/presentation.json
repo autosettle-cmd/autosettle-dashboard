@@ -1,0 +1,293 @@
+{
+  "title": "Autosettle — Data Flow & Approval System",
+  "slides": [
+    {
+      "id": 1,
+      "type": "title",
+      "heading": "Autosettle",
+      "subtitle": "Data Flow & Approval System"
+    },
+    {
+      "id": 2,
+      "type": "content",
+      "heading": "Three Roles",
+      "roles": [
+        {
+          "name": "Employee",
+          "color": "blue",
+          "description": "Submits claims, receipts, and mileage via WhatsApp or Dashboard.",
+          "permissions": "Views own claims and approval status. Cannot approve or create payments."
+        },
+        {
+          "name": "Admin",
+          "color": "amber",
+          "description": "Submits claims + invoices. Reviews claims (marks as reviewed).",
+          "permissions": "Manages employees, categories, suppliers, bank statements. Cannot approve claims."
+        },
+        {
+          "name": "Accountant",
+          "color": "purple",
+          "description": "Approves / rejects claims. Creates payments. Links receipts to invoices.",
+          "permissions": "Manages bank recon, aging reports, SOA. Full financial control."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "content",
+      "heading": "Claim / Receipt Submission",
+      "subheading": "4 channels, same destination",
+      "channels": [
+        {
+          "name": "WhatsApp",
+          "role": "Employee",
+          "steps": ["Employee sends photo/PDF", "OCR auto-extracts fields", "Confirm or correct via chat"]
+        },
+        {
+          "name": "Employee Dashboard",
+          "role": "Employee",
+          "steps": ["Upload receipt + fill form", "OCR auto-fills on upload", "Amend → Submit"]
+        },
+        {
+          "name": "Admin Dashboard",
+          "role": "Admin",
+          "steps": ["Submit on behalf of employee", "Supports claim / receipt / mileage", "Same OCR auto-fill"]
+        },
+        {
+          "name": "Accountant Dashboard",
+          "role": "Accountant",
+          "steps": ["Submit for any managed firm", "Select firm → fill form", "Same OCR auto-fill"]
+        }
+      ],
+      "result": {
+        "label": "Claim Created",
+        "statuses": ["Pending Review", "Pending Approval", "Unpaid"]
+      }
+    },
+    {
+      "id": 4,
+      "type": "content",
+      "heading": "OCR Pipeline",
+      "subheading": "Automatic data extraction on upload",
+      "pipeline": [
+        {
+          "step": 1,
+          "label": "Upload",
+          "branches": [
+            { "type": "Image Upload", "detail": "JPG / PNG receipt photo" },
+            { "type": "PDF Upload", "detail": "Invoice or receipt PDF" }
+          ]
+        },
+        {
+          "step": 2,
+          "label": "OCR Engine",
+          "branches": [
+            { "type": "Google Vision OCR", "detail": "TEXT_DETECTION → raw text" },
+            { "type": "Gemini Native PDF", "detail": "Reads PDF directly (no OCR needed)" }
+          ]
+        },
+        {
+          "step": 3,
+          "label": "Gemini AI Classification + Extraction",
+          "detail": "Classify: receipt or invoice? Extract: date, merchant/vendor, amount, receipt/invoice number, category, payment terms"
+        },
+        {
+          "step": 4,
+          "label": "Auto-Fill Form",
+          "detail": "Fields populate instantly — user reviews & amends if needed"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "content",
+      "heading": "Review Phase",
+      "subheading": "Admin reviews submitted claims",
+      "responsible_role": "Admin",
+      "description": "Admin checks the claim details are correct — merchant, amount, category, receipt image. This is a data accuracy check, not a financial approval.",
+      "transition": {
+        "before": "Pending Review",
+        "after": "Reviewed"
+      },
+      "notes": [
+        "Batch operation — admin can select multiple claims and review at once.",
+        "If admin edits a claim, it resets back to Pending Review."
+      ]
+    },
+    {
+      "id": 6,
+      "type": "content",
+      "heading": "Approval Phase",
+      "subheading": "Accountant approves or rejects",
+      "responsible_role": "Accountant",
+      "input": {
+        "label": "Reviewed Claim",
+        "statuses": ["Reviewed", "Pending Approval"]
+      },
+      "outcomes": [
+        {
+          "action": "Approved",
+          "status": "Approved",
+          "detail": "Claim proceeds to payment phase. Employee can see approval status."
+        },
+        {
+          "action": "Rejected",
+          "status": "Not Approved",
+          "detail": "Rejection reason stored. Employee sees reason in dashboard. Flow ends (can resubmit)."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "content",
+      "heading": "Invoice Flow",
+      "subheading": "No approval step — simpler lifecycle",
+      "steps": [
+        {
+          "label": "Submit",
+          "detail": "Admin or Accountant uploads invoice (WhatsApp/Dashboard). Auto supplier matching via aliases."
+        },
+        {
+          "label": "Review",
+          "detail": "Verify vendor, amount, dates are correct. Confirm supplier link."
+        },
+        {
+          "label": "Payment",
+          "detail": "Allocate payment to invoice. Partial or full payment."
+        }
+      ],
+      "payment_status_transitions": ["Unpaid", "Partially Paid", "Paid"],
+      "payment_status_note": "Auto-calculated: sum of PaymentAllocations vs total_amount"
+    },
+    {
+      "id": 8,
+      "type": "content",
+      "heading": "Payment Creation",
+      "subheading": "Accountant links everything together",
+      "responsible_role": "Accountant",
+      "payment_record": {
+        "supplier": "ABC Supplies Sdn Bhd",
+        "amount": "RM 5,000.00",
+        "reference": "FPX-20260404",
+        "direction": "Outgoing"
+      },
+      "invoice_allocations": [
+        { "invoice": "INV-001", "allocated": "RM 3,000" },
+        { "invoice": "INV-002", "allocated": "RM 2,000" }
+      ],
+      "invoice_allocations_note": "Updates invoice payment_status automatically",
+      "receipt_linkage": [
+        { "receipt": "Shell Petrol R-0042", "amount": "RM 150" }
+      ],
+      "receipt_linkage_note": "Sets receipt claim payment_status → Paid"
+    },
+    {
+      "id": 9,
+      "type": "content",
+      "heading": "Supplier Credit",
+      "subheading": "Unallocated payment amounts become credit",
+      "formula": {
+        "payment": "RM 5,000",
+        "allocated": "RM 4,500",
+        "credit_balance": "RM 500"
+      },
+      "apply_credit": {
+        "method": "FIFO",
+        "description": "\"Apply Credit\" button finds all unallocated credit for the supplier, then auto-allocates to the oldest unpaid invoices first.",
+        "effect": "Creates new PaymentAllocation records → recalculates each invoice's payment_status."
+      }
+    },
+    {
+      "id": 10,
+      "type": "content",
+      "heading": "Statement of Account",
+      "subheading": "Per-supplier ledger",
+      "transactions": [
+        { "date": "01/03", "description": "Purchase Invoice", "reference": "INV-001", "debit": 3000.00, "credit": null, "balance": 3000.00 },
+        { "date": "15/03", "description": "Purchase Invoice", "reference": "INV-002", "debit": 2000.00, "credit": null, "balance": 5000.00 },
+        { "date": "04/04", "description": "Payment (FPX)", "reference": "FPX-20260404", "debit": null, "credit": 5000.00, "balance": 0.00 }
+      ],
+      "closing_balance": 0.00,
+      "debit_types": ["Purchase Invoices", "Incoming Payments (customer pays us back)"],
+      "credit_types": ["Outgoing Payments", "Sales Invoices (we invoice them)"]
+    },
+    {
+      "id": 11,
+      "type": "content",
+      "heading": "Bank Reconciliation",
+      "subheading": "Match bank transactions to system payments",
+      "steps": [
+        {
+          "step": 1,
+          "label": "Upload Bank Statement PDF",
+          "detail": "Admin uploads Maybank PDF (WhatsApp or Dashboard). Parser extracts: date, description, reference, debit/credit, balance."
+        },
+        {
+          "step": 2,
+          "label": "Auto-Match (3 Passes)",
+          "passes": [
+            { "pass": 1, "name": "Reference", "criteria": ["Exact ref match", "± RM 0.01 amount", "± 5 days"] },
+            { "pass": 2, "name": "Amount+Date", "criteria": ["Exact amount", "± 3 days", "1 candidate only"] },
+            { "pass": 3, "name": "Supplier Name", "criteria": ["Name in description", "Exact amount", "1 candidate only"] }
+          ]
+        }
+      ],
+      "outcomes": [
+        { "status": "Matched", "detail": "Linked to Payment → shows invoices + receipts" },
+        { "status": "Unmatched", "detail": "Manual match or exclude" },
+        { "status": "Excluded", "detail": "Bank charges, transfers, personal" }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "content",
+      "heading": "Aging Report",
+      "subheading": "Accounts Payable by age",
+      "suppliers": [
+        { "name": "ABC Supplies", "0_30_days": 3000, "31_60_days": 0, "61_90_days": 0, "90_plus_days": 0, "total": 3000 },
+        { "name": "Tenaga Nasional", "0_30_days": 1200, "31_60_days": 1200, "61_90_days": 0, "90_plus_days": 2400, "total": 4800 },
+        { "name": "Alam Flora", "0_30_days": 0, "31_60_days": 0, "61_90_days": 500, "90_plus_days": 0, "total": 500 }
+      ],
+      "totals": { "0_30_days": 4200, "31_60_days": 1200, "61_90_days": 500, "90_plus_days": 2400, "total": 8300 },
+      "note": "Only shows invoices where Unpaid or Partially Paid. Balance = total_amount − amount_paid. Bucketed by invoice issue_date age."
+    },
+    {
+      "id": 13,
+      "type": "content",
+      "heading": "Entity Relationships",
+      "entities": [
+        { "name": "Employee", "relationship": "submits → Claim/Receipt" },
+        { "name": "Claim/Receipt", "types": ["claim", "receipt", "mileage"], "junction": "PaymentReceipt → Payment" },
+        { "name": "Supplier", "relationship": "← Payment (vendor entity)" },
+        { "name": "Payment", "fields": ["amount", "reference", "direction"], "links_to": ["Supplier", "Bank Transaction", "Invoice (via PaymentAllocation)"] },
+        { "name": "Bank Transaction", "field": "matched_payment_id" },
+        { "name": "Invoice", "note": "amount_paid (sum of allocations) → payment_status auto-calculated" },
+        { "name": "Statement of Account", "formula": "Invoices (debit) + Payments (credit) = Balance" },
+        { "name": "Aging Report", "formula": "Unpaid invoices bucketed by age" }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "content",
+      "heading": "Who Does What",
+      "permissions": [
+        { "action": "Submit Claims/Receipts", "employee": true, "admin": true, "accountant": true },
+        { "action": "Submit Invoices", "employee": false, "admin": true, "accountant": true },
+        { "action": "Review Claims", "employee": false, "admin": true, "accountant": false },
+        { "action": "Approve / Reject Claims", "employee": false, "admin": false, "accountant": true },
+        { "action": "Create Payments", "employee": false, "admin": false, "accountant": true },
+        { "action": "Upload Bank Statements", "employee": false, "admin": true, "accountant": true },
+        { "action": "Bank Reconciliation", "employee": false, "admin": true, "accountant": true },
+        { "action": "View Aging Report", "employee": false, "admin": true, "accountant": true },
+        { "action": "Manage Suppliers", "employee": false, "admin": true, "accountant": true },
+        { "action": "Manage Employees", "employee": false, "admin": true, "accountant": true }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "title",
+      "heading": "End of Overview",
+      "subtitle": "Submission → Review → Approval → Payment → SOA → Bank Recon"
+    }
+  ]
+}

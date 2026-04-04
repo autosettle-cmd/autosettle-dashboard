@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { usePathname } from 'next/navigation';
@@ -52,6 +53,24 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
   const pathname = usePathname();
   const handleLogout = useLogout();
   const nav = NAV_MAP[role];
+  const [firmName, setFirmName] = useState<string | null>(null);
+
+  // Fetch firm name for subtitle (admin always, accountant only if single firm)
+  useEffect(() => {
+    if (role === 'accountant') {
+      fetch('/api/firms')
+        .then((r) => r.json())
+        .then((j) => {
+          if (j.data?.length === 1) setFirmName(j.data[0].name);
+        })
+        .catch(() => {});
+    } else if (role === 'admin') {
+      fetch('/api/admin/firm')
+        .then((r) => r.json())
+        .then((j) => { if (j.data?.name) setFirmName(j.data.name); })
+        .catch(() => {});
+    }
+  }, [role]);
 
   return (
     <aside className="w-[232px] flex-shrink-0 flex flex-col" style={{ backgroundColor: '#152237' }}>
@@ -67,9 +86,9 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
             <path d="M2 12l10 5 10-5" />
           </svg>
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           <span className="text-white font-bold text-[15px] tracking-tight block leading-tight">Autosettle</span>
-          <span className="text-white/25 text-[10px] font-medium tracking-wider uppercase">{ROLE_LABELS[role]}</span>
+          <span className="text-white/25 text-[10px] font-medium tracking-wider uppercase block truncate">{firmName ?? ROLE_LABELS[role]}</span>
         </div>
       </div>
 
