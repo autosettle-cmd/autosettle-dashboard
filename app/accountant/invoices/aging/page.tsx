@@ -98,7 +98,11 @@ export default function AccountantAgingReportPage() {
   useEffect(() => {
     fetch('/api/firms')
       .then((r) => r.json())
-      .then((j) => setFirms(j.data ?? []))
+      .then((j) => {
+        const list = j.data ?? [];
+        setFirms(list);
+        if (list.length === 1) setFirmFilter(list[0].id);
+      })
       .catch(console.error);
   }, []);
 
@@ -138,10 +142,12 @@ export default function AccountantAgingReportPage() {
             <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Aging Report — Accounts Payable</h1>
           </div>
           <div className="flex items-center gap-3">
-            <select value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} className="input-field text-[13px]">
-              {firms.length > 1 && <option value="">All Firms</option>}
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
+            {firms.length > 1 && (
+              <select value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} className="input-field text-[13px]">
+                <option value="">All Firms</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            )}
             <p className="text-gray-400 text-xs">
               As of {new Date().toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>

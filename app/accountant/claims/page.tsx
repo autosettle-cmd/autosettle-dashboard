@@ -209,6 +209,7 @@ function ClaimsPage() {
   const [modalError, setModalError]             = useState('');
   const [modalSaving, setModalSaving]           = useState(false);
   const [successMsg, setSuccessMsg]             = useState('');
+  const [ocrScanning, setOcrScanning]           = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mileage fields
@@ -251,7 +252,12 @@ function ClaimsPage() {
   useEffect(() => {
     fetch('/api/firms')
       .then((r) => r.json())
-      .then((j) => { if (j.data) setFirms(j.data); })
+      .then((j) => {
+        if (j.data) {
+          setFirms(j.data);
+          if (j.data.length === 1) setFirmId(j.data[0].id);
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -452,11 +458,46 @@ function ClaimsPage() {
     setShowModal(true);
   }, [claimTab, firmId, firms]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
+
+    if (!file) return;
+
+    setOcrScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+
+      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      const json = await res.json();
+
+      if (res.ok && json.fields) {
+        const f = json.fields;
+        if (json.documentType === 'invoice') {
+          if (f.issueDate) setModalDate(f.issueDate);
+          if (f.vendor) setModalMerchant(f.vendor);
+          if (f.totalAmount) setModalAmount(String(f.totalAmount));
+          if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
+        } else {
+          if (f.date) setModalDate(f.date);
+          if (f.merchant) setModalMerchant(f.merchant);
+          if (f.amount) setModalAmount(String(f.amount));
+          if (f.receiptNumber) setModalReceipt(f.receiptNumber);
+        }
+        if (f.category) {
+          const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+          if (match) setModalCategory(match.id);
+        }
+      }
+    } catch (err) {
+      console.error('OCR extraction failed:', err);
+    } finally {
+      setOcrScanning(false);
+    }
   };
 
   const clearFile = () => {
@@ -543,8 +584,8 @@ function ClaimsPage() {
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
-          {/* ── Tabs ─────────────────────────────────────── */}
-          <div className="flex gap-1 flex-shrink-0">
+          {/* ── Tabs + Actions ────────────────────────────── */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             {([['claim', 'Employee Claims', claimCount], ['receipt', 'Receipts', receiptCount], ['mileage', 'Mileage', mileageCount]] as const).map(([key, label, count]) => (
               <button
                 key={key}
@@ -562,14 +603,30 @@ function ClaimsPage() {
                 }`}>{count}</span>
               </button>
             ))}
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                onClick={openModal}
+                className="btn-primary text-sm px-4 py-2 rounded-xl font-semibold text-white"
+              >
+                + Submit New
+              </button>
+              <button
+                onClick={exportCSV}
+                className="text-sm px-4 py-2 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            <Select value={firmId} onChange={setFirmId}>
-              {firms.length > 1 && <option value="">All Firms</option>}
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </Select>
+            {firms.length > 1 && (
+              <Select value={firmId} onChange={setFirmId}>
+                <option value="">All Firms</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </Select>
+            )}
 
             <Select value={dateRange} onChange={setDateRange}>
               <option value="this_week">This Week</option>
@@ -609,20 +666,6 @@ function ClaimsPage() {
               className={`${inputCls} min-w-[210px]`}
             />
 
-            <button
-              onClick={openModal}
-              className="btn-primary ml-auto text-sm px-4 py-2 rounded-xl font-semibold text-white transition-opacity hover:opacity-85"
-              style={{ backgroundColor: '#A60201' }}
-            >
-              + Submit New
-            </button>
-
-            <button
-              onClick={exportCSV}
-              className="text-sm px-4 py-2 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
-            >
-              Export CSV
-            </button>
           </div>
 
           {/* ── Success message ──────────────────────────── */}
@@ -751,25 +794,40 @@ function ClaimsPage() {
                     <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className={`${inputCls} w-full`} rows={2} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo</label>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
                         <div className="space-y-2">
-                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />}
+                          {selectedFile.type === 'application/pdf' ? (
+                            <div className="mx-auto w-16 h-20 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center">
+                              <span className="text-red-500 font-bold text-xs">PDF</span>
+                            </div>
+                          ) : previewUrl ? (
+                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />
+                          ) : null}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-red-500 hover:text-red-700">Remove</button>
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-gray-500">Click or drag to upload receipt photo</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+                          <p className="text-sm text-gray-500">Click or drag to upload receipt</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
-                      <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
+                      <input type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
                     </div>
+                    {ocrScanning && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Scanning document... fields will auto-fill shortly
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -778,11 +836,11 @@ function ClaimsPage() {
             <div className="flex gap-3 mt-5">
               <button
                 onClick={submitClaim}
-                disabled={modalSaving}
+                disabled={modalSaving || ocrScanning}
                 className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: '#A60201' }}
               >
-                {modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
+                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
               </button>
               <button
                 onClick={() => setShowModal(false)}

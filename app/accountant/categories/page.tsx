@@ -57,7 +57,12 @@ export default function CategoriesPage() {
   useEffect(() => {
     fetch('/api/firms')
       .then((r) => r.json())
-      .then((j) => { if (j.data) setFirms(j.data); })
+      .then((j) => {
+        if (j.data) {
+          setFirms(j.data);
+          if (j.data.length === 1) setFirmId(j.data[0].id);
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -228,10 +233,12 @@ export default function CategoriesPage() {
 
           {/* ── Filter bar ── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            <select value={firmId} onChange={(e) => setFirmId(e.target.value)} className="input-field">
-              {firms.length > 1 && <option value="">All Firms</option>}
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
+            {firms.length > 1 && (
+              <select value={firmId} onChange={(e) => setFirmId(e.target.value)} className="input-field">
+                <option value="">All Firms</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            )}
 
             {hasFirmSelected && (
               <button

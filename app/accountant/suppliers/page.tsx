@@ -225,7 +225,11 @@ export default function AccountantSuppliersPage() {
   useEffect(() => {
     fetch('/api/firms/details')
       .then((r) => r.json())
-      .then((j) => setFirms((j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }))))
+      .then((j) => {
+        const list = (j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }));
+        setFirms(list);
+        if (list.length === 1) setFirmFilter(list[0].id);
+      })
       .catch(console.error);
   }, []);
 
@@ -472,10 +476,12 @@ export default function AccountantSuppliersPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex items-center gap-2.5 pb-3">
-            <Select value={firmFilter} onChange={setFirmFilter}>
-              {firms.length > 1 && <option value="">All Firms</option>}
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </Select>
+            {firms.length > 1 && (
+              <Select value={firmFilter} onChange={setFirmFilter}>
+                <option value="">All Firms</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </Select>
+            )}
 
             <input
               type="text"

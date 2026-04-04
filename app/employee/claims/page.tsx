@@ -131,6 +131,7 @@ export default function EmployeeClaimsPage() {
   const [modalError, setModalError]         = useState('');
   const [modalSaving, setModalSaving]       = useState(false);
   const [successMsg, setSuccessMsg]         = useState('');
+  const [ocrScanning, setOcrScanning]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Mileage-specific fields
@@ -184,11 +185,47 @@ export default function EmployeeClaimsPage() {
     setShowModal(true);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     setSelectedFile(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(file ? URL.createObjectURL(file) : null);
+
+    if (!file) return;
+
+    // Run OCR extraction
+    setOcrScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+
+      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      const json = await res.json();
+
+      if (res.ok && json.fields) {
+        const f = json.fields;
+        if (json.documentType === 'invoice') {
+          if (f.issueDate) setModalDate(f.issueDate);
+          if (f.vendor) setModalMerchant(f.vendor);
+          if (f.totalAmount) setModalAmount(String(f.totalAmount));
+          if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
+        } else {
+          if (f.date) setModalDate(f.date);
+          if (f.merchant) setModalMerchant(f.merchant);
+          if (f.amount) setModalAmount(String(f.amount));
+          if (f.receiptNumber) setModalReceipt(f.receiptNumber);
+        }
+        if (f.category) {
+          const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+          if (match) setModalCategory(match.id);
+        }
+      }
+    } catch (err) {
+      console.error('OCR extraction failed:', err);
+    } finally {
+      setOcrScanning(false);
+    }
   };
 
   const clearFile = () => {
@@ -510,14 +547,20 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo *</label>
+                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt *</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
                         <div className="space-y-2">
-                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />}
+                          {selectedFile.type === 'application/pdf' ? (
+                            <div className="mx-auto w-16 h-20 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center">
+                              <span className="text-red-500 font-bold text-xs">PDF</span>
+                            </div>
+                          ) : previewUrl ? (
+                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />
+                          ) : null}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button
                             type="button"
@@ -529,18 +572,27 @@ export default function EmployeeClaimsPage() {
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-gray-500">Click or drag to upload receipt photo</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG up to 10MB</p>
+                          <p className="text-sm text-gray-500">Click or drag to upload receipt</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,application/pdf"
                         onChange={handleFileChange}
                         className="hidden"
                         ref={fileInputRef}
                       />
                     </div>
+                    {ocrScanning && (
+                      <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Scanning document... fields will auto-fill shortly
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -549,10 +601,10 @@ export default function EmployeeClaimsPage() {
             <div className="flex gap-3 mt-5">
               <button
                 onClick={submitClaim}
-                disabled={modalSaving}
+                disabled={modalSaving || ocrScanning}
                 className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage Claim' : 'Submit Claim'}
+                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage Claim' : 'Submit Claim'}
               </button>
               <button
                 onClick={() => setShowModal(false)}

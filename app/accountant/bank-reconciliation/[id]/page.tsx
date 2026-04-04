@@ -107,6 +107,8 @@ export default function AccountantReconciliationWorkspacePage() {
   const [excludeReason, setExcludeReason] = useState('');
   const [candidates, setCandidates] = useState<CandidatePayment[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  const [rematching, setRematching] = useState(false);
+  const [rematchResult, setRematchResult] = useState<{ matched: number } | null>(null);
 
   const loadStatement = () => {
     fetch(`/api/bank-reconciliation/statements/${id}`)
@@ -171,6 +173,23 @@ export default function AccountantReconciliationWorkspacePage() {
     loadStatement();
   };
 
+  const doRematch = async () => {
+    setRematching(true);
+    setRematchResult(null);
+    try {
+      const res = await fetch('/api/bank-reconciliation/rematch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankStatementId: id }),
+      });
+      const j = await res.json();
+      if (j.data) setRematchResult(j.data);
+      loadStatement();
+    } catch (e) { console.error(e); }
+    setRematching(false);
+    setTimeout(() => setRematchResult(null), 5000);
+  };
+
 
 
   return (
@@ -189,15 +208,30 @@ export default function AccountantReconciliationWorkspacePage() {
               {statement ? `${statement.bank_name} — ${statement.account_number ?? 'N/A'} — ${formatDate(statement.statement_date)}` : 'Loading...'}
             </h1>
           </div>
-          {statement?.file_url && (
-            <a href={statement.file_url} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium btn-primary rounded-xl">
+          <div className="flex items-center gap-2">
+            {rematchResult && (
+              <span className="text-[12px] text-green-600 font-medium">{rematchResult.matched} new match{rematchResult.matched !== 1 ? 'es' : ''} found</span>
+            )}
+            <button
+              onClick={doRematch}
+              disabled={rematching}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium btn-blue rounded-xl text-white disabled:opacity-50"
+            >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
               </svg>
-              Download PDF
-            </a>
-          )}
+              {rematching ? 'Matching...' : 'Re-match'}
+            </button>
+            {statement?.file_url && (
+              <a href={statement.file_url} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium btn-primary rounded-xl">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Download PDF
+              </a>
+            )}
+          </div>
         </header>
 
         {/* ── Static summary + filter tabs ── */}

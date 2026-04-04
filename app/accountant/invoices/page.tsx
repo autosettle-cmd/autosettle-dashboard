@@ -185,6 +185,7 @@ function AccountantInvoicesPage() {
   const [newInv, setNewInv] = useState({
     firm_id: '',
     vendor_name: '',
+    supplier_id: '',
     invoice_number: '',
     issue_date: new Date().toISOString().split('T')[0],
     due_date: '',
@@ -193,6 +194,9 @@ function AccountantInvoicesPage() {
     payment_terms: '',
   });
   const [newInvFile, setNewInvFile] = useState<File | null>(null);
+  const [ocrScanning, setOcrScanning] = useState(false);
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const vendorInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch categories when modal opens
   useEffect(() => {
@@ -200,6 +204,56 @@ function AccountantInvoicesPage() {
       fetch('/api/categories').then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
     }
   }, [showNewInvoice]);
+
+  const handleInvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setNewInvFile(file);
+    if (!file) return;
+
+    setOcrScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+
+      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      const json = await res.json();
+
+      if (res.ok && json.fields) {
+        const f = json.fields;
+        const updates: typeof newInv = { ...newInv };
+        if (json.documentType === 'invoice') {
+          if (f.vendor) updates.vendor_name = f.vendor;
+          if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
+          if (f.issueDate) updates.issue_date = f.issueDate;
+          if (f.dueDate) updates.due_date = f.dueDate;
+          if (f.totalAmount) updates.total_amount = String(f.totalAmount);
+          if (f.paymentTerms) updates.payment_terms = f.paymentTerms;
+        } else {
+          if (f.merchant) updates.vendor_name = f.merchant;
+          if (f.date) updates.issue_date = f.date;
+          if (f.amount) updates.total_amount = String(f.amount);
+          if (f.receiptNumber) updates.invoice_number = f.receiptNumber;
+        }
+        if (f.category) {
+          const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+          if (match) updates.category_id = match.id;
+        }
+        // Try to match vendor to existing supplier
+        if (updates.vendor_name) {
+          const vLower = updates.vendor_name.toLowerCase();
+          const firmSuppliers = newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
+          const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+          if (supplierMatch) updates.supplier_id = supplierMatch.id;
+        }
+        setNewInv(updates);
+      }
+    } catch (err) {
+      console.error('OCR extraction failed:', err);
+    } finally {
+      setOcrScanning(false);
+    }
+  };
 
   const submitNewInvoice = async () => {
     if (!newInv.firm_id || !newInv.vendor_name || !newInv.issue_date || !newInv.total_amount || !newInv.category_id) {
@@ -212,6 +266,7 @@ function AccountantInvoicesPage() {
       const fd = new FormData();
       fd.append('firm_id', newInv.firm_id);
       fd.append('vendor_name', newInv.vendor_name);
+      if (newInv.supplier_id) fd.append('supplier_id', newInv.supplier_id);
       if (newInv.invoice_number) fd.append('invoice_number', newInv.invoice_number);
       fd.append('issue_date', newInv.issue_date);
       if (newInv.due_date) fd.append('due_date', newInv.due_date);
@@ -225,7 +280,7 @@ function AccountantInvoicesPage() {
       if (!res.ok) { setNewInvError(j.error || 'Failed to create invoice'); return; }
 
       setShowNewInvoice(false);
-      setNewInv({ firm_id: '', vendor_name: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '' });
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '' });
       setNewInvFile(null);
       refresh();
     } catch (e) { console.error(e); setNewInvError('Network error'); }
@@ -322,7 +377,11 @@ function AccountantInvoicesPage() {
   useEffect(() => {
     fetch('/api/firms/details')
       .then((r) => r.json())
-      .then((j) => setFirms((j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }))))
+      .then((j) => {
+        const list = (j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }));
+        setFirms(list);
+        if (list.length === 1) setFirmFilter(list[0].id);
+      })
       .catch(console.error);
   }, []);
 
@@ -420,10 +479,12 @@ function AccountantInvoicesPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            <Select value={firmFilter} onChange={setFirmFilter}>
-              {firms.length > 1 && <option value="">All Firms</option>}
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </Select>
+            {firms.length > 1 && (
+              <Select value={firmFilter} onChange={setFirmFilter}>
+                <option value="">All Firms</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </Select>
+            )}
 
             <Select value={dateRange} onChange={setDateRange}>
               <option value="">All Time</option>
@@ -512,9 +573,53 @@ function AccountantInvoicesPage() {
                   </select>
                 </div>
 
-                <div>
+                <div className="relative">
                   <label className="input-label">Vendor Name *</label>
-                  <input type="text" value={newInv.vendor_name} onChange={(e) => setNewInv({ ...newInv, vendor_name: e.target.value })} className="input-field w-full" placeholder="e.g. ABC Supplies Sdn Bhd" />
+                  <input
+                    ref={vendorInputRef}
+                    type="text"
+                    value={newInv.vendor_name}
+                    onChange={(e) => {
+                      setNewInv({ ...newInv, vendor_name: e.target.value, supplier_id: '' });
+                      setVendorDropdownOpen(true);
+                    }}
+                    onFocus={() => setVendorDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setVendorDropdownOpen(false), 150)}
+                    className="input-field w-full"
+                    placeholder="Type or select existing supplier"
+                    autoComplete="off"
+                  />
+                  {newInv.supplier_id && (
+                    <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-[10px]">Linked</span>
+                  )}
+                  {vendorDropdownOpen && newInv.vendor_name.length >= 1 && (() => {
+                    const q = newInv.vendor_name.toLowerCase();
+                    const firmSuppliers = newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
+                    const filtered = firmSuppliers.filter((s) => s.name.toLowerCase().includes(q));
+                    if (filtered.length === 0) return (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-3">
+                        <p className="text-xs text-gray-400">No matching suppliers — a new one will be created</p>
+                      </div>
+                    );
+                    return (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                        {filtered.slice(0, 8).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setNewInv({ ...newInv, vendor_name: s.name, supplier_id: s.id });
+                              setVendorDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>
@@ -557,19 +662,28 @@ function AccountantInvoicesPage() {
                   <input
                     type="file"
                     accept="image/*,application/pdf"
-                    onChange={(e) => setNewInvFile(e.target.files?.[0] ?? null)}
+                    onChange={handleInvFileChange}
                     className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
                   />
+                  {ocrScanning && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Scanning document... fields will auto-fill shortly
+                    </div>
+                  )}
                 </div>
               </div>
 
               <div className="flex gap-3 px-5 py-4 border-t">
                 <button
                   onClick={submitNewInvoice}
-                  disabled={newInvSubmitting}
+                  disabled={newInvSubmitting || ocrScanning}
                   className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
+                  {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
                 </button>
                 <button
                   onClick={() => setShowNewInvoice(false)}

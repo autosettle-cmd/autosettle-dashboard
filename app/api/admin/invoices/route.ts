@@ -158,6 +158,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
 
     const vendorName = formData.get('vendor_name') as string | null;
+    const supplierIdParam = formData.get('supplier_id') as string | null;
     const invoiceNumber = formData.get('invoice_number') as string | null;
     const issueDate = formData.get('issue_date') as string | null;
     const dueDate = formData.get('due_date') as string | null;
@@ -181,38 +182,55 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Supplier matching (same logic as lib/whatsapp/invoices.ts) ──
-    const normalizedVendor = vendorName.toLowerCase().trim();
-
-    const existingAlias = await prisma.supplierAlias.findFirst({
-      where: {
-        alias: normalizedVendor,
-        supplier: { firm_id: firmId },
-      },
-      include: { supplier: true },
-    });
-
+    // ── Supplier matching ──
     let supplierId: string;
     let linkStatus: 'auto_matched' | 'unmatched' | 'confirmed';
 
-    if (existingAlias) {
-      supplierId = existingAlias.supplier_id;
-      linkStatus = existingAlias.is_confirmed ? 'confirmed' : 'auto_matched';
+    if (supplierIdParam) {
+      // User explicitly selected an existing supplier from the dropdown
+      supplierId = supplierIdParam;
+      linkStatus = 'confirmed';
+      // Add vendor name as alias if not already present
+      const normalizedVendor = vendorName.toLowerCase().trim();
+      const existingAlias = await prisma.supplierAlias.findFirst({
+        where: { alias: normalizedVendor, supplier_id: supplierIdParam },
+      });
+      if (!existingAlias) {
+        await prisma.supplierAlias.create({
+          data: { supplier_id: supplierIdParam, alias: normalizedVendor, is_confirmed: true },
+        }).catch(() => {}); // ignore if unique constraint fails
+      }
     } else {
-      const newSupplier = await prisma.supplier.create({
-        data: {
-          firm_id: firmId,
-          name: vendorName,
-          aliases: {
-            create: {
-              alias: normalizedVendor,
-              is_confirmed: false,
+      // No supplier selected — try alias matching, then create new
+      const normalizedVendor = vendorName.toLowerCase().trim();
+
+      const existingAlias = await prisma.supplierAlias.findFirst({
+        where: {
+          alias: normalizedVendor,
+          supplier: { firm_id: firmId },
+        },
+        include: { supplier: true },
+      });
+
+      if (existingAlias) {
+        supplierId = existingAlias.supplier_id;
+        linkStatus = existingAlias.is_confirmed ? 'confirmed' : 'auto_matched';
+      } else {
+        const newSupplier = await prisma.supplier.create({
+          data: {
+            firm_id: firmId,
+            name: vendorName,
+            aliases: {
+              create: {
+                alias: normalizedVendor,
+                is_confirmed: false,
+              },
             },
           },
-        },
-      });
-      supplierId = newSupplier.id;
-      linkStatus = 'unmatched';
+        });
+        supplierId = newSupplier.id;
+        linkStatus = 'unmatched';
+      }
     }
 
     // ── Calculate due date from payment terms if not provided ──

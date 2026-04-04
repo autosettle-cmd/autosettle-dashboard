@@ -114,7 +114,12 @@ export default function PeoplePage() {
   useEffect(() => {
     fetch('/api/firms')
       .then((r) => r.json())
-      .then((j) => { if (j.data) setFirms(j.data); })
+      .then((j) => {
+        if (j.data) {
+          setFirms(j.data);
+          if (j.data.length === 1) setFirmId(j.data[0].id);
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -405,10 +410,12 @@ export default function PeoplePage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            <Select value={firmId} onChange={setFirmId}>
-              {firms.length > 1 && <option value="">All Firms</option>}
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </Select>
+            {firms.length > 1 && (
+              <Select value={firmId} onChange={setFirmId}>
+                <option value="">All Firms</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </Select>
+            )}
 
             <input
               type="text"

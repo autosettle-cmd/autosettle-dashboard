@@ -54,7 +54,12 @@ export default function AdminsPage() {
   useEffect(() => {
     fetch('/api/firms')
       .then((r) => r.json())
-      .then((j) => { if (j.data) setFirms(j.data); })
+      .then((j) => {
+        if (j.data) {
+          setFirms(j.data);
+          if (j.data.length === 1) setFirmId(j.data[0].id);
+        }
+      })
       .catch(console.error);
   }, []);
 
@@ -168,10 +173,12 @@ export default function AdminsPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            <Select value={firmId} onChange={setFirmId}>
-              <option value="">Select a Firm</option>
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </Select>
+            {firms.length > 1 && (
+              <Select value={firmId} onChange={setFirmId}>
+                <option value="">Select a Firm</option>
+                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </Select>
+            )}
 
             {firmId && (
               <button
