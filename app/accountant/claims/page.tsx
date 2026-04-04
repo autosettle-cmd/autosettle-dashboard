@@ -3,10 +3,8 @@
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useSession } from 'next-auth/react';
 import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
 import { Plus_Jakarta_Sans } from 'next/font/google';
@@ -162,8 +160,6 @@ export default function ClaimsPageWrapper() {
 }
 
 function ClaimsPage() {
-  const { data: session } = useSession();
-
   // Tab
   const [claimTab, setClaimTab] = useState<'claim' | 'receipt' | 'mileage'>('claim');
   const [claimCount, setClaimCount] = useState(0);

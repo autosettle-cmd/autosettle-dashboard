@@ -8,7 +8,6 @@ import SalesInvoicesContent from '@/components/SalesInvoicesContent';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 

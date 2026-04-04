@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import Sidebar from '@/components/Sidebar';
@@ -33,8 +32,6 @@ function formatDate(val: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminsPage() {
-  const { data: session } = useSession();
-
   // Data
   const [admins, setAdmins]         = useState<AdminRow[]>([]);
   const [firms, setFirms]           = useState<Firm[]>([]);

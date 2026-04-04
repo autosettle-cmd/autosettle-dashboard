@@ -171,10 +171,7 @@ export default function AccountantReconciliationWorkspacePage() {
     loadStatement();
   };
 
-  const outOfBalance = statement ? (
-    Number(statement.closing_balance ?? 0) - Number(statement.opening_balance ?? 0) -
-    (statement.system_balance.credit - statement.system_balance.debit)
-  ) : 0;
+
 
   return (
     <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>

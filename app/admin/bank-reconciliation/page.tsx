@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 

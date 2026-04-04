@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Plus_Jakarta_Sans } from 'next/font/google';
@@ -90,8 +89,6 @@ function formatDisplayDate() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EmployeeClaimsPage() {
-  const { data: session } = useSession();
-
   // Data
   const [claims, setClaims]       = useState<ClaimRow[]>([]);
   const [loading, setLoading]     = useState(true);

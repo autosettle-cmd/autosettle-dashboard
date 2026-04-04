@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { generateSOAPdf } from '@/lib/generate-soa-pdf';
@@ -36,7 +35,6 @@ function balanceColor(val: number) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AccountantSupplierStatementPage() {
-  const { data: session } = useSession();
   const params = useParams();
   const id = params.id as string;
 

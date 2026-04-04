@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
@@ -88,8 +87,6 @@ function BucketCell({ value, highlight }: { value: number; highlight?: boolean }
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AccountantAgingReportPage() {
-  const { data: session } = useSession();
-
   const [supplierData, setSupplierData] = useState<SupplierBucket[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
