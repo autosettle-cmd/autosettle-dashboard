@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
   const approval = searchParams.get('approval');
   const search = searchParams.get('search');
   const type = searchParams.get('type');
+  const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { ...firmScope(firmIds, firmId) };
@@ -93,23 +94,27 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  const claims = await prisma.claim.findMany({
-    where,
-    include: {
-      employee: { select: { name: true } },
-      firm: { select: { name: true } },
-      category: { select: { name: true } },
-      _count: { select: { paymentReceipts: true } },
-      paymentReceipts: {
-        include: {
-          payment: {
-            select: { id: true, amount: true, payment_date: true, reference: true, supplier: { select: { name: true } } },
+  const [claims, totalCount] = await Promise.all([
+    prisma.claim.findMany({
+      where,
+      include: {
+        employee: { select: { name: true } },
+        firm: { select: { name: true } },
+        category: { select: { name: true } },
+        _count: { select: { paymentReceipts: true } },
+        paymentReceipts: {
+          include: {
+            payment: {
+              select: { id: true, amount: true, payment_date: true, reference: true, supplier: { select: { name: true } } },
+            },
           },
         },
       },
-    },
-    orderBy: { claim_date: 'desc' },
-  });
+      orderBy: { claim_date: 'desc' },
+      take: takeParam || 500,
+    }),
+    prisma.claim.count({ where }),
+  ]);
 
   const data = claims.map((c) => ({
     id: c.id,
@@ -145,7 +150,7 @@ export async function GET(request: NextRequest) {
     })),
   }));
 
-  return NextResponse.json({ data, error: null, meta: { count: data.length } });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
 }
 
 export async function POST(request: NextRequest) {

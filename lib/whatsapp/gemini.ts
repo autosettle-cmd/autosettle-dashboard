@@ -23,7 +23,7 @@ export interface GeminiInvoiceResult {
   confidence: "HIGH" | "MEDIUM" | "LOW";
 }
 
-export type DocumentType = "receipt" | "invoice";
+export type DocumentType = "receipt" | "invoice" | "bank_statement";
 
 let authClient: GoogleAuth | null = null;
 
@@ -263,8 +263,10 @@ export async function extractInvoiceFromPDF(
 
   const systemPrompt = `You are an expert document parser for Malaysian SME accounting.
 Analyze this PDF document and:
-1. Classify it as "receipt" or "invoice"
+1. Classify it as "receipt", "invoice", or "bank_statement"
 2. Extract structured data
+
+A BANK STATEMENT is a document from a bank (Maybank, CIMB, Public Bank, RHB, Hong Leong, AmBank, OCBC, UOB, HSBC, Alliance, etc.) showing account transactions with dates, descriptions, debits, credits, and running balances. It has opening/closing balances and is NOT an invoice or receipt. If it is a bank statement, return ONLY: {"documentType": "bank_statement"}
 
 If it is an INVOICE, extract:
 - vendor: supplier/vendor name
@@ -336,7 +338,7 @@ Receipt format: {"documentType": "receipt", "date": "", "merchant": "", "amount"
     let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
     if (!cleaned.endsWith("}")) cleaned += "}";
     const parsed = JSON.parse(cleaned);
-    const documentType: DocumentType = parsed.documentType === "invoice" ? "invoice" : "receipt";
+    const documentType: DocumentType = parsed.documentType === "invoice" ? "invoice" : parsed.documentType === "bank_statement" ? "bank_statement" : "receipt";
     return { documentType, raw: text };
   } catch {
     return { documentType: "receipt", raw: text };

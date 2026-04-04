@@ -33,7 +33,8 @@ async function getAccessToken(): Promise<string> {
 
 export async function uploadToDrive(
   imageBuffer: Buffer,
-  filename: string
+  filename: string,
+  mimeType: string = "image/jpeg"
 ): Promise<{ fileId: string; thumbnailUrl: string }> {
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!folderId) throw new Error("GOOGLE_DRIVE_FOLDER_ID not set");
@@ -48,7 +49,7 @@ export async function uploadToDrive(
   const boundary = "autosettle_boundary";
   const body = Buffer.concat([
     Buffer.from(
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: image/jpeg\r\n\r\n`
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`
     ),
     imageBuffer,
     Buffer.from(`\r\n--${boundary}--`),
@@ -92,4 +93,8 @@ export async function uploadToDrive(
 
 export function getThumbnailUrl(fileId: string): string {
   return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+}
+
+export function getDriveViewUrl(fileId: string): string {
+  return `https://drive.google.com/file/d/${fileId}/view`;
 }

@@ -1,0 +1,700 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface SalesInvoiceItem {
+  id: string;
+  description: string;
+  quantity: string;
+  unit_price: string;
+  discount: string;
+  tax_type: string | null;
+  tax_rate: string;
+  tax_amount: string;
+  line_total: string;
+  sort_order: number;
+}
+
+interface SalesInvoiceRow {
+  id: string;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string | null;
+  currency: string;
+  subtotal: string;
+  tax_amount: string;
+  total_amount: string;
+  amount_paid: string;
+  payment_status: 'unpaid' | 'partially_paid' | 'paid';
+  notes: string | null;
+  supplier_id: string;
+  buyer_name: string;
+  lhdn_status: string | null;
+  items: SalesInvoiceItem[];
+  created_at: string;
+}
+
+interface SupplierOption {
+  id: string;
+  name: string;
+  firm_id?: string;
+}
+
+interface LineItemDraft {
+  description: string;
+  quantity: string;
+  unit_price: string;
+  tax_rate: string;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
+  unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
+  partially_paid: { label: 'Partial', cls: 'badge-amber'  },
+  paid:           { label: 'Paid',    cls: 'badge-green'  },
+};
+
+function formatDate(val: string) {
+  if (!val) return '';
+  const d = new Date(val);
+  return [
+    d.getUTCDate().toString().padStart(2, '0'),
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCFullYear(),
+  ].join('/');
+}
+
+function formatRM(val: string | number) {
+  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function calcLineTotal(item: LineItemDraft): number {
+  const qty = parseFloat(item.quantity) || 0;
+  const price = parseFloat(item.unit_price) || 0;
+  return qty * price;
+}
+
+function calcLineTax(item: LineItemDraft): number {
+  const rate = parseFloat(item.tax_rate) || 0;
+  return calcLineTotal(item) * (rate / 100);
+}
+
+function emptyLineItem(): LineItemDraft {
+  return { description: '', quantity: '1', unit_price: '', tax_rate: '0' };
+}
+
+function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">
+      {children}
+    </select>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value) return null;
+  return (
+    <div>
+      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accountant' }) {
+  const apiBase = role === 'admin' ? '/api/admin/sales-invoices' : '/api/sales-invoices';
+  const suppliersApi = role === 'admin' ? '/api/admin/suppliers' : '/api/suppliers';
+
+  // Data
+  const [invoices, setInvoices] = useState<SalesInvoiceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [paymentFilter, setPaymentFilter] = useState('');
+  const [dateRange, setDateRange] = useState('this_month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+
+  // Preview
+  const [preview, setPreview] = useState<SalesInvoiceRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Create modal
+  const [showCreate, setShowCreate] = useState(false);
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+  const [newBuyerName, setNewBuyerName] = useState('');
+  const [creatingBuyer, setCreatingBuyer] = useState(false);
+  const [createData, setCreateData] = useState({
+    supplier_id: '',
+    invoice_number: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    due_date: '',
+    notes: '',
+  });
+  const [lineItems, setLineItems] = useState<LineItemDraft[]>([emptyLineItem()]);
+  const [createError, setCreateError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const refresh = () => setRefreshKey((k) => k + 1);
+
+  // ─── Fetch invoices ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    const p = new URLSearchParams();
+    if (search) p.set('search', search);
+    if (paymentFilter) p.set('paymentStatus', paymentFilter);
+
+    // Date range
+    const now = new Date();
+    if (dateRange === 'this_week') {
+      const d = new Date(now); d.setDate(d.getDate() - d.getDay());
+      p.set('dateFrom', d.toISOString().split('T')[0]);
+    } else if (dateRange === 'this_month') {
+      p.set('dateFrom', `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
+    } else if (dateRange === 'last_month') {
+      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+      p.set('dateFrom', lm.toISOString().split('T')[0]);
+      p.set('dateTo', lmEnd.toISOString().split('T')[0]);
+    } else if (dateRange === 'custom') {
+      if (customFrom) p.set('dateFrom', customFrom);
+      if (customTo) p.set('dateTo', customTo);
+    }
+
+    fetch(`${apiBase}?${p}`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) { setInvoices(j.data ?? []); setLoading(false); } })
+      .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
+  }, [search, paymentFilter, dateRange, customFrom, customTo, refreshKey, apiBase]);
+
+  // ─── Fetch suppliers for create modal ────────────────────────────────────────
+
+  useEffect(() => {
+    if (!showCreate) return;
+    fetch(suppliersApi)
+      .then((r) => r.json())
+      .then((j) => setSuppliers((j.data ?? []).map((s: SupplierOption & { firm_id?: string }) => ({ id: s.id, name: s.name, firm_id: s.firm_id }))))
+      .catch(console.error);
+  }, [showCreate, suppliersApi]);
+
+  // ─── Create invoice ──────────────────────────────────────────────────────────
+
+  const submitCreate = async () => {
+    if (!createData.supplier_id || !createData.invoice_number || !createData.issue_date) {
+      setCreateError('Buyer, Invoice Number, and Issue Date are required.');
+      return;
+    }
+    const validItems = lineItems.filter((li) => li.description.trim() && parseFloat(li.unit_price) > 0);
+    if (validItems.length === 0) {
+      setCreateError('Add at least one line item with a description and price.');
+      return;
+    }
+
+    setSubmitting(true);
+    setCreateError('');
+
+    try {
+      const items = validItems.map((li, idx) => {
+        const lineTotal = calcLineTotal(li);
+        const taxAmt = calcLineTax(li);
+        return {
+          description: li.description.trim(),
+          quantity: parseFloat(li.quantity) || 1,
+          unit_price: parseFloat(li.unit_price) || 0,
+          discount: 0,
+          tax_rate: parseFloat(li.tax_rate) || 0,
+          tax_amount: taxAmt,
+          line_total: lineTotal,
+          sort_order: idx,
+        };
+      });
+
+      // For accountant role, include firm_id derived from the selected supplier
+      const selectedSupplier = suppliers.find((s) => s.id === createData.supplier_id);
+      const payload: Record<string, unknown> = {
+        supplier_id: createData.supplier_id,
+        invoice_number: createData.invoice_number.trim(),
+        issue_date: createData.issue_date,
+        due_date: createData.due_date || undefined,
+        notes: createData.notes.trim() || undefined,
+        items,
+      };
+      if (role === 'accountant' && selectedSupplier?.firm_id) {
+        payload.firm_id = selectedSupplier.firm_id;
+      }
+
+      const res = await fetch(apiBase, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const j = await res.json();
+      if (!res.ok) {
+        setCreateError(j.error || 'Failed to create invoice');
+        return;
+      }
+
+      setShowCreate(false);
+      setCreateData({ supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
+      setLineItems([emptyLineItem()]);
+      refresh();
+    } catch (e) {
+      console.error(e);
+      setCreateError('Network error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // ─── Delete invoice ──────────────────────────────────────────────────────────
+
+  const deleteInvoice = async (id: string) => {
+    if (!confirm('Delete this sales invoice? This cannot be undone.')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPreview(null);
+        refresh();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // ─── Line item helpers ───────────────────────────────────────────────────────
+
+  const updateLineItem = (idx: number, field: keyof LineItemDraft, value: string) => {
+    setLineItems((prev) => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
+  };
+
+  const removeLineItem = (idx: number) => {
+    setLineItems((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx));
+  };
+
+  const subtotal = lineItems.reduce((sum, li) => sum + calcLineTotal(li), 0);
+  const taxTotal = lineItems.reduce((sum, li) => sum + calcLineTax(li), 0);
+  const grandTotal = subtotal + taxTotal;
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+
+      {/* ── Filter bar ───────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+        <Select value={dateRange} onChange={setDateRange}>
+          <option value="">All Time</option>
+          <option value="this_week">This Week</option>
+          <option value="this_month">This Month</option>
+          <option value="last_month">Last Month</option>
+          <option value="custom">Custom</option>
+        </Select>
+
+        {dateRange === 'custom' && (
+          <>
+            <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
+            <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
+          </>
+        )}
+
+        <Select value={paymentFilter} onChange={setPaymentFilter}>
+          <option value="">All Payments</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="partially_paid">Partial</option>
+          <option value="paid">Paid</option>
+        </Select>
+
+        <input
+          type="text"
+          placeholder="Search buyer or invoice #..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="input-field min-w-[210px]"
+        />
+
+        <div className="ml-auto">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold"
+          >
+            + New Invoice
+          </button>
+        </div>
+      </div>
+
+      {/* ── Table ────────────────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50/50 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+              <th className="px-6 py-3">Invoice #</th>
+              <th className="px-6 py-3">Buyer</th>
+              <th className="px-6 py-3">Issue Date</th>
+              <th className="px-6 py-3">Due Date</th>
+              <th className="px-6 py-3 text-right">Total (RM)</th>
+              <th className="px-6 py-3 text-right">Paid (RM)</th>
+              <th className="px-6 py-3">Status</th>
+              <th className="px-6 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">Loading...</td>
+              </tr>
+            ) : invoices.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">No sales invoices found.</td>
+              </tr>
+            ) : (
+              invoices.map((inv) => {
+                const paymentCfg = PAYMENT_CFG[inv.payment_status];
+                return (
+                  <tr
+                    key={inv.id}
+                    className="group hover:bg-gray-50/60 cursor-pointer transition-colors"
+                    onClick={() => setPreview(inv)}
+                  >
+                    <td className="px-6 py-3 font-medium text-gray-900">{inv.invoice_number || '-'}</td>
+                    <td className="px-6 py-3 text-gray-700">{inv.buyer_name}</td>
+                    <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
+                    <td className="px-6 py-3 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                    <td className="px-6 py-3 text-right font-medium text-gray-900 tabular-nums">{formatRM(inv.total_amount)}</td>
+                    <td className="px-6 py-3 text-right text-gray-500 tabular-nums">{formatRM(inv.amount_paid)}</td>
+                    <td className="px-6 py-3">
+                      {paymentCfg && <span className={paymentCfg.cls}>{paymentCfg.label}</span>}
+                    </td>
+                    <td className="px-6 py-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setPreview(inv); }}
+                        className="text-xs font-medium hover:underline transition-colors"
+                        style={{ color: '#A60201' }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ═══ CREATE MODAL ═══ */}
+      {showCreate && (
+        <>
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowCreate(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: '#152237' }}>
+                <h2 className="text-white font-semibold text-sm">New Sales Invoice</h2>
+                <button onClick={() => setShowCreate(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {createError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{createError}</p>}
+
+                <div>
+                  <label className="input-label">Buyer *</label>
+                  <select
+                    value={createData.supplier_id}
+                    onChange={(e) => setCreateData({ ...createData, supplier_id: e.target.value })}
+                    className="input-field w-full"
+                  >
+                    <option value="">Select buyer</option>
+                    {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="text"
+                      value={newBuyerName}
+                      onChange={(e) => setNewBuyerName(e.target.value)}
+                      className="input-field flex-1 text-[12px]"
+                      placeholder="Or type new buyer name..."
+                    />
+                    <button
+                      type="button"
+                      disabled={!newBuyerName.trim() || creatingBuyer}
+                      onClick={async () => {
+                        setCreatingBuyer(true);
+                        try {
+                          const res = await fetch(suppliersApi, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: newBuyerName.trim(), ...(suppliers[0]?.firm_id ? { firm_id: suppliers[0].firm_id } : {}) }),
+                          });
+                          const j = await res.json();
+                          if (res.ok && j.data) {
+                            setSuppliers((prev) => [...prev, { id: j.data.id, name: j.data.name, firm_id: j.data.firm_id }].sort((a, b) => a.name.localeCompare(b.name)));
+                            setCreateData({ ...createData, supplier_id: j.data.id });
+                            setNewBuyerName('');
+                          } else {
+                            setCreateError(j.error || 'Failed to create buyer');
+                          }
+                        } catch { setCreateError('Failed to create buyer'); }
+                        setCreatingBuyer(false);
+                      }}
+                      className="text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
+                    >
+                      {creatingBuyer ? 'Adding...' : 'Add'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="input-label">Invoice Number *</label>
+                  <input
+                    type="text"
+                    value={createData.invoice_number}
+                    onChange={(e) => setCreateData({ ...createData, invoice_number: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="e.g. SI-2026-001"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="input-label">Issue Date *</label>
+                    <input
+                      type="date"
+                      value={createData.issue_date}
+                      onChange={(e) => setCreateData({ ...createData, issue_date: e.target.value })}
+                      className="input-field w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Due Date</label>
+                    <input
+                      type="date"
+                      value={createData.due_date}
+                      onChange={(e) => setCreateData({ ...createData, due_date: e.target.value })}
+                      className="input-field w-full"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="input-label">Notes</label>
+                  <textarea
+                    value={createData.notes}
+                    onChange={(e) => setCreateData({ ...createData, notes: e.target.value })}
+                    className="input-field w-full"
+                    rows={2}
+                    placeholder="Optional notes"
+                  />
+                </div>
+
+                {/* ── Line items ───────────────────────────────── */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="input-label mb-0">Line Items</label>
+                    <button
+                      type="button"
+                      onClick={() => setLineItems((prev) => [...prev, emptyLineItem()])}
+                      className="text-xs font-medium hover:underline transition-colors"
+                      style={{ color: '#A60201' }}
+                    >
+                      + Add Line Item
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {lineItems.map((li, idx) => (
+                      <div key={idx} className="flex items-start gap-2 bg-gray-50 border border-gray-100 rounded-lg p-3">
+                        <div className="flex-1 space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Description"
+                            value={li.description}
+                            onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
+                            className="input-field w-full text-sm"
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[10px] text-gray-400 font-medium">Qty</label>
+                              <input
+                                type="number"
+                                step="1"
+                                min="1"
+                                value={li.quantity}
+                                onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)}
+                                className="input-field w-full text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-gray-400 font-medium">Unit Price (RM)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={li.unit_price}
+                                onChange={(e) => updateLineItem(idx, 'unit_price', e.target.value)}
+                                className="input-field w-full text-sm"
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] text-gray-400 font-medium">Tax Rate (%)</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={li.tax_rate}
+                                onChange={(e) => updateLineItem(idx, 'tax_rate', e.target.value)}
+                                className="input-field w-full text-sm"
+                                placeholder="0"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-right text-xs text-gray-500">
+                            Line Total: <span className="font-medium text-gray-900">{formatRM(calcLineTotal(li))}</span>
+                            {parseFloat(li.tax_rate) > 0 && (
+                              <span className="ml-2">+ Tax: <span className="font-medium text-gray-900">{formatRM(calcLineTax(li))}</span></span>
+                            )}
+                          </div>
+                        </div>
+                        {lineItems.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeLineItem(idx)}
+                            className="text-gray-400 hover:text-red-500 text-lg leading-none mt-1 transition-colors"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── Totals ─────────────────────────────────── */}
+                  <div className="mt-3 border-t border-gray-200 pt-3 space-y-1 text-sm text-right">
+                    <div className="flex justify-end gap-4">
+                      <span className="text-gray-500">Subtotal:</span>
+                      <span className="font-medium text-gray-900 w-32">{formatRM(subtotal)}</span>
+                    </div>
+                    <div className="flex justify-end gap-4">
+                      <span className="text-gray-500">Tax:</span>
+                      <span className="font-medium text-gray-900 w-32">{formatRM(taxTotal)}</span>
+                    </div>
+                    <div className="flex justify-end gap-4 text-base font-semibold">
+                      <span className="text-gray-700">Total:</span>
+                      <span className="text-gray-900 w-32">{formatRM(grandTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 px-5 py-4 border-t">
+                <button
+                  onClick={submitCreate}
+                  disabled={submitting}
+                  className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Creating...' : 'Create Invoice'}
+                </button>
+                <button
+                  onClick={() => setShowCreate(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ PREVIEW PANEL ═══ */}
+      {preview && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreview(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[420px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-semibold text-sm">Sales Invoice Details</h2>
+              <button onClick={() => setPreview(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <dl className="space-y-3">
+                <Field label="Invoice No."  value={preview.invoice_number} />
+                <Field label="Buyer"        value={preview.buyer_name} />
+                <Field label="Issue Date"   value={formatDate(preview.issue_date)} />
+                <Field label="Due Date"     value={preview.due_date ? formatDate(preview.due_date) : null} />
+                <Field label="Subtotal"     value={formatRM(preview.subtotal)} />
+                <Field label="Tax"          value={formatRM(preview.tax_amount)} />
+                <Field label="Total Amount" value={formatRM(preview.total_amount)} />
+                <Field label="Amount Paid"  value={formatRM(preview.amount_paid)} />
+                <Field label="Notes"        value={preview.notes} />
+              </dl>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                {(() => {
+                  const cfg = PAYMENT_CFG[preview.payment_status];
+                  return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
+                })()}
+              </div>
+
+              {/* ── Line items ───────────────────────────── */}
+              {preview.items && preview.items.length > 0 && (
+                <div>
+                  <h3 className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Line Items</h3>
+                  <div className="border border-gray-100 rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-gray-50/50 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                          <th className="px-3 py-2">Description</th>
+                          <th className="px-3 py-2 text-right">Qty</th>
+                          <th className="px-3 py-2 text-right">Price</th>
+                          <th className="px-3 py-2 text-right">Tax</th>
+                          <th className="px-3 py-2 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {preview.items.map((item) => (
+                          <tr key={item.id}>
+                            <td className="px-3 py-2 text-gray-700">{item.description}</td>
+                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{Number(item.quantity)}</td>
+                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{formatRM(item.unit_price)}</td>
+                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{formatRM(item.tax_amount)}</td>
+                            <td className="px-3 py-2 text-right font-medium text-gray-900 tabular-nums">{formatRM(item.line_total)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Actions ──────────────────────────────── */}
+            <div className="flex-shrink-0 border-t px-4 py-3">
+              <button
+                onClick={() => deleteInvoice(preview.id)}
+                disabled={deleting}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#A60201' }}
+              >
+                {deleting ? 'Deleting...' : 'Delete Invoice'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

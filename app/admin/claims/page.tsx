@@ -3,11 +3,13 @@
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
 import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import LoadMoreBanner from '@/components/LoadMoreBanner';
+import Sidebar from '@/components/Sidebar';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -132,19 +134,6 @@ function PaymentStatusCell({ value }: { value: string }) {
   return <span className={cfg.cls}>{cfg.label}</span>;
 }
 
-
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/admin/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'Claims',     href: '/admin/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-
-  { label: 'Invoices',   href: '/admin/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Suppliers',  href: '/admin/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Employees',  href: '/admin/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
-  { label: 'Categories', href: '/admin/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-];
-
 // ─── Preview field helper ─────────────────────────────────────────────────────
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
@@ -164,10 +153,6 @@ export default function AdminClaimsPageWrapper() {
 }
 
 function AdminClaimsPage() {
-  const { data: session } = useSession();
-  const pathname = usePathname();
-  const handleLogout = useLogout();
-
   // Tab
   const [claimTab, setClaimTab] = useState<'claim' | 'receipt' | 'mileage'>('claim');
   const [claimCount, setClaimCount] = useState(0);
@@ -178,6 +163,9 @@ function AdminClaimsPage() {
   const [claims, setClaims]   = useState<ClaimRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [takeLimit, setTakeLimit] = useState<number | undefined>(undefined);
 
   // UI
   const [selectedRows, setSelectedRows] = useState<ClaimRow[]>([]);
@@ -230,16 +218,6 @@ function AdminClaimsPage() {
       .then((j) => { setModalCategories(j.data ?? []); setEditCategories(j.data ?? []); })
       .catch(console.error);
   }, []);
-
-  // Fetch categories for edit dropdown
-  useEffect(() => {
-    if (editMode) {
-      fetch('/api/admin/categories')
-        .then((r) => r.json())
-        .then((j) => setEditCategories(j.data ?? []))
-        .catch(console.error);
-    }
-  }, [editMode]);
 
   const saveEdit = async () => {
     if (!previewClaim || !editData) return;
@@ -294,14 +272,15 @@ function AdminClaimsPage() {
     if (to)           p.set('dateTo',   to);
     if (statusFilter) p.set('status',   statusFilter);
     if (search)       p.set('search',   search);
+    if (takeLimit)    p.set('take',     String(takeLimit));
 
     fetch(`/api/admin/claims?${p}`)
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) { setClaims(j.data ?? []); setLoading(false); } })
+      .then((j) => { if (!cancelled) { setClaims(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [claimTab, dateRange, customFrom, customTo, statusFilter, search, refreshKey]);
+  }, [claimTab, dateRange, customFrom, customTo, statusFilter, search, refreshKey, takeLimit]);
 
   // Fetch tab counts
   useEffect(() => {
@@ -495,70 +474,16 @@ function AdminClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
       {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                  active
-                    ? 'text-white bg-white/[0.1]'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />
-                )}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={icon} />
-                </svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
-              {(session?.user?.name ?? '?')[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left"
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
+      <Sidebar role="admin" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">Claims</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Claims</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -569,7 +494,7 @@ function AdminClaimsPage() {
               <button
                 key={key}
                 onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-xl text-[13px] font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -625,8 +550,7 @@ function AdminClaimsPage() {
 
             <button
               onClick={openModal}
-              className="ml-auto text-sm px-4 py-2 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
-              style={{ backgroundColor: '#A60201' }}
+              className="btn-primary ml-auto text-sm px-4 py-2 rounded-xl font-semibold"
             >
               + Submit New
             </button>
@@ -634,13 +558,15 @@ function AdminClaimsPage() {
 
           {/* ── Success message ──────────────────────────── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-xl p-3">
               <p className="text-sm text-green-700">{successMsg}</p>
             </div>
           )}
 
+          <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
+
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-md border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl" style={{ height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
             <AgGridReact<ClaimRow>
               onGridReady={onGridReady}
               rowData={claims}
@@ -661,13 +587,21 @@ function AdminClaimsPage() {
 
       {/* ═══ SUBMIT MODAL ═══ */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below.</p>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 mb-4">Fill in the details below.</p>
 
             {/* ── Type Toggle ── */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-4">
               {(['claim', 'receipt', 'mileage'] as const).map((t) => (
                 <button
                   key={t}
@@ -680,7 +614,7 @@ function AdminClaimsPage() {
             </div>
 
             {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-700">{modalError}</p>
               </div>
             )}
@@ -710,7 +644,7 @@ function AdminClaimsPage() {
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className="input-field w-full" placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                       <p className="text-sm text-blue-800 font-medium">
                         Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
@@ -746,14 +680,14 @@ function AdminClaimsPage() {
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo</label>
                     <div
-                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                      className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
                         <div className="space-y-2">
-                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />}
+                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
-                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[#A60201] hover:text-[#8B0101]">Remove</button>
                         </div>
                       ) : (
                         <div>
@@ -772,15 +706,14 @@ function AdminClaimsPage() {
               <button
                 onClick={submitClaim}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -791,15 +724,14 @@ function AdminClaimsPage() {
 
       {/* ═══ BATCH BAR ═══ */}
       {selectedRows.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-full shadow-2xl text-white" style={{ backgroundColor: '#152237' }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white" style={{ backgroundColor: '#152237' }}>
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedRows.length} claim{selectedRows.length !== 1 ? 's' : ''} selected
           </span>
           <span className="w-px h-5 bg-white/20" />
           <button
             onClick={() => batchReview(selectedRows.map((r) => r.id))}
-            className="text-sm px-4 py-1.5 rounded-full font-medium transition-opacity hover:opacity-85"
-            style={{ backgroundColor: '#A60201' }}
+            className="btn-primary text-sm px-4 py-1.5 rounded-xl font-medium"
           >
             Mark as Reviewed
           </button>
@@ -815,11 +747,16 @@ function AdminClaimsPage() {
       {/* ═══ RECEIPT PREVIEW ═══ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewClaim(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
-              <h2 className="text-white font-semibold text-sm">Claim Details</h2>
-              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
+            <div className="h-16 flex items-center justify-between px-5 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+              <h2 className="text-white font-bold text-[15px] tracking-tight">Claim Details</h2>
+              <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -827,10 +764,10 @@ function AdminClaimsPage() {
                 <img
                   src={previewClaim.thumbnail_url}
                   alt="Receipt"
-                  className="w-full max-h-52 object-contain rounded-lg border border-gray-200"
+                  className="w-full max-h-52 object-contain rounded-xl border border-gray-200"
                 />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+                <div className="w-full h-40 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
                   No image available
                 </div>
               )}
@@ -864,7 +801,7 @@ function AdminClaimsPage() {
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
                 </div>
@@ -893,7 +830,7 @@ function AdminClaimsPage() {
                   </div>
 
                   {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
                       <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
                       {previewClaim.linked_payments.map((lp) => (
                         <div key={lp.payment_id} className="text-sm text-blue-800">
@@ -912,7 +849,7 @@ function AdminClaimsPage() {
                             if (res.ok) { setPreviewClaim(null); refresh(); }
                           } catch (e) { console.error(e); }
                         }}
-                        className="text-xs text-red-600 hover:text-red-800 font-medium"
+                        className="text-xs text-[#A60201] hover:text-[#8B0101] font-medium"
                       >
                         Unlink from Payment
                       </button>
@@ -928,7 +865,7 @@ function AdminClaimsPage() {
                   </div>
 
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                       <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
@@ -947,10 +884,10 @@ function AdminClaimsPage() {
             <div className="p-4 border-t flex gap-3 flex-shrink-0">
               {editMode ? (
                 <>
-                  <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -968,15 +905,14 @@ function AdminClaimsPage() {
                         description: previewClaim.description ?? '',
                       });
                     }}
-                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
+                    className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => batchReview([previewClaim.id])}
                     disabled={previewClaim.status === 'reviewed'}
-                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                     style={{ backgroundColor: '#152237' }}
                   >
                     Mark as Reviewed

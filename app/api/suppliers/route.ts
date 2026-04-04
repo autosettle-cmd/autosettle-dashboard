@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 
 export async function GET(request: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const firmId = searchParams.get('firmId');
   const search = searchParams.get('search');
+  const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { ...firmScope(firmIds, firmId) };
@@ -21,25 +23,29 @@ export async function GET(request: NextRequest) {
     where.name = { contains: search, mode: 'insensitive' };
   }
 
-  const suppliers = await prisma.supplier.findMany({
-    where,
-    include: {
-      firm: { select: { name: true } },
-      aliases: { select: { id: true, alias: true, is_confirmed: true } },
-      _count: { select: { invoices: true } },
-      invoices: {
-        where: { payment_status: { not: 'paid' } },
-        select: { total_amount: true, amount_paid: true, due_date: true },
-      },
-      payments: {
-        select: {
-          amount: true,
-          allocations: { select: { amount: true } },
+  const [suppliers, totalCount] = await Promise.all([
+    prisma.supplier.findMany({
+      where,
+      include: {
+        firm: { select: { name: true } },
+        aliases: { select: { id: true, alias: true, is_confirmed: true } },
+        _count: { select: { invoices: true } },
+        invoices: {
+          where: { payment_status: { not: 'paid' } },
+          select: { total_amount: true, amount_paid: true, due_date: true },
+        },
+        payments: {
+          select: {
+            amount: true,
+            allocations: { select: { amount: true } },
+          },
         },
       },
-    },
-    orderBy: { name: 'asc' },
-  });
+      orderBy: { name: 'asc' },
+      take: takeParam || 500,
+    }),
+    prisma.supplier.count({ where }),
+  ]);
 
   const now = new Date();
   const data = suppliers.map((s) => {
@@ -69,13 +75,28 @@ export async function GET(request: NextRequest) {
       total_outstanding: outstanding.toFixed(2),
       overdue_amount: overdueAmount.toFixed(2),
       credit_balance: creditBalance.toFixed(2),
+      // LHDN buyer fields
+      tin: s.tin,
+      brn: s.brn,
+      sst_registration_number: s.sst_registration_number,
+      address_line1: s.address_line1,
+      address_line2: s.address_line2,
+      city: s.city,
+      postal_code: s.postal_code,
+      state: s.state,
+      country: s.country,
     };
   });
 
-  return NextResponse.json({ data, error: null });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
+  } catch (err) {
+    console.error('[API Error]', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
@@ -106,4 +127,8 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ data: supplier, error: null });
+  } catch (err) {
+    console.error('[API Error]', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
+  }
 }

@@ -1,10 +1,11 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import Sidebar from '@/components/Sidebar';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,19 +83,14 @@ function todayStr() {
   return [d.getFullYear(), (d.getMonth() + 1).toString().padStart(2, '0'), d.getDate().toString().padStart(2, '0')].join('-');
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/employee/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'My Claims',  href: '/employee/claims',    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-];
+function formatDisplayDate() {
+  return new Date().toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EmployeeClaimsPage() {
   const { data: session } = useSession();
-  const pathname = usePathname();
-  const handleLogout = useLogout();
 
   // Data
   const [claims, setClaims]       = useState<ClaimRow[]>([]);
@@ -266,77 +262,26 @@ export default function EmployeeClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
       {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                  active
-                    ? 'text-white bg-white/[0.1]'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />
-                )}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={icon} />
-                </svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
-              {(session?.user?.name ?? '?')[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left"
-          >
-            Sign out
-          </button>
-        </div>
-      </aside>
+      <Sidebar role="employee" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">My Claims</h1>
+          <div>
+            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">My Claims</h1>
+            <p className="text-[12px] text-gray-400">{formatDisplayDate()}</p>
+          </div>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Success toast ─────────────────────────────── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-xl p-3" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
               <p className="text-sm text-green-700">{successMsg}</p>
             </div>
           )}
@@ -346,31 +291,30 @@ export default function EmployeeClaimsPage() {
             <h2 className="text-[13px] font-semibold text-gray-900">All Claims</h2>
             <button
               onClick={openModal}
-              className="text-sm px-4 py-2 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-              style={{ backgroundColor: '#A60201' }}
+              className="btn-primary text-sm px-4 py-2 rounded-xl font-medium"
             >
               Submit New Claim
             </button>
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
             {loading ? (
-              <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
             ) : claims.length === 0 ? (
-              <div className="px-5 py-12 text-center text-sm text-gray-400">No claims submitted yet.</div>
+              <div className="px-6 py-12 text-center text-sm text-gray-400">No claims submitted yet.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                      <th className="px-5 py-2.5">Date</th>
-                      <th className="px-5 py-2.5">Merchant</th>
-                      <th className="px-5 py-2.5">Category</th>
-                      <th className="px-5 py-2.5 text-right">Amount</th>
-                      <th className="px-5 py-2.5">Status</th>
-                      <th className="px-5 py-2.5">Approval</th>
-                      <th className="px-5 py-2.5">Rejection Reason</th>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <th className="px-6 py-2.5">Date</th>
+                      <th className="px-6 py-2.5">Merchant</th>
+                      <th className="px-6 py-2.5">Category</th>
+                      <th className="px-6 py-2.5 text-right">Amount</th>
+                      <th className="px-6 py-2.5">Status</th>
+                      <th className="px-6 py-2.5">Approval</th>
+                      <th className="px-6 py-2.5">Rejection Reason</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -378,9 +322,9 @@ export default function EmployeeClaimsPage() {
                       const sCfg = STATUS_CFG[c.status];
                       const aCfg = APPROVAL_CFG[c.approval];
                       return (
-                        <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                          <td className="px-5 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
-                          <td className="px-5 py-3 text-gray-900 font-medium">
+                        <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
+                          <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[#A60201] transition-colors duration-200">
                             {c.type === 'mileage' ? (
                               <span className="flex items-center gap-1.5">
                                 <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold flex-shrink-0">M</span>
@@ -388,15 +332,15 @@ export default function EmployeeClaimsPage() {
                               </span>
                             ) : c.merchant}
                           </td>
-                          <td className="px-5 py-3 text-gray-500">{c.category_name}</td>
-                          <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
-                          <td className="px-5 py-3">
+                          <td className="px-6 py-3 text-gray-500">{c.category_name}</td>
+                          <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
+                          <td className="px-6 py-3">
                             {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-6 py-3">
                             {aCfg && <span className={aCfg.cls}>{aCfg.label}</span>}
                           </td>
-                          <td className="px-5 py-3">
+                          <td className="px-6 py-3">
                             {c.approval === 'not_approved' && c.rejection_reason ? (
                               <span className="text-xs text-red-600">{c.rejection_reason}</span>
                             ) : (
@@ -418,12 +362,12 @@ export default function EmployeeClaimsPage() {
       {/* ═══ SUBMIT CLAIM MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
             <h3 className="text-base font-semibold text-gray-900">Submit New Claim</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
 
             {/* ── Type Toggle ── */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
+            <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-4">
               <button
                 onClick={() => setClaimType('receipt')}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
@@ -439,7 +383,7 @@ export default function EmployeeClaimsPage() {
             </div>
 
             {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
                 <p className="text-sm text-red-700">{modalError}</p>
               </div>
             )}
@@ -502,7 +446,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
                       <p className="text-sm text-blue-800 font-medium">
                         Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
@@ -571,12 +515,12 @@ export default function EmployeeClaimsPage() {
                   <div>
                     <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Photo *</label>
                     <div
-                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                      className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
                         <div className="space-y-2">
-                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />}
+                          {previewUrl && <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button
                             type="button"
@@ -609,15 +553,14 @@ export default function EmployeeClaimsPage() {
               <button
                 onClick={submitClaim}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage Claim' : 'Submit Claim'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -629,25 +572,27 @@ export default function EmployeeClaimsPage() {
       {/* ═══ CLAIM PREVIEW PANEL ═══ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewClaim(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
-              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.type === 'mileage' ? (
-                <div className="w-full rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-1.5">
+                <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-1.5">
                   <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Mileage Claim</p>
                   <p className="text-sm text-blue-900">{previewClaim.from_location} &rarr; {previewClaim.to_location}</p>
                   <p className="text-sm text-blue-800">{previewClaim.distance_km} km</p>
                   {previewClaim.trip_purpose && <p className="text-xs text-blue-600">{previewClaim.trip_purpose}</p>}
                 </div>
               ) : previewClaim.thumbnail_url ? (
-                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-xl border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
@@ -678,7 +623,7 @@ export default function EmployeeClaimsPage() {
                     <label className="input-label">Description</label>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
                 </div>
@@ -705,7 +650,7 @@ export default function EmployeeClaimsPage() {
                     }`}>{previewClaim.confidence}</span>
                   </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
                       <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
@@ -722,10 +667,10 @@ export default function EmployeeClaimsPage() {
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -742,8 +687,7 @@ export default function EmployeeClaimsPage() {
                       description: previewClaim.description ?? '',
                     });
                   }}
-                  className="flex-1 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: '#A60201' }}
+                  className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
                 >
                   Edit
                 </button>

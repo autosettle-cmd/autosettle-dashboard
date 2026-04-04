@@ -32,41 +32,78 @@ export async function GET(
   const to = dateTo ? new Date(dateTo) : new Date();
   to.setHours(23, 59, 59, 999);
 
-  const [invoicesBefore, paymentsBefore] = await Promise.all([
+  // ── Opening balance: all 4 types before period ──
+  const [invoicesBefore, outPaymentsBefore, salesInvoicesBefore, inPaymentsBefore] = await Promise.all([
     prisma.invoice.aggregate({
       where: { supplier_id: supplierId, issue_date: { lt: from } },
       _sum: { total_amount: true },
     }),
     prisma.payment.aggregate({
-      where: { supplier_id: supplierId, payment_date: { lt: from } },
+      where: { supplier_id: supplierId, direction: 'outgoing', payment_date: { lt: from } },
+      _sum: { amount: true },
+    }),
+    prisma.salesInvoice.aggregate({
+      where: { supplier_id: supplierId, issue_date: { lt: from } },
+      _sum: { total_amount: true },
+    }),
+    prisma.payment.aggregate({
+      where: { supplier_id: supplierId, direction: 'incoming', payment_date: { lt: from } },
       _sum: { amount: true },
     }),
   ]);
 
-  const openingBalance = Number(invoicesBefore._sum.total_amount ?? 0) - Number(paymentsBefore._sum.amount ?? 0);
+  const openingBalance =
+    Number(invoicesBefore._sum.total_amount ?? 0)
+    - Number(outPaymentsBefore._sum.amount ?? 0)
+    - Number(salesInvoicesBefore._sum.total_amount ?? 0)
+    + Number(inPaymentsBefore._sum.amount ?? 0);
 
-  const invoices = await prisma.invoice.findMany({
-    where: { supplier_id: supplierId, issue_date: { gte: from, lte: to } },
-    select: { id: true, invoice_number: true, issue_date: true, total_amount: true, vendor_name_raw: true },
-    orderBy: { issue_date: 'asc' },
-  });
+  // ── Entries in period ──
+  const [invoices, outPayments, salesInvoices, inPayments] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { supplier_id: supplierId, issue_date: { gte: from, lte: to } },
+      select: { id: true, invoice_number: true, issue_date: true, total_amount: true, vendor_name_raw: true },
+      orderBy: { issue_date: 'asc' },
+    }),
+    prisma.payment.findMany({
+      where: { supplier_id: supplierId, direction: 'outgoing', payment_date: { gte: from, lte: to } },
+      select: { id: true, reference: true, payment_date: true, amount: true, notes: true },
+      orderBy: { payment_date: 'asc' },
+    }),
+    prisma.salesInvoice.findMany({
+      where: { supplier_id: supplierId, issue_date: { gte: from, lte: to } },
+      select: { id: true, invoice_number: true, issue_date: true, total_amount: true },
+      orderBy: { issue_date: 'asc' },
+    }),
+    prisma.payment.findMany({
+      where: { supplier_id: supplierId, direction: 'incoming', payment_date: { gte: from, lte: to } },
+      select: { id: true, reference: true, payment_date: true, amount: true, notes: true },
+      orderBy: { payment_date: 'asc' },
+    }),
+  ]);
 
-  const payments = await prisma.payment.findMany({
-    where: { supplier_id: supplierId, payment_date: { gte: from, lte: to } },
-    select: {
-      id: true, reference: true, payment_date: true, amount: true, notes: true,
-      receipts: { include: { claim: { select: { merchant: true, receipt_number: true } } } },
-    },
-    orderBy: { payment_date: 'asc' },
-  });
+  // Batch-fetch receipt names for all payments in one query (avoids N+1)
+  const allPaymentIds = [...outPayments, ...inPayments].map((p) => p.id);
+  const receiptMap = new Map<string, string[]>();
+  if (allPaymentIds.length > 0) {
+    const paymentReceipts = await prisma.paymentReceipt.findMany({
+      where: { payment_id: { in: allPaymentIds } },
+      select: { payment_id: true, claim: { select: { merchant: true, receipt_number: true } } },
+    });
+    for (const pr of paymentReceipts) {
+      const names = receiptMap.get(pr.payment_id) ?? [];
+      names.push(pr.claim.receipt_number || pr.claim.merchant);
+      receiptMap.set(pr.payment_id, names);
+    }
+  }
 
-  type Entry = { date: string; type: 'invoice' | 'payment'; reference: string; description: string; debit: number; credit: number; balance: number };
+  type Entry = { date: string; type: string; reference: string; description: string; debit: number; credit: number; balance: number };
   const entries: Entry[] = [];
 
   for (const inv of invoices) {
     entries.push({
       date: inv.issue_date.toISOString(),
-      type: 'invoice',
+      type: 'purchase_invoice',
       reference: inv.invoice_number ?? '-',
       description: `Purchase — ${inv.vendor_name_raw}`,
       debit: Number(inv.total_amount),
@@ -75,15 +112,15 @@ export async function GET(
     });
   }
 
-  for (const pmt of payments) {
-    const receiptNames = pmt.receipts.map((r) => r.claim.receipt_number || r.claim.merchant);
-    let description = 'Payment';
+  for (const pmt of outPayments) {
+    const receiptNames = receiptMap.get(pmt.id) ?? [];
+    let description = 'Payment Out';
     if (receiptNames.length > 0) description += ` — ${receiptNames.join(', ')}`;
     else if (pmt.notes) description += ` — ${pmt.notes}`;
 
     entries.push({
       date: pmt.payment_date.toISOString(),
-      type: 'payment',
+      type: 'outgoing_payment',
       reference: pmt.reference ?? '-',
       description,
       debit: 0,
@@ -92,10 +129,41 @@ export async function GET(
     });
   }
 
+  for (const sinv of salesInvoices) {
+    entries.push({
+      date: sinv.issue_date.toISOString(),
+      type: 'sales_invoice',
+      reference: sinv.invoice_number,
+      description: `Sales Invoice — ${sinv.invoice_number}`,
+      debit: 0,
+      credit: Number(sinv.total_amount),
+      balance: 0,
+    });
+  }
+
+  for (const pmt of inPayments) {
+    const receiptNames = receiptMap.get(pmt.id) ?? [];
+    let description = 'Payment In';
+    if (receiptNames.length > 0) description += ` — ${receiptNames.join(', ')}`;
+    else if (pmt.notes) description += ` — ${pmt.notes}`;
+
+    entries.push({
+      date: pmt.payment_date.toISOString(),
+      type: 'incoming_payment',
+      reference: pmt.reference ?? '-',
+      description,
+      debit: Number(pmt.amount),
+      credit: 0,
+      balance: 0,
+    });
+  }
+
   entries.sort((a, b) => {
     const diff = new Date(a.date).getTime() - new Date(b.date).getTime();
     if (diff !== 0) return diff;
-    return a.type === 'invoice' ? -1 : 1;
+    if (a.debit > 0 && b.credit > 0) return -1;
+    if (a.credit > 0 && b.debit > 0) return 1;
+    return 0;
   });
 
   let balance = openingBalance;

@@ -43,7 +43,7 @@ export async function GET(
               payment: {
                 select: {
                   id: true, payment_date: true, reference: true, amount: true,
-                  receipts: { include: { claim: { select: { id: true, merchant: true, receipt_number: true, thumbnail_url: true } } } },
+                  receipts: { select: { payment_id: true, claim_id: true } },
                 },
               },
             },
@@ -56,6 +56,19 @@ export async function GET(
 
   if (!supplier) {
     return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
+  }
+
+  // Batch-fetch all claim details referenced by payment receipts
+  const allClaimIds = supplier.invoices.flatMap((inv) =>
+    inv.paymentAllocations.flatMap((a) => a.payment.receipts.map((r) => r.claim_id))
+  );
+  const claimMap = new Map<string, { id: string; merchant: string; receipt_number: string | null }>();
+  if (allClaimIds.length > 0) {
+    const claims = await prisma.claim.findMany({
+      where: { id: { in: Array.from(new Set(allClaimIds)) } },
+      select: { id: true, merchant: true, receipt_number: true },
+    });
+    for (const c of claims) claimMap.set(c.id, c);
   }
 
   const invoices = supplier.invoices.map((inv) => ({
@@ -79,11 +92,14 @@ export async function GET(
       amount: a.amount.toString(),
       payment_date: a.payment.payment_date,
       reference: a.payment.reference,
-      receipts: a.payment.receipts.map((r) => ({
-        id: r.claim.id,
-        merchant: r.claim.merchant,
-        receipt_number: r.claim.receipt_number,
-      })),
+      receipts: a.payment.receipts.map((r) => {
+        const c = claimMap.get(r.claim_id);
+        return {
+          id: c?.id ?? r.claim_id,
+          merchant: c?.merchant ?? '',
+          receipt_number: c?.receipt_number ?? null,
+        };
+      }),
     })),
   }));
 
@@ -98,6 +114,16 @@ export async function GET(
       firm_name: supplier.firm.name,
       aliases: supplier.aliases,
       invoices,
+      // LHDN buyer fields
+      tin: supplier.tin,
+      brn: supplier.brn,
+      sst_registration_number: supplier.sst_registration_number,
+      address_line1: supplier.address_line1,
+      address_line2: supplier.address_line2,
+      city: supplier.city,
+      postal_code: supplier.postal_code,
+      state: supplier.state,
+      country: supplier.country,
     },
     error: null,
   });
@@ -157,6 +183,17 @@ export async function PATCH(
   if (body.contact_phone !== undefined) data.contact_phone = body.contact_phone || null;
   if (body.notes !== undefined) data.notes = body.notes || null;
   if (body.is_active !== undefined) data.is_active = body.is_active;
+
+  // LHDN buyer fields
+  if (body.tin !== undefined) data.tin = body.tin || null;
+  if (body.brn !== undefined) data.brn = body.brn || null;
+  if (body.sst_registration_number !== undefined) data.sst_registration_number = body.sst_registration_number || null;
+  if (body.address_line1 !== undefined) data.address_line1 = body.address_line1 || null;
+  if (body.address_line2 !== undefined) data.address_line2 = body.address_line2 || null;
+  if (body.city !== undefined) data.city = body.city || null;
+  if (body.postal_code !== undefined) data.postal_code = body.postal_code || null;
+  if (body.state !== undefined) data.state = body.state || null;
+  if (body.country !== undefined) data.country = body.country || null;
 
   const updated = await prisma.supplier.update({ where: { id }, data });
   return NextResponse.json({ data: updated, error: null });

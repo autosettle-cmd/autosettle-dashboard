@@ -6,8 +6,7 @@ import { prisma } from '@/lib/prisma';
 interface SupplierBucket {
   supplier_id: string;
   supplier_name: string;
-  current: number;
-  days1_30: number;
+  days0_30: number;
   days31_60: number;
   days61_90: number;
   days90plus: number;
@@ -60,8 +59,7 @@ export async function GET() {
       supplierMap.set(supplierId, {
         supplier_id: supplierId,
         supplier_name: supplierName,
-        current: 0,
-        days1_30: 0,
+        days0_30: 0,
         days31_60: 0,
         days61_90: 0,
         days90plus: 0,
@@ -72,24 +70,20 @@ export async function GET() {
 
     const entry = supplierMap.get(supplierId)!;
 
-    // Calculate aging bucket from due date
-    let bucket = 'current';
-    if (inv.due_date) {
-      const diffDays = Math.floor((now.getTime() - inv.due_date.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays <= 0) bucket = 'current';
-      else if (diffDays <= 30) bucket = '1-30';
-      else if (diffDays <= 60) bucket = '31-60';
-      else if (diffDays <= 90) bucket = '61-90';
-      else bucket = '90+';
-    }
+    // Calculate aging bucket from issue date (LHDN ruling)
+    const diffDays = Math.floor((now.getTime() - inv.issue_date.getTime()) / (1000 * 60 * 60 * 24));
+    let bucket: string;
+    if (diffDays <= 30) bucket = '0-30';
+    else if (diffDays <= 60) bucket = '31-60';
+    else if (diffDays <= 90) bucket = '61-90';
+    else bucket = '90+';
 
     // Add to bucket totals
     switch (bucket) {
-      case 'current':  entry.current += balance; break;
-      case '1-30':     entry.days1_30 += balance; break;
-      case '31-60':    entry.days31_60 += balance; break;
-      case '61-90':    entry.days61_90 += balance; break;
-      case '90+':      entry.days90plus += balance; break;
+      case '0-30':   entry.days0_30 += balance; break;
+      case '31-60':  entry.days31_60 += balance; break;
+      case '61-90':  entry.days61_90 += balance; break;
+      case '90+':    entry.days90plus += balance; break;
     }
     entry.total += balance;
 
@@ -112,8 +106,7 @@ export async function GET() {
 
   // Summary totals
   const summary = {
-    current: data.reduce((s, r) => s + r.current, 0),
-    days1_30: data.reduce((s, r) => s + r.days1_30, 0),
+    days0_30: data.reduce((s, r) => s + r.days0_30, 0),
     days31_60: data.reduce((s, r) => s + r.days31_60, 0),
     days61_90: data.reduce((s, r) => s + r.days61_90, 0),
     days90plus: data.reduce((s, r) => s + r.days90plus, 0),

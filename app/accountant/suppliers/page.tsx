@@ -1,11 +1,12 @@
 'use client';
 
 import React from 'react';
-import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
+import Sidebar from '@/components/Sidebar';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,8 +75,7 @@ interface FirmOption {
 interface AgingSupplier {
   supplier_id: string;
   supplier_name: string;
-  current: number;
-  days1_30: number;
+  days0_30: number;
   days31_60: number;
   days61_90: number;
   days90plus: number;
@@ -93,8 +93,7 @@ interface AgingSupplier {
 }
 
 interface AgingSummary {
-  current: number;
-  days1_30: number;
+  days0_30: number;
   days31_60: number;
   days61_90: number;
   days90plus: number;
@@ -148,17 +147,6 @@ function AgingCell({ value, warn }: { value: number; warn?: boolean }) {
   );
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Invoices',   href: '/accountant/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Suppliers',  href: '/accountant/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
-  { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-];
 
 // ─── Field helper ─────────────────────────────────────────────────────────────
 
@@ -185,9 +173,6 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AccountantSuppliersPage() {
-  const { data: session } = useSession();
-  const pathname = usePathname();
-  const handleLogout = useLogout();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
@@ -438,106 +423,80 @@ export default function AccountantSuppliersPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
       {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname === href;
-            return (
-              <Link key={href} href={href}
-                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                  active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
-                }`}
-              >
-                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={icon} />
-                </svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
-              {(session?.user?.name ?? '?')[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">
-            Sign out
-          </button>
-        </div>
-      </aside>
+      <Sidebar role="accountant" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">Suppliers</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Suppliers</h1>
           <p className="text-gray-400 text-xs">
             {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 animate-in">
-
+        {/* ── Static top section (aging cards + filters) ── */}
+        <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F5F6F8] border-b border-gray-100">
           {/* ── Aging Report ─────────────────────────────── */}
           {agingSummary && (
-            <div className="mb-6">
+            <div className="mb-3">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[13px] font-semibold text-gray-900">Aging Report — Accounts Payable</h2>
                 <button
                   onClick={() => setShowAging(!showAging)}
-                  className="text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: '#2563EB' }}
+                  className="text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
                 >
                   {showAging ? 'Collapse' : 'Expand'}
                 </button>
               </div>
 
-              <div className="grid grid-cols-6 gap-3 mb-3">
+              <div className="grid grid-cols-5 gap-3">
                 {[
-                  { label: 'Current', value: agingSummary.current, color: 'text-emerald-600' },
-                  { label: '1-30 Days', value: agingSummary.days1_30, color: agingSummary.days1_30 > 0 ? 'text-amber-600' : 'text-gray-900' },
+                  { label: '0-30 Days', value: agingSummary.days0_30, color: agingSummary.days0_30 > 0 ? 'text-amber-600' : 'text-gray-900' },
                   { label: '31-60 Days', value: agingSummary.days31_60, color: agingSummary.days31_60 > 0 ? 'text-amber-600' : 'text-gray-900' },
                   { label: '61-90 Days', value: agingSummary.days61_90, color: agingSummary.days61_90 > 0 ? 'text-red-500' : 'text-gray-900' },
                   { label: '90+ Days', value: agingSummary.days90plus, color: agingSummary.days90plus > 0 ? 'text-red-600' : 'text-gray-900' },
                   { label: 'Total Payable', value: agingSummary.total, color: 'text-gray-900' },
                 ].map((b) => (
-                  <div key={b.label} className="bg-white rounded-lg border border-gray-100 p-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                  <div key={b.label} className="bg-white rounded-lg border border-gray-100 p-3 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]">
                     <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{b.label}</p>
                     <p className={`text-[15px] font-bold tabular-nums ${b.color}`}>{formatRM(b.value)}</p>
                   </div>
                 ))}
               </div>
+            </div>
+          )}
 
-              {showAging && agingData.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          {/* ── Filter bar ────────────────────────────────── */}
+          <div className="flex items-center gap-2.5 pb-3">
+            <Select value={firmFilter} onChange={setFirmFilter}>
+              {firms.length > 1 && <option value="">All Firms</option>}
+              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </Select>
+
+            <input
+              type="text"
+              placeholder="Search supplier..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input-field min-w-[250px]"
+            />
+          </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto p-6 animate-in">
+          {/* ── Aging expanded table ────────────────────── */}
+          {showAging && agingData.length > 0 && agingSummary && (
+            <div className="mb-4">
+              <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                         <th className="px-4 py-2.5 text-left">Supplier</th>
-                        <th className="px-3 py-2.5 text-right">Current</th>
-                        <th className="px-3 py-2.5 text-right">1-30</th>
+                        <th className="px-3 py-2.5 text-right">0-30</th>
                         <th className="px-3 py-2.5 text-right">31-60</th>
                         <th className="px-3 py-2.5 text-right">61-90</th>
                         <th className="px-3 py-2.5 text-right">90+</th>
@@ -562,8 +521,7 @@ export default function AccountantSuppliersPage() {
                                 <span className="text-[10px] text-gray-400">({s.invoices.length})</span>
                               </div>
                             </td>
-                            <AgingCell value={s.current} />
-                            <AgingCell value={s.days1_30} warn />
+                            <AgingCell value={s.days0_30} warn />
                             <AgingCell value={s.days31_60} warn />
                             <AgingCell value={s.days61_90} warn />
                             <AgingCell value={s.days90plus} warn />
@@ -590,8 +548,7 @@ export default function AccountantSuppliersPage() {
                               <td className="px-4 py-2 pl-10 text-gray-500">
                                 {formatDate(inv.issue_date)} · <span className="text-gray-700 font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === 'current' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '1-30' ? formatRMStr(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{(inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30') ? formatRMStr(inv.balance) : '-'}</td>
                               <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
                               <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
                               <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
@@ -604,8 +561,7 @@ export default function AccountantSuppliersPage() {
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-[12px]">
                         <td className="px-4 py-2.5 text-gray-900">Total</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-gray-900">{formatRM(agingSummary.current)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days1_30 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days1_30)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days0_30)}</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days31_60)}</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days61_90)}</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days90plus)}</td>
@@ -614,25 +570,8 @@ export default function AccountantSuppliersPage() {
                     </tfoot>
                   </table>
                 </div>
-              )}
             </div>
           )}
-
-          {/* ── Filter bar ────────────────────────────────── */}
-          <div className="flex items-center gap-2.5 mb-4">
-            <Select value={firmFilter} onChange={setFirmFilter}>
-              <option value="">All Firms</option>
-              {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </Select>
-
-            <input
-              type="text"
-              placeholder="Search supplier..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field min-w-[250px]"
-            />
-          </div>
 
           {/* ── Supplier list ─────────────────────────────── */}
           {loading ? (
@@ -645,7 +584,7 @@ export default function AccountantSuppliersPage() {
           ) : (
             <div className="space-y-2">
               {suppliers.map((s) => (
-                <div key={s.id} className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
                   {/* Supplier row */}
                   <div
                     className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-gray-50/50 transition-colors"
@@ -686,8 +625,7 @@ export default function AccountantSuppliersPage() {
                     {/* Action buttons */}
                     <button
                       onClick={(e) => { e.stopPropagation(); openPayment(s); }}
-                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                      style={{ backgroundColor: '#152237' }}
+                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-dark transition-all duration-200"
                     >
                       Pay
                     </button>
@@ -695,15 +633,13 @@ export default function AccountantSuppliersPage() {
                       href={`/accountant/suppliers/${s.id}/statement`}
                       target="_blank"
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                      style={{ backgroundColor: '#2563EB' }}
+                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
                     >
                       Statement
                     </Link>
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(s); }}
-                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                      style={{ backgroundColor: '#A60201' }}
+                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium text-white shadow-sm btn-primary transition-opacity hover:opacity-85"
                     >
                       Edit
                     </button>
@@ -815,8 +751,8 @@ export default function AccountantSuppliersPage() {
       {/* ═══ PAYMENT SIDE PANEL ═══ */}
       {paymentSupplier && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPaymentSupplier(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[480px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPaymentSupplier(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[480px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Record Payment</h2>
               <button onClick={() => setPaymentSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -990,12 +926,11 @@ export default function AccountantSuppliersPage() {
               <button
                 onClick={submitPayment}
                 disabled={paymentSaving || !paymentAmount || Number(paymentAmount) <= 0}
-                className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {paymentSaving ? 'Saving...' : 'Save Payment'}
               </button>
-              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -1006,8 +941,8 @@ export default function AccountantSuppliersPage() {
       {/* ═══ EDIT SIDE PANEL ═══ */}
       {editSupplier && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setEditSupplier(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditSupplier(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Edit Supplier</h2>
               <button onClick={() => setEditSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -1074,10 +1009,10 @@ export default function AccountantSuppliersPage() {
             </div>
 
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
-              <button onClick={saveSupplier} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+              <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -1088,8 +1023,8 @@ export default function AccountantSuppliersPage() {
       {/* ═══ INVOICE PREVIEW ═══ */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -1136,7 +1071,7 @@ export default function AccountantSuppliersPage() {
             <div className="p-4 border-t flex-shrink-0">
               <button
                 onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: '#152237' }}
               >
                 Open in Invoices
@@ -1149,8 +1084,8 @@ export default function AccountantSuppliersPage() {
       {/* ═══ RECEIPT PREVIEW ═══ */}
       {previewReceipt && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewReceipt(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -1169,7 +1104,7 @@ export default function AccountantSuppliersPage() {
               </dl>
             </div>
             <div className="p-4 border-t flex-shrink-0">
-              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Close
               </button>
             </div>

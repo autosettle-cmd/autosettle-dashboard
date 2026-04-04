@@ -399,6 +399,104 @@ async function handleDocumentMessage(
     const { documentType, raw } = await extractInvoiceFromPDF(pdfBuffer, categoryNames);
     console.log(`[WhatsApp] PDF classified as: ${documentType}`);
 
+    // ── Bank statement handling ──
+    if (documentType === "bank_statement") {
+      // Only admin/accountant can upload bank statements
+      if (employee.role === "employee") {
+        await sendTextMessage(phone, "Bank statements can only be uploaded by admin. This has been forwarded to your admin for review.");
+        // Find admin users for this firm and notify them
+        const admins = await prisma.user.findMany({
+          where: { firm_id: employee.firmId, role: "admin", is_active: true },
+          include: { employee: { select: { phone: true } } },
+        });
+        for (const admin of admins) {
+          if (admin.employee?.phone) {
+            await sendTextMessage(admin.employee.phone, `📋 Employee *${employee.name}* sent a bank statement via WhatsApp. Please upload it via the dashboard.\n\nFile: ${doc.filename ?? "bank_statement.pdf"}`);
+          }
+        }
+        const durationMs = Date.now() - startTime;
+        logMessage({ phone, employeeId: employee.id, messageType: "document", processingMs: durationMs }).catch((err) => console.error("Log write failed silently:", err));
+        return;
+      }
+
+      // Admin/accountant: process the bank statement
+      const { parseBankStatementPDF } = await import("@/lib/bank-pdf-parser");
+      const { autoMatchTransactions } = await import("@/lib/bank-reconciliation");
+      const { getDriveViewUrl } = await import("@/lib/whatsapp/drive");
+
+      const result = await parseBankStatementPDF(pdfBuffer);
+
+      if (result.transactions.length === 0) {
+        await sendTextMessage(phone, `Could not parse bank statement${result.errors.length > 0 ? ": " + result.errors[0] : ""}. Please upload via the dashboard instead.`);
+        return;
+      }
+
+      // Check duplicate
+      const existing = await prisma.bankStatement.findUnique({ where: { file_hash: result.fileHash } });
+      if (existing) {
+        await sendTextMessage(phone, "This bank statement has already been uploaded.");
+        return;
+      }
+
+      // Upload to Google Drive
+      let fileUrl: string | null = null;
+      try {
+        const dateStr = result.statementDate ? result.statementDate.toISOString().split("T")[0] : "unknown";
+        const driveFilename = `BANK_${result.bankName}_${result.accountNumber ?? "NA"}_${dateStr}.pdf`;
+        const { fileId } = await uploadToDrive(pdfBuffer, driveFilename, "application/pdf");
+        fileUrl = getDriveViewUrl(fileId);
+      } catch (e) {
+        console.error("[WhatsApp] Bank statement Drive upload failed:", e);
+      }
+
+      // Find the user ID for uploaded_by
+      const userId = employee.userId ?? (await prisma.user.findFirst({ where: { firm_id: employee.firmId, role: employee.role as "admin" | "accountant" }, select: { id: true } }))?.id ?? "";
+
+      const statement = await prisma.bankStatement.create({
+        data: {
+          firm_id: employee.firmId,
+          bank_name: result.bankName,
+          account_number: result.accountNumber,
+          statement_date: result.statementDate ?? new Date(),
+          opening_balance: result.openingBalance,
+          closing_balance: result.closingBalance,
+          file_name: doc.filename ?? "bank_statement.pdf",
+          file_hash: result.fileHash,
+          file_url: fileUrl,
+          uploaded_by: userId,
+          transactions: {
+            create: result.transactions.map((t) => ({
+              transaction_date: t.transactionDate,
+              description: t.description,
+              reference: t.reference,
+              cheque_number: t.chequeNumber,
+              debit: t.debit,
+              credit: t.credit,
+              balance: t.balance,
+            })),
+          },
+        },
+      });
+
+      const matchResult = await autoMatchTransactions(employee.firmId, statement.id);
+
+      if (messageId) await sendReaction(phone, messageId, "✅");
+      await sendTextMessage(phone,
+        `📋 *Bank Statement Uploaded*\n\n` +
+        `Bank: ${result.bankName}\n` +
+        `Account: ${result.accountNumber ?? "N/A"}\n` +
+        `Period: ${result.statementDate ? result.statementDate.toISOString().split("T")[0] : "N/A"}\n` +
+        `Transactions: ${result.transactions.length}\n` +
+        `Auto-matched: ${matchResult.matched}\n` +
+        `Unmatched: ${matchResult.unmatched}\n\n` +
+        `View: ${process.env.NEXTAUTH_URL}/admin/bank-reconciliation/${statement.id}`
+      );
+
+      const durationMs = Date.now() - startTime;
+      logMessage({ phone, employeeId: employee.id, messageType: "document", processingMs: durationMs }).catch((err) => console.error("Log write failed silently:", err));
+      return;
+    }
+
     if (documentType === "invoice") {
       const extracted = parseGeminiInvoiceOutput(raw);
       console.log(`[WhatsApp] Invoice extracted: ${JSON.stringify(extracted)}`);

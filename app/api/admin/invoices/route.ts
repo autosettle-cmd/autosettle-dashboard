@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
   const supplierId = searchParams.get('supplierId');
   const overdue = searchParams.get('overdue');
   const search = searchParams.get('search');
+  const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { firm_id: firmId };
@@ -96,15 +97,19 @@ export async function GET(request: NextRequest) {
     ];
   }
 
-  const invoices = await prisma.invoice.findMany({
-    where,
-    include: {
-      uploader: { select: { name: true } },
-      supplier: { select: { id: true, name: true } },
-      category: { select: { name: true } },
-    },
-    orderBy: { issue_date: 'desc' },
-  });
+  const [invoices, totalCount] = await Promise.all([
+    prisma.invoice.findMany({
+      where,
+      include: {
+        uploader: { select: { name: true } },
+        supplier: { select: { id: true, name: true } },
+        category: { select: { name: true } },
+      },
+      orderBy: { issue_date: 'desc' },
+      take: takeParam || 500,
+    }),
+    prisma.invoice.count({ where }),
+  ]);
 
   const data = invoices.map((inv) => ({
     id: inv.id,
@@ -131,7 +136,7 @@ export async function GET(request: NextRequest) {
     submitted_via: inv.submitted_via,
   }));
 
-  return NextResponse.json({ data, error: null, meta: { count: data.length } });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
 }
 
 export async function POST(request: NextRequest) {

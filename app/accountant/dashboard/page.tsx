@@ -1,10 +1,12 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Sidebar from '@/components/Sidebar';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -122,26 +124,20 @@ function formatRM(val: string | number) {
   return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Invoices',   href: '/accountant/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Suppliers',  href: '/accountant/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
-  { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-];
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AccountantDashboard() {
   const { data: session } = useSession();
-  const pathname = usePathname();
-  const handleLogout = useLogout();
 
   const [stats, setStats] = useState<Stats | null>(null);
+  const [bankReconStats, setBankReconStats] = useState<{ totalStatements: number; unmatched: number } | null>(null);
   const [pendingClaims, setPendingClaims] = useState<ClaimRow[]>([]);
   const [loadingClaims, setLoadingClaims] = useState(true);
   const [unlinkedReceipts, setUnlinkedReceipts] = useState<ClaimRow[]>([]);
@@ -161,6 +157,8 @@ export default function AccountantDashboard() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
+  const firstName = session?.user?.name?.split(' ')[0] ?? '';
+
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim, previewInvoice]);
 
@@ -179,6 +177,10 @@ export default function AccountantDashboard() {
     fetch('/api/claims/stats')
       .then((r) => r.json())
       .then((j) => { if (j.data) setStats(j.data); })
+      .catch(console.error);
+    fetch('/api/bank-reconciliation/stats')
+      .then((r) => r.json())
+      .then((j) => { if (j.data) setBankReconStats(j.data); })
       .catch(console.error);
   }, [refreshKey]);
 
@@ -267,66 +269,17 @@ export default function AccountantDashboard() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
       {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                  active
-                    ? 'text-white bg-white/[0.1]'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
-                }`}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />
-                )}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={icon} />
-                </svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
-              {(session?.user?.name ?? '?')[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">
-            Sign out
-          </button>
-        </div>
-      </aside>
+      <Sidebar role="accountant" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">Dashboard</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">
+            {getGreeting()}{firstName ? `, ${firstName}` : ''}
+          </h1>
           <p className="text-gray-400 text-xs">
             {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
@@ -335,21 +288,25 @@ export default function AccountantDashboard() {
         <main className="flex-1 overflow-y-auto p-6 animate-in">
 
           {/* ── Stats ─────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-4 mb-2">
+          <div className="grid grid-cols-2 gap-4 mb-2 card-stagger">
             <StatCard label="Claims This Month"        value={stats?.claims.thisMonth ?? null}      amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}   color="default" href="/accountant/claims" />
             <StatCard label="Pending Review (Claims)"  value={stats?.claims.pendingReview ?? null}  amount={stats ? formatRM(stats.claims.pendingAmount) : null}     color="amber"   href="/accountant/claims?status=pending_review" />
           </div>
-          <div className="grid grid-cols-2 gap-4 mb-2">
+          <div className="grid grid-cols-2 gap-4 mb-2 card-stagger">
             <StatCard label="Receipts This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null}  color="default" href="/accountant/claims?type=receipt" />
             <StatCard label="Unallocated Receipts"    value={stats?.receipts.unlinked ?? null}     amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null}   color="amber"   href="/accountant/claims?type=receipt" />
           </div>
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 mb-2 card-stagger">
             <StatCard label="Invoices This Month"       value={stats?.invoices.thisMonth ?? null}     amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null} color="default" href="/accountant/invoices" />
             <StatCard label="Pending Review (Invoices)" value={stats?.invoices.pendingReview ?? null} amount={stats ? formatRM(stats.invoices.pendingAmount) : null}   color="amber"   href="/accountant/invoices?status=pending_review" />
           </div>
+          <div className="grid grid-cols-2 gap-4 mb-6 card-stagger">
+            <StatCard label="Bank Statements" value={bankReconStats?.totalStatements ?? null} color="default" href="/accountant/bank-reconciliation" />
+            <StatCard label="Unmatched Transactions" value={bankReconStats?.unmatched ?? null} color={bankReconStats && bankReconStats.unmatched > 0 ? 'amber' : 'green'} href="/accountant/bank-reconciliation" />
+          </div>
 
           {/* ── Needs Attention ────────────────────────────── */}
-          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="bg-white rounded-xl border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
             {/* Tab header */}
             <div className="flex items-center justify-between px-5 border-b border-gray-100">
               <div className="flex gap-0">
@@ -401,26 +358,26 @@ export default function AccountantDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                        <th className="px-5 py-2.5">Date</th>
-                        <th className="px-5 py-2.5">Employee</th>
-                        <th className="px-5 py-2.5">Merchant</th>
-                        <th className="px-5 py-2.5">Category</th>
-                        <th className="px-5 py-2.5 text-right">Amount</th>
-                        <th className="px-5 py-2.5">Status</th>
+                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <th className="px-6 py-2.5">Date</th>
+                        <th className="px-6 py-2.5">Employee</th>
+                        <th className="px-6 py-2.5">Merchant</th>
+                        <th className="px-6 py-2.5">Category</th>
+                        <th className="px-6 py-2.5 text-right">Amount</th>
+                        <th className="px-6 py-2.5">Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="table-stagger">
                       {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c, i) => {
                         const cfg = STATUS_CFG[c.status];
                         return (
-                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
-                            <td className="px-5 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
-                            <td className="px-5 py-3 text-gray-900 font-medium">{c.employee_name}</td>
-                            <td className="px-5 py-3 text-gray-600">{c.merchant}</td>
-                            <td className="px-5 py-3 text-gray-500">{c.category_name}</td>
-                            <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
-                            <td className="px-5 py-3">
+                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
+                            <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
+                            <td className="px-6 py-3 text-gray-900 font-medium">{c.employee_name}</td>
+                            <td className="px-6 py-3 text-gray-600">{c.merchant}</td>
+                            <td className="px-6 py-3 text-gray-500">{c.category_name}</td>
+                            <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
+                            <td className="px-6 py-3">
                               {cfg && <span className={cfg.cls}>{cfg.label}</span>}
                             </td>
                           </tr>
@@ -446,24 +403,24 @@ export default function AccountantDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/60 border-b border-gray-100">
-                        <th className="px-5 py-2.5 text-left">Date</th>
-                        <th className="px-3 py-2.5 text-left">Merchant</th>
-                        <th className="px-3 py-2.5 text-right">Amount</th>
-                        <th className="px-5 py-2.5 text-left">Status</th>
+                      <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50 border-b border-gray-100">
+                        <th className="px-6 py-2.5 text-left">Date</th>
+                        <th className="px-6 py-2.5 text-left">Merchant</th>
+                        <th className="px-6 py-2.5 text-right">Amount</th>
+                        <th className="px-6 py-2.5 text-left">Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="table-stagger">
                       {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r) => (
                         <tr
                           key={r.id}
-                          className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer text-[13px]"
+                          className="group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer text-[13px]"
                           onClick={() => setPreviewClaim(r)}
                         >
-                          <td className="px-5 py-2.5 text-gray-500">{formatDate(r.claim_date)}</td>
-                          <td className="px-3 py-2.5 text-gray-700 font-medium">{r.merchant}</td>
-                          <td className="px-3 py-2.5 text-right text-gray-900 font-semibold tabular-nums">{formatRM(r.amount)}</td>
-                          <td className="px-5 py-2.5"><span className="badge-amber">Unlinked</span></td>
+                          <td className="px-6 py-2.5 text-gray-500">{formatDate(r.claim_date)}</td>
+                          <td className="px-6 py-2.5 text-gray-700 font-medium">{r.merchant}</td>
+                          <td className="px-6 py-2.5 text-right text-gray-900 font-semibold tabular-nums">{formatRM(r.amount)}</td>
+                          <td className="px-6 py-2.5"><span className="badge-amber">Unlinked</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -486,29 +443,29 @@ export default function AccountantDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                        <th className="px-5 py-2.5">Issue Date</th>
-                        <th className="px-5 py-2.5">Vendor</th>
-                        <th className="px-5 py-2.5">Invoice #</th>
-                        <th className="px-5 py-2.5">Due Date</th>
-                        <th className="px-5 py-2.5 text-right">Amount</th>
-                        <th className="px-5 py-2.5">Payment</th>
-                        <th className="px-5 py-2.5">Supplier</th>
+                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <th className="px-6 py-2.5">Issue Date</th>
+                        <th className="px-6 py-2.5">Vendor</th>
+                        <th className="px-6 py-2.5">Invoice #</th>
+                        <th className="px-6 py-2.5">Due Date</th>
+                        <th className="px-6 py-2.5 text-right">Amount</th>
+                        <th className="px-6 py-2.5">Payment</th>
+                        <th className="px-6 py-2.5">Supplier</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="table-stagger">
                       {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv, i) => {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
-                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
-                            <td className="px-5 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
-                            <td className="px-5 py-3 text-gray-900 font-medium">{inv.vendor_name_raw}</td>
-                            <td className="px-5 py-3 text-gray-600">{inv.invoice_number ?? '-'}</td>
-                            <td className="px-5 py-3 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                            <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                            <td className="px-5 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
-                            <td className="px-5 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
+                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
+                            <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
+                            <td className="px-6 py-3 text-gray-900 font-medium">{inv.vendor_name_raw}</td>
+                            <td className="px-6 py-3 text-gray-600">{inv.invoice_number ?? '-'}</td>
+                            <td className="px-6 py-3 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                            <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                            <td className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
+                            <td className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
                           </tr>
                         );
                       })}
@@ -526,8 +483,8 @@ export default function AccountantDashboard() {
       {/* ═══ CLAIM PREVIEW PANEL ═══ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewClaim(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -612,10 +569,10 @@ export default function AccountantDashboard() {
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveClaimEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -633,7 +590,7 @@ export default function AccountantDashboard() {
                         description: previewClaim.description ?? '',
                       });
                     }}
-                    className="py-2 px-3 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                    className="btn-primary py-2 px-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
                     style={{ backgroundColor: '#A60201' }}
                   >
                     Edit
@@ -641,14 +598,15 @@ export default function AccountantDashboard() {
                   <button
                     onClick={() => approveClaim(previewClaim.id)}
                     disabled={previewClaim.approval === 'approved'}
-                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85 bg-emerald-600"
+                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85 bg-emerald-600"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => rejectClaim(previewClaim.id)}
                     disabled={previewClaim.approval === 'not_approved'}
-                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85 bg-red-600"
+                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    style={{ backgroundColor: '#A60201' }}
                   >
                     Reject
                   </button>
@@ -662,8 +620,8 @@ export default function AccountantDashboard() {
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -708,7 +666,7 @@ export default function AccountantDashboard() {
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
               <Link
                 href="/accountant/invoices"
-                className="flex-1 py-2 rounded-md text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
                 style={{ backgroundColor: '#A60201' }}
               >
                 Open in Invoices
@@ -716,7 +674,7 @@ export default function AccountantDashboard() {
               <button
                 onClick={() => markInvoiceReviewed(previewInvoice.id)}
                 disabled={previewInvoice.status === 'reviewed'}
-                className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: '#152237' }}
               >
                 Mark as Reviewed
@@ -735,7 +693,7 @@ export default function AccountantDashboard() {
 function StatCard({ label, value, amount, color, href }: {
   label: string;
   value: string | number | null;
-  amount: string | null;
+  amount?: string | null;
   color: 'default' | 'amber' | 'green';
   href?: string;
 }) {
@@ -746,7 +704,10 @@ function StatCard({ label, value, amount, color, href }: {
   }[color];
 
   const card = (
-    <div className={`bg-white rounded-lg border border-gray-100 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] ${href ? 'hover:border-gray-200 transition-colors cursor-pointer' : ''}`}>
+    <div
+      className={`bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${href ? 'cursor-pointer' : ''}`}
+      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}
+    >
       <div className="flex items-center gap-1.5 mb-3">
         <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
@@ -781,14 +742,14 @@ function Pagination({ total, page, pageSize, onPageChange }: {
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-[12px] font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={(page + 1) * pageSize >= total}
-          className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-[12px] font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>

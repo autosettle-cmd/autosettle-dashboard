@@ -3,11 +3,14 @@
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
-import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
+import Sidebar from '@/components/Sidebar';
+import SalesInvoicesContent from '@/components/SalesInvoicesContent';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -116,16 +119,6 @@ function LinkCell({ value }: { value: string }) {
   return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/admin/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'Claims',     href: '/admin/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Invoices',   href: '/admin/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Suppliers',  href: '/admin/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Employees',  href: '/admin/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
-  { label: 'Categories', href: '/admin/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-];
 
 // ─── Preview field helper ─────────────────────────────────────────────────────
 
@@ -146,9 +139,7 @@ export default function AdminInvoicesPageWrapper() {
 }
 
 function AdminInvoicesPage() {
-  const { data: session } = useSession();
-  const pathname = usePathname();
-  const handleLogout = useLogout();
+  const [activeTab, setActiveTab] = useState<'received' | 'issued'>('received');
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -371,68 +362,36 @@ function AdminInvoicesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
       {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                  active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'
-                }`}
-              >
-                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <path d={icon} />
-                </svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">
-              {(session?.user?.name ?? '?')[0]}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">
-            Sign out
-          </button>
-        </div>
-      </aside>
+      <Sidebar role="admin" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">Invoices</h1>
-          <Link href="/admin/suppliers" className="text-[12px] font-medium hover:underline transition-colors" style={{ color: '#A60201' }}>
-            Aging Report &rarr;
-          </Link>
+        <header className="flex-shrink-0 bg-white border-b border-gray-100">
+          <div className="h-16 flex items-center justify-between px-6">
+            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Invoices</h1>
+            <Link href="/admin/suppliers" className="text-[12px] font-medium hover:underline transition-colors" style={{ color: '#A60201' }}>
+              Aging Report &rarr;
+            </Link>
+          </div>
+          <div className="flex px-6 gap-0">
+            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[#A60201] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              Received
+            </button>
+            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[#A60201] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+              Issued
+            </button>
+          </div>
         </header>
 
+        {activeTab === 'issued' ? (
+          <main className="flex-1 overflow-hidden flex flex-col p-6 animate-in">
+            <SalesInvoicesContent role="admin" />
+          </main>
+        ) : (
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Filter bar ────────────────────────────────── */}
@@ -477,8 +436,7 @@ function AdminInvoicesPage() {
             <div className="ml-auto">
               <button
                 onClick={() => setShowNewInvoice(true)}
-                className="px-4 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold"
               >
                 + Submit New Invoice
               </button>
@@ -486,7 +444,7 @@ function AdminInvoicesPage() {
           </div>
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-md border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)]" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]" style={{ height: '100%' }}>
             <AgGridReact<InvoiceRow>
               onGridReady={onGridReady}
               rowData={invoices}
@@ -500,12 +458,13 @@ function AdminInvoicesPage() {
           </div>
 
         </main>
+        )}
       </div>
 
       {/* ═══ SUBMIT NEW INVOICE MODAL ═══ */}
       {showNewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={() => setShowNewInvoice(false)} />
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: '#152237' }}>
@@ -571,14 +530,13 @@ function AdminInvoicesPage() {
                 <button
                   onClick={submitNewInvoice}
                   disabled={newInvSubmitting}
-                  className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: '#A60201' }}
+                  className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
                 </button>
                 <button
                   onClick={() => setShowNewInvoice(false)}
-                  className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -591,8 +549,8 @@ function AdminInvoicesPage() {
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -762,10 +720,10 @@ function AdminInvoicesPage() {
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -787,15 +745,14 @@ function AdminInvoicesPage() {
                         supplier_id: previewInvoice.supplier_id ?? '',
                       });
                     }}
-                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
+                    className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => markAsReviewed(previewInvoice.id)}
                     disabled={previewInvoice.status === 'reviewed'}
-                    className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                     style={{ backgroundColor: '#152237' }}
                   >
                     Mark as Reviewed

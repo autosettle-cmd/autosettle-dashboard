@@ -1,10 +1,10 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
+import Sidebar from '@/components/Sidebar';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,25 +51,9 @@ function formatDate(val: string) {
   return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Invoices',   href: '/accountant/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Suppliers',  href: '/accountant/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'People',     href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
-  { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-];
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function PeoplePage() {
-  const { data: session } = useSession();
-  const pathname = usePathname();
-  const handleLogout = useLogout();
-
   // ── Firms ──
   const [firms, setFirms] = useState<Firm[]>([]);
   const [firmId, setFirmId] = useState('');
@@ -406,49 +390,15 @@ export default function PeoplePage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
-      {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname === href;
-            return (
-              <Link key={href} href={href} className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
-                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">{(session?.user?.name ?? '?')[0]}</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">Sign out</button>
-        </div>
-      </aside>
+      <Sidebar role="accountant" />
 
-      {/* ═══ MAIN ═══ */}
+      {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">People</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">People</h1>
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
@@ -456,7 +406,7 @@ export default function PeoplePage() {
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             <Select value={firmId} onChange={setFirmId}>
-              <option value="">All Firms</option>
+              {firms.length > 1 && <option value="">All Firms</option>}
               {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
             </Select>
 
@@ -471,49 +421,48 @@ export default function PeoplePage() {
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={openAdminModal}
-                className="text-sm px-4 py-2 rounded-md font-medium text-white transition-opacity hover:opacity-85"
+                className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: '#152237' }}
               >
                 Add Admin
               </button>
               <button
                 onClick={openEmpModal}
-                className="text-sm px-4 py-2 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                className="text-sm px-4 py-2 rounded-xl font-medium btn-primary"
               >
                 Add Employee
               </button>
             </div>
           </div>
 
-          {/* ════════════════════ SECTION 0: PENDING APPROVAL ════════════════════ */}
+          {/* ── SECTION 0: PENDING APPROVAL ── */}
           {!pendingLoading && pending.length > 0 && (
-            <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+              <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2">
                 <h2 className="text-[13px] font-semibold text-amber-700">Pending Approval</h2>
                 <span className="badge-amber">{pending.length}</span>
               </div>
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                      <th className="px-5 py-2.5">Name</th>
-                      <th className="px-5 py-2.5">Email</th>
-                      <th className="px-5 py-2.5">Phone</th>
-                      <th className="px-5 py-2.5">Firm</th>
-                      <th className="px-5 py-2.5">Date Requested</th>
-                      <th className="px-5 py-2.5">Actions</th>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <th className="px-6 py-2.5">Name</th>
+                      <th className="px-6 py-2.5">Email</th>
+                      <th className="px-6 py-2.5">Phone</th>
+                      <th className="px-6 py-2.5">Firm</th>
+                      <th className="px-6 py-2.5">Date Requested</th>
+                      <th className="px-6 py-2.5">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pending.map((row, i) => (
-                      <tr key={row.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < pending.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                        <td className="px-5 py-3 text-gray-900 font-medium">{row.name}</td>
-                        <td className="px-5 py-3 text-gray-600">{row.email}</td>
-                        <td className="px-5 py-3 text-gray-600">{row.phone || '—'}</td>
-                        <td className="px-5 py-3 text-gray-600">{row.firm_name}</td>
-                        <td className="px-5 py-3 text-gray-600">{formatDate(row.created_at)}</td>
-                        <td className="px-5 py-3 flex items-center gap-3">
+                      <tr key={row.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < pending.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        <td className="px-6 py-3 text-gray-900 font-medium">{row.name}</td>
+                        <td className="px-6 py-3 text-gray-600">{row.email}</td>
+                        <td className="px-6 py-3 text-gray-600">{row.phone || '—'}</td>
+                        <td className="px-6 py-3 text-gray-600">{row.firm_name}</td>
+                        <td className="px-6 py-3 text-gray-600">{formatDate(row.created_at)}</td>
+                        <td className="px-6 py-3 flex items-center gap-3">
                           <button
                             onClick={() => handleApprove(row.id)}
                             className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
@@ -535,55 +484,55 @@ export default function PeoplePage() {
             </div>
           )}
 
-          {/* ════════════════════ SECTION 1: ADMINS ════════════════════ */}
-          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+          {/* ── SECTION 1: ADMINS ── */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+            <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2">
               <h2 className="text-[13px] font-semibold text-gray-900">Admins</h2>
               {!adminsLoading && filteredAdmins.length > 0 && (
                 <span className="text-[11px] text-gray-400 font-medium">{filteredAdmins.length}</span>
               )}
             </div>
             {!firmId ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">Select a firm to view admins.</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-400">Select a firm to view admins.</div>
             ) : adminsLoading ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-400">Loading...</div>
             ) : filteredAdmins.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">No admins found.</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-400">No admins found.</div>
             ) : (
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                      <th className="px-5 py-2.5">Name</th>
-                      <th className="px-5 py-2.5">Email</th>
-                      <th className="px-5 py-2.5">Status</th>
-                      <th className="px-5 py-2.5">Created</th>
-                      <th className="px-5 py-2.5">Actions</th>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <th className="px-6 py-2.5">Name</th>
+                      <th className="px-6 py-2.5">Email</th>
+                      <th className="px-6 py-2.5">Status</th>
+                      <th className="px-6 py-2.5">Created</th>
+                      <th className="px-6 py-2.5">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredAdmins.map((admin, i) => (
-                      <tr key={admin.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < filteredAdmins.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                        <td className="px-5 py-3 text-gray-900 font-medium">{admin.name}</td>
-                        <td className="px-5 py-3 text-gray-600">{admin.email}</td>
-                        <td className="px-5 py-3">
+                      <tr key={admin.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < filteredAdmins.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
+                        <td className="px-6 py-3 text-gray-600">{admin.email}</td>
+                        <td className="px-6 py-3">
                           {admin.status === 'active' ? (
                             <span className="badge-green">Active</span>
                           ) : (
                             <span className="badge-gray">Inactive</span>
                           )}
                         </td>
-                        <td className="px-5 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
-                        <td className="px-5 py-3 flex items-center gap-2">
+                        <td className="px-6 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
+                        <td className="px-6 py-3 flex items-center gap-2">
                           <button
                             onClick={() => openEditAdminPanel(admin)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => toggleAdminActive(admin)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             {admin.status === 'active' ? 'Deactivate' : 'Activate'}
                           </button>
@@ -596,41 +545,41 @@ export default function PeoplePage() {
             )}
           </div>
 
-          {/* ════════════════════ SECTION 2: EMPLOYEES ════════════════════ */}
-          <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-            <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+          {/* ── SECTION 2: EMPLOYEES ── */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+            <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2">
               <h2 className="text-[13px] font-semibold text-gray-900">Employees</h2>
               {!empLoading && employees.length > 0 && (
                 <span className="text-[11px] text-gray-400 font-medium">{employees.length}</span>
               )}
             </div>
             {empLoading ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-400">Loading...</div>
             ) : employees.length === 0 ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">No employees found.</div>
+              <div className="px-6 py-8 text-center text-sm text-gray-400">No employees found.</div>
             ) : (
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                      <th className="px-5 py-2.5">Name</th>
-                      <th className="px-5 py-2.5">Phone</th>
-                      <th className="px-5 py-2.5">Email</th>
-                      <th className="px-5 py-2.5">Firm</th>
-                      <th className="px-5 py-2.5 text-right">Claims</th>
-                      <th className="px-5 py-2.5">Status</th>
-                      <th className="px-5 py-2.5">Actions</th>
+                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <th className="px-6 py-2.5">Name</th>
+                      <th className="px-6 py-2.5">Phone</th>
+                      <th className="px-6 py-2.5">Email</th>
+                      <th className="px-6 py-2.5">Firm</th>
+                      <th className="px-6 py-2.5 text-right">Claims</th>
+                      <th className="px-6 py-2.5">Status</th>
+                      <th className="px-6 py-2.5">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {employees.map((emp, i) => (
-                      <tr key={emp.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < employees.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                        <td className="px-5 py-3 text-gray-900 font-medium">{emp.name}</td>
-                        <td className="px-5 py-3 text-gray-600">{emp.phone}</td>
-                        <td className="px-5 py-3 text-gray-600">{emp.email ?? '—'}</td>
-                        <td className="px-5 py-3 text-gray-600">{emp.firm_name}</td>
-                        <td className="px-5 py-3 text-gray-900 font-semibold text-right tabular-nums">{emp.claims_count}</td>
-                        <td className="px-5 py-3">
+                      <tr key={emp.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < employees.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        <td className="px-6 py-3 text-gray-900 font-medium">{emp.name}</td>
+                        <td className="px-6 py-3 text-gray-600">{emp.phone}</td>
+                        <td className="px-6 py-3 text-gray-600">{emp.email ?? '—'}</td>
+                        <td className="px-6 py-3 text-gray-600">{emp.firm_name}</td>
+                        <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{emp.claims_count}</td>
+                        <td className="px-6 py-3">
                           {emp.user_status === 'pending_onboarding' ? (
                             <span className="badge-amber">Pending</span>
                           ) : emp.user_status === 'rejected' ? (
@@ -641,16 +590,16 @@ export default function PeoplePage() {
                             <span className="badge-gray">Inactive</span>
                           )}
                         </td>
-                        <td className="px-5 py-3 flex items-center gap-2">
+                        <td className="px-6 py-3 flex items-center gap-2">
                           <button
                             onClick={() => openEditEmpPanel(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => toggleEmpActive(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             {emp.is_active ? 'Deactivate' : 'Activate'}
                           </button>
@@ -666,9 +615,9 @@ export default function PeoplePage() {
         </main>
       </div>
 
-      {/* ═══ ADD ADMIN MODAL ═══ */}
+      {/* === ADD ADMIN MODAL === */}
       {showAdminModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin user for a firm.</p>
@@ -682,52 +631,23 @@ export default function PeoplePage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  value={adminName}
-                  onChange={(e) => setAdminName(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Admin name"
-                  autoFocus
-                />
+                <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
-                <input
-                  type="email"
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="admin@example.com"
-                />
+                <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
-                <input
-                  type="text"
-                  value={adminPhone}
-                  onChange={(e) => setAdminPhone(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Optional"
-                />
+                <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
-                <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Min 8 characters"
-                />
+                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-field w-full" placeholder="Min 8 characters" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
-                <select
-                  value={adminFirmId}
-                  onChange={(e) => setAdminFirmId(e.target.value)}
-                  className="input-field w-full"
-                >
+                <select value={adminFirmId} onChange={(e) => setAdminFirmId(e.target.value)} className="input-field w-full">
                   <option value="">Select a firm</option>
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
@@ -735,19 +655,10 @@ export default function PeoplePage() {
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button
-                onClick={submitAdmin}
-                disabled={adminSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
-              >
+              <button onClick={submitAdmin} disabled={adminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {adminSaving ? 'Creating...' : 'Create Admin'}
               </button>
-              <button
-                onClick={() => setShowAdminModal(false)}
-                disabled={adminSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
+              <button onClick={() => setShowAdminModal(false)} disabled={adminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>
@@ -755,9 +666,9 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {/* ═══ ADD EMPLOYEE MODAL ═══ */}
+      {/* === ADD EMPLOYEE MODAL === */}
       {showEmpModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Employee</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new employee record.</p>
@@ -771,42 +682,19 @@ export default function PeoplePage() {
             <div className="space-y-3">
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
-                <input
-                  type="text"
-                  value={empName}
-                  onChange={(e) => setEmpName(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Employee name"
-                  autoFocus
-                />
+                <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
-                <input
-                  type="text"
-                  value={empPhone}
-                  onChange={(e) => setEmpPhone(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="e.g. +60123456789"
-                />
+                <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
-                <input
-                  type="email"
-                  value={empEmail}
-                  onChange={(e) => setEmpEmail(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Optional"
-                />
+                <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
-                <select
-                  value={empFirmId}
-                  onChange={(e) => setEmpFirmId(e.target.value)}
-                  className="input-field w-full"
-                >
+                <select value={empFirmId} onChange={(e) => setEmpFirmId(e.target.value)} className="input-field w-full">
                   <option value="">Select a firm</option>
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
@@ -814,19 +702,10 @@ export default function PeoplePage() {
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button
-                onClick={submitEmployee}
-                disabled={empSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
-              >
+              <button onClick={submitEmployee} disabled={empSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {empSaving ? 'Creating...' : 'Create Employee'}
               </button>
-              <button
-                onClick={() => setShowEmpModal(false)}
-                disabled={empSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
+              <button onClick={() => setShowEmpModal(false)} disabled={empSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>
@@ -834,12 +713,12 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {/* ═══ EDIT EMPLOYEE PANEL ═══ */}
+      {/* === EDIT EMPLOYEE PANEL === */}
       {editEmp && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setEditEmp(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditEmp(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Edit Employee</h2>
               <button onClick={() => setEditEmp(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -850,54 +729,25 @@ export default function PeoplePage() {
                   <p className="text-sm text-red-700">{editError}</p>
                 </div>
               )}
-
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Employee name"
-                  autoFocus
-                />
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
-                <input
-                  type="text"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="e.g. +60123456789"
-                />
+                <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Optional"
-                />
+                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
             </div>
 
             <div className="flex-shrink-0 border-t border-gray-100 p-4 flex gap-3">
-              <button
-                onClick={submitEditEmp}
-                disabled={editSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
-              >
+              <button onClick={submitEditEmp} disabled={editSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button
-                onClick={() => setEditEmp(null)}
-                disabled={editSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
+              <button onClick={() => setEditEmp(null)} disabled={editSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>
@@ -905,12 +755,12 @@ export default function PeoplePage() {
         </>
       )}
 
-      {/* ═══ EDIT ADMIN PANEL ═══ */}
+      {/* === EDIT ADMIN PANEL === */}
       {editAdmin && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setEditAdmin(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditAdmin(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Edit Admin</h2>
               <button onClick={() => setEditAdmin(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -921,44 +771,21 @@ export default function PeoplePage() {
                   <p className="text-sm text-red-700">{editAdminError}</p>
                 </div>
               )}
-
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
-                <input
-                  type="text"
-                  value={editAdminName}
-                  onChange={(e) => setEditAdminName(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Admin name"
-                  autoFocus
-                />
+                <input type="text" value={editAdminName} onChange={(e) => setEditAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
                 <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
-                <input
-                  type="email"
-                  value={editAdminEmail}
-                  onChange={(e) => setEditAdminEmail(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="admin@example.com"
-                />
+                <input type="email" value={editAdminEmail} onChange={(e) => setEditAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
               </div>
             </div>
 
             <div className="flex-shrink-0 border-t border-gray-100 p-4 flex gap-3">
-              <button
-                onClick={submitEditAdmin}
-                disabled={editAdminSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
-              >
+              <button onClick={submitEditAdmin} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editAdminSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button
-                onClick={() => setEditAdmin(null)}
-                disabled={editAdminSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
+              <button onClick={() => setEditAdmin(null)} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>

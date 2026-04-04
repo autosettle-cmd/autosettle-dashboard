@@ -3,8 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recalcInvoicePayment } from '@/lib/payment-utils';
+import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
 
 export async function POST(request: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
@@ -12,17 +14,22 @@ export async function POST(request: NextRequest) {
   const firmId = session.user.firm_id;
   const body = await request.json();
 
-  const { supplier_id, amount, payment_date, reference, notes, allocations, claim_ids } = body as {
+  const { supplier_id, amount, payment_date, reference, notes, allocations, sales_allocations, claim_ids, direction } = body as {
     supplier_id: string;
     amount: number;
     payment_date: string;
     reference?: string;
     notes?: string;
-    allocations: { invoice_id: string; amount: number }[];
+    allocations?: { invoice_id: string; amount: number }[];
+    sales_allocations?: { sales_invoice_id: string; amount: number }[];
     claim_ids?: string[];
+    direction?: 'outgoing' | 'incoming';
   };
 
-  if (!supplier_id || !amount || !payment_date || !allocations?.length) {
+  const dir = direction ?? 'outgoing';
+  const hasAllocations = dir === 'outgoing' ? allocations?.length : sales_allocations?.length;
+
+  if (!supplier_id || !amount || !payment_date || !hasAllocations) {
     return NextResponse.json({ data: null, error: 'Missing required fields' }, { status: 400 });
   }
 
@@ -30,6 +37,82 @@ export async function POST(request: NextRequest) {
   const supplier = await prisma.supplier.findUnique({ where: { id: supplier_id }, select: { firm_id: true } });
   if (!supplier || supplier.firm_id !== firmId) {
     return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
+  }
+
+  if (dir === 'incoming' && sales_allocations?.length) {
+    // ── Incoming payment (customer pays on sales invoices) ──
+    const allocTotal = sales_allocations.reduce((s, a) => s + a.amount, 0);
+    if (allocTotal > amount + 0.01) {
+      return NextResponse.json({ data: null, error: 'Allocations exceed payment amount' }, { status: 400 });
+    }
+
+    for (const alloc of sales_allocations) {
+      const inv = await prisma.salesInvoice.findUnique({
+        where: { id: alloc.sales_invoice_id },
+        select: { total_amount: true, amount_paid: true, firm_id: true },
+      });
+      if (!inv || inv.firm_id !== firmId) {
+        return NextResponse.json({ data: null, error: `Sales invoice ${alloc.sales_invoice_id} not found` }, { status: 404 });
+      }
+      const balance = Number(inv.total_amount) - Number(inv.amount_paid);
+      if (alloc.amount > balance + 0.01) {
+        return NextResponse.json({ data: null, error: `Allocation exceeds balance for sales invoice` }, { status: 400 });
+      }
+    }
+
+    // Validate receipt links if provided
+    if (claim_ids?.length) {
+      for (const cid of claim_ids) {
+        const receipt = await prisma.claim.findUnique({
+          where: { id: cid },
+          select: { firm_id: true, type: true, paymentReceipts: { take: 1 } },
+        });
+        if (!receipt || receipt.firm_id !== firmId || receipt.type !== 'receipt') {
+          return NextResponse.json({ data: null, error: 'Receipt not found' }, { status: 404 });
+        }
+        if (receipt.paymentReceipts.length > 0) {
+          return NextResponse.json({ data: null, error: 'Receipt already linked to another payment' }, { status: 400 });
+        }
+      }
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        firm_id: firmId,
+        supplier_id,
+        amount,
+        payment_date: new Date(payment_date),
+        reference: reference || null,
+        notes: notes || null,
+        direction: 'incoming',
+        salesAllocations: {
+          create: sales_allocations.map((a) => ({
+            sales_invoice_id: a.sales_invoice_id,
+            amount: a.amount,
+          })),
+        },
+        receipts: claim_ids?.length ? {
+          create: claim_ids.map((cid) => ({ claim_id: cid })),
+        } : undefined,
+      },
+      include: { salesAllocations: true },
+    });
+
+    // Mark receipts as paid
+    if (claim_ids?.length) {
+      await prisma.claim.updateMany({ where: { id: { in: claim_ids } }, data: { payment_status: 'paid' } });
+    }
+
+    for (const alloc of sales_allocations) {
+      await recalcSalesInvoicePayment(alloc.sales_invoice_id);
+    }
+
+    return NextResponse.json({ data: payment, error: null });
+  }
+
+  // ── Outgoing payment (existing flow) ──
+  if (!allocations?.length) {
+    return NextResponse.json({ data: null, error: 'Missing allocations' }, { status: 400 });
   }
 
   // Validate allocations sum <= payment amount
@@ -78,6 +161,7 @@ export async function POST(request: NextRequest) {
       payment_date: new Date(payment_date),
       reference: reference || null,
       notes: notes || null,
+      direction: 'outgoing',
       allocations: {
         create: allocations.map((a) => ({
           invoice_id: a.invoice_id,
@@ -102,9 +186,14 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ data: payment, error: null });
+  } catch (err) {
+    console.error('[API Error]', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function GET(request: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
@@ -125,38 +214,69 @@ export async function GET(request: NextRequest) {
     if (dateTo) where.payment_date.lte = new Date(dateTo);
   }
 
+  const direction = searchParams.get('direction');
+  if (direction) where.direction = direction;
+
   const payments = await prisma.payment.findMany({
     where,
     include: {
       supplier: { select: { name: true } },
-      receipts: { include: { claim: { select: { id: true, receipt_number: true, merchant: true, thumbnail_url: true } } } },
+      receipts: { select: { payment_id: true, claim_id: true } },
       allocations: {
         include: { invoice: { select: { invoice_number: true, vendor_name_raw: true } } },
+      },
+      salesAllocations: {
+        include: { salesInvoice: { select: { invoice_number: true, buyer: { select: { name: true } } } } },
       },
     },
     orderBy: { payment_date: 'desc' },
   });
 
+  // Batch-fetch claim details for all receipts in one query
+  const allClaimIds = payments.flatMap((p) => p.receipts.map((r) => r.claim_id));
+  const claimMap = new Map<string, { id: string; receipt_number: string | null; merchant: string; thumbnail_url: string | null }>();
+  if (allClaimIds.length > 0) {
+    const claims = await prisma.claim.findMany({
+      where: { id: { in: allClaimIds } },
+      select: { id: true, receipt_number: true, merchant: true, thumbnail_url: true },
+    });
+    for (const c of claims) claimMap.set(c.id, c);
+  }
+
   const data = payments.map((p) => ({
     id: p.id,
+    direction: p.direction,
     supplier_name: p.supplier.name,
     amount: p.amount.toString(),
     payment_date: p.payment_date,
     reference: p.reference,
     notes: p.notes,
-    receipts: p.receipts.map((r) => ({
-      id: r.claim.id,
-      receipt_number: r.claim.receipt_number,
-      merchant: r.claim.merchant,
-      thumbnail_url: r.claim.thumbnail_url,
-    })),
+    receipts: p.receipts.map((r) => {
+      const c = claimMap.get(r.claim_id);
+      return {
+        id: c?.id ?? r.claim_id,
+        receipt_number: c?.receipt_number ?? null,
+        merchant: c?.merchant ?? '',
+        thumbnail_url: c?.thumbnail_url ?? null,
+      };
+    }),
     allocations: p.allocations.map((a) => ({
       invoice_id: a.invoice_id,
       invoice_number: a.invoice.invoice_number,
       vendor_name: a.invoice.vendor_name_raw,
       amount: a.amount.toString(),
     })),
+    sales_allocations: p.salesAllocations.map((a) => ({
+      sales_invoice_id: a.sales_invoice_id,
+      invoice_number: a.salesInvoice.invoice_number,
+      buyer_name: a.salesInvoice.buyer.name,
+      amount: a.amount.toString(),
+    })),
   }));
 
   return NextResponse.json({ data, error: null });
+  } catch (err) {
+    console.error('[API Error]', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
+  }
 }

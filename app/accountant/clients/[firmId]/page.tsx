@@ -1,10 +1,12 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
-import { useLogout } from '@/lib/use-logout';
 import { useState, useEffect } from 'react';
-import { usePathname, useParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Sidebar from '@/components/Sidebar';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,6 +17,18 @@ interface FirmDetail {
   contact_email: string | null;
   contact_phone: string | null;
   plan: string;
+  tin: string | null;
+  brn: string | null;
+  msic_code: string | null;
+  sst_registration_number: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  postal_code: string | null;
+  state: string | null;
+  country: string | null;
+  lhdn_client_id: string | null;
+  lhdn_client_secret: string | null;
 }
 
 interface AdminRow {
@@ -33,25 +47,10 @@ function formatDate(val: string) {
   return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// ─── Nav ──────────────────────────────────────────────────────────────────────
-
-const NAV = [
-  { label: 'Dashboard',  href: '/accountant/dashboard',  icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
-  { label: 'Claims',     href: '/accountant/claims',     icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
-  { label: 'Invoices',   href: '/accountant/invoices',   icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-  { label: 'Suppliers',  href: '/accountant/suppliers',  icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Clients',    href: '/accountant/clients',    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { label: 'Employees',  href: '/accountant/employees',  icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
-  { label: 'Categories', href: '/accountant/categories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-];
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function FirmDetailPage() {
-  const { data: session } = useSession();
-  const pathname = usePathname();
   const params = useParams();
-  const handleLogout = useLogout();
   const firmId = params.firmId as string;
 
   // Data
@@ -70,6 +69,20 @@ export default function FirmDetailPage() {
   const [editPlan, setEditPlan]                 = useState('free');
   const [editSaving, setEditSaving]             = useState(false);
   const [firmRefreshKey, setFirmRefreshKey]     = useState(0);
+
+  // LHDN fields
+  const [editTin, setEditTin]                   = useState('');
+  const [editBrn, setEditBrn]                   = useState('');
+  const [editMsic, setEditMsic]                 = useState('');
+  const [editSst, setEditSst]                   = useState('');
+  const [editAddr1, setEditAddr1]               = useState('');
+  const [editAddr2, setEditAddr2]               = useState('');
+  const [editCity, setEditCity]                  = useState('');
+  const [editPostal, setEditPostal]             = useState('');
+  const [editState, setEditState]               = useState('');
+  const [editCountry, setEditCountry]           = useState('MYS');
+  const [editLhdnId, setEditLhdnId]             = useState('');
+  const [editLhdnSecret, setEditLhdnSecret]     = useState('');
 
   // Add Admin Modal
   const [showModal, setShowModal]       = useState(false);
@@ -119,6 +132,18 @@ export default function FirmDetailPage() {
     setEditEmail(firm.contact_email ?? '');
     setEditPhone(firm.contact_phone ?? '');
     setEditPlan(firm.plan);
+    setEditTin(firm.tin ?? '');
+    setEditBrn(firm.brn ?? '');
+    setEditMsic(firm.msic_code ?? '');
+    setEditSst(firm.sst_registration_number ?? '');
+    setEditAddr1(firm.address_line1 ?? '');
+    setEditAddr2(firm.address_line2 ?? '');
+    setEditCity(firm.city ?? '');
+    setEditPostal(firm.postal_code ?? '');
+    setEditState(firm.state ?? '');
+    setEditCountry(firm.country ?? 'MYS');
+    setEditLhdnId(firm.lhdn_client_id ?? '');
+    setEditLhdnSecret(firm.lhdn_client_secret ?? '');
     setShowEditPanel(true);
   };
 
@@ -134,6 +159,18 @@ export default function FirmDetailPage() {
           contactEmail: editEmail.trim(),
           contactPhone: editPhone.trim(),
           plan: editPlan,
+          tin: editTin.trim(),
+          brn: editBrn.trim(),
+          msic_code: editMsic.trim(),
+          sst_registration_number: editSst.trim(),
+          address_line1: editAddr1.trim(),
+          address_line2: editAddr2.trim(),
+          city: editCity.trim(),
+          postal_code: editPostal.trim(),
+          state: editState.trim(),
+          country: editCountry.trim(),
+          lhdn_client_id: editLhdnId.trim(),
+          lhdn_client_secret: editLhdnSecret.trim(),
         }),
       });
       if (res.ok) { setShowEditPanel(false); setFirmRefreshKey((k) => k + 1); }
@@ -186,49 +223,15 @@ export default function FirmDetailPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8F9FB]">
+    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
 
-      {/* ═══ SIDEBAR ═══ */}
-      <aside className="w-[220px] flex-shrink-0 flex flex-col border-r border-white/[0.06]" style={{ backgroundColor: '#152237' }}>
-        <div className="h-14 flex items-center gap-2 px-5">
-          <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ backgroundColor: '#A60201' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <span className="text-white font-bold text-base tracking-tight">Autosettle</span>
-        </div>
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
-          {NAV.map(({ label, href, icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link key={href} href={href} className={`relative flex items-center gap-2.5 h-9 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${active ? 'text-white bg-white/[0.1]' : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
-                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full" style={{ backgroundColor: '#A60201' }} />}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d={icon} /></svg>
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="p-4 border-t border-white/[0.06]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/70 text-xs font-bold">{(session?.user?.name ?? '?')[0]}</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-white text-[13px] font-medium truncate">{session?.user?.name ?? '—'}</p>
-              <p className="text-white/35 text-[11px] capitalize">{session?.user?.role ?? ''}</p>
-            </div>
-          </div>
-          <button onClick={handleLogout} className="mt-3 w-full text-[11px] text-white/40 hover:text-white/70 py-1.5 px-2 rounded-md border border-white/[0.08] hover:border-white/20 hover:bg-white/[0.03] transition-all text-left">Sign out</button>
-        </div>
-      </aside>
+      <Sidebar role="accountant" />
 
-      {/* ═══ MAIN ═══ */}
+      {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-semibold text-[15px]">Firm Details</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Firm Details</h1>
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
@@ -243,18 +246,18 @@ export default function FirmDetailPage() {
           </Link>
 
           {firmLoading ? (
-            <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
           ) : !firm ? (
-            <div className="px-5 py-12 text-center text-sm text-gray-400">Firm not found.</div>
+            <div className="px-6 py-12 text-center text-sm text-gray-400">Firm not found.</div>
           ) : (
             <>
-              {/* ════════════════════ FIRM INFO CARD ════════════════════ */}
-              <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
+              {/* ── FIRM INFO CARD ── */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-[15px] font-semibold text-gray-900">{firm.name}</h2>
                   <button
                     onClick={openEditPanel}
-                    className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                    className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                   >
                     Edit
                   </button>
@@ -281,64 +284,110 @@ export default function FirmDetailPage() {
                     )}
                   </div>
                 </div>
+
+                {/* LHDN / E-Invoice Details */}
+                {(firm.tin || firm.brn || firm.msic_code || firm.sst_registration_number || firm.address_line1) && (
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {firm.tin && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">TIN</p>
+                          <p className="text-[13px] text-gray-900">{firm.tin}</p>
+                        </div>
+                      )}
+                      {firm.brn && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">BRN</p>
+                          <p className="text-[13px] text-gray-900">{firm.brn}</p>
+                        </div>
+                      )}
+                      {firm.msic_code && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">MSIC Code</p>
+                          <p className="text-[13px] text-gray-900">{firm.msic_code}</p>
+                        </div>
+                      )}
+                      {firm.sst_registration_number && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">SST Registration</p>
+                          <p className="text-[13px] text-gray-900">{firm.sst_registration_number}</p>
+                        </div>
+                      )}
+                      {firm.address_line1 && (
+                        <div className="col-span-2">
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Address</p>
+                          <p className="text-[13px] text-gray-900">
+                            {firm.address_line1}{firm.address_line2 ? `, ${firm.address_line2}` : ''}{firm.city ? `, ${firm.city}` : ''}{firm.postal_code ? ` ${firm.postal_code}` : ''}{firm.state ? `, ${firm.state}` : ''}
+                          </p>
+                        </div>
+                      )}
+                      {firm.lhdn_client_id && (
+                        <div>
+                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">LHDN Credentials</p>
+                          <span className="badge-green text-[10px]">Configured</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* ════════════════════ QUICK LINKS ════════════════════ */}
+              {/* ── QUICK LINKS ── */}
               <div className="flex items-center gap-3">
                 <Link
                   href={`/accountant/claims?firmId=${firmId}`}
-                  className="text-sm px-4 py-2 rounded-md font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="text-sm px-4 py-2 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   View Claims
                 </Link>
                 <Link
                   href={`/accountant/receipts?firmId=${firmId}`}
-                  className="text-sm px-4 py-2 rounded-md font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="text-sm px-4 py-2 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   View Receipts
                 </Link>
               </div>
 
-              {/* ════════════════════ ADMINS SECTION ════════════════════ */}
-              <div className="bg-white rounded-lg border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              {/* ── ADMINS SECTION ── */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+                <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
                   <h2 className="text-[13px] font-semibold text-gray-900">Admins</h2>
                   <button
                     onClick={openModal}
-                    className="text-xs px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
+                    className="text-xs px-3 py-1.5 rounded-xl font-medium btn-primary"
                   >
                     Add Admin
                   </button>
                 </div>
                 {adminsLoading ? (
-                  <div className="px-5 py-10 text-center text-sm text-gray-400">Loading...</div>
+                  <div className="px-6 py-10 text-center text-sm text-gray-400">Loading...</div>
                 ) : admins.length === 0 ? (
-                  <div className="px-5 py-10 text-center text-sm text-gray-400">No admins found for this firm.</div>
+                  <div className="px-6 py-10 text-center text-sm text-gray-400">No admins found for this firm.</div>
                 ) : (
                   <div className="overflow-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-                          <th className="px-5 py-2.5">Name</th>
-                          <th className="px-5 py-2.5">Email</th>
-                          <th className="px-5 py-2.5">Status</th>
-                          <th className="px-5 py-2.5">Date Added</th>
+                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                          <th className="px-6 py-2.5">Name</th>
+                          <th className="px-6 py-2.5">Email</th>
+                          <th className="px-6 py-2.5">Status</th>
+                          <th className="px-6 py-2.5">Date Added</th>
                         </tr>
                       </thead>
                       <tbody>
                         {admins.map((admin, i) => (
-                          <tr key={admin.id} className={`text-[13px] hover:bg-gray-50/50 transition-colors ${i < admins.length - 1 ? 'border-b border-gray-50' : ''}`}>
-                            <td className="px-5 py-3 text-gray-900 font-medium">{admin.name}</td>
-                            <td className="px-5 py-3 text-gray-600">{admin.email}</td>
-                            <td className="px-5 py-3">
+                          <tr key={admin.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < admins.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                            <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
+                            <td className="px-6 py-3 text-gray-600">{admin.email}</td>
+                            <td className="px-6 py-3">
                               {admin.status === 'active' ? (
                                 <span className="badge-green">Active</span>
                               ) : (
                                 <span className="badge-gray">Inactive</span>
                               )}
                             </td>
-                            <td className="px-5 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
+                            <td className="px-6 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -352,12 +401,12 @@ export default function FirmDetailPage() {
         </main>
       </div>
 
-      {/* ═══ EDIT FIRM SIDE PANEL ═══ */}
+      {/* === EDIT FIRM SIDE PANEL === */}
       {showEditPanel && (
         <>
-          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowEditPanel(false)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowEditPanel(false)} />
+          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
               <h2 className="text-white font-semibold text-sm">Edit Client</h2>
               <button onClick={() => setShowEditPanel(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -388,13 +437,91 @@ export default function FirmDetailPage() {
                   </select>
                 </div>
               </div>
+
+              {/* LHDN / E-Invoice Section */}
+              <div className="pt-2">
+                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label">TIN</label>
+                      <input type="text" value={editTin} onChange={(e) => setEditTin(e.target.value)} className="input-field w-full" placeholder="Tax ID Number" />
+                    </div>
+                    <div>
+                      <label className="input-label">BRN</label>
+                      <input type="text" value={editBrn} onChange={(e) => setEditBrn(e.target.value)} className="input-field w-full" placeholder="Business Reg No" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label">MSIC Code</label>
+                      <input type="text" value={editMsic} onChange={(e) => setEditMsic(e.target.value)} className="input-field w-full" placeholder="5-digit code" />
+                    </div>
+                    <div>
+                      <label className="input-label">SST Registration</label>
+                      <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Section */}
+              <div className="pt-2">
+                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Address</h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="input-label">Address Line 1</label>
+                    <input type="text" value={editAddr1} onChange={(e) => setEditAddr1(e.target.value)} className="input-field w-full" placeholder="Street address" />
+                  </div>
+                  <div>
+                    <label className="input-label">Address Line 2</label>
+                    <input type="text" value={editAddr2} onChange={(e) => setEditAddr2(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label">City</label>
+                      <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} className="input-field w-full" />
+                    </div>
+                    <div>
+                      <label className="input-label">Postal Code</label>
+                      <input type="text" value={editPostal} onChange={(e) => setEditPostal(e.target.value)} className="input-field w-full" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="input-label">State</label>
+                      <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} className="input-field w-full" />
+                    </div>
+                    <div>
+                      <label className="input-label">Country</label>
+                      <input type="text" value={editCountry} onChange={(e) => setEditCountry(e.target.value)} className="input-field w-full" placeholder="MYS" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LHDN Credentials Section */}
+              <div className="pt-2">
+                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
+                <p className="text-[11px] text-gray-400 mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="input-label">Client ID</label>
+                    <input type="text" value={editLhdnId} onChange={(e) => setEditLhdnId(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  </div>
+                  <div>
+                    <label className="input-label">Client Secret</label>
+                    <input type="password" value={editLhdnSecret} onChange={(e) => setEditLhdnSecret(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
-              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setShowEditPanel(false)} className="flex-1 py-2 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setShowEditPanel(false)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -402,9 +529,9 @@ export default function FirmDetailPage() {
         </>
       )}
 
-      {/* ═══ ADD ADMIN MODAL ═══ */}
+      {/* === ADD ADMIN MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin user for this firm.</p>
@@ -463,15 +590,14 @@ export default function FirmDetailPage() {
               <button
                 onClick={submitAdmin}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Creating...' : 'Create Admin'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

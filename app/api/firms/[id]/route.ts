@@ -31,7 +31,10 @@ export async function PATCH(
   }
 
   const body = await request.json();
-  const { name, registrationNumber, contactEmail, contactPhone, plan, is_active } = body;
+  const { name, registrationNumber, contactEmail, contactPhone, plan, is_active,
+    tin, brn, msic_code, sst_registration_number,
+    address_line1, address_line2, city, postal_code, state, country,
+    lhdn_client_id, lhdn_client_secret } = body;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any = {};
@@ -41,6 +44,20 @@ export async function PATCH(
   if (contactPhone !== undefined) data.contact_phone = contactPhone || null;
   if (plan !== undefined) data.plan = plan;
   if (typeof is_active === 'boolean') data.is_active = is_active;
+
+  // LHDN fields
+  if (tin !== undefined) data.tin = tin || null;
+  if (brn !== undefined) data.brn = brn || null;
+  if (msic_code !== undefined) data.msic_code = msic_code || null;
+  if (sst_registration_number !== undefined) data.sst_registration_number = sst_registration_number || null;
+  if (address_line1 !== undefined) data.address_line1 = address_line1 || null;
+  if (address_line2 !== undefined) data.address_line2 = address_line2 || null;
+  if (city !== undefined) data.city = city || null;
+  if (postal_code !== undefined) data.postal_code = postal_code || null;
+  if (state !== undefined) data.state = state || null;
+  if (country !== undefined) data.country = country || null;
+  if (lhdn_client_id !== undefined) data.lhdn_client_id = lhdn_client_id || null;
+  if (lhdn_client_secret !== undefined) data.lhdn_client_secret = lhdn_client_secret || null;
 
   try {
     const updated = await prisma.firm.update({
