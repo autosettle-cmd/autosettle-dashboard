@@ -595,7 +595,7 @@ function ClaimsPage() {
                     ? 'text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
-                style={claimTab === key ? { backgroundColor: '#152237' } : undefined}
+                style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
               >
                 {label}
                 <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
@@ -711,7 +711,7 @@ function ClaimsPage() {
                 <button
                   key={t}
                   onClick={() => setModalType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
                   {t === 'claim' ? 'Claim' : t === 'receipt' ? 'Receipt' : 'Mileage'}
                 </button>
@@ -838,7 +838,7 @@ function ClaimsPage() {
                 onClick={submitClaim}
                 disabled={modalSaving || ocrScanning}
                 className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                style={{ backgroundColor: 'var(--accent)' }}
               >
                 {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
               </button>
@@ -856,7 +856,7 @@ function ClaimsPage() {
 
       {/* ═══════════════════════ BATCH BAR ═══════════════════════ */}
       {selectedRows.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-full shadow-2xl text-white" style={{ backgroundColor: '#152237' }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-full shadow-2xl text-white" style={{ backgroundColor: 'var(--sidebar)' }}>
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedRows.length} claim{selectedRows.length !== 1 ? 's' : ''} selected
           </span>
@@ -864,7 +864,7 @@ function ClaimsPage() {
           <button
             onClick={() => batchAction(selectedRows.map((r) => r.id), 'approve')}
             className="btn-primary text-sm px-4 py-1.5 rounded-full font-medium transition-opacity hover:opacity-85"
-            style={{ backgroundColor: '#A60201' }}
+            style={{ backgroundColor: 'var(--accent)' }}
           >
             Approve
           </button>
@@ -888,7 +888,7 @@ function ClaimsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Preview</h2>
               <div className="flex items-center gap-2">
                 <button
@@ -1042,7 +1042,7 @@ function ClaimsPage() {
                   onClick={saveEdit}
                   disabled={editSaving}
                   className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: '#A60201' }}
+                  style={{ backgroundColor: 'var(--accent)' }}
                 >
                   {editSaving ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -1052,7 +1052,7 @@ function ClaimsPage() {
                     onClick={() => batchAction([previewClaim.id], 'approve')}
                     disabled={previewClaim.approval === 'approved'}
                     className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
+                    style={{ backgroundColor: 'var(--accent)' }}
                   >
                     Approve
                   </button>
@@ -1082,14 +1082,14 @@ function ClaimsPage() {
               placeholder="Enter rejection reason…"
               rows={4}
               autoFocus
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#152237]/20 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--sidebar)]/20 resize-none"
             />
             <div className="flex gap-3 mt-4">
               <button
                 onClick={confirmReject}
                 disabled={!rejectModal.reason.trim()}
                 className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                style={{ backgroundColor: 'var(--accent)' }}
               >
                 Confirm Reject
               </button>

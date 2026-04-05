@@ -384,7 +384,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       <button
                         onClick={(e) => { e.stopPropagation(); setPreview(inv); }}
                         className="text-xs font-medium hover:underline transition-colors"
-                        style={{ color: '#A60201' }}
+                        style={{ color: 'var(--accent)' }}
                       >
                         View
                       </button>
@@ -403,7 +403,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowCreate(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: '#152237' }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">New Sales Invoice</h2>
                 <button onClick={() => setShowCreate(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
@@ -509,7 +509,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       type="button"
                       onClick={() => setLineItems((prev) => [...prev, emptyLineItem()])}
                       className="text-xs font-medium hover:underline transition-colors"
-                      style={{ color: '#A60201' }}
+                      style={{ color: 'var(--accent)' }}
                     >
                       + Add Line Item
                     </button>
@@ -624,7 +624,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreview(null)} />
           <div className="fixed right-0 top-0 h-screen w-[420px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Sales Invoice Details</h2>
               <button onClick={() => setPreview(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -687,7 +687,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 onClick={() => deleteInvoice(preview.id)}
                 disabled={deleting}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#A60201' }}
+                style={{ backgroundColor: 'var(--accent)' }}
               >
                 {deleting ? 'Deleting...' : 'Delete Invoice'}
               </button>

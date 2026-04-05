@@ -537,7 +537,7 @@ function AdminClaimsPage() {
                     ? 'text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
-                style={claimTab === key ? { backgroundColor: '#152237' } : undefined}
+                style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
               >
                 {label}
                 <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
@@ -644,7 +644,7 @@ function AdminClaimsPage() {
                 <button
                   key={t}
                   onClick={() => setModalType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
                 >
                   {t === 'claim' ? 'Claim' : t === 'receipt' ? 'Receipt' : 'Mileage'}
                 </button>
@@ -731,7 +731,7 @@ function AdminClaimsPage() {
                             <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />
                           ) : null}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
-                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[#A60201] hover:text-[#8B0101]">Remove</button>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)]">Remove</button>
                         </div>
                       ) : (
                         <div>
@@ -777,7 +777,7 @@ function AdminClaimsPage() {
 
       {/* ═══ BATCH BAR ═══ */}
       {selectedRows.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white" style={{ backgroundColor: '#152237' }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white" style={{ backgroundColor: 'var(--sidebar)' }}>
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedRows.length} claim{selectedRows.length !== 1 ? 's' : ''} selected
           </span>
@@ -802,7 +802,7 @@ function AdminClaimsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-5 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-5 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-bold text-[15px] tracking-tight">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -902,7 +902,7 @@ function AdminClaimsPage() {
                             if (res.ok) { setPreviewClaim(null); refresh(); }
                           } catch (e) { console.error(e); }
                         }}
-                        className="text-xs text-[#A60201] hover:text-[#8B0101] font-medium"
+                        className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)] font-medium"
                       >
                         Unlink from Payment
                       </button>
@@ -966,7 +966,7 @@ function AdminClaimsPage() {
                     onClick={() => batchReview([previewClaim.id])}
                     disabled={previewClaim.status === 'reviewed'}
                     className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#152237' }}
+                    style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Mark as Reviewed
                   </button>

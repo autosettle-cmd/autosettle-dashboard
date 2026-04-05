@@ -7,6 +7,7 @@ import { deleteSession, updateSession, removePendingReceipt } from "@/lib/whatsa
 import { uploadToDrive } from "@/lib/whatsapp/drive";
 import type { EmployeeInfo } from "@/lib/whatsapp/employees";
 import { sendTelegramAlert } from "@/lib/whatsapp/errorNotify";
+import { brand } from "@/config/branding";
 type SessionData = Awaited<ReturnType<typeof import("@/lib/whatsapp/session").getSession>>;
 
 let authClient: GoogleAuth | null = null;
@@ -113,7 +114,7 @@ function buildSystemPrompt(
   session: SessionData | null,
   messageText: string
 ): string {
-  return `You are Lisa, the Autosettle AI assistant. You help Malaysian SME employees with their expense claims via WhatsApp.
+  return `You are ${brand.ai.name}, the ${brand.name} AI assistant. You help Malaysian SME employees with their expense claims via WhatsApp.
 
 Client context:
 - Name: ${employee.name}

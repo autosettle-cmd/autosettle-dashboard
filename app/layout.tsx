@@ -4,6 +4,8 @@ import "./globals.css";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import { Providers } from "./providers";
+import BrandingStyles from "@/components/BrandingStyles";
+import { brand } from "@/config/branding";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -11,8 +13,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Autosettle",
-  description: "Expense management for Malaysian accounting firms",
+  title: brand.name,
+  description: brand.tagline,
 };
 
 export default function RootLayout({
@@ -22,6 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <BrandingStyles />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
       </body>

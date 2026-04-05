@@ -429,7 +429,7 @@ export default function PeoplePage() {
               <button
                 onClick={openAdminModal}
                 className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Add Admin
               </button>
@@ -725,7 +725,7 @@ export default function PeoplePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditEmp(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Edit Employee</h2>
               <button onClick={() => setEditEmp(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -767,7 +767,7 @@ export default function PeoplePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditAdmin(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Edit Admin</h2>
               <button onClick={() => setEditAdmin(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>

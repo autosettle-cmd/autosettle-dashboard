@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { login, checkEmail, resetPassword } from "./actions";
+import { brand } from '@/config/branding';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -92,7 +93,7 @@ function Particle({ x, y, size, delay }: { x: number; y: number; size: number; d
         top: `${y}%`,
         width: size,
         height: size,
-        backgroundColor: "rgba(166, 2, 1, 0.3)",
+        backgroundColor: "rgba(var(--accent-rgb), 0.3)",
         animation: `particle-float 8s ease-in-out ${delay}s infinite`,
       }}
     />
@@ -188,7 +189,7 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#A60201]/40 focus:border-[#A60201]/20 focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-[15px] focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
     "block text-white/40 text-[11px] font-semibold uppercase tracking-[0.15em] mb-2.5";
@@ -201,15 +202,15 @@ export default function LoginPage() {
       <div
         className="flex items-center gap-2.5 px-4 py-3 rounded-xl border"
         style={{
-          backgroundColor: "rgba(166, 2, 1, 0.08)",
-          borderColor: "rgba(166, 2, 1, 0.2)",
+          backgroundColor: "rgba(var(--accent-rgb), 0.08)",
+          borderColor: "rgba(var(--accent-rgb), 0.2)",
         }}
       >
         <div
           className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: "rgba(166, 2, 1, 0.2)" }}
+          style={{ backgroundColor: "rgba(var(--accent-rgb), 0.2)" }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#A60201" strokeWidth="3" strokeLinecap="round">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -263,7 +264,7 @@ export default function LoginPage() {
               left: "50%",
               top: "50%",
               transform: "translate(-50%, -50%)",
-              background: "radial-gradient(circle, rgba(166,2,1,0.12) 0%, transparent 65%)",
+              background: "radial-gradient(circle, rgba(var(--accent-rgb),0.12) 0%, transparent 65%)",
               animation: "gradient-shift 6s ease-in-out infinite",
             }}
           />
@@ -275,7 +276,7 @@ export default function LoginPage() {
               teeth={32}
               toothDepth={12}
               toothWidth={18}
-              strokeColor="rgba(166, 2, 1, 0.12)"
+              strokeColor="rgba(var(--accent-rgb), 0.12)"
               duration={120}
               reverse={false}
             />
@@ -293,7 +294,7 @@ export default function LoginPage() {
               teeth={16}
               toothDepth={8}
               toothWidth={14}
-              strokeColor="rgba(166, 2, 1, 0.08)"
+              strokeColor="rgba(var(--accent-rgb), 0.08)"
               duration={60}
               reverse={false}
             />
@@ -310,7 +311,7 @@ export default function LoginPage() {
             {/* Center dot */}
             <div
               className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
-              style={{ backgroundColor: "rgba(166, 2, 1, 0.3)" }}
+              style={{ backgroundColor: "rgba(var(--accent-rgb), 0.3)" }}
             />
           </div>
 
@@ -325,13 +326,12 @@ export default function LoginPage() {
           {/* Brand content overlay */}
           <div className="absolute bottom-16 left-12 right-12 z-10">
             <img
-              src="/logo.png"
-              alt="Autosettle AI Solutions"
+              src={brand.logo}
+              alt={brand.logoAlt}
               className="h-10 mb-6 opacity-80"
             />
             <p className="text-white/25 text-[13px] leading-relaxed max-w-[320px]">
-              AI-powered expense management built for Malaysian accounting firms.
-              Invoices, claims, reconciliation — settled automatically.
+              {brand.description}
             </p>
           </div>
 
@@ -340,7 +340,7 @@ export default function LoginPage() {
             className="absolute right-0 top-0 bottom-0 w-px"
             style={{
               background:
-                "linear-gradient(to bottom, transparent, rgba(166, 2, 1, 0.2) 30%, rgba(166, 2, 1, 0.3) 50%, rgba(166, 2, 1, 0.2) 70%, transparent)",
+                "linear-gradient(to bottom, transparent, rgba(var(--accent-rgb), 0.2) 30%, rgba(var(--accent-rgb), 0.3) 50%, rgba(var(--accent-rgb), 0.2) 70%, transparent)",
             }}
           />
         </div>
@@ -350,7 +350,7 @@ export default function LoginPage() {
           {/* Mobile background effects */}
           <div
             className="lg:hidden absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-15 blur-[100px]"
-            style={{ background: "radial-gradient(circle, #A60201 0%, transparent 70%)" }}
+            style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
           />
 
           <div
@@ -362,15 +362,15 @@ export default function LoginPage() {
           >
             {/* Mobile logo */}
             <div className="lg:hidden flex items-center justify-center mb-12">
-              <img src="/logo.png" alt="Autosettle AI Solutions" className="h-12" />
+              <img src={brand.logo} alt={brand.logoAlt} className="h-12" />
             </div>
 
             {/* Desktop heading */}
             <div className="hidden lg:block mb-10">
               <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "#A60201" }} />
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--accent)" }} />
                 <span className="text-white/30 text-[11px] font-semibold uppercase tracking-[0.2em]">
-                  Autosettle Portal
+                  {brand.portalTitle}
                 </span>
               </div>
             </div>

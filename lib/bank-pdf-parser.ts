@@ -208,11 +208,14 @@ function detectBank(text: string): string {
 
 // ─── Main Export ─────────────────────────────────────────────────────────────
 
-export async function parseBankStatementPDF(pdfBuffer: Buffer): Promise<ParseResult> {
+export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string): Promise<ParseResult> {
   const fileHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
   try {
-    const data = await pdf(pdfBuffer);
+    const options: Record<string, unknown> = {};
+    if (password) options.password = password;
+
+    const data = await pdf(pdfBuffer, options);
     const fullText = data.text;
     const bank = detectBank(fullText);
 
@@ -234,6 +237,9 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer): Promise<ParseRes
       errors: [`Bank format "${bank}" is not yet supported. Please contact support.`],
     };
   } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const isPasswordError = /password|encrypted|decrypt/i.test(msg);
+
     return {
       transactions: [],
       bankName: 'Unknown',
@@ -244,7 +250,9 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer): Promise<ParseRes
       totalCredit: null,
       totalDebit: null,
       fileHash,
-      errors: [`PDF parsing failed: ${e instanceof Error ? e.message : String(e)}`],
+      errors: [isPasswordError
+        ? (password ? 'Incorrect password for this PDF.' : 'PASSWORD_REQUIRED')
+        : `PDF parsing failed: ${msg}`],
     };
   }
 }

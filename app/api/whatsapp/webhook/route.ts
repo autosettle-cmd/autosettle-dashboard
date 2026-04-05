@@ -8,6 +8,7 @@ import { uploadToDrive } from "@/lib/whatsapp/drive";
 import { saveClaim, logMessage, getClaimsForPhone } from "@/lib/whatsapp/claims";
 import { saveInvoice } from "@/lib/whatsapp/invoices";
 import { getSession, addPendingReceipt, removePendingReceipt, generateReceiptKey, updateSession } from "@/lib/whatsapp/session";
+import { Prisma } from "@/generated/prisma";
 import { handleLisa } from "@/lib/whatsapp/lisa";
 import { startMileageFlow, handleMileageStep, confirmMileageClaim, rejectMileageClaim } from "@/lib/whatsapp/mileage";
 import { sendTelegramAlert } from "@/lib/whatsapp/errorNotify";
@@ -97,6 +98,17 @@ async function routeMessage(
       const textBody = (message.text as { body: string })?.body || "";
       console.log(`[WhatsApp] Text message from ${phone}: "${textBody}"`);
       const session = await getSession(phone);
+
+      // Bank statement password flow
+      if (session?.step === "BANK_STATEMENT_PASSWORD") {
+        if (textBody.toLowerCase().trim() === "cancel") {
+          await updateSession(session.id, { step: null, pending_receipt: Prisma.DbNull });
+          await sendTextMessage(phone, "Bank statement upload cancelled.");
+          break;
+        }
+        await handleBankStatementPassword(phone, employee, session, textBody.trim());
+        break;
+      }
 
       // Mileage flow — deterministic step-by-step collection (no LLM needed)
       if (session?.step?.startsWith("MILEAGE_") && session.step !== "MILEAGE_CONFIRM") {
@@ -426,6 +438,32 @@ async function handleDocumentMessage(
 
       const result = await parseBankStatementPDF(pdfBuffer);
 
+      // Password-protected PDF — ask user for password
+      if (result.errors.includes("PASSWORD_REQUIRED")) {
+        const session = await getSession(phone);
+        const sessionData = {
+          bank_statement_pdf: pdfBuffer.toString("base64"),
+          filename: doc.filename ?? "bank_statement.pdf",
+        };
+        if (session) {
+          await updateSession(session.id, {
+            step: "BANK_STATEMENT_PASSWORD",
+            pending_receipt: sessionData as unknown as Prisma.InputJsonValue,
+          });
+        } else {
+          await prisma.session.create({
+            data: {
+              phone,
+              state: "COLLECTING",
+              step: "BANK_STATEMENT_PASSWORD",
+              pending_receipt: sessionData as unknown as Prisma.InputJsonValue,
+            },
+          });
+        }
+        await sendTextMessage(phone, "This bank statement PDF is password-protected. Please reply with the password.");
+        return;
+      }
+
       if (result.transactions.length === 0) {
         await sendTextMessage(phone, `Could not parse bank statement${result.errors.length > 0 ? ": " + result.errors[0] : ""}. Please upload via the dashboard instead.`);
         return;
@@ -657,6 +695,105 @@ async function handleDocumentMessage(
       context: { location: "handleDocumentMessage", phone, messageType: "document" },
     });
     await sendTextMessage(phone, "Sorry, there was an error processing your document. Please try again.");
+  }
+}
+
+async function handleBankStatementPassword(
+  phone: string,
+  employee: EmployeeInfo,
+  session: { id: string; pending_receipt: unknown },
+  password: string,
+) {
+  try {
+    const data = session.pending_receipt as { bank_statement_pdf?: string; filename?: string } | null;
+    if (!data?.bank_statement_pdf) {
+      await updateSession(session.id, { step: null, pending_receipt: Prisma.DbNull });
+      await sendTextMessage(phone, "Session expired. Please resend the bank statement PDF.");
+      return;
+    }
+
+    const pdfBuffer = Buffer.from(data.bank_statement_pdf, "base64");
+    const { parseBankStatementPDF } = await import("@/lib/bank-pdf-parser");
+    const { autoMatchTransactions } = await import("@/lib/bank-reconciliation");
+    const { getDriveViewUrl } = await import("@/lib/whatsapp/drive");
+
+    const result = await parseBankStatementPDF(pdfBuffer, password);
+
+    if (result.errors.includes("Incorrect password for this PDF.")) {
+      await sendTextMessage(phone, "Incorrect password. Please try again, or send *cancel* to abort.");
+      return;
+    }
+
+    // Clear session state
+    await updateSession(session.id, { step: null, pending_receipt: Prisma.DbNull });
+
+    if (result.transactions.length === 0) {
+      await sendTextMessage(phone, `Could not parse bank statement${result.errors.length > 0 ? ": " + result.errors[0] : ""}. Please upload via the dashboard instead.`);
+      return;
+    }
+
+    // Check duplicate
+    const existing = await prisma.bankStatement.findUnique({ where: { file_hash: result.fileHash } });
+    if (existing) {
+      await sendTextMessage(phone, "This bank statement has already been uploaded.");
+      return;
+    }
+
+    // Upload to Google Drive
+    let fileUrl: string | null = null;
+    try {
+      const dateStr = result.statementDate ? result.statementDate.toISOString().split("T")[0] : "unknown";
+      const driveFilename = `BANK_${result.bankName}_${result.accountNumber ?? "NA"}_${dateStr}.pdf`;
+      const { fileId } = await uploadToDrive(pdfBuffer, driveFilename, "application/pdf");
+      fileUrl = getDriveViewUrl(fileId);
+    } catch (e) {
+      console.error("[WhatsApp] Bank statement Drive upload failed:", e);
+    }
+
+    const userId = employee.userId ?? (await prisma.user.findFirst({ where: { firm_id: employee.firmId, role: employee.role as "admin" | "accountant" }, select: { id: true } }))?.id ?? "";
+
+    const statement = await prisma.bankStatement.create({
+      data: {
+        firm_id: employee.firmId,
+        bank_name: result.bankName,
+        account_number: result.accountNumber,
+        statement_date: result.statementDate ?? new Date(),
+        opening_balance: result.openingBalance,
+        closing_balance: result.closingBalance,
+        file_name: data.filename ?? "bank_statement.pdf",
+        file_hash: result.fileHash,
+        file_url: fileUrl,
+        uploaded_by: userId,
+        transactions: {
+          create: result.transactions.map((t) => ({
+            transaction_date: t.transactionDate,
+            description: t.description,
+            reference: t.reference,
+            cheque_number: t.chequeNumber,
+            debit: t.debit,
+            credit: t.credit,
+            balance: t.balance,
+          })),
+        },
+      },
+    });
+
+    const matchResult = await autoMatchTransactions(employee.firmId, statement.id);
+
+    await sendTextMessage(phone,
+      `📋 *Bank Statement Uploaded*\n\n` +
+      `Bank: ${result.bankName}\n` +
+      `Account: ${result.accountNumber ?? "N/A"}\n` +
+      `Period: ${result.statementDate ? result.statementDate.toISOString().split("T")[0] : "N/A"}\n` +
+      `Transactions: ${result.transactions.length}\n` +
+      `Auto-matched: ${matchResult.matched}\n` +
+      `Unmatched: ${matchResult.unmatched}\n\n` +
+      `View: ${process.env.NEXTAUTH_URL}/admin/bank-reconciliation/${statement.id}`
+    );
+  } catch (err) {
+    console.error("[WhatsApp] Bank statement password retry error:", err);
+    await updateSession(session.id, { step: null, pending_receipt: Prisma.DbNull });
+    await sendTextMessage(phone, "Error processing bank statement. Please try uploading again.");
   }
 }
 

@@ -516,7 +516,7 @@ export default function ReconciliationWorkspacePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
             </div>
@@ -542,7 +542,7 @@ export default function ReconciliationWorkspacePage() {
               <button
                 onClick={() => window.open(`/admin/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
                 className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
               </button>
@@ -556,7 +556,7 @@ export default function ReconciliationWorkspacePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
             </div>
@@ -585,7 +585,7 @@ export default function ReconciliationWorkspacePage() {
               <button
                 onClick={() => window.open(`/admin/claims?search=${encodeURIComponent(previewReceipt.receipt_number ?? previewReceipt.merchant)}`, '_blank')}
                 className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Claims
               </button>

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { brand } from '@/config/branding';
 
 // ─── Nav configs per role ────────────────────────────────────────────────────
 
@@ -73,12 +74,12 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
   }, [role]);
 
   return (
-    <aside className="w-[232px] flex-shrink-0 flex flex-col" style={{ backgroundColor: '#152237' }}>
+    <aside className="w-[232px] flex-shrink-0 flex flex-col" style={{ backgroundColor: 'var(--sidebar)' }}>
       {/* Logo */}
       <div className="h-16 flex items-center gap-2.5 px-5 border-b border-white/[0.06]">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg"
-          style={{ background: 'linear-gradient(135deg, #A60201 0%, #8B0101 100%)' }}
+          style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%)' }}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -87,7 +88,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
           </svg>
         </div>
         <div className="min-w-0 flex-1">
-          <span className="text-white font-bold text-[15px] tracking-tight block leading-tight">Autosettle</span>
+          <span className="text-white font-bold text-[15px] tracking-tight block leading-tight">{brand.name}</span>
           <span className="text-white/25 text-[10px] font-medium tracking-wider uppercase block truncate">{firmName ?? ROLE_LABELS[role]}</span>
         </div>
       </div>
@@ -109,7 +110,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
               {active && (
                 <span
                   className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full"
-                  style={{ backgroundColor: '#A60201' }}
+                  style={{ backgroundColor: 'var(--accent)' }}
                 />
               )}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -126,7 +127,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
         <div className="flex items-center gap-2.5">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-inner"
-            style={{ background: 'linear-gradient(135deg, rgba(166,2,1,0.4) 0%, rgba(166,2,1,0.2) 100%)', border: '1px solid rgba(166,2,1,0.3)' }}
+            style={{ background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.4) 0%, rgba(var(--accent-rgb),0.2) 100%)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}
           >
             {(session?.user?.name ?? '?')[0]}
           </div>

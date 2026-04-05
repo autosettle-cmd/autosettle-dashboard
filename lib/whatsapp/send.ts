@@ -1,3 +1,5 @@
+import { brand } from "@/config/branding";
+
 const WHATSAPP_API_URL = `https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 
 function headers() {
@@ -100,7 +102,7 @@ export async function sendInteractiveMenu(to: string, name: string) {
                 {
                   id: "menu_help",
                   title: "Help",
-                  description: "Get help with Autosettle",
+                  description: `Get help with ${brand.name}`,
                 },
               ],
             },

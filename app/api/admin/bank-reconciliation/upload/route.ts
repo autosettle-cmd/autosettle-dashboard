@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get('file') as File | null;
   const bankName = formData.get('bank_name') as string | null;
+  const password = formData.get('password') as string | null;
 
   if (!file) {
     return NextResponse.json({ data: null, error: 'No file provided' }, { status: 400 });
@@ -29,14 +30,18 @@ export async function POST(request: NextRequest) {
   let result;
   const buffer = Buffer.from(await file.arrayBuffer());
   try {
-    result = await parseBankStatementPDF(buffer);
+    result = await parseBankStatementPDF(buffer, password || undefined);
   } catch (e) {
     console.error('PDF parse error:', e);
     return NextResponse.json({ data: null, error: `PDF parsing failed: ${e instanceof Error ? e.message : String(e)}` }, { status: 500 });
   }
 
   if (result.errors.length > 0 && result.transactions.length === 0) {
-    return NextResponse.json({ data: null, error: result.errors.join('; ') }, { status: 400 });
+    const isPasswordRequired = result.errors.includes('PASSWORD_REQUIRED');
+    return NextResponse.json(
+      { data: null, error: isPasswordRequired ? 'PASSWORD_REQUIRED' : result.errors.join('; ') },
+      { status: isPasswordRequired ? 422 : 400 },
+    );
   }
 
   // Upload to Google Drive

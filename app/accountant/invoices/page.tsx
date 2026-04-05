@@ -461,10 +461,10 @@ function AccountantInvoicesPage() {
             </p>
           </div>
           <div className="flex px-6 gap-0">
-            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[#A60201] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Received
             </button>
-            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[#A60201] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Issued
             </button>
           </div>
@@ -557,7 +557,7 @@ function AccountantInvoicesPage() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: '#152237' }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">Submit New Invoice</h2>
                 <button onClick={() => setShowNewInvoice(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
@@ -702,7 +702,7 @@ function AccountantInvoicesPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -905,7 +905,7 @@ function AccountantInvoicesPage() {
                     onClick={() => markAsReviewed(previewInvoice.id)}
                     disabled={previewInvoice.status === 'reviewed'}
                     className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#152237' }}
+                    style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Mark as Reviewed
                   </button>

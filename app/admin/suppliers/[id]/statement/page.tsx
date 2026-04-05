@@ -116,7 +116,7 @@ export default function AdminSupplierStatementPage() {
             </div>
             <button onClick={fetchStatement} disabled={loading}
               className="btn-primary h-9 px-5 text-[13px] font-medium text-white rounded-xl disabled:opacity-50 transition-colors"
-              style={{ backgroundColor: '#A60201' }}>
+              style={{ backgroundColor: 'var(--accent)' }}>
               {loading ? 'Loading...' : 'Generate'}
             </button>
           </div>

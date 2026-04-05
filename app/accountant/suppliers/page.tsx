@@ -759,7 +759,7 @@ export default function AccountantSuppliersPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPaymentSupplier(null)} />
           <div className="fixed right-0 top-0 h-screen w-[480px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Record Payment</h2>
               <button onClick={() => setPaymentSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -790,7 +790,7 @@ export default function AccountantSuppliersPage() {
                       } catch (e) { console.error(e); }
                     }}
                     className="text-[11px] px-3 py-1.5 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#152237' }}
+                    style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Apply Credit
                   </button>
@@ -865,7 +865,7 @@ export default function AccountantSuppliersPage() {
                     onClick={autoAllocate}
                     disabled={!paymentAmount || Number(paymentAmount) <= 0}
                     className="text-[11px] px-2.5 py-1 rounded-md font-medium text-white disabled:opacity-40 transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#152237' }}
+                    style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Auto-allocate
                   </button>
@@ -949,7 +949,7 @@ export default function AccountantSuppliersPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditSupplier(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Edit Supplier</h2>
               <button onClick={() => setEditSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -997,7 +997,7 @@ export default function AccountantSuppliersPage() {
                     className="input-field flex-1"
                     placeholder="Add alias..."
                   />
-                  <button onClick={addAlias} className="px-3 py-1.5 text-xs font-medium rounded-md text-white transition-opacity hover:opacity-85" style={{ backgroundColor: '#152237' }}>
+                  <button onClick={addAlias} className="px-3 py-1.5 text-xs font-medium rounded-md text-white transition-opacity hover:opacity-85" style={{ backgroundColor: 'var(--sidebar)' }}>
                     Add
                   </button>
                 </div>
@@ -1031,7 +1031,7 @@ export default function AccountantSuppliersPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -1078,7 +1078,7 @@ export default function AccountantSuppliersPage() {
               <button
                 onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
                 className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
               </button>
@@ -1092,7 +1092,7 @@ export default function AccountantSuppliersPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>

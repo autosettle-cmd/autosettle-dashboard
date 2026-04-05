@@ -253,7 +253,7 @@ export default function EmployeeDashboard() {
               <Link
                 href="/employee/claims"
                 className="flex items-center gap-1.5 text-[12px] font-semibold transition-colors duration-200 hover:opacity-80"
-                style={{ color: '#A60201' }}
+                style={{ color: 'var(--accent)' }}
               >
                 View all
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -308,7 +308,7 @@ export default function EmployeeDashboard() {
                       >
                         <td className="px-6 py-3.5 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                         <td className="px-6 py-3.5">
-                          <span className="text-gray-900 font-medium group-hover:text-[#A60201] transition-colors duration-200">
+                          <span className="text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
                             {c.merchant}
                           </span>
                         </td>
@@ -341,7 +341,7 @@ export default function EmployeeDashboard() {
             {/* Preview header */}
             <div
               className="h-16 flex items-center justify-between px-5 flex-shrink-0"
-              style={{ backgroundColor: '#152237' }}
+              style={{ backgroundColor: 'var(--sidebar)' }}
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
@@ -453,7 +453,7 @@ export default function EmployeeDashboard() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-2 text-xs font-medium transition-colors duration-200 hover:opacity-80"
-                      style={{ color: '#A60201' }}
+                      style={{ color: 'var(--accent)' }}
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

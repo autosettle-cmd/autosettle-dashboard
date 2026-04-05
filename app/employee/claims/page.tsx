@@ -358,7 +358,7 @@ export default function EmployeeClaimsPage() {
                       return (
                         <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
                           <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
-                          <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[#A60201] transition-colors duration-200">
+                          <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
                             {c.type === 'mileage' ? (
                               <span className="flex items-center gap-1.5">
                                 <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold flex-shrink-0">M</span>
@@ -404,13 +404,13 @@ export default function EmployeeClaimsPage() {
             <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-4">
               <button
                 onClick={() => setClaimType('receipt')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >
                 Receipt Claim
               </button>
               <button
                 onClick={() => setClaimType('mileage')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'mileage' ? 'bg-[#152237] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'mileage' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
               >
                 Mileage Claim
               </button>
@@ -623,7 +623,7 @@ export default function EmployeeClaimsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>

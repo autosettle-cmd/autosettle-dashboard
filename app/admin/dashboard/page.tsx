@@ -328,7 +328,7 @@ export default function AdminDashboard() {
                       </span>
                     )}
                     {activeTab === key && (
-                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: '#A60201' }} />
+                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: 'var(--accent)' }} />
                     )}
                   </button>
                 ))}
@@ -336,7 +336,7 @@ export default function AdminDashboard() {
               <Link
                 href={activeTab === 'claims' ? '/admin/claims' : activeTab === 'receipts' ? '/admin/claims' : '/admin/invoices'}
                 className="text-[12px] font-medium hover:underline transition-colors"
-                style={{ color: '#A60201' }}
+                style={{ color: 'var(--accent)' }}
               >
                 View all {activeTab} &rarr;
               </Link>
@@ -371,7 +371,7 @@ export default function AdminDashboard() {
                           <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-6 py-3 text-gray-900 font-medium">{c.employee_name}</td>
-                            <td className="px-6 py-3 text-gray-600 group-hover:text-[#A60201] transition-colors duration-200">{c.merchant}</td>
+                            <td className="px-6 py-3 text-gray-600 group-hover:text-[var(--accent)] transition-colors duration-200">{c.merchant}</td>
                             <td className="px-6 py-3 text-gray-500">{c.category_name}</td>
                             <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                             <td className="px-6 py-3">
@@ -415,7 +415,7 @@ export default function AdminDashboard() {
                           onClick={() => setPreviewClaim(r)}
                         >
                           <td className="px-6 py-2.5 text-gray-500">{formatDate(r.claim_date)}</td>
-                          <td className="px-6 py-2.5 text-gray-700 font-medium group-hover:text-[#A60201] transition-colors duration-200">{r.merchant}</td>
+                          <td className="px-6 py-2.5 text-gray-700 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">{r.merchant}</td>
                           <td className="px-6 py-2.5 text-right text-gray-900 font-semibold tabular-nums">{formatRM(r.amount)}</td>
                           <td className="px-6 py-2.5"><span className="badge-amber">Unlinked</span></td>
                         </tr>
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
                         return (
                           <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
-                            <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[#A60201] transition-colors duration-200">{inv.vendor_name_raw}</td>
+                            <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">{inv.vendor_name_raw}</td>
                             <td className="px-6 py-3 text-gray-600">{inv.invoice_number ?? '-'}</td>
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
                             <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
@@ -482,7 +482,7 @@ export default function AdminDashboard() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -595,7 +595,7 @@ export default function AdminDashboard() {
                     onClick={() => markAsReviewed(previewClaim.id)}
                     disabled={previewClaim.status === 'reviewed'}
                     className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#152237' }}
+                    style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Mark as Reviewed
                   </button>
@@ -611,7 +611,7 @@ export default function AdminDashboard() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -663,7 +663,7 @@ export default function AdminDashboard() {
                 onClick={() => markInvoiceReviewed(previewInvoice.id)}
                 disabled={previewInvoice.status === 'reviewed'}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Mark as Reviewed
               </button>

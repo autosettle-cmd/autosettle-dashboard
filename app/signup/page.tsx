@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { brand } from '@/config/branding';
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -101,7 +102,7 @@ export default function SignupPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-[15px] focus:outline-none focus:ring-2 focus:ring-[#A60201]/40 focus:border-[#A60201]/20 focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-[15px] focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
     "block text-white/40 text-[11px] font-semibold uppercase tracking-[0.15em] mb-2.5";
@@ -124,7 +125,7 @@ export default function SignupPage() {
         {/* Gradient glow */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-[120px]"
-          style={{ background: "radial-gradient(circle, #A60201 0%, transparent 70%)" }}
+          style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
         />
 
         <div
@@ -136,7 +137,7 @@ export default function SignupPage() {
         >
           {/* Logo */}
           <div className="flex items-center justify-center mb-10">
-            <img src="/logo.png" alt="Autosettle AI Solutions" className="h-12" />
+            <img src={brand.logo} alt={brand.logoAlt} className="h-12" />
           </div>
 
           {/* Card */}
@@ -341,7 +342,7 @@ export default function SignupPage() {
                         <div
                           className="absolute z-20 w-full mt-1.5 max-h-48 overflow-y-auto rounded-xl border shadow-2xl"
                           style={{
-                            backgroundColor: "#152237",
+                            backgroundColor: "var(--sidebar)",
                             borderColor: "rgba(255, 255, 255, 0.08)",
                             boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
                           }}
@@ -362,7 +363,7 @@ export default function SignupPage() {
                         <div
                           className="absolute z-20 w-full mt-1.5 rounded-xl border px-4 py-3"
                           style={{
-                            backgroundColor: "#152237",
+                            backgroundColor: "var(--sidebar)",
                             borderColor: "rgba(255, 255, 255, 0.08)",
                           }}
                         >
@@ -379,15 +380,15 @@ export default function SignupPage() {
                     <div
                       className="flex items-center gap-2.5 px-4 py-3 rounded-xl border"
                       style={{
-                        backgroundColor: "rgba(166, 2, 1, 0.08)",
-                        borderColor: "rgba(166, 2, 1, 0.2)",
+                        backgroundColor: "rgba(var(--accent-rgb), 0.08)",
+                        borderColor: "rgba(var(--accent-rgb), 0.2)",
                       }}
                     >
                       <div
                         className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: "rgba(166, 2, 1, 0.2)" }}
+                        style={{ backgroundColor: "rgba(var(--accent-rgb), 0.2)" }}
                       >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#A60201" strokeWidth="3" strokeLinecap="round">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round">
                           <line x1="18" y1="6" x2="6" y2="18" />
                           <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>

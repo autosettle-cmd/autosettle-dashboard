@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { brand } from '@/config/branding';
 
 // ─── Types (shared with statement pages) ─────────────────────────────────────
 
@@ -141,7 +142,7 @@ export function generateSOAPdf(data: StatementData) {
     body,
     theme: 'grid',
     headStyles: {
-      fillColor: [21, 34, 55],   // #152237
+      fillColor: brand.colors.sidebar.match(/\w{2}/g)!.map((h: string) => parseInt(h, 16)) as [number, number, number],
       textColor: 255,
       fontSize: 8,
       fontStyle: 'bold',

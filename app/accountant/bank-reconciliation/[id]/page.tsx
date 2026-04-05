@@ -516,7 +516,7 @@ export default function AccountantReconciliationWorkspacePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -541,7 +541,7 @@ export default function AccountantReconciliationWorkspacePage() {
               <button
                 onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
                 className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
               </button>
@@ -555,7 +555,7 @@ export default function AccountantReconciliationWorkspacePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -584,7 +584,7 @@ export default function AccountantReconciliationWorkspacePage() {
               <button
                 onClick={() => window.open(`/accountant/claims?search=${encodeURIComponent(previewReceipt.receipt_number ?? previewReceipt.merchant)}`, '_blank')}
                 className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Claims
               </button>

@@ -198,7 +198,7 @@ export default function AdminCategoriesPage() {
             <button
               onClick={openAddModal}
               className="btn-primary text-sm px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
-              style={{ backgroundColor: '#A60201' }}
+              style={{ backgroundColor: 'var(--accent)' }}
             >
               Add Custom Category
             </button>
@@ -304,7 +304,7 @@ export default function AdminCategoriesPage() {
                                       onClick={saveEdit}
                                       disabled={editSaving}
                                       className="btn-primary text-xs font-medium px-3 py-1.5 rounded-xl text-white transition-opacity hover:opacity-85 disabled:opacity-40"
-                                      style={{ backgroundColor: '#A60201' }}
+                                      style={{ backgroundColor: 'var(--accent)' }}
                                     >
                                       {editSaving ? 'Saving...' : 'Save'}
                                     </button>
@@ -410,7 +410,7 @@ export default function AdminCategoriesPage() {
                 onClick={submitCategory}
                 disabled={modalSaving}
                 className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                style={{ backgroundColor: 'var(--accent)' }}
               >
                 {modalSaving ? 'Creating...' : 'Create Category'}
               </button>
@@ -436,7 +436,7 @@ export default function AdminCategoriesPage() {
               <button
                 onClick={executeDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#A60201] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-[var(--accent)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>

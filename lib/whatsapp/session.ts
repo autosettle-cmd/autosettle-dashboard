@@ -81,7 +81,7 @@ export async function removePendingReceipt(
 
 export async function updateSession(
   id: string,
-  updates: { step?: string | null; pending_receipt?: Prisma.InputJsonValue }
+  updates: { step?: string | null; pending_receipt?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput }
 ) {
   return prisma.session.update({
     where: { id },

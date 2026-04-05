@@ -46,6 +46,10 @@ export default function AccountantBankReconciliationPage() {
   const [uploading, setUploading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const reuploadRef = useRef<HTMLInputElement>(null);
+  const [reuploadId, setReuploadId] = useState<string | null>(null);
   const [firms, setFirms] = useState<FirmOption[]>([]);
   const [firmFilter, setFirmFilter] = useState('');
   const [uploadFirmId, setUploadFirmId] = useState('');
@@ -86,6 +90,7 @@ export default function AccountantBankReconciliationPage() {
     const fd = new FormData();
     fd.append('file', file);
     fd.append('firm_id', uploadFirmId);
+    if (pdfPassword) fd.append('password', pdfPassword);
 
     try {
       const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
@@ -95,14 +100,57 @@ export default function AccountantBankReconciliationPage() {
         return;
       }
       const json = await res.json();
+
+      if (json.error === 'PASSWORD_REQUIRED') {
+        setNeedsPassword(true);
+        setUploadError('This PDF is password-protected. Please enter the password.');
+        setUploading(false);
+        return;
+      }
+
       if (json.error) { setUploadError(json.error); setUploading(false); return; }
       setUploading(false);
       setShowUpload(false);
+      setNeedsPassword(false);
+      setPdfPassword('');
       router.push(`/accountant/bank-reconciliation/${json.data.statementId}`);
     } catch (e) {
       setUploadError(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
       setUploading(false);
     }
+  };
+
+  const handleDeleteStatement = async (statementId: string) => {
+    if (!confirm('Delete this bank statement and all its transactions? This cannot be undone.')) return;
+    try {
+      const res = await fetch('/api/bank-reconciliation/statements/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ statementId }),
+      });
+      if (res.ok) {
+        setStatements((prev) => prev.filter((s) => s.id !== statementId));
+      }
+    } catch (e) {
+      console.error('Delete failed:', e);
+    }
+  };
+
+  const handleReuploadPdf = async (file: File) => {
+    if (!reuploadId) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('statement_id', reuploadId);
+    try {
+      const res = await fetch('/api/bank-reconciliation/reupload-pdf', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (json.data?.file_url) {
+        setStatements((prev) => prev.map((s) => s.id === reuploadId ? { ...s, file_url: json.data.file_url } : s));
+      }
+    } catch (e) {
+      console.error('Re-upload failed:', e);
+    }
+    setReuploadId(null);
   };
 
   return (
@@ -142,8 +190,14 @@ export default function AccountantBankReconciliationPage() {
                   )}
                   <div>
                     <label className="text-[12px] font-medium text-gray-500 mb-1 block">PDF File</label>
-                    <input ref={fileRef} type="file" accept=".pdf" className="input-field w-full text-[13px]" />
+                    <input ref={fileRef} type="file" accept=".pdf" className="input-field w-full text-[13px]" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); }} />
                   </div>
+                  {needsPassword && (
+                    <div>
+                      <label className="text-[12px] font-medium text-gray-500 mb-1 block">PDF Password</label>
+                      <input type="password" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} placeholder="Enter PDF password" className="input-field w-full text-[13px]" autoFocus />
+                    </div>
+                  )}
                   {uploadError && <p className="text-[12px] text-red-600">{uploadError}</p>}
                   <div className="flex gap-2 pt-2">
                     <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-[13px] text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
@@ -155,6 +209,9 @@ export default function AccountantBankReconciliationPage() {
               </div>
             </div>
           )}
+
+          {/* Hidden input for PDF re-upload */}
+          <input ref={reuploadRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleReuploadPdf(f); e.target.value = ''; }} />
 
           {loading ? (
             <div className="text-center text-sm text-gray-400 py-12">Loading...</div>
@@ -221,6 +278,7 @@ export default function AccountantBankReconciliationPage() {
                             <th className="px-4 py-2 text-left">Progress</th>
                             <th className="px-4 py-2 text-center">Unmatched</th>
                             <th className="px-4 py-2 text-center">PDF</th>
+                            <th className="px-3 py-2 text-center w-10"></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -257,7 +315,23 @@ export default function AccountantBankReconciliationPage() {
                                       </svg>
                                       PDF
                                     </a>
-                                  ) : <span className="text-gray-300 text-[11px]">—</span>}
+                                  ) : (
+                                    <button onClick={(e) => { e.stopPropagation(); setReuploadId(s.id); reuploadRef.current?.click(); }}
+                                      className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-gray-500 border border-gray-200 rounded hover:bg-gray-50 transition-colors" title="Re-upload PDF">
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
+                                      </svg>
+                                      Upload
+                                    </button>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2.5 text-center">
+                                  <button onClick={(e) => { e.stopPropagation(); handleDeleteStatement(s.id); }}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete statement">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                                    </svg>
+                                  </button>
                                 </td>
                               </tr>
                             );

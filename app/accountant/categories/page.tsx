@@ -543,7 +543,7 @@ export default function CategoriesPage() {
               <button
                 onClick={executeDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#A60201] hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>

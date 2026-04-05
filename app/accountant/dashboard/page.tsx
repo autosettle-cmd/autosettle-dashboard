@@ -331,7 +331,7 @@ export default function AccountantDashboard() {
                       </span>
                     )}
                     {activeTab === key && (
-                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: '#A60201' }} />
+                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: 'var(--accent)' }} />
                     )}
                   </button>
                 ))}
@@ -339,7 +339,7 @@ export default function AccountantDashboard() {
               <Link
                 href={activeTab === 'claims' ? '/accountant/claims' : activeTab === 'receipts' ? '/accountant/claims?type=receipt' : '/accountant/invoices'}
                 className="text-[12px] font-medium hover:underline transition-colors"
-                style={{ color: '#A60201' }}
+                style={{ color: 'var(--accent)' }}
               >
                 View all {activeTab} &rarr;
               </Link>
@@ -485,7 +485,7 @@ export default function AccountantDashboard() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -569,7 +569,7 @@ export default function AccountantDashboard() {
             <div className="p-4 border-t flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: '#A60201' }}>
+                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: 'var(--accent)' }}>
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
@@ -591,7 +591,7 @@ export default function AccountantDashboard() {
                       });
                     }}
                     className="btn-primary py-2 px-3 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
+                    style={{ backgroundColor: 'var(--accent)' }}
                   >
                     Edit
                   </button>
@@ -606,7 +606,7 @@ export default function AccountantDashboard() {
                     onClick={() => rejectClaim(previewClaim.id)}
                     disabled={previewClaim.approval === 'not_approved'}
                     className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: '#A60201' }}
+                    style={{ backgroundColor: 'var(--accent)' }}
                   >
                     Reject
                   </button>
@@ -622,7 +622,7 @@ export default function AccountantDashboard() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: '#152237' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -667,7 +667,7 @@ export default function AccountantDashboard() {
               <Link
                 href="/accountant/invoices"
                 className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#A60201' }}
+                style={{ backgroundColor: 'var(--accent)' }}
               >
                 Open in Invoices
               </Link>
@@ -675,7 +675,7 @@ export default function AccountantDashboard() {
                 onClick={() => markInvoiceReviewed(previewInvoice.id)}
                 disabled={previewInvoice.status === 'reviewed'}
                 className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: '#152237' }}
+                style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Mark as Reviewed
               </button>
