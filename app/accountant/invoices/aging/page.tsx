@@ -73,9 +73,9 @@ function formatRMStr(val: string | number) {
 // ─── Bucket cell helper ──────────────────────────────────────────────────────
 
 function BucketCell({ value, highlight }: { value: number; highlight?: boolean }) {
-  if (value === 0) return <td className="px-6 py-3 text-right text-gray-300 tabular-nums text-body-md">-</td>;
+  if (value === 0) return <td className="px-6 py-3 text-right text-[#8E9196] tabular-nums text-body-md">-</td>;
   return (
-    <td className={`px-6 py-3 text-right tabular-nums text-body-md font-semibold ${highlight ? 'text-red-600' : 'text-gray-900'}`}>
+    <td className={`px-6 py-3 text-right tabular-nums text-body-md font-semibold ${highlight ? 'text-red-600' : 'text-[#191C1E]'}`}>
       {formatRM(value)}
     </td>
   );
@@ -131,12 +131,12 @@ export default function AccountantAgingReportPage() {
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div className="flex items-center gap-3">
-            <Link href="/accountant/invoices" className="text-gray-400 hover:text-gray-600 transition-colors">
+            <Link href="/accountant/invoices" className="text-[#8E9196] hover:text-[#434654] transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Aging Report — Accounts Payable</h1>
+            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Aging Report — Accounts Payable</h1>
           </div>
           <div className="flex items-center gap-3">
             {firms.length > 1 && (
@@ -145,7 +145,7 @@ export default function AccountantAgingReportPage() {
                 {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             )}
-            <p className="text-gray-400 text-xs">
+            <p className="text-[#8E9196] text-xs">
               As of {new Date().toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
@@ -154,11 +154,11 @@ export default function AccountantAgingReportPage() {
         <main className="flex-1 overflow-y-auto p-6 animate-in">
 
           {loading ? (
-            <div className="text-center text-sm text-gray-400 py-12">Loading aging report...</div>
+            <div className="text-center text-sm text-[#8E9196] py-12">Loading aging report...</div>
           ) : supplierData.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-sm text-gray-400">No outstanding invoices</p>
-              <p className="text-xs text-gray-300 mt-1">All invoices are paid.</p>
+              <p className="text-sm text-[#8E9196]">No outstanding invoices</p>
+              <p className="text-xs text-[#8E9196] mt-1">All invoices are paid.</p>
             </div>
           ) : (
             <div className="bg-white rounded-lg overflow-hidden">
@@ -186,13 +186,13 @@ export default function AccountantAgingReportPage() {
                           <div className="flex items-center gap-2">
                             <svg
                               width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                              className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${expandedId === s.supplier_id ? 'rotate-90' : ''}`}
+                              className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${expandedId === s.supplier_id ? 'rotate-90' : ''}`}
                             >
                               <path d="M9 18l6-6-6-6" />
                             </svg>
                             <div>
-                              <p className="text-body-md font-semibold text-gray-900">{s.supplier_name}</p>
-                              <p className="text-label-sm text-gray-400">{s.invoices.length} invoice{s.invoices.length !== 1 ? 's' : ''}</p>
+                              <p className="text-body-md font-semibold text-[#191C1E]">{s.supplier_name}</p>
+                              <p className="text-label-sm text-[#8E9196]">{s.invoices.length} invoice{s.invoices.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
                         </td>
@@ -200,7 +200,7 @@ export default function AccountantAgingReportPage() {
                         <BucketCell value={s.days31_60} highlight={s.days31_60 > 0} />
                         <BucketCell value={s.days61_90} highlight={s.days61_90 > 0} />
                         <BucketCell value={s.days90plus} highlight={s.days90plus > 0} />
-                        <td className="px-6 py-3 text-right tabular-nums text-body-md font-bold text-gray-900">
+                        <td className="px-6 py-3 text-right tabular-nums text-body-md font-bold text-[#191C1E]">
                           {formatRM(s.total)}
                         </td>
                       </tr>
@@ -212,19 +212,19 @@ export default function AccountantAgingReportPage() {
                           <tr key={inv.id} className="bg-gray-50/50 text-body-sm">
                             <td className="px-6 py-2.5 pl-12">
                               <div className="flex items-center gap-3">
-                                <span className="text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</span>
-                                <span className="text-gray-700 font-medium">{inv.invoice_number ?? '-'}</span>
+                                <span className="text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</span>
+                                <span className="text-[#434654] font-medium">{inv.invoice_number ?? '-'}</span>
                                 {pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}
                               </div>
-                              <p className="text-label-sm text-gray-400 mt-0.5">
+                              <p className="text-label-sm text-[#8E9196] mt-0.5">
                                 Due: {inv.due_date ? formatDate(inv.due_date) : 'N/A'} · {inv.category_name}
                               </p>
                             </td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-gray-500">{inv.bucket === '0-30' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-gray-500">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-gray-500">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-gray-500">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums font-medium text-gray-700">{formatRMStr(inv.balance)}</td>
+                            <td className="px-6 py-2.5 text-right tabular-nums text-[#434654]">{inv.bucket === '0-30' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td className="px-6 py-2.5 text-right tabular-nums text-[#434654]">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td className="px-6 py-2.5 text-right tabular-nums text-[#434654]">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td className="px-6 py-2.5 text-right tabular-nums text-[#434654]">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td className="px-6 py-2.5 text-right tabular-nums font-medium text-[#434654]">{formatRMStr(inv.balance)}</td>
                           </tr>
                         );
                       })}
@@ -236,12 +236,12 @@ export default function AccountantAgingReportPage() {
                 {summary && (
                   <tfoot>
                     <tr className="border-t-2 border-gray-200 bg-gray-50/50 font-bold text-body-md">
-                      <td className="px-6 py-3.5 text-gray-900">Total</td>
-                      <td className="px-6 py-3.5 text-right tabular-nums text-gray-900">{formatRM(summary.days0_30)}</td>
-                      <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days31_60 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(summary.days31_60)}</td>
-                      <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days61_90 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(summary.days61_90)}</td>
-                      <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days90plus > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(summary.days90plus)}</td>
-                      <td className="px-6 py-3.5 text-right tabular-nums text-gray-900">{formatRM(summary.total)}</td>
+                      <td className="px-6 py-3.5 text-[#191C1E]">Total</td>
+                      <td className="px-6 py-3.5 text-right tabular-nums text-[#191C1E]">{formatRM(summary.days0_30)}</td>
+                      <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days31_60 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(summary.days31_60)}</td>
+                      <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days61_90 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(summary.days61_90)}</td>
+                      <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days90plus > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(summary.days90plus)}</td>
+                      <td className="px-6 py-3.5 text-right tabular-nums text-[#191C1E]">{formatRM(summary.total)}</td>
                     </tr>
                   </tfoot>
                 )}

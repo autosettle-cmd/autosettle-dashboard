@@ -223,7 +223,7 @@ export default function CategoriesPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Categories</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Categories</h1>
         </header>
 
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
@@ -251,9 +251,9 @@ export default function CategoriesPage() {
             /* ── No firm selected: flat list of all categories ── */
             <div className="bg-white rounded-lg overflow-hidden">
               {loading ? (
-                <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
+                <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
               ) : categories.length === 0 ? (
-                <div className="px-6 py-12 text-center text-sm text-gray-400">No categories found.</div>
+                <div className="px-6 py-12 text-center text-sm text-[#8E9196]">No categories found.</div>
               ) : (
                 <div className="overflow-auto">
                   <table className="w-full">
@@ -270,16 +270,16 @@ export default function CategoriesPage() {
                     <tbody>
                       {categories.map((cat) => (
                         <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
-                          <td className="px-6 py-3 text-gray-900 font-medium">{cat.name}</td>
+                          <td className="px-6 py-3 text-[#191C1E] font-medium">{cat.name}</td>
                           <td className="px-6 py-3">
                             {cat.is_global
                               ? <span className="badge-blue">Default</span>
                               : <span className="badge-purple">Custom</span>
                             }
                           </td>
-                          <td className="px-6 py-3 text-gray-600">{cat.firm_name ?? 'Global'}</td>
-                          <td className="px-6 py-3 text-gray-600">{cat.tax_code ?? '---'}</td>
-                          <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                          <td className="px-6 py-3 text-[#434654]">{cat.firm_name ?? 'Global'}</td>
+                          <td className="px-6 py-3 text-[#434654]">{cat.tax_code ?? '---'}</td>
+                          <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                           <td className="px-6 py-3">
                             {cat.is_active
                               ? <span className="badge-green">Active</span>
@@ -294,15 +294,15 @@ export default function CategoriesPage() {
               )}
             </div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
           ) : (
             <>
               {/* ── Default Categories ── */}
               <section>
-                <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Default Categories</h2>
+                <h2 className="text-body-md font-semibold text-[#434654] uppercase tracking-wide mb-3">Default Categories</h2>
                 <div className="bg-white rounded-lg overflow-hidden">
                   {defaultCats.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-sm text-gray-400">No default categories available.</div>
+                    <div className="px-6 py-8 text-center text-sm text-[#8E9196]">No default categories available.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
@@ -318,18 +318,18 @@ export default function CategoriesPage() {
                       <tbody>
                         {defaultCats.map((cat) => (
                           <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
-                            <td className="px-6 py-3 text-gray-900 font-medium">
+                            <td className="px-6 py-3 text-[#191C1E] font-medium">
                               {editingId === cat.id ? (
                                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
-                            <td className="px-6 py-3 text-gray-600">
+                            <td className="px-6 py-3 text-[#434654]">
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
                               {cat.is_active
                                 ? <span className="badge-green">Active</span>
@@ -343,16 +343,16 @@ export default function CategoriesPage() {
                                     <button onClick={saveEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-lg btn-primary disabled:opacity-40">
                                       {editSaving ? 'Saving...' : 'Save'}
                                     </button>
-                                    <button onClick={cancelEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+                                    <button onClick={cancelEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                                       Cancel
                                     </button>
                                   </>
                                 ) : (
                                   <>
-                                    <button onClick={() => toggleActive(cat)} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors">
+                                    <button onClick={() => toggleActive(cat)} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors">
                                       {cat.is_active ? 'Disable' : 'Enable'}
                                     </button>
-                                    <button onClick={() => startEdit(cat)} className="p-1.5 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors" title="Edit">
+                                    <button onClick={() => startEdit(cat)} className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#434654] transition-colors" title="Edit">
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -372,10 +372,10 @@ export default function CategoriesPage() {
 
               {/* ── Custom Categories ── */}
               <section>
-                <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Categories</h2>
+                <h2 className="text-body-md font-semibold text-[#434654] uppercase tracking-wide mb-3">Custom Categories</h2>
                 <div className="bg-white rounded-lg overflow-hidden">
                   {customCats.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-sm text-gray-400">No custom categories yet. Add one above.</div>
+                    <div className="px-6 py-8 text-center text-sm text-[#8E9196]">No custom categories yet. Add one above.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
@@ -391,18 +391,18 @@ export default function CategoriesPage() {
                       <tbody>
                         {customCats.map((cat) => (
                           <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
-                            <td className="px-6 py-3 text-gray-900 font-medium">
+                            <td className="px-6 py-3 text-[#191C1E] font-medium">
                               {editingId === cat.id ? (
                                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
-                            <td className="px-6 py-3 text-gray-600">
+                            <td className="px-6 py-3 text-[#434654]">
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
                               {cat.is_active
                                 ? <span className="badge-green">Active</span>
@@ -423,7 +423,7 @@ export default function CategoriesPage() {
                                     <button
                                       onClick={cancelEdit}
                                       disabled={editSaving}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+                                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                                     >
                                       Cancel
                                     </button>
@@ -432,13 +432,13 @@ export default function CategoriesPage() {
                                   <>
                                     <button
                                       onClick={() => toggleActive(cat)}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                                     >
                                       {cat.is_active ? 'Deactivate' : 'Activate'}
                                     </button>
                                     <button
                                       onClick={() => startEdit(cat)}
-                                      className="p-1.5 rounded-lg border border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                                      className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#434654] transition-colors"
                                       title="Edit"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -477,8 +477,8 @@ export default function CategoriesPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-gray-900">Add Custom Category</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Create a new category for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Add Custom Category</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-4">Create a new category for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
 
             {modalError && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -488,7 +488,7 @@ export default function CategoriesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -499,7 +499,7 @@ export default function CategoriesPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Tax Code</label>
                 <input
                   type="text"
                   value={modalTaxCode}
@@ -521,7 +521,7 @@ export default function CategoriesPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -534,8 +534,8 @@ export default function CategoriesPage() {
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-gray-900">Delete Category</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Delete Category</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
             <div className="flex gap-3">
               <button
                 onClick={executeDelete}
@@ -547,7 +547,7 @@ export default function CategoriesPage() {
               <button
                 onClick={() => setDeleteId(null)}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

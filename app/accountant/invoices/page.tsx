@@ -129,8 +129,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -451,16 +451,16 @@ function AccountantInvoicesPage() {
 
         <header className="flex-shrink-0 bg-white">
           <div className="h-16 flex items-center justify-between px-6">
-            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Invoices</h1>
-            <p className="text-gray-400 text-xs">
+            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Invoices</h1>
+            <p className="text-[#8E9196] text-xs">
               {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
           <div className="flex px-6 gap-0">
-            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-[#191C1E]' : 'border-transparent text-[#8E9196] hover:text-[#434654]'}`}>
               Received
             </button>
-            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-[#191C1E]' : 'border-transparent text-[#8E9196] hover:text-[#434654]'}`}>
               Issued
             </button>
           </div>
@@ -493,7 +493,7 @@ function AccountantInvoicesPage() {
             {dateRange === 'custom' && (
               <>
                 <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
-                <span className="text-gray-400 text-sm">–</span>
+                <span className="text-[#8E9196] text-sm">–</span>
                 <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
               </>
             )}
@@ -594,7 +594,7 @@ function AccountantInvoicesPage() {
                     const filtered = firmSuppliers.filter((s) => s.name.toLowerCase().includes(q));
                     if (filtered.length === 0) return (
                       <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-                        <p className="text-xs text-gray-400">No matching suppliers — a new one will be created</p>
+                        <p className="text-xs text-[#8E9196]">No matching suppliers — a new one will be created</p>
                       </div>
                     );
                     return (
@@ -659,7 +659,7 @@ function AccountantInvoicesPage() {
                     type="file"
                     accept="image/*,application/pdf"
                     onChange={handleInvFileChange}
-                    className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                    className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#434654] hover:file:bg-gray-200"
                   />
                   {ocrScanning && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
@@ -683,7 +683,7 @@ function AccountantInvoicesPage() {
                 </button>
                 <button
                   onClick={() => setShowNewInvoice(false)}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -707,7 +707,7 @@ function AccountantInvoicesPage() {
               {previewInvoice.thumbnail_url ? (
                 <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
@@ -792,13 +792,13 @@ function AccountantInvoicesPage() {
                   {/* Supplier link */}
                   <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier Account</span>
+                      <span className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Supplier Account</span>
                       {(() => {
                         const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                         return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
                       })()}
                     </div>
-                    <p className="text-sm font-medium text-gray-900">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
+                    <p className="text-sm font-medium text-[#191C1E]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
                     {previewInvoice.supplier_link_status !== 'confirmed' && (
                       <div className="flex gap-2 pt-1">
                         {previewInvoice.supplier_id && (
@@ -839,7 +839,7 @@ function AccountantInvoicesPage() {
                             <button onClick={createAndAssignSupplier} className="text-xs px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85" style={{ backgroundColor: '#22C55E' }}>
                               Create
                             </button>
-                            <button onClick={() => setCreatingSupplier(false)} className="text-xs px-2 py-1.5 rounded-md font-medium text-gray-500 hover:text-gray-700 border border-gray-200">
+                            <button onClick={() => setCreatingSupplier(false)} className="text-xs px-2 py-1.5 rounded-md font-medium text-[#434654] hover:text-[#434654] border border-gray-200">
                               Cancel
                             </button>
                           </div>
@@ -849,7 +849,7 @@ function AccountantInvoicesPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewInvoice.confidence === 'HIGH' ? 'text-green-600' :
                       previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -871,7 +871,7 @@ function AccountantInvoicesPage() {
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>

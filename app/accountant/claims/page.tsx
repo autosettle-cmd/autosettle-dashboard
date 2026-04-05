@@ -144,8 +144,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -576,7 +576,7 @@ function ClaimsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Claims</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Claims</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -590,13 +590,13 @@ function ClaimsPage() {
                 className={`px-4 py-1.5 rounded-full text-body-md font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    : 'text-[#434654] hover:text-[#434654] hover:bg-gray-100'
                 }`}
                 style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
               >
                 {label}
                 <span className={`ml-1.5 text-label-sm px-1.5 py-0.5 rounded-full font-semibold ${
-                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#434654]'
                 }`}>{count}</span>
               </button>
             ))}
@@ -609,7 +609,7 @@ function ClaimsPage() {
               </button>
               <button
                 onClick={exportCSV}
-                className="text-sm px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                className="text-sm px-4 py-2 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
               >
                 Export CSV
               </button>
@@ -639,7 +639,7 @@ function ClaimsPage() {
                   onChange={(e) => setCustomFrom(e.target.value)}
                   className={inputCls}
                 />
-                <span className="text-gray-400 text-sm">–</span>
+                <span className="text-[#8E9196] text-sm">–</span>
                 <input
                   type="date" value={customTo}
                   onChange={(e) => setCustomTo(e.target.value)}
@@ -699,8 +699,8 @@ function ClaimsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-4">Fill in the details below.</p>
 
             {/* ── Type Toggle ── */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
@@ -708,7 +708,7 @@ function ClaimsPage() {
                 <button
                   key={t}
                   onClick={() => setModalType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
                 >
                   {t === 'claim' ? 'Claim' : t === 'receipt' ? 'Receipt' : 'Mileage'}
                 </button>
@@ -723,7 +723,7 @@ function ClaimsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Firm *</label>
                 <select
                   value={modalFirmId}
                   onChange={(e) => setModalFirmId(e.target.value)}
@@ -734,26 +734,26 @@ function ClaimsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className={`${inputCls} w-full`} required />
               </div>
 
               {modalType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">From *</label>
                     <input type="text" value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. PJ Office" autoFocus />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">To *</label>
                     <input type="text" value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Shah Alam client office" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Distance (km) *</label>
                     <input type="number" value={mileageDistance} onChange={(e) => setMileageDistance(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. 25" step="0.1" min="0" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Purpose *</label>
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
@@ -768,30 +768,30 @@ function ClaimsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant Name *</label>
                     <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Petronas, Grab, etc." autoFocus />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM) *</label>
                     <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className={`${inputCls} w-full`} placeholder="0.00" step="0.01" min="0" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category *</label>
                     <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className={`${inputCls} w-full`}>
                       <option value="">Select a category</option>
                       {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt Number</label>
                     <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className={`${inputCls} w-full`} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
                     <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className={`${inputCls} w-full`} rows={2} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -805,13 +805,13 @@ function ClaimsPage() {
                           ) : previewUrl ? (
                             <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />
                           ) : null}
-                          <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                          <p className="text-sm text-[#434654]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-red-500 hover:text-red-700">Remove</button>
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-gray-500">Click or drag to upload receipt</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF up to 10MB</p>
+                          <p className="text-sm text-[#434654]">Click or drag to upload receipt</p>
+                          <p className="text-xs text-[#8E9196] mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
                       <input type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
@@ -842,7 +842,7 @@ function ClaimsPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -921,7 +921,7 @@ function ClaimsPage() {
                   className="w-full max-h-52 object-contain rounded-lg border border-gray-200"
                 />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">
                   No image available
                 </div>
               )}
@@ -929,32 +929,32 @@ function ClaimsPage() {
               {editMode && editData ? (
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Date</dt>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Date</dt>
                     <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Merchant</dt>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Merchant</dt>
                     <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
                   <Field label="Firm" value={previewClaim.firm_name} />
                   <div>
-                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Category</dt>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Category</dt>
                     <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className={`${inputCls} w-full mt-0.5`}>
                       <option value="">Select category</option>
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Amount (RM)</dt>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Amount (RM)</dt>
                     <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Receipt No.</dt>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Receipt No.</dt>
                     <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Description</dt>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Description</dt>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                 </dl>
@@ -1011,7 +1011,7 @@ function ClaimsPage() {
               )}
 
               <div className="flex items-center gap-1.5">
-                <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
                 <span className={`text-xs font-semibold ${
                   previewClaim.confidence === 'HIGH'   ? 'text-green-600' :
                   previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -1056,7 +1056,7 @@ function ClaimsPage() {
                   <button
                     onClick={() => setRejectModal({ open: true, claimIds: [previewClaim.id], reason: '' })}
                     disabled={previewClaim.approval === 'not_approved'}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                   >
                     Reject
                   </button>
@@ -1071,8 +1071,8 @@ function ClaimsPage() {
       {rejectModal.open && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-gray-900">Reject {rejectModal.claimIds.length} Claim{rejectModal.claimIds.length !== 1 ? 's' : ''}</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">A reason is required and will be stored on the claim record.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Reject {rejectModal.claimIds.length} Claim{rejectModal.claimIds.length !== 1 ? 's' : ''}</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-4">A reason is required and will be stored on the claim record.</p>
             <textarea
               value={rejectModal.reason}
               onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
@@ -1092,7 +1092,7 @@ function ClaimsPage() {
               </button>
               <button
                 onClick={() => setRejectModal({ open: false, claimIds: [], reason: '' })}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>

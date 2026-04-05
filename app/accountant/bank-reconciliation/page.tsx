@@ -156,7 +156,7 @@ export default function AccountantBankReconciliationPage() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Bank Reconciliation</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
             {!isSingleFirm && (
               <select value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} className="input-field text-body-md">
@@ -174,11 +174,11 @@ export default function AccountantBankReconciliationPage() {
           {showUpload && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setShowUpload(false)}>
               <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-title-md font-semibold text-gray-900 mb-4">Upload Bank Statement</h2>
+                <h2 className="text-title-md font-semibold text-[#191C1E] mb-4">Upload Bank Statement</h2>
                 <div className="space-y-3">
                   {!isSingleFirm && (
                   <div>
-                    <label className="text-body-sm font-medium text-gray-500 mb-1 block">Client Firm</label>
+                    <label className="text-body-sm font-medium text-[#434654] mb-1 block">Client Firm</label>
                     <select value={uploadFirmId} onChange={(e) => setUploadFirmId(e.target.value)} className="input-field w-full text-body-md">
                       <option value="">Select firm...</option>
                       {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -186,18 +186,18 @@ export default function AccountantBankReconciliationPage() {
                   </div>
                   )}
                   <div>
-                    <label className="text-body-sm font-medium text-gray-500 mb-1 block">PDF File</label>
+                    <label className="text-body-sm font-medium text-[#434654] mb-1 block">PDF File</label>
                     <input ref={fileRef} type="file" accept=".pdf" className="input-field w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); }} />
                   </div>
                   {needsPassword && (
                     <div>
-                      <label className="text-body-sm font-medium text-gray-500 mb-1 block">PDF Password</label>
+                      <label className="text-body-sm font-medium text-[#434654] mb-1 block">PDF Password</label>
                       <input type="password" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} placeholder="Enter PDF password" className="input-field w-full text-body-md" autoFocus />
                     </div>
                   )}
                   {uploadError && <p className="text-body-sm text-red-600">{uploadError}</p>}
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
                     <button onClick={handleUpload} disabled={uploading || !uploadFirmId} className="flex-1 px-3 py-2 text-body-md btn-primary rounded-lg disabled:opacity-50">
                       {uploading ? 'Processing...' : 'Upload & Parse'}
                     </button>
@@ -211,11 +211,11 @@ export default function AccountantBankReconciliationPage() {
           <input ref={reuploadRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleReuploadPdf(f); e.target.value = ''; }} />
 
           {loading ? (
-            <div className="text-center text-sm text-gray-400 py-12">Loading...</div>
+            <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
           ) : statements.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-sm text-gray-400">No bank statements uploaded yet</p>
-              <p className="text-xs text-gray-300 mt-1">Upload a PDF bank statement to get started.</p>
+              <p className="text-sm text-[#8E9196]">No bank statements uploaded yet</p>
+              <p className="text-xs text-[#8E9196] mt-1">Upload a PDF bank statement to get started.</p>
             </div>
           ) : (() => {
             // Group statements by bank account
@@ -240,16 +240,16 @@ export default function AccountantBankReconciliationPage() {
                       onClick={() => setExpandedAccount(isOpen ? null : key)}>
                       <div className="flex items-center gap-3">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
+                          className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
                           <path d="M9 18l6-6-6-6" />
                         </svg>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-title-sm font-semibold text-gray-900">{group.bank}</p>
-                            <span className="text-body-md text-gray-500 tabular-nums">{group.account}</span>
-                            {!isSingleFirm && <span className="text-label-sm text-gray-400">· {group.firmName}</span>}
+                            <p className="text-title-sm font-semibold text-[#191C1E]">{group.bank}</p>
+                            <span className="text-body-md text-[#434654] tabular-nums">{group.account}</span>
+                            {!isSingleFirm && <span className="text-label-sm text-[#8E9196]">· {group.firmName}</span>}
                           </div>
-                          <p className="text-label-sm text-gray-400 mt-0.5">
+                          <p className="text-label-sm text-[#8E9196] mt-0.5">
                             {totalStmts} statement{totalStmts !== 1 ? 's' : ''} · Latest balance: {formatRM(latestBalance)}
                           </p>
                         </div>
@@ -287,11 +287,11 @@ export default function AccountantBankReconciliationPage() {
                               <tr key={s.id} onClick={() => router.push(`/accountant/bank-reconciliation/${s.id}`)}
                                 className={`group transition-colors cursor-pointer ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40 bg-amber-50/20'}`}>
                                 <td className="px-6 py-2.5">
-                                  <p className="text-body-md font-medium text-gray-900">{formatDate(s.statement_date)}</p>
+                                  <p className="text-body-md font-medium text-[#191C1E]">{formatDate(s.statement_date)}</p>
                                   {!isComplete && <p className="text-label-sm text-amber-600 font-medium">Needs attention</p>}
                                 </td>
-                                <td className="px-4 py-2.5 text-body-md text-right tabular-nums text-gray-900">{formatRM(s.closing_balance)}</td>
-                                <td className="px-4 py-2.5 text-body-md text-center text-gray-700">{s.total}</td>
+                                <td className="px-4 py-2.5 text-body-md text-right tabular-nums text-[#191C1E]">{formatRM(s.closing_balance)}</td>
+                                <td className="px-4 py-2.5 text-body-md text-center text-[#434654]">{s.total}</td>
                                 <td className="px-4 py-2.5">
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -314,7 +314,7 @@ export default function AccountantBankReconciliationPage() {
                                     </a>
                                   ) : (
                                     <button onClick={(e) => { e.stopPropagation(); setReuploadId(s.id); reuploadRef.current?.click(); }}
-                                      className="inline-flex items-center gap-1 px-2 py-1 text-label-sm font-medium text-gray-500 border border-gray-200 rounded hover:bg-gray-50 transition-colors" title="Re-upload PDF">
+                                      className="inline-flex items-center gap-1 px-2 py-1 text-label-sm font-medium text-[#434654] border border-gray-200 rounded hover:bg-gray-50 transition-colors" title="Re-upload PDF">
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                                       </svg>
@@ -324,7 +324,7 @@ export default function AccountantBankReconciliationPage() {
                                 </td>
                                 <td className="px-3 py-2.5 text-center">
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteStatement(s.id); }}
-                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete statement">
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#8E9196] hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete statement">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
                                     </svg>

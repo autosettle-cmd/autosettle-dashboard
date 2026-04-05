@@ -163,7 +163,7 @@ export default function AdminsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Admins</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Admins</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -190,11 +190,11 @@ export default function AdminsPage() {
           {/* ── Table ─────────────────────────────────────── */}
           <div className="bg-white rounded-lg shadow overflow-hidden flex-1 min-h-0 flex flex-col">
             {!firmId ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">Please select a firm to view admins.</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">Please select a firm to view admins.</div>
             ) : loading ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">Loading...</div>
             ) : admins.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">No admins found for this firm.</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">No admins found for this firm.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full text-sm">
@@ -210,8 +210,8 @@ export default function AdminsPage() {
                   <tbody className="divide-y divide-gray-50">
                     {admins.map((admin) => (
                       <tr key={admin.id} className="group hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
-                        <td className="px-6 py-3 text-gray-600">{admin.email}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-medium">{admin.name}</td>
+                        <td className="px-6 py-3 text-[#434654]">{admin.email}</td>
                         <td className="px-6 py-3">
                           {admin.status === 'active' ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-green">
@@ -223,11 +223,11 @@ export default function AdminsPage() {
                             </span>
                           )}
                         </td>
-                        <td className="px-6 py-3 text-gray-600">{formatDate(admin.created_at)}</td>
+                        <td className="px-6 py-3 text-[#434654]">{formatDate(admin.created_at)}</td>
                         <td className="px-6 py-3">
                           <button
                             onClick={() => toggleActive(admin)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                           >
                             {admin.status === 'active' ? 'Deactivate' : 'Activate'}
                           </button>
@@ -247,8 +247,8 @@ export default function AdminsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Add Admin</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-4">Create a new admin for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
 
             {modalError && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -258,7 +258,7 @@ export default function AdminsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -269,7 +269,7 @@ export default function AdminsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email *</label>
                 <input
                   type="email"
                   value={modalEmail}
@@ -279,7 +279,7 @@ export default function AdminsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone *</label>
                 <input
                   type="text"
                   value={modalPhone}
@@ -289,7 +289,7 @@ export default function AdminsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Password *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Password *</label>
                 <input
                   type="password"
                   value={modalPassword}
@@ -311,7 +311,7 @@ export default function AdminsPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

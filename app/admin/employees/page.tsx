@@ -286,7 +286,7 @@ export default function AdminEmployeesPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Employees</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Employees</h1>
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
@@ -312,10 +312,10 @@ export default function AdminEmployeesPage() {
                   <tbody>
                     {pending.map((row) => (
                       <tr key={row.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-gray-900 font-medium">{row.name}</td>
-                        <td className="px-6 py-3 text-gray-600">{row.email}</td>
-                        <td className="px-6 py-3 text-gray-600">{row.phone || '—'}</td>
-                        <td className="px-6 py-3 text-gray-600">{formatDate(row.created_at)}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-medium">{row.name}</td>
+                        <td className="px-6 py-3 text-[#434654]">{row.email}</td>
+                        <td className="px-6 py-3 text-[#434654]">{row.phone || '—'}</td>
+                        <td className="px-6 py-3 text-[#434654]">{formatDate(row.created_at)}</td>
                         <td className="px-6 py-3 flex items-center gap-3">
                           <button
                             onClick={() => handleApprove(row.id)}
@@ -341,7 +341,7 @@ export default function AdminEmployeesPage() {
           {/* ════════════════════ SECTION 2: ADMINS ════════════════════ */}
           <div className="bg-white rounded-lg overflow-hidden">
             <div className="px-6 py-3 flex items-center justify-between">
-              <h2 className="text-body-md font-semibold text-gray-900">Admins</h2>
+              <h2 className="text-body-md font-semibold text-[#191C1E]">Admins</h2>
               <button
                 onClick={openAdminModal}
                 className="btn-primary text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-opacity hover:opacity-85"
@@ -351,9 +351,9 @@ export default function AdminEmployeesPage() {
               </button>
             </div>
             {adminsLoading ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">Loading...</div>
             ) : admins.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">No admins found.</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">No admins found.</div>
             ) : (
               <div className="overflow-auto">
                 <table className="w-full">
@@ -367,8 +367,8 @@ export default function AdminEmployeesPage() {
                   <tbody>
                     {admins.map((admin) => (
                       <tr key={admin.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
-                        <td className="px-6 py-3 text-gray-600">{admin.email}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-medium">{admin.name}</td>
+                        <td className="px-6 py-3 text-[#434654]">{admin.email}</td>
                         <td className="px-6 py-3">
                           {admin.is_active ? (
                             <span className="badge-green">Active</span>
@@ -388,7 +388,7 @@ export default function AdminEmployeesPage() {
           <div className="bg-white rounded-lg overflow-hidden flex flex-col">
             <div className="px-6 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <h2 className="text-body-md font-semibold text-gray-900">Employees</h2>
+                <h2 className="text-body-md font-semibold text-[#191C1E]">Employees</h2>
                 <input
                   type="text"
                   placeholder="Search name or phone..."
@@ -406,9 +406,9 @@ export default function AdminEmployeesPage() {
               </button>
             </div>
             {empLoading ? (
-              <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
             ) : employees.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-gray-400">No employees found.</div>
+              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">No employees found.</div>
             ) : (
               <div className="overflow-auto">
                 <table className="w-full">
@@ -425,10 +425,10 @@ export default function AdminEmployeesPage() {
                   <tbody>
                     {employees.map((emp) => (
                       <tr key={emp.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-gray-900 font-medium">{emp.name}</td>
-                        <td className="px-6 py-3 text-gray-600">{emp.phone}</td>
-                        <td className="px-6 py-3 text-gray-600">{emp.email ?? '—'}</td>
-                        <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{emp.claims_count}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-medium">{emp.name}</td>
+                        <td className="px-6 py-3 text-[#434654]">{emp.phone}</td>
+                        <td className="px-6 py-3 text-[#434654]">{emp.email ?? '—'}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{emp.claims_count}</td>
                         <td className="px-6 py-3">
                           {emp.user_status === 'pending_onboarding' ? (
                             <span className="badge-amber">Pending</span>
@@ -443,13 +443,13 @@ export default function AdminEmployeesPage() {
                         <td className="px-6 py-3 flex items-center gap-2">
                           <button
                             onClick={() => openEditPanel(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => toggleActive(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                           >
                             {emp.is_active ? 'Deactivate' : 'Activate'}
                           </button>
@@ -471,10 +471,10 @@ export default function AdminEmployeesPage() {
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
-                <p className="text-sm text-gray-500 mt-1">Create a new admin user for your firm.</p>
+                <h3 className="text-base font-semibold text-[#191C1E]">Add Admin</h3>
+                <p className="text-sm text-[#434654] mt-1">Create a new admin user for your firm.</p>
               </div>
-              <button onClick={() => setShowAdminModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+              <button onClick={() => setShowAdminModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
@@ -487,19 +487,19 @@ export default function AdminEmployeesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Full Name *</label>
                 <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email *</label>
                 <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone</label>
                 <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Temporary Password *</label>
                 <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-field w-full" placeholder="Min 8 characters" />
               </div>
             </div>
@@ -516,7 +516,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={() => setShowAdminModal(false)}
                 disabled={adminSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -545,15 +545,15 @@ export default function AdminEmployeesPage() {
               )}
 
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone *</label>
                 <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email</label>
                 <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
             </div>
@@ -570,7 +570,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={() => setEditEmp(null)}
                 disabled={editSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -585,10 +585,10 @@ export default function AdminEmployeesPage() {
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-base font-semibold text-gray-900">Add Employee</h3>
-                <p className="text-sm text-gray-500 mt-1">Create a new employee record.</p>
+                <h3 className="text-base font-semibold text-[#191C1E]">Add Employee</h3>
+                <p className="text-sm text-[#434654] mt-1">Create a new employee record.</p>
               </div>
-              <button onClick={() => setShowEmpModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
+              <button onClick={() => setShowEmpModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
@@ -601,15 +601,15 @@ export default function AdminEmployeesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
                 <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone *</label>
                 <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email</label>
                 <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
             </div>
@@ -626,7 +626,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={() => setShowEmpModal(false)}
                 disabled={empSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

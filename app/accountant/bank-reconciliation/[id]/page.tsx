@@ -193,12 +193,12 @@ export default function AccountantReconciliationWorkspacePage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div className="flex items-center gap-3">
-            <Link href="/accountant/bank-reconciliation" className="text-gray-400 hover:text-gray-600 transition-colors">
+            <Link href="/accountant/bank-reconciliation" className="text-[#8E9196] hover:text-[#434654] transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">
+            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">
               {statement ? `${statement.bank_name} — ${statement.account_number ?? 'N/A'} — ${formatDate(statement.statement_date)}` : 'Loading...'}
             </h1>
           </div>
@@ -238,16 +238,16 @@ export default function AccountantReconciliationWorkspacePage() {
                   const totalDebit = statement.transactions.reduce((s, t) => s + Number(t.debit ?? 0), 0);
                   const totalCredit = statement.transactions.reduce((s, t) => s + Number(t.credit ?? 0), 0);
                   return [
-                    { label: 'Opening Balance', value: formatRM(statement.opening_balance), color: 'text-gray-900' },
+                    { label: 'Opening Balance', value: formatRM(statement.opening_balance), color: 'text-[#191C1E]' },
                     { label: 'Total Debit', value: formatRM(totalDebit), color: 'text-red-600' },
                     { label: 'Total Credit', value: formatRM(totalCredit), color: 'text-green-600' },
-                    { label: 'Closing Balance', value: formatRM(statement.closing_balance), color: 'text-gray-900' },
+                    { label: 'Closing Balance', value: formatRM(statement.closing_balance), color: 'text-[#191C1E]' },
                     { label: 'Reconciled', value: `${statement.summary.matched} / ${statement.summary.total}`, color: 'text-green-600' },
                     { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-red-600' : 'text-green-600' },
                   ];
                 })().map((c) => (
                   <div key={c.label} className="bg-white rounded-lg p-3">
-                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
+                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">{c.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${c.color}`}>{c.value}</p>
                   </div>
                 ))}
@@ -257,7 +257,7 @@ export default function AccountantReconciliationWorkspacePage() {
               <div className="flex gap-1 mb-3">
                 {(['all', 'unmatched', 'matched', 'excluded'] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 text-body-sm font-medium rounded-lg transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+                    className={`px-3 py-1.5 text-body-sm font-medium rounded-lg transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-[#434654] border border-gray-200 hover:bg-gray-50'}`}
                   >
                     {f === 'all' ? 'All' : f === 'unmatched' ? `Unmatched (${statement.summary.unmatched})` : f === 'matched' ? `Matched (${statement.summary.matched})` : `Excluded (${statement.summary.excluded})`}
                   </button>
@@ -268,7 +268,7 @@ export default function AccountantReconciliationWorkspacePage() {
 
         <main className="flex-1 overflow-y-auto p-6 animate-in">
           {loading || !statement ? (
-            <div className="text-center text-sm text-gray-400 py-12">Loading...</div>
+            <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
           ) : (
             <>
               {/* Transaction table */}
@@ -300,26 +300,26 @@ export default function AccountantReconciliationWorkspacePage() {
                             <div className="flex items-center gap-1.5">
                               {mp && (
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                  className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                                  className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                   <path d="M9 18l6-6-6-6" />
                                 </svg>
                               )}
                               <span className={cfg.cls}>{cfg.label}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-body-sm text-gray-700 tabular-nums">{formatDate(txn.transaction_date)}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-gray-900 max-w-[250px] truncate" title={txn.description}>
+                          <td className="px-3 py-2.5 text-body-sm text-[#434654] tabular-nums">{formatDate(txn.transaction_date)}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-[#191C1E] max-w-[250px] truncate" title={txn.description}>
                             {txn.description.split(' | ')[0]}
-                            {txn.reference && <span className="ml-1 text-gray-400 text-label-sm">({txn.reference})</span>}
+                            {txn.reference && <span className="ml-1 text-[#8E9196] text-label-sm">({txn.reference})</span>}
                           </td>
                           <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-red-600">{txn.debit ? formatRM(txn.debit) : '-'}</td>
                           <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-green-600">{txn.credit ? formatRM(txn.credit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-gray-700">{txn.balance ? formatRM(txn.balance) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-gray-500">
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[#434654]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-[#434654]">
                             {mp ? (
                               <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
                             ) : txn.notes ? (
-                              <span className="text-gray-400 italic">{txn.notes}</span>
+                              <span className="text-[#8E9196] italic">{txn.notes}</span>
                             ) : '—'}
                           </td>
                           <td className="px-3 py-2.5 text-right">
@@ -346,26 +346,26 @@ export default function AccountantReconciliationWorkspacePage() {
                             <td colSpan={8} className="px-6 py-4">
                               <div className="grid grid-cols-3 gap-4 mb-3">
                                 <div>
-                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Payment To</p>
-                                  <p className="text-body-md font-medium text-gray-900">{mp.supplier_name}</p>
-                                  <p className="text-body-sm text-gray-500">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
-                                  {mp.reference && <p className="text-label-sm text-gray-400">Ref: {mp.reference}</p>}
-                                  {mp.notes && <p className="text-label-sm text-gray-400 italic">{mp.notes}</p>}
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Payment To</p>
+                                  <p className="text-body-md font-medium text-[#191C1E]">{mp.supplier_name}</p>
+                                  <p className="text-body-sm text-[#434654]">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
+                                  {mp.reference && <p className="text-label-sm text-[#8E9196]">Ref: {mp.reference}</p>}
+                                  {mp.notes && <p className="text-label-sm text-[#8E9196] italic">{mp.notes}</p>}
                                 </div>
                                 <div>
-                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Match Info</p>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Match Info</p>
                                   <span className={cfg.cls}>{cfg.label}</span>
-                                  {txn.matched_at && <p className="text-label-sm text-gray-400 mt-1">{formatDate(txn.matched_at)}</p>}
+                                  {txn.matched_at && <p className="text-label-sm text-[#8E9196] mt-1">{formatDate(txn.matched_at)}</p>}
                                 </div>
                                 <div>
-                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Bank Description</p>
-                                  <p className="text-body-sm text-gray-600">{txn.description.replace(/ \| /g, '\n')}</p>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Bank Description</p>
+                                  <p className="text-body-sm text-[#434654]">{txn.description.replace(/ \| /g, '\n')}</p>
                                 </div>
                               </div>
 
                               {mp.allocations.length > 0 && (
                                 <div className="mb-3">
-                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Linked Invoices ({mp.allocations.length})</p>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1.5">Linked Invoices ({mp.allocations.length})</p>
                                   <div className="space-y-1">
                                     {mp.allocations.map((a) => (
                                       <div key={a.invoice_id}
@@ -373,11 +373,11 @@ export default function AccountantReconciliationWorkspacePage() {
                                         className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
                                         <div>
                                           <span className="text-body-sm font-medium text-blue-700">{a.invoice_number ?? 'No number'}</span>
-                                          <span className="text-label-sm text-gray-400 ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
+                                          <span className="text-label-sm text-[#8E9196] ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
                                         </div>
                                         <div className="text-right">
-                                          <span className="text-body-sm font-semibold tabular-nums text-gray-900">{formatRM(a.allocated_amount)}</span>
-                                          <span className="text-label-sm text-gray-400 ml-1">/ {formatRM(a.total_amount)}</span>
+                                          <span className="text-body-sm font-semibold tabular-nums text-[#191C1E]">{formatRM(a.allocated_amount)}</span>
+                                          <span className="text-label-sm text-[#8E9196] ml-1">/ {formatRM(a.total_amount)}</span>
                                         </div>
                                       </div>
                                     ))}
@@ -387,7 +387,7 @@ export default function AccountantReconciliationWorkspacePage() {
 
                               {mp.receipts.length > 0 && (
                                 <div>
-                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Linked Receipts ({mp.receipts.length})</p>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1.5">Linked Receipts ({mp.receipts.length})</p>
                                   <div className="grid grid-cols-2 gap-2">
                                     {mp.receipts.map((r) => (
                                       <div key={r.id}
@@ -396,7 +396,7 @@ export default function AccountantReconciliationWorkspacePage() {
                                         {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />}
                                         <div className="min-w-0">
                                           <p className="text-body-sm font-medium text-blue-700 truncate">{r.merchant}</p>
-                                          <p className="text-label-sm text-gray-400">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — {formatRM(r.amount)}</p>
+                                          <p className="text-label-sm text-[#8E9196]">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — {formatRM(r.amount)}</p>
                                         </div>
                                       </div>
                                     ))}
@@ -405,7 +405,7 @@ export default function AccountantReconciliationWorkspacePage() {
                               )}
 
                               {mp.allocations.length === 0 && mp.receipts.length === 0 && (
-                                <p className="text-body-sm text-gray-400 italic">No invoices or receipts linked to this payment yet.</p>
+                                <p className="text-body-sm text-[#8E9196] italic">No invoices or receipts linked to this payment yet.</p>
                               )}
                             </td>
                           </tr>
@@ -416,7 +416,7 @@ export default function AccountantReconciliationWorkspacePage() {
                   </tbody>
                 </table>
                 {filteredTxns.length === 0 && (
-                  <div className="text-center py-8 text-sm text-gray-400">No transactions in this filter.</div>
+                  <div className="text-center py-8 text-sm text-[#8E9196]">No transactions in this filter.</div>
                 )}
               </div>
 
@@ -427,18 +427,18 @@ export default function AccountantReconciliationWorkspacePage() {
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setMatchingTxn(null)}>
               <div className="bg-white rounded-lg shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-title-md font-semibold text-gray-900 mb-3">Match Transaction</h2>
+                <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">Match Transaction</h2>
                 <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
-                  <p className="font-medium text-gray-900">{matchingTxn.description.split(' | ')[0]}</p>
-                  <p className="text-gray-500 mt-1">
+                  <p className="font-medium text-[#191C1E]">{matchingTxn.description.split(' | ')[0]}</p>
+                  <p className="text-[#434654] mt-1">
                     {formatDate(matchingTxn.transaction_date)} — {matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}
                   </p>
                 </div>
-                <p className="text-body-sm font-medium text-gray-500 mb-2">Select a payment to match:</p>
+                <p className="text-body-sm font-medium text-[#434654] mb-2">Select a payment to match:</p>
                 {loadingCandidates ? (
-                  <p className="text-sm text-gray-400 py-4 text-center">Loading...</p>
+                  <p className="text-sm text-[#8E9196] py-4 text-center">Loading...</p>
                 ) : candidates.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-4 text-center">No matching payments found.</p>
+                  <p className="text-sm text-[#8E9196] py-4 text-center">No matching payments found.</p>
                 ) : (
                   <div className="space-y-1">
                     {candidates.map((p) => (
@@ -448,15 +448,15 @@ export default function AccountantReconciliationWorkspacePage() {
                         className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
                       >
                         <div>
-                          <p className="text-body-sm font-medium text-gray-900">{p.supplier_name}</p>
-                          <p className="text-label-sm text-gray-400">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
+                          <p className="text-body-sm font-medium text-[#191C1E]">{p.supplier_name}</p>
+                          <p className="text-label-sm text-[#8E9196]">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
                         </div>
-                        <p className="text-body-md font-semibold tabular-nums text-gray-900">{formatRM(p.amount)}</p>
+                        <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(p.amount)}</p>
                       </div>
                     ))}
                   </div>
                 )}
-                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
                   Cancel
                 </button>
               </div>
@@ -467,14 +467,14 @@ export default function AccountantReconciliationWorkspacePage() {
           {excludingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setExcludingTxn(null)}>
               <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-title-md font-semibold text-gray-900 mb-3">Exclude Transaction</h2>
+                <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">Exclude Transaction</h2>
                 <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
-                  <p className="font-medium text-gray-900">{excludingTxn.description.split(' | ')[0]}</p>
-                  <p className="text-gray-500 mt-1">
+                  <p className="font-medium text-[#191C1E]">{excludingTxn.description.split(' | ')[0]}</p>
+                  <p className="text-[#434654] mt-1">
                     {formatDate(excludingTxn.transaction_date)} — {excludingTxn.debit ? `Debit ${formatRM(excludingTxn.debit)}` : `Credit ${formatRM(excludingTxn.credit)}`}
                   </p>
                 </div>
-                <label className="text-body-sm font-medium text-gray-500 mb-1.5 block">Reason for excluding</label>
+                <label className="text-body-sm font-medium text-[#434654] mb-1.5 block">Reason for excluding</label>
                 <div className="space-y-1.5 mb-4">
                   {[
                     { value: 'Personal transaction', label: 'Personal transaction' },
@@ -488,12 +488,12 @@ export default function AccountantReconciliationWorkspacePage() {
                     >
                       <input type="radio" name="exclude_reason" value={opt.value} checked={excludeReason === opt.value}
                         onChange={() => setExcludeReason(opt.value)} className="accent-blue-600" />
-                      <span className="text-body-md text-gray-700">{opt.label}</span>
+                      <span className="text-body-md text-[#434654]">{opt.label}</span>
                     </label>
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
                   <button onClick={doExclude} disabled={!excludeReason}
                     className="flex-1 px-3 py-2 text-body-md text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
                     Exclude
@@ -516,18 +516,18 @@ export default function AccountantReconciliationWorkspacePage() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="space-y-3">
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Invoice No.</dt><dd className="text-body-md text-gray-900 font-medium">{previewInvoice.invoice_number ?? '-'}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Vendor</dt><dd className="text-body-md text-gray-900">{previewInvoice.vendor_name}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Issue Date</dt><dd className="text-body-md text-gray-900">{formatDate(previewInvoice.issue_date)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Total Amount</dt><dd className="text-title-md font-bold text-gray-900 tabular-nums">{formatRM(previewInvoice.total_amount)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Allocated to Payment</dt><dd className="text-title-md font-bold text-green-600 tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Invoice No.</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewInvoice.invoice_number ?? '-'}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Vendor</dt><dd className="text-body-md text-[#191C1E]">{previewInvoice.vendor_name}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Issue Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewInvoice.issue_date)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Total Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewInvoice.total_amount)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Allocated to Payment</dt><dd className="text-title-md font-bold text-green-600 tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
               </dl>
 
               {previewTxn && (
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
-                  <p className="text-body-sm text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
-                  <p className="text-label-sm text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
+                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
+                  <p className="text-body-sm text-[#434654]">{previewTxn.description.split(' | ')[0]}</p>
+                  <p className="text-label-sm text-[#8E9196]">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
                 </div>
               )}
             </div>
@@ -557,20 +557,20 @@ export default function AccountantReconciliationWorkspacePage() {
               {previewReceipt.thumbnail_url ? (
                 <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}
               <dl className="space-y-3">
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-gray-900 font-medium">{previewReceipt.merchant}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Receipt No.</dt><dd className="text-body-md text-gray-900">{previewReceipt.receipt_number ?? '-'}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Date</dt><dd className="text-body-md text-gray-900">{formatDate(previewReceipt.claim_date)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-gray-900 tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewReceipt.merchant}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Receipt No.</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.receipt_number ?? '-'}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewReceipt.claim_date)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
               </dl>
 
               {previewTxn && (
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
-                  <p className="text-body-sm text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
-                  <p className="text-label-sm text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
+                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
+                  <p className="text-body-sm text-[#434654]">{previewTxn.description.split(' | ')[0]}</p>
+                  <p className="text-label-sm text-[#8E9196]">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
                 </div>
               )}
             </div>

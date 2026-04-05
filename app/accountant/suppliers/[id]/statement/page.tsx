@@ -26,7 +26,7 @@ function toInputDate(d: Date) {
 function balanceColor(val: number) {
   if (val > 0) return 'text-red-600';
   if (val < 0) return 'text-green-600';
-  return 'text-gray-500';
+  return 'text-[#434654]';
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -89,25 +89,25 @@ export default function AccountantSupplierStatementPage() {
         <div className="max-w-5xl mx-auto px-8 py-8">
 
           {/* Back link */}
-          <Link href="/accountant/suppliers" className="inline-flex items-center gap-1.5 text-body-md text-gray-400 hover:text-gray-600 transition-colors mb-4">
+          <Link href="/accountant/suppliers" className="inline-flex items-center gap-1.5 text-body-md text-[#8E9196] hover:text-[#434654] transition-colors mb-4">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             Back to Suppliers
           </Link>
 
           {/* Header */}
-          <h1 className="text-[22px] font-bold text-gray-900 tracking-tight">
+          <h1 className="text-[22px] font-bold text-[#191C1E] tracking-tight">
             Statement of Account{data?.supplier ? ` — ${data.supplier.name}` : ''}
           </h1>
 
           {/* Date range picker */}
           <div className="mt-5 flex items-end gap-3">
             <div>
-              <label className="block text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-1">From</label>
+              <label className="block text-label-sm font-medium text-[#8E9196] uppercase tracking-wide mb-1">From</label>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                 className="h-9 px-3 text-body-md border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </div>
             <div>
-              <label className="block text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-1">To</label>
+              <label className="block text-label-sm font-medium text-[#8E9196] uppercase tracking-wide mb-1">To</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                 className="h-9 px-3 text-body-md border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </div>
@@ -125,24 +125,24 @@ export default function AccountantSupplierStatementPage() {
               <div className="mt-6 bg-white rounded-lg p-5">
                 <div className="flex gap-8">
                   <div>
-                    <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier</p>
-                    <p className="text-sm text-gray-900 mt-0.5 font-medium">{data.supplier.name}</p>
+                    <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Supplier</p>
+                    <p className="text-sm text-[#191C1E] mt-0.5 font-medium">{data.supplier.name}</p>
                   </div>
                   {data.supplier.contact_email && (
                     <div>
-                      <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Email</p>
-                      <p className="text-sm text-gray-900 mt-0.5">{data.supplier.contact_email}</p>
+                      <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Email</p>
+                      <p className="text-sm text-[#191C1E] mt-0.5">{data.supplier.contact_email}</p>
                     </div>
                   )}
                   {data.supplier.contact_phone && (
                     <div>
-                      <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Phone</p>
-                      <p className="text-sm text-gray-900 mt-0.5">{data.supplier.contact_phone}</p>
+                      <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Phone</p>
+                      <p className="text-sm text-[#191C1E] mt-0.5">{data.supplier.contact_phone}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Period</p>
-                    <p className="text-sm text-gray-900 mt-0.5">{formatDate(data.period.from)} — {formatDate(data.period.to)}</p>
+                    <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Period</p>
+                    <p className="text-sm text-[#191C1E] mt-0.5">{formatDate(data.period.from)} — {formatDate(data.period.to)}</p>
                   </div>
                 </div>
               </div>
@@ -150,19 +150,19 @@ export default function AccountantSupplierStatementPage() {
               {/* Summary boxes */}
               <div className="mt-4 grid grid-cols-4 gap-3">
                 <div className="bg-white rounded-lg p-4 border-l-4" style={{ borderLeftColor: data.opening_balance > 0 ? '#dc2626' : data.opening_balance < 0 ? '#16a34a' : '#9ca3af' }}>
-                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Opening Balance</p>
+                  <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Opening Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border-l-4 border-l-red-400">
-                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Total Debit</p>
+                  <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Total Debit</p>
                   <p className="text-lg font-bold text-red-600 mt-1 tabular-nums">{formatRM(data.totals.total_debit)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border-l-4 border-l-green-400">
-                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Total Credit</p>
+                  <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Total Credit</p>
                   <p className="text-lg font-bold text-green-600 mt-1 tabular-nums">{formatRM(data.totals.total_credit)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border-l-4" style={{ borderLeftColor: data.closing_balance > 0 ? '#dc2626' : data.closing_balance < 0 ? '#16a34a' : '#9ca3af' }}>
-                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Closing Balance</p>
+                  <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Closing Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</p>
                 </div>
               </div>
@@ -172,21 +172,21 @@ export default function AccountantSupplierStatementPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-50/50">
-                      <th className="px-6 py-3 text-label-sm font-semibold text-gray-400 uppercase tracking-wide">Date</th>
-                      <th className="px-3 py-3 text-label-sm font-semibold text-gray-400 uppercase tracking-wide">Reference</th>
-                      <th className="px-3 py-3 text-label-sm font-semibold text-gray-400 uppercase tracking-wide">Description</th>
-                      <th className="px-3 py-3 text-label-sm font-semibold text-gray-400 uppercase tracking-wide text-right">Debit</th>
-                      <th className="px-3 py-3 text-label-sm font-semibold text-gray-400 uppercase tracking-wide text-right">Credit</th>
-                      <th className="px-6 py-3 text-label-sm font-semibold text-gray-400 uppercase tracking-wide text-right">Balance</th>
+                      <th className="px-6 py-3 text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide">Date</th>
+                      <th className="px-3 py-3 text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide">Reference</th>
+                      <th className="px-3 py-3 text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide">Description</th>
+                      <th className="px-3 py-3 text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide text-right">Debit</th>
+                      <th className="px-3 py-3 text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide text-right">Credit</th>
+                      <th className="px-6 py-3 text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide text-right">Balance</th>
                     </tr>
                   </thead>
                   <tbody>
                     {/* Opening balance row */}
                     <tr className="bg-gray-50/50 group">
-                      <td className="px-6 py-2.5 text-body-sm text-gray-500">{formatDate(data.period.from)}</td>
-                      <td className="px-3 py-2.5 text-body-sm text-gray-500" colSpan={2}>Opening Balance</td>
-                      <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-gray-400">&mdash;</td>
-                      <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-gray-400">&mdash;</td>
+                      <td className="px-6 py-2.5 text-body-sm text-[#434654]">{formatDate(data.period.from)}</td>
+                      <td className="px-3 py-2.5 text-body-sm text-[#434654]" colSpan={2}>Opening Balance</td>
+                      <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[#8E9196]">&mdash;</td>
+                      <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[#8E9196]">&mdash;</td>
                       <td className={`px-6 py-2.5 text-body-sm text-right tabular-nums font-semibold ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</td>
                     </tr>
 
@@ -196,11 +196,11 @@ export default function AccountantSupplierStatementPage() {
                       const rowBg = isReceivable ? 'bg-green-50/40' : '';
                       return (
                         <tr key={i} className={`group text-body-sm hover:bg-white/60 transition-colors ${rowBg}`}>
-                          <td className="px-6 py-2.5 text-gray-500 tabular-nums">{formatDate(entry.date)}</td>
-                          <td className="px-3 py-2.5 text-gray-700 font-medium">{entry.reference}</td>
-                          <td className="px-3 py-2.5 text-gray-500">{entry.description}</td>
-                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.debit > 0 ? 'text-red-600' : 'text-gray-400'}`}>{entry.debit > 0 ? formatRM(entry.debit) : '\u2014'}</td>
-                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.credit > 0 ? 'text-green-600' : 'text-gray-400'}`}>{entry.credit > 0 ? formatRM(entry.credit) : '\u2014'}</td>
+                          <td className="px-6 py-2.5 text-[#434654] tabular-nums">{formatDate(entry.date)}</td>
+                          <td className="px-3 py-2.5 text-[#434654] font-medium">{entry.reference}</td>
+                          <td className="px-3 py-2.5 text-[#434654]">{entry.description}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.debit > 0 ? 'text-red-600' : 'text-[#8E9196]'}`}>{entry.debit > 0 ? formatRM(entry.debit) : '\u2014'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.credit > 0 ? 'text-green-600' : 'text-[#8E9196]'}`}>{entry.credit > 0 ? formatRM(entry.credit) : '\u2014'}</td>
                           <td className={`px-6 py-2.5 text-right tabular-nums font-semibold ${balanceColor(entry.balance)}`}>{formatRM(entry.balance)}</td>
                         </tr>
                       );
@@ -208,8 +208,8 @@ export default function AccountantSupplierStatementPage() {
 
                     {/* Closing balance row */}
                     <tr className="bg-gray-50/50 border-t-2 border-gray-200 group">
-                      <td className="px-6 py-3 text-body-sm font-semibold text-gray-900">{formatDate(data.period.to)}</td>
-                      <td className="px-3 py-3 text-body-sm font-semibold text-gray-900" colSpan={2}>Closing Balance</td>
+                      <td className="px-6 py-3 text-body-sm font-semibold text-[#191C1E]">{formatDate(data.period.to)}</td>
+                      <td className="px-3 py-3 text-body-sm font-semibold text-[#191C1E]" colSpan={2}>Closing Balance</td>
                       <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-red-600">{formatRM(data.totals.total_debit)}</td>
                       <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-green-600">{formatRM(data.totals.total_credit)}</td>
                       <td className={`px-6 py-3 text-body-sm text-right tabular-nums font-bold ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</td>
@@ -218,14 +218,14 @@ export default function AccountantSupplierStatementPage() {
                 </table>
 
                 {data.entries.length === 0 && (
-                  <div className="px-6 py-8 text-center text-sm text-gray-400">No entries found for this period.</div>
+                  <div className="px-6 py-8 text-center text-sm text-[#8E9196]">No entries found for this period.</div>
                 )}
               </div>
             </>
           )}
 
           {!data && !loading && !error && (
-            <div className="mt-8 text-center text-sm text-gray-400">Select a date range and click Generate to view the statement.</div>
+            <div className="mt-8 text-center text-sm text-[#8E9196]">Select a date range and click Generate to view the statement.</div>
           )}
         </div>
       </main>

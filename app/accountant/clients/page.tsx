@@ -201,7 +201,7 @@ export default function ClientsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Clients</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Clients</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -219,9 +219,9 @@ export default function ClientsPage() {
           {/* ── Table ─────────────────────────────────────── */}
           <div className="bg-white rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">Loading...</div>
             ) : firms.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-gray-400">No clients found.</div>
+              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">No clients found.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full text-sm">
@@ -242,14 +242,14 @@ export default function ClientsPage() {
                         <td className="px-6 py-3 font-medium">
                           <Link
                             href={`/accountant/clients/${firm.id}`}
-                            className="text-gray-900 hover:text-[var(--accent)] transition-colors"
+                            className="text-[#191C1E] hover:text-[var(--accent)] transition-colors"
                           >
                             {firm.name}
                           </Link>
                         </td>
-                        <td className="px-6 py-3 text-gray-600">{firm.registration_number ?? '—'}</td>
-                        <td className="px-6 py-3 text-gray-900 font-medium text-right">{firm.employee_count}</td>
-                        <td className="px-6 py-3 text-gray-900 font-medium text-right">{firm.claims_this_month}</td>
+                        <td className="px-6 py-3 text-[#434654]">{firm.registration_number ?? '—'}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-medium text-right">{firm.employee_count}</td>
+                        <td className="px-6 py-3 text-[#191C1E] font-medium text-right">{firm.claims_this_month}</td>
                         <td className="px-6 py-3">
                           {firm.plan === 'paid' ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-green">
@@ -261,14 +261,14 @@ export default function ClientsPage() {
                             </span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 text-right ${firm.receipt_count >= 450 ? 'text-amber-600 font-medium' : 'text-gray-600'}`}>
+                        <td className={`px-6 py-3 text-right ${firm.receipt_count >= 450 ? 'text-amber-600 font-medium' : 'text-[#434654]'}`}>
                           {firm.receipt_count} / 500
                         </td>
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => openEdit(firm)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                             >
                               Edit
                             </button>
@@ -285,7 +285,7 @@ export default function ClientsPage() {
                                   console.error(e);
                                 }
                               }}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                             >
                               {firm.is_active ? 'Deactivate' : 'Activate'}
                             </button>
@@ -341,7 +341,7 @@ export default function ClientsPage() {
 
               {/* LHDN / E-Invoice Section */}
               <div className="pt-2">
-                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
+                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -368,7 +368,7 @@ export default function ClientsPage() {
 
               {/* Address Section */}
               <div className="pt-2">
-                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Address</h3>
+                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-3">Address</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="input-label">Address Line 1</label>
@@ -403,8 +403,8 @@ export default function ClientsPage() {
 
               {/* LHDN Credentials Section */}
               <div className="pt-2">
-                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
-                <p className="text-label-sm text-gray-400 mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
+                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
+                <p className="text-label-sm text-[#8E9196] mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
                 <div className="space-y-3">
                   <div>
                     <label className="input-label">Client ID</label>
@@ -430,7 +430,7 @@ export default function ClientsPage() {
               <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditFirm(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditFirm(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -442,8 +442,8 @@ export default function ClientsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-gray-900">Add Client</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Create a new client firm.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Add Client</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-4">Create a new client firm.</p>
 
             {modalError && (
               <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
@@ -453,7 +453,7 @@ export default function ClientsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -464,7 +464,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Registration Number</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Registration Number</label>
                 <input
                   type="text"
                   value={modalRegNumber}
@@ -474,7 +474,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact Email</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Contact Email</label>
                 <input
                   type="email"
                   value={modalEmail}
@@ -484,7 +484,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact Phone</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Contact Phone</label>
                 <input
                   type="text"
                   value={modalPhone}
@@ -494,7 +494,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Plan</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Plan</label>
                 <select
                   value={modalPlan}
                   onChange={(e) => setModalPlan(e.target.value)}
@@ -517,7 +517,7 @@ export default function ClientsPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -537,8 +537,8 @@ const inputCls = 'input-field';
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between text-body-md">
-      <span className="text-gray-500">{label}</span>
-      <span className="text-gray-900 font-medium">{value}</span>
+      <span className="text-[#434654]">{label}</span>
+      <span className="text-[#191C1E] font-medium">{value}</span>
     </div>
   );
 }

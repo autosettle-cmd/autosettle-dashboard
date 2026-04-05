@@ -98,8 +98,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -356,11 +356,11 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">Loading...</td>
+                <td colSpan={8} className="px-6 py-16 text-center text-[#8E9196] text-sm">Loading...</td>
               </tr>
             ) : invoices.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">No sales invoices found.</td>
+                <td colSpan={8} className="px-6 py-16 text-center text-[#8E9196] text-sm">No sales invoices found.</td>
               </tr>
             ) : (
               invoices.map((inv) => {
@@ -371,12 +371,12 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     className="group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
                     onClick={() => setPreview(inv)}
                   >
-                    <td className="px-6 py-3 font-medium text-gray-900">{inv.invoice_number || '-'}</td>
-                    <td className="px-6 py-3 text-gray-700">{inv.buyer_name}</td>
-                    <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
-                    <td className="px-6 py-3 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                    <td className="px-6 py-3 text-right font-medium text-gray-900 tabular-nums">{formatRM(inv.total_amount)}</td>
-                    <td className="px-6 py-3 text-right text-gray-500 tabular-nums">{formatRM(inv.amount_paid)}</td>
+                    <td className="px-6 py-3 font-medium text-[#191C1E]">{inv.invoice_number || '-'}</td>
+                    <td className="px-6 py-3 text-[#434654]">{inv.buyer_name}</td>
+                    <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                    <td className="px-6 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                    <td className="px-6 py-3 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(inv.total_amount)}</td>
+                    <td className="px-6 py-3 text-right text-[#434654] tabular-nums">{formatRM(inv.amount_paid)}</td>
                     <td className="px-6 py-3">
                       {paymentCfg && <span className={paymentCfg.cls}>{paymentCfg.label}</span>}
                     </td>
@@ -527,7 +527,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                           />
                           <div className="grid grid-cols-3 gap-2">
                             <div>
-                              <label className="text-label-sm text-gray-400 font-medium">Qty</label>
+                              <label className="text-label-sm text-[#8E9196] font-medium">Qty</label>
                               <input
                                 type="number"
                                 step="1"
@@ -538,7 +538,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                               />
                             </div>
                             <div>
-                              <label className="text-label-sm text-gray-400 font-medium">Unit Price (RM)</label>
+                              <label className="text-label-sm text-[#8E9196] font-medium">Unit Price (RM)</label>
                               <input
                                 type="number"
                                 step="0.01"
@@ -549,7 +549,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                               />
                             </div>
                             <div>
-                              <label className="text-label-sm text-gray-400 font-medium">Tax Rate (%)</label>
+                              <label className="text-label-sm text-[#8E9196] font-medium">Tax Rate (%)</label>
                               <input
                                 type="number"
                                 step="0.01"
@@ -560,10 +560,10 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                               />
                             </div>
                           </div>
-                          <div className="text-right text-xs text-gray-500">
-                            Line Total: <span className="font-medium text-gray-900">{formatRM(calcLineTotal(li))}</span>
+                          <div className="text-right text-xs text-[#434654]">
+                            Line Total: <span className="font-medium text-[#191C1E]">{formatRM(calcLineTotal(li))}</span>
                             {parseFloat(li.tax_rate) > 0 && (
-                              <span className="ml-2">+ Tax: <span className="font-medium text-gray-900">{formatRM(calcLineTax(li))}</span></span>
+                              <span className="ml-2">+ Tax: <span className="font-medium text-[#191C1E]">{formatRM(calcLineTax(li))}</span></span>
                             )}
                           </div>
                         </div>
@@ -571,7 +571,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                           <button
                             type="button"
                             onClick={() => removeLineItem(idx)}
-                            className="text-gray-400 hover:text-red-500 text-lg leading-none mt-1 transition-colors"
+                            className="text-[#8E9196] hover:text-red-500 text-lg leading-none mt-1 transition-colors"
                           >
                             &times;
                           </button>
@@ -583,16 +583,16 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                   {/* ── Totals ─────────────────────────────────── */}
                   <div className="mt-3 pt-3 space-y-1 text-sm text-right">
                     <div className="flex justify-end gap-4">
-                      <span className="text-gray-500">Subtotal:</span>
-                      <span className="font-medium text-gray-900 w-32">{formatRM(subtotal)}</span>
+                      <span className="text-[#434654]">Subtotal:</span>
+                      <span className="font-medium text-[#191C1E] w-32">{formatRM(subtotal)}</span>
                     </div>
                     <div className="flex justify-end gap-4">
-                      <span className="text-gray-500">Tax:</span>
-                      <span className="font-medium text-gray-900 w-32">{formatRM(taxTotal)}</span>
+                      <span className="text-[#434654]">Tax:</span>
+                      <span className="font-medium text-[#191C1E] w-32">{formatRM(taxTotal)}</span>
                     </div>
                     <div className="flex justify-end gap-4 text-base font-semibold">
-                      <span className="text-gray-700">Total:</span>
-                      <span className="text-gray-900 w-32">{formatRM(grandTotal)}</span>
+                      <span className="text-[#434654]">Total:</span>
+                      <span className="text-[#191C1E] w-32">{formatRM(grandTotal)}</span>
                     </div>
                   </div>
                 </div>
@@ -608,7 +608,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 </button>
                 <button
                   onClick={() => setShowCreate(false)}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -651,7 +651,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               {/* ── Line items ───────────────────────────── */}
               {preview.items && preview.items.length > 0 && (
                 <div>
-                  <h3 className="text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-2">Line Items</h3>
+                  <h3 className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide mb-2">Line Items</h3>
                   <div className="rounded-lg overflow-hidden">
                     <table className="w-full text-xs">
                       <thead>
@@ -666,11 +666,11 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       <tbody>
                         {preview.items.map((item) => (
                           <tr key={item.id}>
-                            <td className="px-3 py-2 text-gray-700">{item.description}</td>
-                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{Number(item.quantity)}</td>
-                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{formatRM(item.unit_price)}</td>
-                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{formatRM(item.tax_amount)}</td>
-                            <td className="px-3 py-2 text-right font-medium text-gray-900 tabular-nums">{formatRM(item.line_total)}</td>
+                            <td className="px-3 py-2 text-[#434654]">{item.description}</td>
+                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{Number(item.quantity)}</td>
+                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.unit_price)}</td>
+                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.tax_amount)}</td>
+                            <td className="px-3 py-2 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(item.line_total)}</td>
                           </tr>
                         ))}
                       </tbody>

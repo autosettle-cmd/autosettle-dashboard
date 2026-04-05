@@ -136,8 +136,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -517,7 +517,7 @@ function AdminClaimsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Claims</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Claims</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -531,13 +531,13 @@ function AdminClaimsPage() {
                 className={`px-4 py-1.5 rounded-lg text-body-md font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    : 'text-[#434654] hover:text-[#434654] hover:bg-gray-100'
                 }`}
                 style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
               >
                 {label}
                 <span className={`ml-1.5 text-label-sm px-1.5 py-0.5 rounded-full font-semibold ${
-                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#434654]'
                 }`}>{count}</span>
               </button>
             ))}
@@ -565,7 +565,7 @@ function AdminClaimsPage() {
                   onChange={(e) => setCustomFrom(e.target.value)}
                   className="input-field"
                 />
-                <span className="text-gray-400 text-sm">–</span>
+                <span className="text-[#8E9196] text-sm">–</span>
                 <input
                   type="date" value={customTo}
                   onChange={(e) => setCustomTo(e.target.value)}
@@ -624,15 +624,15 @@ function AdminClaimsPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-1">
-              <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <h3 className="text-base font-semibold text-[#191C1E]">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-100 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
-            <p className="text-sm text-gray-500 mb-4">Fill in the details below.</p>
+            <p className="text-sm text-[#434654] mb-4">Fill in the details below.</p>
 
             {/* ── Type Toggle ── */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
@@ -640,7 +640,7 @@ function AdminClaimsPage() {
                 <button
                   key={t}
                   onClick={() => setModalType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
                 >
                   {t === 'claim' ? 'Claim' : t === 'receipt' ? 'Receipt' : 'Mileage'}
                 </button>
@@ -655,26 +655,26 @@ function AdminClaimsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-field w-full" required />
               </div>
 
               {modalType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">From *</label>
                     <input type="text" value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} className="input-field w-full" placeholder="e.g. PJ Office" autoFocus />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">To *</label>
                     <input type="text" value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} className="input-field w-full" placeholder="e.g. Shah Alam client office" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Distance (km) *</label>
                     <input type="number" value={mileageDistance} onChange={(e) => setMileageDistance(e.target.value)} className="input-field w-full" placeholder="e.g. 25" step="0.1" min="0" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Purpose *</label>
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className="input-field w-full" placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
@@ -689,30 +689,30 @@ function AdminClaimsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant Name *</label>
                     <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className="input-field w-full" placeholder="e.g. Petronas, Grab, etc." autoFocus />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM) *</label>
                     <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className="input-field w-full" placeholder="0.00" step="0.01" min="0" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category *</label>
                     <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className="input-field w-full">
                       <option value="">Select a category</option>
                       {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt Number</label>
                     <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className="input-field w-full" placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
                     <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" rows={2} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -726,13 +726,13 @@ function AdminClaimsPage() {
                           ) : previewUrl ? (
                             <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-lg" />
                           ) : null}
-                          <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                          <p className="text-sm text-[#434654]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)]">Remove</button>
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-gray-500">Click or drag to upload receipt</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF up to 10MB</p>
+                          <p className="text-sm text-[#434654]">Click or drag to upload receipt</p>
+                          <p className="text-xs text-[#8E9196] mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
                       <input type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
@@ -762,7 +762,7 @@ function AdminClaimsPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -816,7 +816,7 @@ function AdminClaimsPage() {
                   className="w-full max-h-52 object-contain rounded-lg border border-gray-200"
                 />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">
                   No image available
                 </div>
               )}
@@ -906,7 +906,7 @@ function AdminClaimsPage() {
                   )}
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH'   ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -936,7 +936,7 @@ function AdminClaimsPage() {
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>

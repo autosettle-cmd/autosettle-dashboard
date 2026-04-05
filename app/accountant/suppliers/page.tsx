@@ -136,9 +136,9 @@ function formatRMStr(val: string | number) {
 }
 
 function AgingCell({ value, warn }: { value: number; warn?: boolean }) {
-  if (value === 0) return <td className="px-3 py-2.5 text-right text-gray-300 tabular-nums text-body-sm">-</td>;
+  if (value === 0) return <td className="px-3 py-2.5 text-right text-[#8E9196] tabular-nums text-body-sm">-</td>;
   return (
-    <td className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+    <td className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
       {formatRM(value)}
     </td>
   );
@@ -150,8 +150,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -432,8 +432,8 @@ export default function AccountantSuppliersPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Suppliers</h1>
-          <p className="text-gray-400 text-xs">
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Suppliers</h1>
+          <p className="text-[#8E9196] text-xs">
             {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </header>
@@ -444,7 +444,7 @@ export default function AccountantSuppliersPage() {
           {agingSummary && (
             <div className="mb-3">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-body-md font-semibold text-gray-900">Aging Report — Accounts Payable</h2>
+                <h2 className="text-body-md font-semibold text-[#191C1E]">Aging Report — Accounts Payable</h2>
                 <button
                   onClick={() => setShowAging(!showAging)}
                   className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200"
@@ -455,14 +455,14 @@ export default function AccountantSuppliersPage() {
 
               <div className="grid grid-cols-5 gap-3">
                 {[
-                  { label: '0-30 Days', value: agingSummary.days0_30, color: agingSummary.days0_30 > 0 ? 'text-amber-600' : 'text-gray-900' },
-                  { label: '31-60 Days', value: agingSummary.days31_60, color: agingSummary.days31_60 > 0 ? 'text-amber-600' : 'text-gray-900' },
-                  { label: '61-90 Days', value: agingSummary.days61_90, color: agingSummary.days61_90 > 0 ? 'text-red-500' : 'text-gray-900' },
-                  { label: '90+ Days', value: agingSummary.days90plus, color: agingSummary.days90plus > 0 ? 'text-red-600' : 'text-gray-900' },
-                  { label: 'Total Payable', value: agingSummary.total, color: 'text-gray-900' },
+                  { label: '0-30 Days', value: agingSummary.days0_30, color: agingSummary.days0_30 > 0 ? 'text-amber-600' : 'text-[#191C1E]' },
+                  { label: '31-60 Days', value: agingSummary.days31_60, color: agingSummary.days31_60 > 0 ? 'text-amber-600' : 'text-[#191C1E]' },
+                  { label: '61-90 Days', value: agingSummary.days61_90, color: agingSummary.days61_90 > 0 ? 'text-red-500' : 'text-[#191C1E]' },
+                  { label: '90+ Days', value: agingSummary.days90plus, color: agingSummary.days90plus > 0 ? 'text-red-600' : 'text-[#191C1E]' },
+                  { label: 'Total Payable', value: agingSummary.total, color: 'text-[#191C1E]' },
                 ].map((b) => (
                   <div key={b.label} className="bg-white rounded-lg p-3">
-                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">{b.label}</p>
+                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">{b.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${b.color}`}>{formatRM(b.value)}</p>
                   </div>
                 ))}
@@ -515,19 +515,19 @@ export default function AccountantSuppliersPage() {
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                  className={`text-gray-400 transition-transform duration-200 ${agingExpanded === s.supplier_id ? 'rotate-90' : ''}`}
+                                  className={`text-[#8E9196] transition-transform duration-200 ${agingExpanded === s.supplier_id ? 'rotate-90' : ''}`}
                                 >
                                   <path d="M9 18l6-6-6-6" />
                                 </svg>
-                                <span className="text-body-sm font-semibold text-gray-900">{s.supplier_name}</span>
-                                <span className="text-label-sm text-gray-400">({s.invoices.length})</span>
+                                <span className="text-body-sm font-semibold text-[#191C1E]">{s.supplier_name}</span>
+                                <span className="text-label-sm text-[#8E9196]">({s.invoices.length})</span>
                               </div>
                             </td>
                             <AgingCell value={s.days0_30} warn />
                             <AgingCell value={s.days31_60} warn />
                             <AgingCell value={s.days61_90} warn />
                             <AgingCell value={s.days90plus} warn />
-                            <td className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-gray-900">{formatRM(s.total)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-[#191C1E]">{formatRM(s.total)}</td>
                           </tr>
                           {agingExpanded === s.supplier_id && s.invoices.map((inv) => (
                             <tr
@@ -547,14 +547,14 @@ export default function AccountantSuppliersPage() {
                                 vendor_name_raw: s.supplier_name,
                               })}
                             >
-                              <td className="px-4 py-2 pl-10 text-gray-500">
-                                {formatDate(inv.issue_date)} · <span className="text-gray-700 font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
+                              <td className="px-4 py-2 pl-10 text-[#434654]">
+                                {formatDate(inv.issue_date)} · <span className="text-[#434654] font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{(inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30') ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-400">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-gray-500 font-medium">{formatRMStr(inv.balance)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{(inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30') ? formatRMStr(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#434654] font-medium">{formatRMStr(inv.balance)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
@@ -562,12 +562,12 @@ export default function AccountantSuppliersPage() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-body-sm">
-                        <td className="px-4 py-2.5 text-gray-900">Total</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days0_30)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days31_60)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days61_90)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days90plus)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-gray-900">{formatRM(agingSummary.total)}</td>
+                        <td className="px-4 py-2.5 text-[#191C1E]">Total</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days0_30)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days31_60)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days61_90)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days90plus)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">{formatRM(agingSummary.total)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -577,11 +577,11 @@ export default function AccountantSuppliersPage() {
 
           {/* ── Supplier list ─────────────────────────────── */}
           {loading ? (
-            <div className="text-center text-sm text-gray-400 py-12">Loading...</div>
+            <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
           ) : suppliers.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-sm text-gray-400">No suppliers found</p>
-              <p className="text-xs text-gray-300 mt-1">Suppliers are auto-created when invoices are uploaded.</p>
+              <p className="text-sm text-[#8E9196]">No suppliers found</p>
+              <p className="text-xs text-[#8E9196] mt-1">Suppliers are auto-created when invoices are uploaded.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -595,7 +595,7 @@ export default function AccountantSuppliersPage() {
                     {/* Expand icon */}
                     <svg
                       width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className={`text-gray-400 flex-shrink-0 transition-transform duration-200 ${expandedId === s.id ? 'rotate-90' : ''}`}
+                      className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${expandedId === s.id ? 'rotate-90' : ''}`}
                     >
                       <path d="M9 18l6-6-6-6" />
                     </svg>
@@ -603,19 +603,19 @@ export default function AccountantSuppliersPage() {
                     {/* Name + firm + aliases */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-body-md font-semibold text-gray-900 truncate">{s.name}</p>
+                        <p className="text-body-md font-semibold text-[#191C1E] truncate">{s.name}</p>
                         {s.firm_name && (
-                          <span className="text-label-sm text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 flex-shrink-0">{s.firm_name}</span>
+                          <span className="text-label-sm text-[#8E9196] bg-gray-100 rounded px-1.5 py-0.5 flex-shrink-0">{s.firm_name}</span>
                         )}
                       </div>
-                      <p className="text-label-sm text-gray-400 truncate">
+                      <p className="text-label-sm text-[#8E9196] truncate">
                         {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''} · {s.invoice_count} invoice{s.invoice_count !== 1 ? 's' : ''}
                       </p>
                     </div>
 
                     {/* Outstanding */}
                     <div className="text-right flex-shrink-0">
-                      <p className="text-body-md font-semibold text-gray-900 tabular-nums">{formatRM(s.total_outstanding)}</p>
+                      <p className="text-body-md font-semibold text-[#191C1E] tabular-nums">{formatRM(s.total_outstanding)}</p>
                       {Number(s.overdue_amount) > 0 && (
                         <p className="text-label-sm text-red-500 font-medium tabular-nums">{formatRM(s.overdue_amount)} overdue</p>
                       )}
@@ -651,9 +651,9 @@ export default function AccountantSuppliersPage() {
                   {expandedId === s.id && (
                     <div className="bg-gray-50/50">
                       {loadingInvoices ? (
-                        <div className="px-5 py-6 text-center text-sm text-gray-400">Loading invoices...</div>
+                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">Loading invoices...</div>
                       ) : expandedInvoices.length === 0 ? (
-                        <div className="px-5 py-6 text-center text-sm text-gray-400">No invoices for this supplier</div>
+                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">No invoices for this supplier</div>
                       ) : (
                         <table className="w-full">
                           <thead>
@@ -677,12 +677,12 @@ export default function AccountantSuppliersPage() {
                                     className={`text-body-sm hover:bg-white/60 transition-colors cursor-pointer`}
                                     onClick={() => setPreviewInvoice(inv)}
                                   >
-                                    <td className="px-5 py-2.5 pl-14 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
-                                    <td className="px-3 py-2.5 text-gray-700 font-medium">{inv.invoice_number ?? '-'}</td>
-                                    <td className="px-3 py-2.5 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                                    <td className="px-3 py-2.5 text-gray-500">{inv.category_name}</td>
-                                    <td className="px-3 py-2.5 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                                    <td className="px-3 py-2.5 text-gray-500 text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
+                                    <td className="px-5 py-2.5 pl-14 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                                    <td className="px-3 py-2.5 text-[#434654] font-medium">{inv.invoice_number ?? '-'}</td>
+                                    <td className="px-3 py-2.5 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                                    <td className="px-3 py-2.5 text-[#434654]">{inv.category_name}</td>
+                                    <td className="px-3 py-2.5 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                                    <td className="px-3 py-2.5 text-[#434654] text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
                                     <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
                                     <td className="px-3 py-2.5">
                                       {inv.payment_status !== 'paid' && (
@@ -698,7 +698,7 @@ export default function AccountantSuppliersPage() {
                                   </tr>
                                   {inv.allocations && inv.allocations.length > 0 && inv.allocations.map((alloc) => (
                                     <tr key={alloc.id} className="text-label-sm bg-gray-50/50">
-                                      <td className="px-5 py-1.5 pl-20 text-gray-400" colSpan={3}>
+                                      <td className="px-5 py-1.5 pl-20 text-[#8E9196]" colSpan={3}>
                                         <span>Payment: {formatDate(alloc.payment_date)}{alloc.reference ? ` · ${alloc.reference}` : ''}</span>
                                         {alloc.receipts && alloc.receipts.length > 0 && (
                                           <span className="ml-2">
@@ -714,7 +714,7 @@ export default function AccountantSuppliersPage() {
                                           </span>
                                         )}
                                       </td>
-                                      <td colSpan={3} className="px-3 py-1.5 text-right text-gray-500 tabular-nums">
+                                      <td colSpan={3} className="px-3 py-1.5 text-right text-[#434654] tabular-nums">
                                         {formatRM(alloc.amount)}
                                       </td>
                                       <td colSpan={2} className="px-3 py-1.5">
@@ -764,7 +764,7 @@ export default function AccountantSuppliersPage() {
               {/* Supplier name */}
               <div>
                 <label className="input-label">Supplier</label>
-                <p className="text-sm font-semibold text-gray-900">{paymentSupplier.name}</p>
+                <p className="text-sm font-semibold text-[#191C1E]">{paymentSupplier.name}</p>
               </div>
 
               {/* Credit balance */}
@@ -817,7 +817,7 @@ export default function AccountantSuppliersPage() {
               {/* Attach Receipts */}
               {availableReceipts.length > 0 && (
                 <div>
-                  <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Attach Receipts (optional)</h3>
+                  <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-2">Attach Receipts (optional)</h3>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {availableReceipts.map((r) => {
                       const selected = selectedReceiptIds.includes(r.id);
@@ -841,11 +841,11 @@ export default function AccountantSuppliersPage() {
                             <img src={r.thumbnail_url} alt="" className="w-full h-[56px] object-cover rounded mb-1" />
                           ) : (
                             <div className="w-full h-[56px] bg-gray-100 rounded mb-1 flex items-center justify-center">
-                              <span className="text-gray-400 text-[18px]">&#128196;</span>
+                              <span className="text-[#8E9196] text-[18px]">&#128196;</span>
                             </div>
                           )}
-                          <p className="text-label-sm font-medium text-gray-700 truncate">{r.receipt_number || r.merchant}</p>
-                          <p className="text-label-sm text-gray-500 tabular-nums">RM {Number(r.amount).toFixed(2)}</p>
+                          <p className="text-label-sm font-medium text-[#434654] truncate">{r.receipt_number || r.merchant}</p>
+                          <p className="text-label-sm text-[#434654] tabular-nums">RM {Number(r.amount).toFixed(2)}</p>
                         </button>
                       );
                     })}
@@ -856,7 +856,7 @@ export default function AccountantSuppliersPage() {
               {/* Invoice allocation */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide">Allocate to Invoices</h3>
+                  <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide">Allocate to Invoices</h3>
                   <button
                     onClick={autoAllocate}
                     disabled={!paymentAmount || Number(paymentAmount) <= 0}
@@ -868,9 +868,9 @@ export default function AccountantSuppliersPage() {
                 </div>
 
                 {loadingPaymentInvoices ? (
-                  <div className="text-center text-sm text-gray-400 py-4">Loading invoices...</div>
+                  <div className="text-center text-sm text-[#8E9196] py-4">Loading invoices...</div>
                 ) : paymentInvoices.length === 0 ? (
-                  <div className="text-center text-sm text-gray-400 py-4">No unpaid invoices</div>
+                  <div className="text-center text-sm text-[#8E9196] py-4">No unpaid invoices</div>
                 ) : (
                   <div className="rounded-lg overflow-hidden">
                     <table className="w-full">
@@ -885,9 +885,9 @@ export default function AccountantSuppliersPage() {
                       <tbody>
                         {paymentInvoices.map((inv, i) => (
                           <tr key={inv.id} className={`text-body-sm`}>
-                            <td className="px-3 py-2 text-gray-700 font-medium">{inv.invoice_number ?? '-'}</td>
-                            <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{formatRM(inv.total_amount)}</td>
-                            <td className="px-3 py-2 text-right text-gray-900 font-semibold tabular-nums">{formatRM(inv.balance)}</td>
+                            <td className="px-3 py-2 text-[#434654] font-medium">{inv.invoice_number ?? '-'}</td>
+                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(inv.total_amount)}</td>
+                            <td className="px-3 py-2 text-right text-[#191C1E] font-semibold tabular-nums">{formatRM(inv.balance)}</td>
                             <td className="px-3 py-1.5 text-right">
                               <input
                                 type="number"
@@ -909,10 +909,10 @@ export default function AccountantSuppliersPage() {
 
                     {/* Totals row */}
                     <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-body-sm">
-                      <span className="text-gray-500 font-medium">Total allocated</span>
+                      <span className="text-[#434654] font-medium">Total allocated</span>
                       <span className={`font-bold tabular-nums ${
                         paymentInvoices.reduce((sum, inv) => sum + Number(inv.allocation || 0), 0) > Number(paymentAmount || 0)
-                          ? 'text-red-600' : 'text-gray-900'
+                          ? 'text-red-600' : 'text-[#191C1E]'
                       }`}>
                         {formatRM(paymentInvoices.reduce((sum, inv) => sum + Number(inv.allocation || 0), 0))}
                         {' / '}
@@ -932,7 +932,7 @@ export default function AccountantSuppliersPage() {
               >
                 {paymentSaving ? 'Saving...' : 'Save Payment'}
               </button>
-              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -972,15 +972,15 @@ export default function AccountantSuppliersPage() {
 
               {/* Aliases */}
               <div>
-                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Vendor Name Aliases</h3>
+                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-2">Vendor Name Aliases</h3>
                 <div className="space-y-1.5">
                   {editSupplier.aliases.map((a) => (
                     <div key={a.id} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-700">{a.alias}</span>
+                        <span className="text-sm text-[#434654]">{a.alias}</span>
                         {a.is_confirmed && <span className="badge-green text-label-sm">Confirmed</span>}
                       </div>
-                      <button onClick={() => removeAlias(a.id)} className="text-gray-400 hover:text-red-500 text-xs transition-colors">Remove</button>
+                      <button onClick={() => removeAlias(a.id)} className="text-[#8E9196] hover:text-red-500 text-xs transition-colors">Remove</button>
                     </div>
                   ))}
                 </div>
@@ -1014,7 +1014,7 @@ export default function AccountantSuppliersPage() {
               <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -1035,7 +1035,7 @@ export default function AccountantSuppliersPage() {
               {previewInvoice.thumbnail_url ? (
                 <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}
               <dl className="space-y-3">
                 <Field label="Vendor" value={previewInvoice.vendor_name_raw} />
@@ -1053,10 +1053,10 @@ export default function AccountantSuppliersPage() {
               </div>
               {previewInvoice.allocations && previewInvoice.allocations.length > 0 && (
                 <div>
-                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Payment History</p>
+                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-2">Payment History</p>
                   <div className="space-y-1.5">
                     {previewInvoice.allocations.map((a) => (
-                      <div key={a.id} className="text-xs text-gray-600 bg-gray-50 rounded px-3 py-2 flex justify-between">
+                      <div key={a.id} className="text-xs text-[#434654] bg-gray-50 rounded px-3 py-2 flex justify-between">
                         <span>{formatDate(a.payment_date)}{a.reference ? ` · ${a.reference}` : ''}</span>
                         <span className="font-semibold tabular-nums">{formatRM(a.amount)}</span>
                       </div>
@@ -1096,7 +1096,7 @@ export default function AccountantSuppliersPage() {
               {previewReceipt.thumbnail_url ? (
                 <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}
               <dl className="space-y-3">
                 <Field label="Merchant" value={previewReceipt.merchant} />
@@ -1106,7 +1106,7 @@ export default function AccountantSuppliersPage() {
               </dl>
             </div>
             <div className="p-4 flex-shrink-0">
-              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                 Close
               </button>
             </div>

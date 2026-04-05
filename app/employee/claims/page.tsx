@@ -54,8 +54,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -303,8 +303,8 @@ export default function EmployeeClaimsPage() {
 
         <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div>
-            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">My Claims</h1>
-            <p className="text-body-sm text-gray-400">{formatDisplayDate()}</p>
+            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">My Claims</h1>
+            <p className="text-body-sm text-[#8E9196]">{formatDisplayDate()}</p>
           </div>
         </header>
 
@@ -319,7 +319,7 @@ export default function EmployeeClaimsPage() {
 
           {/* ── Top bar ───────────────────────────────────── */}
           <div className="flex items-center justify-between flex-shrink-0">
-            <h2 className="text-body-md font-semibold text-gray-900">All Claims</h2>
+            <h2 className="text-body-md font-semibold text-[#191C1E]">All Claims</h2>
             <button
               onClick={openModal}
               className="btn-primary text-sm px-4 py-2 rounded-lg font-medium"
@@ -331,9 +331,9 @@ export default function EmployeeClaimsPage() {
           {/* ── Table ─────────────────────────────────────── */}
           <div className="bg-white rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
-              <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
+              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
             ) : claims.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-gray-400">No claims submitted yet.</div>
+              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">No claims submitted yet.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full">
@@ -354,8 +354,8 @@ export default function EmployeeClaimsPage() {
                       const aCfg = APPROVAL_CFG[c.approval];
                       return (
                         <tr key={c.id} onClick={() => setPreviewClaim(c)} className="group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer">
-                          <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
-                          <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
+                          <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
+                          <td className="px-6 py-3 text-[#191C1E] font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
                             {c.type === 'mileage' ? (
                               <span className="flex items-center gap-1.5">
                                 <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-label-sm font-bold flex-shrink-0">M</span>
@@ -363,8 +363,8 @@ export default function EmployeeClaimsPage() {
                               </span>
                             ) : c.merchant}
                           </td>
-                          <td className="px-6 py-3 text-gray-500">{c.category_name}</td>
-                          <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
+                          <td className="px-6 py-3 text-[#434654]">{c.category_name}</td>
+                          <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                           <td className="px-6 py-3">
                             {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                           </td>
@@ -375,7 +375,7 @@ export default function EmployeeClaimsPage() {
                             {c.approval === 'not_approved' && c.rejection_reason ? (
                               <span className="text-xs text-red-600">{c.rejection_reason}</span>
                             ) : (
-                              <span className="text-xs text-gray-300">&mdash;</span>
+                              <span className="text-xs text-[#8E9196]">&mdash;</span>
                             )}
                           </td>
                         </tr>
@@ -394,20 +394,20 @@ export default function EmployeeClaimsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-semibold text-gray-900">Submit New Claim</h3>
-            <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
+            <h3 className="text-base font-semibold text-[#191C1E]">Submit New Claim</h3>
+            <p className="text-sm text-[#434654] mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
 
             {/* ── Type Toggle ── */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
               <button
                 onClick={() => setClaimType('receipt')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
               >
                 Receipt Claim
               </button>
               <button
                 onClick={() => setClaimType('mileage')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'mileage' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'mileage' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
               >
                 Mileage Claim
               </button>
@@ -421,7 +421,7 @@ export default function EmployeeClaimsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Claim Date *</label>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Claim Date *</label>
                 <input
                   type="date"
                   value={modalDate}
@@ -434,7 +434,7 @@ export default function EmployeeClaimsPage() {
               {claimType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">From *</label>
                     <input
                       type="text"
                       value={mileageFrom}
@@ -445,7 +445,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">To *</label>
                     <input
                       type="text"
                       value={mileageTo}
@@ -455,7 +455,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Distance (km) *</label>
                     <input
                       type="number"
                       value={mileageDistance}
@@ -467,7 +467,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Purpose *</label>
                     <input
                       type="text"
                       value={mileagePurpose}
@@ -490,7 +490,7 @@ export default function EmployeeClaimsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant Name *</label>
                     <input
                       type="text"
                       value={modalMerchant}
@@ -501,7 +501,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM) *</label>
                     <input
                       type="number"
                       value={modalAmount}
@@ -513,7 +513,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category *</label>
                     <select
                       value={modalCategory}
                       onChange={(e) => setModalCategory(e.target.value)}
@@ -524,7 +524,7 @@ export default function EmployeeClaimsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt Number</label>
                     <input
                       type="text"
                       value={modalReceipt}
@@ -534,7 +534,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
                     <textarea
                       value={modalDesc}
                       onChange={(e) => setModalDesc(e.target.value)}
@@ -544,7 +544,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt *</label>
+                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt *</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -558,7 +558,7 @@ export default function EmployeeClaimsPage() {
                           ) : previewUrl ? (
                             <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-lg" />
                           ) : null}
-                          <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                          <p className="text-sm text-[#434654]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); clearFile(); }}
@@ -569,8 +569,8 @@ export default function EmployeeClaimsPage() {
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-gray-500">Click or drag to upload receipt</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, PDF up to 10MB</p>
+                          <p className="text-sm text-[#434654]">Click or drag to upload receipt</p>
+                          <p className="text-xs text-[#8E9196] mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
                       <input
@@ -606,7 +606,7 @@ export default function EmployeeClaimsPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -638,7 +638,7 @@ export default function EmployeeClaimsPage() {
               ) : previewClaim.thumbnail_url ? (
                 <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg" />
               ) : (
-                <div className="w-full h-40 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-lg bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
@@ -689,7 +689,7 @@ export default function EmployeeClaimsPage() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH' ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -716,7 +716,7 @@ export default function EmployeeClaimsPage() {
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>

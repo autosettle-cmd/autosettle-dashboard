@@ -274,10 +274,10 @@ export default function AccountantDashboard() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">
             {getGreeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className="text-gray-400 text-xs">
+          <p className="text-[#8E9196] text-xs">
             {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </header>
@@ -316,13 +316,13 @@ export default function AccountantDashboard() {
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
                     className={`relative px-4 py-3 text-body-md font-semibold transition-colors ${
-                      activeTab === key ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'
+                      activeTab === key ? 'text-[#191C1E]' : 'text-[#8E9196] hover:text-[#434654]'
                     }`}
                   >
                     {label}
                     {count > 0 && (
                       <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-label-sm font-bold ${
-                        activeTab === key ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+                        activeTab === key ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-[#434654]'
                       }`}>
                         {count}
                       </span>
@@ -345,11 +345,11 @@ export default function AccountantDashboard() {
             {/* Claims tab */}
             {activeTab === 'claims' && (
               loadingClaims ? (
-                <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
+                <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
               ) : pendingClaims.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-gray-400">No claims pending review</p>
-                  <p className="text-xs text-gray-300 mt-1">You&apos;re all caught up.</p>
+                  <p className="text-sm text-[#8E9196]">No claims pending review</p>
+                  <p className="text-xs text-[#8E9196] mt-1">You&apos;re all caught up.</p>
                 </div>
               ) : (
                 <>
@@ -369,11 +369,11 @@ export default function AccountantDashboard() {
                         const cfg = STATUS_CFG[c.status];
                         return (
                           <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer`}>
-                            <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
-                            <td className="px-6 py-3 text-gray-900 font-medium">{c.employee_name}</td>
-                            <td className="px-6 py-3 text-gray-600">{c.merchant}</td>
-                            <td className="px-6 py-3 text-gray-500">{c.category_name}</td>
-                            <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
+                            <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
+                            <td className="px-6 py-3 text-[#191C1E] font-medium">{c.employee_name}</td>
+                            <td className="px-6 py-3 text-[#434654]">{c.merchant}</td>
+                            <td className="px-6 py-3 text-[#434654]">{c.category_name}</td>
+                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                             <td className="px-6 py-3">
                               {cfg && <span className={cfg.cls}>{cfg.label}</span>}
                             </td>
@@ -390,11 +390,11 @@ export default function AccountantDashboard() {
             {/* Receipts tab */}
             {activeTab === 'receipts' && (
               loadingReceipts ? (
-                <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
+                <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
               ) : unlinkedReceipts.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-gray-400">No unlinked receipts</p>
-                  <p className="text-xs text-gray-300 mt-1">All receipts have been linked to payments.</p>
+                  <p className="text-sm text-[#8E9196]">No unlinked receipts</p>
+                  <p className="text-xs text-[#8E9196] mt-1">All receipts have been linked to payments.</p>
                 </div>
               ) : (
                 <>
@@ -414,9 +414,9 @@ export default function AccountantDashboard() {
                           className="group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md"
                           onClick={() => setPreviewClaim(r)}
                         >
-                          <td className="px-6 py-2.5 text-gray-500">{formatDate(r.claim_date)}</td>
-                          <td className="px-6 py-2.5 text-gray-700 font-medium">{r.merchant}</td>
-                          <td className="px-6 py-2.5 text-right text-gray-900 font-semibold tabular-nums">{formatRM(r.amount)}</td>
+                          <td className="px-6 py-2.5 text-[#434654]">{formatDate(r.claim_date)}</td>
+                          <td className="px-6 py-2.5 text-[#434654] font-medium">{r.merchant}</td>
+                          <td className="px-6 py-2.5 text-right text-[#191C1E] font-semibold tabular-nums">{formatRM(r.amount)}</td>
                           <td className="px-6 py-2.5"><span className="badge-amber">Unlinked</span></td>
                         </tr>
                       ))}
@@ -430,11 +430,11 @@ export default function AccountantDashboard() {
             {/* Invoices tab */}
             {activeTab === 'invoices' && (
               loadingInvoices ? (
-                <div className="px-5 py-12 text-center text-sm text-gray-400">Loading...</div>
+                <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
               ) : pendingInvoices.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-gray-400">No invoices pending review</p>
-                  <p className="text-xs text-gray-300 mt-1">You&apos;re all caught up.</p>
+                  <p className="text-sm text-[#8E9196]">No invoices pending review</p>
+                  <p className="text-xs text-[#8E9196] mt-1">You&apos;re all caught up.</p>
                 </div>
               ) : (
                 <>
@@ -456,11 +456,11 @@ export default function AccountantDashboard() {
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
                           <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer`}>
-                            <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
-                            <td className="px-6 py-3 text-gray-900 font-medium">{inv.vendor_name_raw}</td>
-                            <td className="px-6 py-3 text-gray-600">{inv.invoice_number ?? '-'}</td>
-                            <td className="px-6 py-3 text-gray-500 tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                            <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                            <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                            <td className="px-6 py-3 text-[#191C1E] font-medium">{inv.vendor_name_raw}</td>
+                            <td className="px-6 py-3 text-[#434654]">{inv.invoice_number ?? '-'}</td>
+                            <td className="px-6 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
                             <td className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
                             <td className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
                           </tr>
@@ -490,7 +490,7 @@ export default function AccountantDashboard() {
               {previewClaim.thumbnail_url ? (
                 <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
@@ -543,7 +543,7 @@ export default function AccountantDashboard() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH' ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -569,7 +569,7 @@ export default function AccountantDashboard() {
                   <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: 'var(--accent)' }}>
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -627,7 +627,7 @@ export default function AccountantDashboard() {
               {previewInvoice.thumbnail_url ? (
                 <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
               <dl className="space-y-3">
                 <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
@@ -646,13 +646,13 @@ export default function AccountantDashboard() {
               {/* Supplier link */}
               <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier</span>
+                  <span className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Supplier</span>
                   {(() => {
                     const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                     return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
                   })()}
                 </div>
-                <p className="text-sm font-medium text-gray-900">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
+                <p className="text-sm font-medium text-[#191C1E]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
               </div>
               {previewInvoice.file_url && (
                 <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
@@ -695,7 +695,7 @@ function StatCard({ label, value, amount, color, href }: {
   href?: string;
 }) {
   const accent = {
-    default: { dot: 'bg-gray-300', value: 'text-gray-900' },
+    default: { dot: 'bg-gray-300', value: 'text-[#191C1E]' },
     amber:   { dot: 'bg-amber-400', value: 'text-amber-600' },
     green:   { dot: 'bg-emerald-400', value: 'text-emerald-600' },
   }[color];
@@ -706,13 +706,13 @@ function StatCard({ label, value, amount, color, href }: {
     >
       <div className="flex items-center gap-1.5 mb-3">
         <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
-        <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
+        <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">{label}</p>
       </div>
       <div className="flex items-end justify-between">
         <p className={`text-2xl font-bold tracking-tight ${accent.value}`}>
           {value ?? <span className="text-gray-200">&mdash;</span>}
         </p>
-        {amount && <p className="text-xs text-gray-400 tabular-nums">{amount}</p>}
+        {amount && <p className="text-xs text-[#8E9196] tabular-nums">{amount}</p>}
       </div>
     </div>
   );
@@ -731,21 +731,21 @@ function Pagination({ total, page, pageSize, onPageChange }: {
   if (total <= pageSize) return null;
   return (
     <div className="flex items-center justify-between px-5 py-3">
-      <p className="text-body-sm text-gray-400">
+      <p className="text-body-sm text-[#8E9196]">
         Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total}
       </p>
       <div className="flex gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={(page + 1) * pageSize >= total}
-          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>
@@ -760,8 +760,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
 }
