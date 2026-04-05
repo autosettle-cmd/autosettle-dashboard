@@ -331,7 +331,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
         <div className="ml-auto">
           <button
             onClick={() => setShowCreate(true)}
-            className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold"
+            className="btn-primary px-4 py-2 rounded-lg text-sm font-semibold"
           >
             + New Invoice
           </button>
@@ -339,7 +339,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       </div>
 
       {/* ── Table ────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-auto rounded-xl bg-white">
+      <div className="flex-1 min-h-0 overflow-auto rounded-lg bg-white">
         <table className="w-full text-sm">
           <thead>
             <tr className="ds-table-header text-left">
@@ -401,7 +401,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowCreate(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">New Sales Invoice</h2>
                 <button onClick={() => setShowCreate(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -450,7 +450,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                         } catch { setCreateError('Failed to create buyer'); }
                         setCreatingBuyer(false);
                       }}
-                      className="text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
+                      className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
                     >
                       {creatingBuyer ? 'Adding...' : 'Add'}
                     </button>
@@ -602,13 +602,13 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 <button
                   onClick={submitCreate}
                   disabled={submitting}
-                  className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Creating...' : 'Create Invoice'}
                 </button>
                 <button
                   onClick={() => setShowCreate(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -685,7 +685,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               <button
                 onClick={() => deleteInvoice(preview.id)}
                 disabled={deleting}
-                className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 {deleting ? 'Deleting...' : 'Delete Invoice'}

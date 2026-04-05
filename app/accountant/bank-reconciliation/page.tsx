@@ -164,7 +164,7 @@ export default function AccountantBankReconciliationPage() {
                 {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             )}
-            <button onClick={() => setShowUpload(true)} className="px-3 py-1.5 btn-primary text-body-md font-medium rounded-xl">
+            <button onClick={() => setShowUpload(true)} className="px-3 py-1.5 btn-primary text-body-md font-medium rounded-lg">
               Upload Statement
             </button>
           </div>
@@ -173,7 +173,7 @@ export default function AccountantBankReconciliationPage() {
         <main className="flex-1 overflow-y-auto p-6 animate-in">
           {showUpload && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setShowUpload(false)}>
-              <div className="bg-white rounded-xl shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-gray-900 mb-4">Upload Bank Statement</h2>
                 <div className="space-y-3">
                   {!isSingleFirm && (
@@ -197,8 +197,8 @@ export default function AccountantBankReconciliationPage() {
                   )}
                   {uploadError && <p className="text-body-sm text-red-600">{uploadError}</p>}
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
-                    <button onClick={handleUpload} disabled={uploading || !uploadFirmId} className="flex-1 px-3 py-2 text-body-md btn-primary rounded-xl disabled:opacity-50">
+                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={handleUpload} disabled={uploading || !uploadFirmId} className="flex-1 px-3 py-2 text-body-md btn-primary rounded-lg disabled:opacity-50">
                       {uploading ? 'Processing...' : 'Upload & Parse'}
                     </button>
                   </div>
@@ -234,7 +234,7 @@ export default function AccountantBankReconciliationPage() {
                 const latestBalance = group.statements[0]?.closing_balance;
                 const totalUnmatched = group.statements.reduce((s, st) => s + st.unmatched, 0);
                 return (
-                  <div key={key} className={`bg-white rounded-xl border overflow-hidden ${needsAttention ? 'border-amber-200' : 'border-gray-100'}`}>
+                  <div key={key} className={`bg-white rounded-lg border overflow-hidden ${needsAttention ? 'border-amber-200' : 'border-gray-100'}`}>
                     {/* Account header */}
                     <div className={`flex items-center justify-between px-6 py-3.5 cursor-pointer transition-colors ${isOpen ? 'bg-gray-50' : 'hover:bg-gray-50/50'}`}
                       onClick={() => setExpandedAccount(isOpen ? null : key)}>

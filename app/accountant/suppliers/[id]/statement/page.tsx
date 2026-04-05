@@ -104,15 +104,15 @@ export default function AccountantSupplierStatementPage() {
             <div>
               <label className="block text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-1">From</label>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="h-9 px-3 text-body-md border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                className="h-9 px-3 text-body-md border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </div>
             <div>
               <label className="block text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-1">To</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="h-9 px-3 text-body-md border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                className="h-9 px-3 text-body-md border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </div>
             <button onClick={fetchStatement} disabled={loading}
-              className="btn-primary h-9 px-5 text-body-md font-medium rounded-xl disabled:opacity-50 transition-colors">
+              className="btn-primary h-9 px-5 text-body-md font-medium rounded-lg disabled:opacity-50 transition-colors">
               {loading ? 'Loading...' : 'Generate'}
             </button>
           </div>
@@ -122,7 +122,7 @@ export default function AccountantSupplierStatementPage() {
           {data && (
             <>
               {/* Supplier info */}
-              <div className="mt-6 bg-white rounded-xl p-5">
+              <div className="mt-6 bg-white rounded-lg p-5">
                 <div className="flex gap-8">
                   <div>
                     <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier</p>
@@ -149,26 +149,26 @@ export default function AccountantSupplierStatementPage() {
 
               {/* Summary boxes */}
               <div className="mt-4 grid grid-cols-4 gap-3">
-                <div className="bg-white rounded-xl p-4 border-l-4" style={{ borderLeftColor: data.opening_balance > 0 ? '#dc2626' : data.opening_balance < 0 ? '#16a34a' : '#9ca3af' }}>
+                <div className="bg-white rounded-lg p-4 border-l-4" style={{ borderLeftColor: data.opening_balance > 0 ? '#dc2626' : data.opening_balance < 0 ? '#16a34a' : '#9ca3af' }}>
                   <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Opening Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</p>
                 </div>
-                <div className="bg-white rounded-xl p-4 border-l-4 border-l-red-400">
+                <div className="bg-white rounded-lg p-4 border-l-4 border-l-red-400">
                   <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Total Debit</p>
                   <p className="text-lg font-bold text-red-600 mt-1 tabular-nums">{formatRM(data.totals.total_debit)}</p>
                 </div>
-                <div className="bg-white rounded-xl p-4 border-l-4 border-l-green-400">
+                <div className="bg-white rounded-lg p-4 border-l-4 border-l-green-400">
                   <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Total Credit</p>
                   <p className="text-lg font-bold text-green-600 mt-1 tabular-nums">{formatRM(data.totals.total_credit)}</p>
                 </div>
-                <div className="bg-white rounded-xl p-4 border-l-4" style={{ borderLeftColor: data.closing_balance > 0 ? '#dc2626' : data.closing_balance < 0 ? '#16a34a' : '#9ca3af' }}>
+                <div className="bg-white rounded-lg p-4 border-l-4" style={{ borderLeftColor: data.closing_balance > 0 ? '#dc2626' : data.closing_balance < 0 ? '#16a34a' : '#9ca3af' }}>
                   <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Closing Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</p>
                 </div>
               </div>
 
               {/* Statement table */}
-              <div className="mt-4 bg-white rounded-xl overflow-hidden">
+              <div className="mt-4 bg-white rounded-lg overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-gray-50/50">

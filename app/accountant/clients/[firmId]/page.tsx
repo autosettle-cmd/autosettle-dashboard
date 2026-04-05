@@ -249,12 +249,12 @@ export default function FirmDetailPage() {
           ) : (
             <>
               {/* ── FIRM INFO CARD ── */}
-              <div className="bg-white rounded-xl p-5">
+              <div className="bg-white rounded-lg p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-title-md font-semibold text-gray-900">{firm.name}</h2>
                   <button
                     onClick={openEditPanel}
-                    className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                   >
                     Edit
                   </button>
@@ -334,25 +334,25 @@ export default function FirmDetailPage() {
               <div className="flex items-center gap-3">
                 <Link
                   href={`/accountant/claims?firmId=${firmId}`}
-                  className="text-sm px-4 py-2 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="text-sm px-4 py-2 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   View Claims
                 </Link>
                 <Link
                   href={`/accountant/receipts?firmId=${firmId}`}
-                  className="text-sm px-4 py-2 rounded-xl font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="text-sm px-4 py-2 rounded-lg font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   View Receipts
                 </Link>
               </div>
 
               {/* ── ADMINS SECTION ── */}
-              <div className="bg-white rounded-xl overflow-hidden">
+              <div className="bg-white rounded-lg overflow-hidden">
                 <div className="px-6 py-3 flex items-center justify-between">
                   <h2 className="text-body-md font-semibold text-gray-900">Admins</h2>
                   <button
                     onClick={openModal}
-                    className="text-xs px-3 py-1.5 rounded-xl font-medium btn-primary"
+                    className="text-xs px-3 py-1.5 rounded-lg font-medium btn-primary"
                   >
                     Add Admin
                   </button>
@@ -515,10 +515,10 @@ export default function FirmDetailPage() {
             </div>
 
             <div className="p-4 flex-shrink-0 flex gap-3">
-              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setShowEditPanel(false)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setShowEditPanel(false)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -529,7 +529,7 @@ export default function FirmDetailPage() {
       {/* === ADD ADMIN MODAL === */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin user for this firm.</p>
 
@@ -587,14 +587,14 @@ export default function FirmDetailPage() {
               <button
                 onClick={submitAdmin}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Creating...' : 'Create Admin'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

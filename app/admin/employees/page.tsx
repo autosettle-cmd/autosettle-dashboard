@@ -293,7 +293,7 @@ export default function AdminEmployeesPage() {
 
           {/* ════════════════════ SECTION 1: PENDING APPROVAL ════════════════════ */}
           {!pendingLoading && pending.length > 0 && (
-            <div className="bg-white rounded-xl overflow-hidden">
+            <div className="bg-white rounded-lg overflow-hidden">
               <div className="px-6 py-3 flex items-center gap-2">
                 <h2 className="text-body-md font-semibold text-amber-700">Pending Approval</h2>
                 <span className="badge-amber">{pending.length}</span>
@@ -339,12 +339,12 @@ export default function AdminEmployeesPage() {
           )}
 
           {/* ════════════════════ SECTION 2: ADMINS ════════════════════ */}
-          <div className="bg-white rounded-xl overflow-hidden">
+          <div className="bg-white rounded-lg overflow-hidden">
             <div className="px-6 py-3 flex items-center justify-between">
               <h2 className="text-body-md font-semibold text-gray-900">Admins</h2>
               <button
                 onClick={openAdminModal}
-                className="btn-primary text-xs px-3 py-1.5 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
+                className="btn-primary text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 Add Admin
@@ -385,7 +385,7 @@ export default function AdminEmployeesPage() {
           </div>
 
           {/* ════════════════════ SECTION 3: EMPLOYEES ════════════════════ */}
-          <div className="bg-white rounded-xl overflow-hidden flex flex-col">
+          <div className="bg-white rounded-lg overflow-hidden flex flex-col">
             <div className="px-6 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <h2 className="text-body-md font-semibold text-gray-900">Employees</h2>
@@ -399,7 +399,7 @@ export default function AdminEmployeesPage() {
               </div>
               <button
                 onClick={openEmpModal}
-                className="btn-primary text-xs px-3 py-1.5 rounded-xl font-medium text-white transition-opacity hover:opacity-85 flex-shrink-0"
+                className="btn-primary text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-opacity hover:opacity-85 flex-shrink-0"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 Add Employee
@@ -468,7 +468,7 @@ export default function AdminEmployeesPage() {
       {/* ═══ ADD ADMIN MODAL ═══ */}
       {showAdminModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
@@ -508,7 +508,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={submitAdmin}
                 disabled={adminSaving}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 {adminSaving ? 'Creating...' : 'Create Admin'}
@@ -516,7 +516,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={() => setShowAdminModal(false)}
                 disabled={adminSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -562,7 +562,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={submitEdit}
                 disabled={editSaving}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 {editSaving ? 'Saving...' : 'Save Changes'}
@@ -570,7 +570,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={() => setEditEmp(null)}
                 disabled={editSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -582,7 +582,7 @@ export default function AdminEmployeesPage() {
       {/* ═══ ADD EMPLOYEE MODAL ═══ */}
       {showEmpModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-semibold text-gray-900">Add Employee</h3>
@@ -618,7 +618,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={submitEmployee}
                 disabled={empSaving}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 {empSaving ? 'Creating...' : 'Create Employee'}
@@ -626,7 +626,7 @@ export default function AdminEmployeesPage() {
               <button
                 onClick={() => setShowEmpModal(false)}
                 disabled={empSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

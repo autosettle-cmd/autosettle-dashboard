@@ -209,7 +209,7 @@ export default function AccountantReconciliationWorkspacePage() {
             <button
               onClick={doRematch}
               disabled={rematching}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-blue rounded-xl text-white disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-blue rounded-lg text-white disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -218,7 +218,7 @@ export default function AccountantReconciliationWorkspacePage() {
             </button>
             {statement?.file_url && (
               <a href={statement.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-primary rounded-xl">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-primary rounded-lg">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
@@ -246,7 +246,7 @@ export default function AccountantReconciliationWorkspacePage() {
                     { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-red-600' : 'text-green-600' },
                   ];
                 })().map((c) => (
-                  <div key={c.label} className="bg-white rounded-xl p-3">
+                  <div key={c.label} className="bg-white rounded-lg p-3">
                     <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${c.color}`}>{c.value}</p>
                   </div>
@@ -257,7 +257,7 @@ export default function AccountantReconciliationWorkspacePage() {
               <div className="flex gap-1 mb-3">
                 {(['all', 'unmatched', 'matched', 'excluded'] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 text-body-sm font-medium rounded-xl transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+                    className={`px-3 py-1.5 text-body-sm font-medium rounded-lg transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
                   >
                     {f === 'all' ? 'All' : f === 'unmatched' ? `Unmatched (${statement.summary.unmatched})` : f === 'matched' ? `Matched (${statement.summary.matched})` : `Excluded (${statement.summary.excluded})`}
                   </button>
@@ -272,7 +272,7 @@ export default function AccountantReconciliationWorkspacePage() {
           ) : (
             <>
               {/* Transaction table */}
-              <div className="bg-white rounded-xl overflow-hidden">
+              <div className="bg-white rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="ds-table-header">
@@ -325,18 +325,18 @@ export default function AccountantReconciliationWorkspacePage() {
                           <td className="px-3 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-xl transition-all duration-200 text-center">Match</button>
-                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-xl transition-all duration-200 text-center">Exclude</button>
+                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-lg transition-all duration-200 text-center">Match</button>
+                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-lg transition-all duration-200 text-center">Exclude</button>
                               </div>
                             )}
                             {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-xl transition-all duration-200 text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
                               </div>
                             )}
                             {txn.recon_status === 'excluded' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white bg-gray-500 hover:bg-gray-600 rounded-xl transition-colors text-center">Restore</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white bg-gray-500 hover:bg-gray-600 rounded-lg transition-colors text-center">Restore</button>
                               </div>
                             )}
                           </td>
@@ -370,7 +370,7 @@ export default function AccountantReconciliationWorkspacePage() {
                                     {mp.allocations.map((a) => (
                                       <div key={a.invoice_id}
                                         onClick={(e) => { e.stopPropagation(); setPreviewInvoice(a); }}
-                                        className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
+                                        className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
                                         <div>
                                           <span className="text-body-sm font-medium text-blue-700">{a.invoice_number ?? 'No number'}</span>
                                           <span className="text-label-sm text-gray-400 ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
@@ -392,7 +392,7 @@ export default function AccountantReconciliationWorkspacePage() {
                                     {mp.receipts.map((r) => (
                                       <div key={r.id}
                                         onClick={(e) => { e.stopPropagation(); setPreviewReceipt(r); }}
-                                        className="flex items-center gap-3 bg-white rounded-xl px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
+                                        className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
                                         {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />}
                                         <div className="min-w-0">
                                           <p className="text-body-sm font-medium text-blue-700 truncate">{r.merchant}</p>
@@ -426,9 +426,9 @@ export default function AccountantReconciliationWorkspacePage() {
           {/* Match modal */}
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setMatchingTxn(null)}>
-              <div className="bg-white rounded-xl shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-gray-900 mb-3">Match Transaction</h2>
-                <div className="bg-gray-50 rounded-xl p-3 mb-4 text-body-sm">
+                <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
                   <p className="font-medium text-gray-900">{matchingTxn.description.split(' | ')[0]}</p>
                   <p className="text-gray-500 mt-1">
                     {formatDate(matchingTxn.transaction_date)} — {matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}
@@ -445,7 +445,7 @@ export default function AccountantReconciliationWorkspacePage() {
                       <div
                         key={p.id}
                         onClick={() => doMatch(p.id)}
-                        className="flex items-center justify-between p-3 rounded-xl border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
+                        className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
                       >
                         <div>
                           <p className="text-body-sm font-medium text-gray-900">{p.supplier_name}</p>
@@ -456,7 +456,7 @@ export default function AccountantReconciliationWorkspacePage() {
                     ))}
                   </div>
                 )}
-                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">
+                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
                   Cancel
                 </button>
               </div>
@@ -466,9 +466,9 @@ export default function AccountantReconciliationWorkspacePage() {
           {/* Exclude modal */}
           {excludingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setExcludingTxn(null)}>
-              <div className="bg-white rounded-xl shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-gray-900 mb-3">Exclude Transaction</h2>
-                <div className="bg-gray-50 rounded-xl p-3 mb-4 text-body-sm">
+                <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
                   <p className="font-medium text-gray-900">{excludingTxn.description.split(' | ')[0]}</p>
                   <p className="text-gray-500 mt-1">
                     {formatDate(excludingTxn.transaction_date)} — {excludingTxn.debit ? `Debit ${formatRM(excludingTxn.debit)}` : `Credit ${formatRM(excludingTxn.credit)}`}
@@ -484,7 +484,7 @@ export default function AccountantReconciliationWorkspacePage() {
                     { value: 'Duplicate entry', label: 'Duplicate entry' },
                   ].map((opt) => (
                     <label key={opt.value}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${excludeReason === opt.value ? 'border-blue-300 bg-blue-50/50' : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'}`}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${excludeReason === opt.value ? 'border-blue-300 bg-blue-50/50' : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'}`}
                     >
                       <input type="radio" name="exclude_reason" value={opt.value} checked={excludeReason === opt.value}
                         onChange={() => setExcludeReason(opt.value)} className="accent-blue-600" />
@@ -493,9 +493,9 @@ export default function AccountantReconciliationWorkspacePage() {
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
                   <button onClick={doExclude} disabled={!excludeReason}
-                    className="flex-1 px-3 py-2 text-body-md text-white bg-gray-700 rounded-xl hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="flex-1 px-3 py-2 text-body-md text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
                     Exclude
                   </button>
                 </div>
@@ -524,7 +524,7 @@ export default function AccountantReconciliationWorkspacePage() {
               </dl>
 
               {previewTxn && (
-                <div className="bg-gray-50 rounded-xl p-3">
+                <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
                   <p className="text-body-sm text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
                   <p className="text-label-sm text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
@@ -534,7 +534,7 @@ export default function AccountantReconciliationWorkspacePage() {
             <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
@@ -555,9 +555,9 @@ export default function AccountantReconciliationWorkspacePage() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (
-                <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-xl border border-gray-200" />
+                <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
               ) : (
-                <div className="w-full h-40 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
               )}
               <dl className="space-y-3">
                 <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-gray-900 font-medium">{previewReceipt.merchant}</dd></div>
@@ -567,7 +567,7 @@ export default function AccountantReconciliationWorkspacePage() {
               </dl>
 
               {previewTxn && (
-                <div className="bg-gray-50 rounded-xl p-3">
+                <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
                   <p className="text-body-sm text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
                   <p className="text-label-sm text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
@@ -577,7 +577,7 @@ export default function AccountantReconciliationWorkspacePage() {
             <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/accountant/claims?search=${encodeURIComponent(previewReceipt.receipt_number ?? previewReceipt.merchant)}`, '_blank')}
-                className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Claims

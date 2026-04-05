@@ -410,7 +410,7 @@ export default function AdminSuppliersPage() {
                 <h2 className="text-body-md font-semibold text-gray-900">Aging Report — Accounts Payable</h2>
                 <button
                   onClick={() => setShowAging(!showAging)}
-                  className="text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
+                  className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200"
                 >
                   {showAging ? 'Collapse' : 'Expand'}
                 </button>
@@ -450,7 +450,7 @@ export default function AdminSuppliersPage() {
           {/* Aging detail table */}
           {showAging && agingData.length > 0 && agingSummary && (
             <div className="mb-4">
-              <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+              <div className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="ds-table-header">
@@ -543,7 +543,7 @@ export default function AdminSuppliersPage() {
           ) : (
             <div className="space-y-2">
               {suppliers.map((s) => (
-                <div key={s.id} className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+                <div key={s.id} className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
                   {/* Supplier row */}
                   <div
                     className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-gray-50/50 transition-colors"
@@ -581,7 +581,7 @@ export default function AdminSuppliersPage() {
                     {/* Action buttons */}
                     <button
                       onClick={(e) => { e.stopPropagation(); openPayment(s); }}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-dark transition-all duration-200"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-dark transition-all duration-200"
                     >
                       Pay
                     </button>
@@ -589,13 +589,13 @@ export default function AdminSuppliersPage() {
                       href={`/admin/suppliers/${s.id}/statement`}
                       target="_blank"
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200"
                     >
                       Statement
                     </Link>
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(s); }}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-xl shadow-sm font-medium btn-primary"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg shadow-sm font-medium btn-primary"
                     >
                       Edit
                     </button>
@@ -882,11 +882,11 @@ export default function AdminSuppliersPage() {
               <button
                 onClick={submitPayment}
                 disabled={paymentSaving || !paymentAmount || Number(paymentAmount) <= 0}
-                className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {paymentSaving ? 'Saving...' : 'Save Payment'}
               </button>
-              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -964,10 +964,10 @@ export default function AdminSuppliersPage() {
             </div>
 
             <div className="p-4 flex-shrink-0 flex gap-3">
-              <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -1026,7 +1026,7 @@ export default function AdminSuppliersPage() {
             <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/admin/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
@@ -1059,7 +1059,7 @@ export default function AdminSuppliersPage() {
               </dl>
             </div>
             <div className="p-4 flex-shrink-0">
-              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Close
               </button>
             </div>

@@ -180,7 +180,7 @@ export default function AdminsPage() {
             {firmId && (
               <button
                 onClick={openAddModal}
-                className="ml-auto btn-primary text-sm px-4 py-2 rounded-xl font-medium"
+                className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-medium"
               >
                 Add Admin
               </button>
@@ -188,7 +188,7 @@ export default function AdminsPage() {
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-xl shadow overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-lg shadow overflow-hidden flex-1 min-h-0 flex flex-col">
             {!firmId ? (
               <div className="px-6 py-10 text-center text-sm text-gray-400">Please select a firm to view admins.</div>
             ) : loading ? (
@@ -227,7 +227,7 @@ export default function AdminsPage() {
                         <td className="px-6 py-3">
                           <button
                             onClick={() => toggleActive(admin)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             {admin.status === 'active' ? 'Deactivate' : 'Activate'}
                           </button>
@@ -246,7 +246,7 @@ export default function AdminsPage() {
       {/* ═══════════════════════ ADD ADMIN MODAL ═══════════════════════ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
 
@@ -304,14 +304,14 @@ export default function AdminsPage() {
               <button
                 onClick={submitAdmin}
                 disabled={modalSaving}
-                className="flex-1 btn-primary py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 btn-primary py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Creating...' : 'Create Admin'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

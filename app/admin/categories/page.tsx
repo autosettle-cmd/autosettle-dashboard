@@ -193,7 +193,7 @@ export default function AdminCategoriesPage() {
           <div className="flex items-center justify-end">
             <button
               onClick={openAddModal}
-              className="btn-primary text-sm px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
+              className="btn-primary text-sm px-4 py-2 rounded-lg font-medium text-white transition-opacity hover:opacity-85"
               style={{ backgroundColor: 'var(--primary)' }}
             >
               Add Custom Category
@@ -207,7 +207,7 @@ export default function AdminCategoriesPage() {
               {/* ── Default Categories ── */}
               <section>
                 <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Default Categories</h2>
-                <div className="bg-white rounded-xl overflow-hidden">
+                <div className="bg-white rounded-lg overflow-hidden">
                   {defaultCats.length === 0 ? (
                     <div className="px-5 py-8 text-center text-sm text-gray-400">No default categories available.</div>
                   ) : (
@@ -255,7 +255,7 @@ export default function AdminCategoriesPage() {
               {/* ── Custom Categories ── */}
               <section>
                 <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Categories</h2>
-                <div className="bg-white rounded-xl overflow-hidden">
+                <div className="bg-white rounded-lg overflow-hidden">
                   {customCats.length === 0 ? (
                     <div className="px-5 py-8 text-center text-sm text-gray-400">No custom categories yet. Add one above.</div>
                   ) : (
@@ -299,7 +299,7 @@ export default function AdminCategoriesPage() {
                                     <button
                                       onClick={saveEdit}
                                       disabled={editSaving}
-                                      className="btn-primary text-xs font-medium px-3 py-1.5 rounded-xl text-white transition-opacity hover:opacity-85 disabled:opacity-40"
+                                      className="btn-primary text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-85 disabled:opacity-40"
                                       style={{ backgroundColor: 'var(--primary)' }}
                                     >
                                       {editSaving ? 'Saving...' : 'Save'}
@@ -360,7 +360,7 @@ export default function AdminCategoriesPage() {
       {/* === ADD CATEGORY MODAL === */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-base font-semibold text-gray-900">Add Custom Category</h3>
@@ -405,7 +405,7 @@ export default function AdminCategoriesPage() {
               <button
                 onClick={submitCategory}
                 disabled={modalSaving}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--primary)' }}
               >
                 {modalSaving ? 'Creating...' : 'Create Category'}
@@ -413,7 +413,7 @@ export default function AdminCategoriesPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -425,21 +425,21 @@ export default function AdminCategoriesPage() {
       {/* === DELETE CONFIRMATION MODAL === */}
       {deleteId && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6">
             <h3 className="text-base font-semibold text-gray-900">Delete Category</h3>
             <p className="text-sm text-gray-500 mt-1 mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
             <div className="flex gap-3">
               <button
                 onClick={executeDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-[var(--accent)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-[var(--accent)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>
               <button
                 onClick={() => setDeleteId(null)}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

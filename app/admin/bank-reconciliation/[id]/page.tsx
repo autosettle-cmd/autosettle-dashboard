@@ -211,7 +211,7 @@ export default function ReconciliationWorkspacePage() {
             <button
               onClick={doRematch}
               disabled={rematching}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-blue rounded-xl text-white disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-blue rounded-lg text-white disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -220,7 +220,7 @@ export default function ReconciliationWorkspacePage() {
             </button>
             {statement?.file_url && (
               <a href={statement.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-primary rounded-xl">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-primary rounded-lg">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
@@ -248,7 +248,7 @@ export default function ReconciliationWorkspacePage() {
                     { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-red-600' : 'text-green-600' },
                   ];
                 })().map((c) => (
-                  <div key={c.label} className="bg-white rounded-xl p-3">
+                  <div key={c.label} className="bg-white rounded-lg p-3">
                     <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${c.color}`}>{c.value}</p>
                   </div>
@@ -274,7 +274,7 @@ export default function ReconciliationWorkspacePage() {
           ) : (
             <>
               {/* Transaction table */}
-              <div className="bg-white rounded-xl overflow-hidden">
+              <div className="bg-white rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="ds-table-header">
@@ -327,13 +327,13 @@ export default function ReconciliationWorkspacePage() {
                           <td className="px-3 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-xl transition-all duration-200 text-center">Match</button>
-                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-xl transition-all duration-200 text-center">Exclude</button>
+                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-lg transition-all duration-200 text-center">Match</button>
+                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-lg transition-all duration-200 text-center">Exclude</button>
                               </div>
                             )}
                             {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-xl transition-all duration-200 text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
                               </div>
                             )}
                             {txn.recon_status === 'excluded' && (
@@ -428,7 +428,7 @@ export default function ReconciliationWorkspacePage() {
           {/* Match modal */}
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setMatchingTxn(null)}>
-              <div className="bg-white rounded-xl shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-gray-900 mb-3">Match Transaction</h2>
                 <div className="bg-gray-50 rounded-md p-3 mb-4 text-body-sm">
                   <p className="font-medium text-gray-900">{matchingTxn.description.split(' | ')[0]}</p>
@@ -468,7 +468,7 @@ export default function ReconciliationWorkspacePage() {
           {/* Exclude modal */}
           {excludingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setExcludingTxn(null)}>
-              <div className="bg-white rounded-xl shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-gray-900 mb-3">Exclude Transaction</h2>
                 <div className="bg-gray-50 rounded-md p-3 mb-4 text-body-sm">
                   <p className="font-medium text-gray-900">{excludingTxn.description.split(' | ')[0]}</p>

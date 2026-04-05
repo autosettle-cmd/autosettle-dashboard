@@ -603,13 +603,13 @@ function ClaimsPage() {
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={openModal}
-                className="btn-primary text-sm px-4 py-2 rounded-xl font-semibold text-white"
+                className="btn-primary text-sm px-4 py-2 rounded-lg font-semibold text-white"
               >
                 + Submit New
               </button>
               <button
                 onClick={exportCSV}
-                className="text-sm px-4 py-2 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                className="text-sm px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
               >
                 Export CSV
               </button>
@@ -675,7 +675,7 @@ function ClaimsPage() {
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl border border-gray-200" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-lg border border-gray-200" style={{ height: '100%' }}>
             <AgGridReact<ClaimRow>
               onGridReady={onGridReady}
               rowData={claims}
@@ -698,7 +698,7 @@ function ClaimsPage() {
       {/* ═══════════════════════ SUBMIT MODAL ═══════════════════════ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below.</p>
 
@@ -834,7 +834,7 @@ function ClaimsPage() {
               <button
                 onClick={submitClaim}
                 disabled={modalSaving || ocrScanning}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
@@ -842,7 +842,7 @@ function ClaimsPage() {
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -1038,7 +1038,7 @@ function ClaimsPage() {
                 <button
                   onClick={saveEdit}
                   disabled={editSaving}
-                  className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                  className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                   style={{ backgroundColor: 'var(--accent)' }}
                 >
                   {editSaving ? 'Saving...' : 'Save Changes'}
@@ -1048,7 +1048,7 @@ function ClaimsPage() {
                   <button
                     onClick={() => batchAction([previewClaim.id], 'approve')}
                     disabled={previewClaim.approval === 'approved'}
-                    className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                     style={{ backgroundColor: 'var(--accent)' }}
                   >
                     Approve
@@ -1056,7 +1056,7 @@ function ClaimsPage() {
                   <button
                     onClick={() => setRejectModal({ open: true, claimIds: [previewClaim.id], reason: '' })}
                     disabled={previewClaim.approval === 'not_approved'}
-                    className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50 transition-colors"
                   >
                     Reject
                   </button>
@@ -1070,7 +1070,7 @@ function ClaimsPage() {
       {/* ═══════════════════════ REJECT MODAL ═══════════════════════ */}
       {rejectModal.open && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Reject {rejectModal.claimIds.length} Claim{rejectModal.claimIds.length !== 1 ? 's' : ''}</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">A reason is required and will be stored on the claim record.</p>
             <textarea
@@ -1085,14 +1085,14 @@ function ClaimsPage() {
               <button
                 onClick={confirmReject}
                 disabled={!rejectModal.reason.trim()}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 Confirm Reject
               </button>
               <button
                 onClick={() => setRejectModal({ open: false, claimIds: [], reason: '' })}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>

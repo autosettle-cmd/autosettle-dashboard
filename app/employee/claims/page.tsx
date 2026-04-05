@@ -312,7 +312,7 @@ export default function EmployeeClaimsPage() {
 
           {/* ── Success toast ─────────────────────────────── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-xl p-3">
+            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-sm text-green-700">{successMsg}</p>
             </div>
           )}
@@ -322,14 +322,14 @@ export default function EmployeeClaimsPage() {
             <h2 className="text-body-md font-semibold text-gray-900">All Claims</h2>
             <button
               onClick={openModal}
-              className="btn-primary text-sm px-4 py-2 rounded-xl font-medium"
+              className="btn-primary text-sm px-4 py-2 rounded-lg font-medium"
             >
               Submit New Claim
             </button>
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
               <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
             ) : claims.length === 0 ? (
@@ -393,12 +393,12 @@ export default function EmployeeClaimsPage() {
       {/* ═══ SUBMIT CLAIM MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-semibold text-gray-900">Submit New Claim</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
 
             {/* ── Type Toggle ── */}
-            <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-4">
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
               <button
                 onClick={() => setClaimType('receipt')}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
@@ -414,7 +414,7 @@ export default function EmployeeClaimsPage() {
             </div>
 
             {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-sm text-red-700">{modalError}</p>
               </div>
             )}
@@ -477,7 +477,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <p className="text-sm text-blue-800 font-medium">
                         Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
@@ -546,7 +546,7 @@ export default function EmployeeClaimsPage() {
                   <div>
                     <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt *</label>
                     <div
-                      className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
@@ -556,7 +556,7 @@ export default function EmployeeClaimsPage() {
                               <span className="text-red-500 font-bold text-xs">PDF</span>
                             </div>
                           ) : previewUrl ? (
-                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />
+                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-lg" />
                           ) : null}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button
@@ -599,14 +599,14 @@ export default function EmployeeClaimsPage() {
               <button
                 onClick={submitClaim}
                 disabled={modalSaving || ocrScanning}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage Claim' : 'Submit Claim'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -629,16 +629,16 @@ export default function EmployeeClaimsPage() {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.type === 'mileage' ? (
-                <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-1.5">
+                <div className="w-full rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-1.5">
                   <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Mileage Claim</p>
                   <p className="text-sm text-blue-900">{previewClaim.from_location} &rarr; {previewClaim.to_location}</p>
                   <p className="text-sm text-blue-800">{previewClaim.distance_km} km</p>
                   {previewClaim.trip_purpose && <p className="text-xs text-blue-600">{previewClaim.trip_purpose}</p>}
                 </div>
               ) : previewClaim.thumbnail_url ? (
-                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-xl" />
+                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg" />
               ) : (
-                <div className="w-full h-40 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
@@ -669,7 +669,7 @@ export default function EmployeeClaimsPage() {
                     <label className="input-label">Description</label>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
                 </div>
@@ -696,7 +696,7 @@ export default function EmployeeClaimsPage() {
                     }`}>{previewClaim.confidence}</span>
                   </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
@@ -713,10 +713,10 @@ export default function EmployeeClaimsPage() {
             <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40">
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -733,7 +733,7 @@ export default function EmployeeClaimsPage() {
                       description: previewClaim.description ?? '',
                     });
                   }}
-                  className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
+                  className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
                 >
                   Edit
                 </button>

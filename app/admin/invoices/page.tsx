@@ -488,7 +488,7 @@ function AdminInvoicesPage() {
             <div className="ml-auto">
               <button
                 onClick={() => setShowNewInvoice(true)}
-                className="btn-primary px-4 py-2 rounded-xl text-sm font-semibold"
+                className="btn-primary px-4 py-2 rounded-lg text-sm font-semibold"
               >
                 + Submit New Invoice
               </button>
@@ -496,7 +496,7 @@ function AdminInvoicesPage() {
           </div>
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]" style={{ height: '100%' }}>
             <AgGridReact<InvoiceRow>
               onGridReady={onGridReady}
               rowData={invoices}
@@ -518,7 +518,7 @@ function AdminInvoicesPage() {
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">Submit New Invoice</h2>
                 <button onClick={() => setShowNewInvoice(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -550,12 +550,12 @@ function AdminInvoicesPage() {
                     const q = newInv.vendor_name.toLowerCase();
                     const filtered = suppliers.filter((s) => s.name.toLowerCase().includes(q));
                     if (filtered.length === 0) return (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-3">
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
                         <p className="text-xs text-gray-400">No matching suppliers — a new one will be created</p>
                       </div>
                     );
                     return (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
                         {filtered.slice(0, 8).map((s) => (
                           <button
                             key={s.id}
@@ -634,13 +634,13 @@ function AdminInvoicesPage() {
                 <button
                   onClick={submitNewInvoice}
                   disabled={newInvSubmitting || ocrScanning}
-                  className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
                 </button>
                 <button
                   onClick={() => setShowNewInvoice(false)}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancel
                 </button>
@@ -824,10 +824,10 @@ function AdminInvoicesPage() {
             <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -849,14 +849,14 @@ function AdminInvoicesPage() {
                         supplier_id: previewInvoice.supplier_id ?? '',
                       });
                     }}
-                    className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
+                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => markAsReviewed(previewInvoice.id)}
                     disabled={previewInvoice.status === 'reviewed'}
-                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                     style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Mark as Reviewed

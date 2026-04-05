@@ -210,14 +210,14 @@ export default function ClientsPage() {
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             <button
               onClick={openAddModal}
-              className="ml-auto btn-primary text-sm px-4 py-2 rounded-xl font-medium"
+              className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-medium"
             >
               Add Client
             </button>
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
               <div className="px-6 py-10 text-center text-sm text-gray-400">Loading...</div>
             ) : firms.length === 0 ? (
@@ -268,7 +268,7 @@ export default function ClientsPage() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => openEdit(firm)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                             >
                               Edit
                             </button>
@@ -285,7 +285,7 @@ export default function ClientsPage() {
                                   console.error(e);
                                 }
                               }}
-                              className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                             >
                               {firm.is_active ? 'Deactivate' : 'Activate'}
                             </button>
@@ -427,10 +427,10 @@ export default function ClientsPage() {
             </div>
 
             <div className="p-4 flex-shrink-0 flex gap-3">
-              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditFirm(null)} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditFirm(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
@@ -441,7 +441,7 @@ export default function ClientsPage() {
       {/* === ADD CLIENT MODAL === */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Client</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new client firm.</p>
 
@@ -510,14 +510,14 @@ export default function ClientsPage() {
               <button
                 onClick={submitFirm}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Creating...' : 'Create Client'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

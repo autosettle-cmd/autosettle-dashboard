@@ -96,7 +96,7 @@ export default function SignupPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
     "block text-white/40 text-label-sm font-semibold uppercase tracking-[0.15em] mb-2.5";
@@ -334,7 +334,7 @@ export default function SignupPage() {
                       />
                       {showDropdown && filteredFirms.length > 0 && (
                         <div
-                          className="absolute z-20 w-full mt-1.5 max-h-48 overflow-y-auto rounded-xl border shadow-2xl"
+                          className="absolute z-20 w-full mt-1.5 max-h-48 overflow-y-auto rounded-lg border shadow-2xl"
                           style={{
                             backgroundColor: "var(--sidebar)",
                             borderColor: "rgba(255, 255, 255, 0.08)",
@@ -355,7 +355,7 @@ export default function SignupPage() {
                       )}
                       {showDropdown && firmSearch && filteredFirms.length === 0 && (
                         <div
-                          className="absolute z-20 w-full mt-1.5 rounded-xl border px-4 py-3"
+                          className="absolute z-20 w-full mt-1.5 rounded-lg border px-4 py-3"
                           style={{
                             backgroundColor: "var(--sidebar)",
                             borderColor: "rgba(255, 255, 255, 0.08)",
@@ -372,7 +372,7 @@ export default function SignupPage() {
 
                   {error && (
                     <div
-                      className="flex items-center gap-2.5 px-4 py-3 rounded-xl border"
+                      className="flex items-center gap-2.5 px-4 py-3 rounded-lg border"
                       style={{
                         backgroundColor: "rgba(var(--accent-rgb), 0.08)",
                         borderColor: "rgba(var(--accent-rgb), 0.2)",
@@ -394,7 +394,7 @@ export default function SignupPage() {
                   <button
                     type="submit"
                     disabled={pageState === "loading"}
-                    className="w-full py-3 rounded-xl text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed btn-primary mt-1"
+                    className="w-full py-3 rounded-lg text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed btn-primary mt-1"
                   >
                     {pageState === "loading" ? (
                       <span className="flex items-center justify-center gap-2.5">

@@ -161,7 +161,7 @@ export default function AccountantAgingReportPage() {
               <p className="text-xs text-gray-300 mt-1">All invoices are paid.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl overflow-hidden">
+            <div className="bg-white rounded-lg overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="ds-table-header">

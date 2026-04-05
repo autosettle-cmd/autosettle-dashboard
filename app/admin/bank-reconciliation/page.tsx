@@ -137,7 +137,7 @@ export default function BankReconciliationPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Bank Reconciliation</h1>
-          <button onClick={() => setShowUpload(true)} className="btn-primary px-3 py-1.5 bg-blue-600 text-white text-body-md font-medium rounded-xl hover:bg-blue-700 transition-colors">
+          <button onClick={() => setShowUpload(true)} className="btn-primary px-3 py-1.5 bg-blue-600 text-white text-body-md font-medium rounded-lg hover:bg-blue-700 transition-colors">
             Upload Statement
           </button>
         </header>
@@ -146,7 +146,7 @@ export default function BankReconciliationPage() {
           {/* Upload modal */}
           {showUpload && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setShowUpload(false)}>
-              <div className="bg-white rounded-xl shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-title-md font-semibold text-gray-900">Upload Bank Statement</h2>
                   <button onClick={() => setShowUpload(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors">
@@ -166,8 +166,8 @@ export default function BankReconciliationPage() {
                   )}
                   {uploadError && <p className="text-body-sm text-red-600">{uploadError}</p>}
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
-                    <button onClick={handleUpload} disabled={uploading} className="btn-primary flex-1 px-3 py-2 text-body-md text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50">
+                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                    <button onClick={handleUpload} disabled={uploading} className="btn-primary flex-1 px-3 py-2 text-body-md text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
                       {uploading ? 'Processing...' : 'Upload & Parse'}
                     </button>
                   </div>
@@ -202,7 +202,7 @@ export default function BankReconciliationPage() {
                 const latestBalance = group.statements[0]?.closing_balance;
                 const totalUnmatched = group.statements.reduce((s, st) => s + st.unmatched, 0);
                 return (
-                  <div key={key} className={`bg-white rounded-xl overflow-hidden ${needsAttention ? 'border border-amber-200' : ''}`}>
+                  <div key={key} className={`bg-white rounded-lg overflow-hidden ${needsAttention ? 'border border-amber-200' : ''}`}>
                     <div className={`flex items-center justify-between px-6 py-3.5 cursor-pointer transition-colors ${isOpen ? 'bg-gray-50' : 'hover:bg-gray-50/50'}`}
                       onClick={() => setExpandedAccount(isOpen ? null : key)}>
                       <div className="flex items-center gap-3">

@@ -425,14 +425,14 @@ export default function PeoplePage() {
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={openAdminModal}
-                className="text-sm px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
+                className="text-sm px-4 py-2 rounded-lg font-medium text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Add Admin
               </button>
               <button
                 onClick={openEmpModal}
-                className="text-sm px-4 py-2 rounded-xl font-medium btn-primary"
+                className="text-sm px-4 py-2 rounded-lg font-medium btn-primary"
               >
                 Add Employee
               </button>
@@ -441,7 +441,7 @@ export default function PeoplePage() {
 
           {/* ── SECTION 0: PENDING APPROVAL ── */}
           {!pendingLoading && pending.length > 0 && (
-            <div className="bg-white rounded-xl overflow-hidden">
+            <div className="bg-white rounded-lg overflow-hidden">
               <div className="px-6 py-3 flex items-center gap-2">
                 <h2 className="text-body-md font-semibold text-amber-700">Pending Approval</h2>
                 <span className="badge-amber">{pending.length}</span>
@@ -489,7 +489,7 @@ export default function PeoplePage() {
           )}
 
           {/* ── SECTION 1: ADMINS ── */}
-          <div className="bg-white rounded-xl overflow-hidden">
+          <div className="bg-white rounded-lg overflow-hidden">
             <div className="px-6 py-3 flex items-center gap-2">
               <h2 className="text-body-md font-semibold text-gray-900">Admins</h2>
               {!adminsLoading && filteredAdmins.length > 0 && (
@@ -530,13 +530,13 @@ export default function PeoplePage() {
                         <td className="px-6 py-3 flex items-center gap-2">
                           <button
                             onClick={() => openEditAdminPanel(admin)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => toggleAdminActive(admin)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             {admin.status === 'active' ? 'Deactivate' : 'Activate'}
                           </button>
@@ -550,7 +550,7 @@ export default function PeoplePage() {
           </div>
 
           {/* ── SECTION 2: EMPLOYEES ── */}
-          <div className="bg-white rounded-xl overflow-hidden">
+          <div className="bg-white rounded-lg overflow-hidden">
             <div className="px-6 py-3 flex items-center gap-2">
               <h2 className="text-body-md font-semibold text-gray-900">Employees</h2>
               {!empLoading && employees.length > 0 && (
@@ -597,13 +597,13 @@ export default function PeoplePage() {
                         <td className="px-6 py-3 flex items-center gap-2">
                           <button
                             onClick={() => openEditEmpPanel(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => toggleEmpActive(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
                           >
                             {emp.is_active ? 'Deactivate' : 'Activate'}
                           </button>
@@ -622,7 +622,7 @@ export default function PeoplePage() {
       {/* === ADD ADMIN MODAL === */}
       {showAdminModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Admin</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new admin user for a firm.</p>
 
@@ -659,10 +659,10 @@ export default function PeoplePage() {
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={submitAdmin} disabled={adminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={submitAdmin} disabled={adminSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {adminSaving ? 'Creating...' : 'Create Admin'}
               </button>
-              <button onClick={() => setShowAdminModal(false)} disabled={adminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
+              <button onClick={() => setShowAdminModal(false)} disabled={adminSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>
@@ -673,7 +673,7 @@ export default function PeoplePage() {
       {/* === ADD EMPLOYEE MODAL === */}
       {showEmpModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
             <h3 className="text-base font-semibold text-gray-900">Add Employee</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Create a new employee record.</p>
 
@@ -706,10 +706,10 @@ export default function PeoplePage() {
             </div>
 
             <div className="flex gap-3 mt-5">
-              <button onClick={submitEmployee} disabled={empSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={submitEmployee} disabled={empSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {empSaving ? 'Creating...' : 'Create Employee'}
               </button>
-              <button onClick={() => setShowEmpModal(false)} disabled={empSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
+              <button onClick={() => setShowEmpModal(false)} disabled={empSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>
@@ -748,10 +748,10 @@ export default function PeoplePage() {
             </div>
 
             <div className="flex-shrink-0 p-4 flex gap-3">
-              <button onClick={submitEditEmp} disabled={editSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={submitEditEmp} disabled={editSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditEmp(null)} disabled={editSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
+              <button onClick={() => setEditEmp(null)} disabled={editSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>
@@ -786,10 +786,10 @@ export default function PeoplePage() {
             </div>
 
             <div className="flex-shrink-0 p-4 flex gap-3">
-              <button onClick={submitEditAdmin} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={submitEditAdmin} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editAdminSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditAdmin(null)} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
+              <button onClick={() => setEditAdmin(null)} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40">
                 Cancel
               </button>
             </div>

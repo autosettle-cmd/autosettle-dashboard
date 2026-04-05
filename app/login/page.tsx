@@ -183,18 +183,18 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
     "block text-white/40 text-label-sm font-semibold uppercase tracking-[0.15em] mb-2.5";
 
   const primaryBtnClass =
-    "w-full py-3 rounded-xl text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group";
+    "w-full py-3 rounded-lg text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group";
 
   function ErrorBanner({ message }: { message: string }) {
     return (
       <div
-        className="flex items-center gap-2.5 px-4 py-3 rounded-xl border"
+        className="flex items-center gap-2.5 px-4 py-3 rounded-lg border"
         style={{
           backgroundColor: "rgba(var(--accent-rgb), 0.08)",
           borderColor: "rgba(var(--accent-rgb), 0.2)",

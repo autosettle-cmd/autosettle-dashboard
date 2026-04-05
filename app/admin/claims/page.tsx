@@ -528,7 +528,7 @@ function AdminClaimsPage() {
               <button
                 key={key}
                 onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
-                className={`px-4 py-1.5 rounded-xl text-body-md font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-lg text-body-md font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -543,7 +543,7 @@ function AdminClaimsPage() {
             ))}
             <button
               onClick={openModal}
-              className="btn-primary ml-auto text-sm px-4 py-2 rounded-xl font-semibold text-white"
+              className="btn-primary ml-auto text-sm px-4 py-2 rounded-lg font-semibold text-white"
             >
               + Submit New
             </button>
@@ -592,7 +592,7 @@ function AdminClaimsPage() {
 
           {/* ── Success message ──────────────────────────── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-xl p-3">
+            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
               <p className="text-sm text-green-700">{successMsg}</p>
             </div>
           )}
@@ -600,7 +600,7 @@ function AdminClaimsPage() {
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-lg" style={{ height: '100%' }}>
             <AgGridReact<ClaimRow>
               onGridReady={onGridReady}
               rowData={claims}
@@ -622,10 +622,10 @@ function AdminClaimsPage() {
       {/* ═══ SUBMIT MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -635,7 +635,7 @@ function AdminClaimsPage() {
             <p className="text-sm text-gray-500 mb-4">Fill in the details below.</p>
 
             {/* ── Type Toggle ── */}
-            <div className="flex rounded-xl border border-gray-200 overflow-hidden mb-4">
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
               {(['claim', 'receipt', 'mileage'] as const).map((t) => (
                 <button
                   key={t}
@@ -648,7 +648,7 @@ function AdminClaimsPage() {
             </div>
 
             {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-xl p-3">
+              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-sm text-red-700">{modalError}</p>
               </div>
             )}
@@ -678,7 +678,7 @@ function AdminClaimsPage() {
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className="input-field w-full" placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <p className="text-sm text-blue-800 font-medium">
                         Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
@@ -714,7 +714,7 @@ function AdminClaimsPage() {
                   <div>
                     <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
                     <div
-                      className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
@@ -724,7 +724,7 @@ function AdminClaimsPage() {
                               <span className="text-red-500 font-bold text-xs">PDF</span>
                             </div>
                           ) : previewUrl ? (
-                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-xl" />
+                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-lg" />
                           ) : null}
                           <p className="text-sm text-gray-600">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
                           <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[var(--accent)] hover:text-[var(--accent-hover)]">Remove</button>
@@ -755,14 +755,14 @@ function AdminClaimsPage() {
               <button
                 onClick={submitClaim}
                 disabled={modalSaving || ocrScanning}
-                className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -773,14 +773,14 @@ function AdminClaimsPage() {
 
       {/* ═══ BATCH BAR ═══ */}
       {selectedRows.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-xl shadow-2xl text-white" style={{ backgroundColor: 'var(--sidebar)' }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-lg shadow-2xl text-white" style={{ backgroundColor: 'var(--sidebar)' }}>
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedRows.length} claim{selectedRows.length !== 1 ? 's' : ''} selected
           </span>
           <span className="w-px h-5 bg-white/20" />
           <button
             onClick={() => batchReview(selectedRows.map((r) => r.id))}
-            className="btn-primary text-sm px-4 py-1.5 rounded-xl font-medium"
+            className="btn-primary text-sm px-4 py-1.5 rounded-lg font-medium"
           >
             Mark as Reviewed
           </button>
@@ -800,7 +800,7 @@ function AdminClaimsPage() {
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
             <div className="h-16 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-bold text-title-md tracking-tight">Claim Details</h2>
-              <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+              <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-lg flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
                   <line x1="6" y1="6" x2="18" y2="18" />
@@ -813,10 +813,10 @@ function AdminClaimsPage() {
                 <img
                   src={previewClaim.thumbnail_url}
                   alt="Receipt"
-                  className="w-full max-h-52 object-contain rounded-xl border border-gray-200"
+                  className="w-full max-h-52 object-contain rounded-lg border border-gray-200"
                 />
               ) : (
-                <div className="w-full h-40 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">
                   No image available
                 </div>
               )}
@@ -850,7 +850,7 @@ function AdminClaimsPage() {
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
                 </div>
@@ -879,7 +879,7 @@ function AdminClaimsPage() {
                   </div>
 
                   {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
                       <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
                       {previewClaim.linked_payments.map((lp) => (
                         <div key={lp.payment_id} className="text-sm text-blue-800">
@@ -914,7 +914,7 @@ function AdminClaimsPage() {
                   </div>
 
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                       <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
@@ -933,10 +933,10 @@ function AdminClaimsPage() {
             <div className="p-4 flex gap-3 flex-shrink-0">
               {editMode ? (
                 <>
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -954,14 +954,14 @@ function AdminClaimsPage() {
                         description: previewClaim.description ?? '',
                       });
                     }}
-                    className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
+                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => batchReview([previewClaim.id])}
                     disabled={previewClaim.status === 'reviewed'}
-                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                     style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Mark as Reviewed

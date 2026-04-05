@@ -299,7 +299,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* ── Needs Attention ────────────────────────────── */}
-          <div className="bg-white rounded-xl">
+          <div className="bg-white rounded-lg">
             {/* Tab header */}
             <div className="flex items-center justify-between px-5">
               <div className="flex gap-0">
@@ -562,10 +562,10 @@ export default function AdminDashboard() {
             <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
-                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85">
+                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
                 </>
@@ -583,14 +583,14 @@ export default function AdminDashboard() {
                         description: previewClaim.description ?? '',
                       });
                     }}
-                    className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => markAsReviewed(previewClaim.id)}
                     disabled={previewClaim.status === 'reviewed'}
-                    className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                     style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Mark as Reviewed
@@ -651,14 +651,14 @@ export default function AdminDashboard() {
             <div className="p-4 flex-shrink-0 flex gap-3">
               <Link
                 href="/admin/invoices"
-                className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
+                className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
               >
                 Open in Invoices
               </Link>
               <button
                 onClick={() => markInvoiceReviewed(previewInvoice.id)}
                 disabled={previewInvoice.status === 'reviewed'}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Mark as Reviewed
@@ -689,7 +689,7 @@ function StatCard({ label, value, amount, color, href }: {
 
   const content = (
     <div
-      className={`bg-white rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group ${href ? 'cursor-pointer' : ''}`}
+      className={`bg-white rounded-lg p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group ${href ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center gap-1.5 mb-3">
         <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
@@ -725,14 +725,14 @@ function Pagination({ total, page, pageSize, onPageChange }: {
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-body-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={(page + 1) * pageSize >= total}
-          className="px-3 py-1.5 text-body-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>
