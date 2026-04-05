@@ -4,9 +4,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -223,15 +220,15 @@ export default function FirmDetailPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       <Sidebar role="accountant" />
 
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Firm Details</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Firm Details</h1>
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
@@ -239,7 +236,7 @@ export default function FirmDetailPage() {
           {/* ── Back link ── */}
           <Link
             href="/accountant/clients"
-            className="text-[13px] text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 w-fit"
+            className="text-body-md text-gray-500 hover:text-gray-700 transition-colors flex items-center gap-1 w-fit"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
             Back to Clients
@@ -252,9 +249,9 @@ export default function FirmDetailPage() {
           ) : (
             <>
               {/* ── FIRM INFO CARD ── */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] p-5">
+              <div className="bg-white rounded-xl p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[15px] font-semibold text-gray-900">{firm.name}</h2>
+                  <h2 className="text-title-md font-semibold text-gray-900">{firm.name}</h2>
                   <button
                     onClick={openEditPanel}
                     className="text-xs font-medium px-3 py-1.5 rounded-xl border border-gray-300 text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
@@ -264,19 +261,19 @@ export default function FirmDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Registration Number</p>
-                    <p className="text-[13px] text-gray-900">{firm.registration_number ?? '—'}</p>
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Registration Number</p>
+                    <p className="text-body-md text-gray-900">{firm.registration_number ?? '—'}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Contact Email</p>
-                    <p className="text-[13px] text-gray-900">{firm.contact_email ?? '—'}</p>
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Contact Email</p>
+                    <p className="text-body-md text-gray-900">{firm.contact_email ?? '—'}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Contact Phone</p>
-                    <p className="text-[13px] text-gray-900">{firm.contact_phone ?? '—'}</p>
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Contact Phone</p>
+                    <p className="text-body-md text-gray-900">{firm.contact_phone ?? '—'}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Plan</p>
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Plan</p>
                     {firm.plan === 'paid' ? (
                       <span className="badge-green">Paid</span>
                     ) : (
@@ -287,45 +284,45 @@ export default function FirmDetailPage() {
 
                 {/* LHDN / E-Invoice Details */}
                 {(firm.tin || firm.brn || firm.msic_code || firm.sst_registration_number || firm.address_line1) && (
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</p>
+                  <div className="mt-4 pt-4">
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {firm.tin && (
                         <div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">TIN</p>
-                          <p className="text-[13px] text-gray-900">{firm.tin}</p>
+                          <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">TIN</p>
+                          <p className="text-body-md text-gray-900">{firm.tin}</p>
                         </div>
                       )}
                       {firm.brn && (
                         <div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">BRN</p>
-                          <p className="text-[13px] text-gray-900">{firm.brn}</p>
+                          <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">BRN</p>
+                          <p className="text-body-md text-gray-900">{firm.brn}</p>
                         </div>
                       )}
                       {firm.msic_code && (
                         <div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">MSIC Code</p>
-                          <p className="text-[13px] text-gray-900">{firm.msic_code}</p>
+                          <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">MSIC Code</p>
+                          <p className="text-body-md text-gray-900">{firm.msic_code}</p>
                         </div>
                       )}
                       {firm.sst_registration_number && (
                         <div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">SST Registration</p>
-                          <p className="text-[13px] text-gray-900">{firm.sst_registration_number}</p>
+                          <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">SST Registration</p>
+                          <p className="text-body-md text-gray-900">{firm.sst_registration_number}</p>
                         </div>
                       )}
                       {firm.address_line1 && (
                         <div className="col-span-2">
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Address</p>
-                          <p className="text-[13px] text-gray-900">
+                          <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Address</p>
+                          <p className="text-body-md text-gray-900">
                             {firm.address_line1}{firm.address_line2 ? `, ${firm.address_line2}` : ''}{firm.city ? `, ${firm.city}` : ''}{firm.postal_code ? ` ${firm.postal_code}` : ''}{firm.state ? `, ${firm.state}` : ''}
                           </p>
                         </div>
                       )}
                       {firm.lhdn_client_id && (
                         <div>
-                          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">LHDN Credentials</p>
-                          <span className="badge-green text-[10px]">Configured</span>
+                          <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-0.5">LHDN Credentials</p>
+                          <span className="badge-green text-label-sm">Configured</span>
                         </div>
                       )}
                     </div>
@@ -350,9 +347,9 @@ export default function FirmDetailPage() {
               </div>
 
               {/* ── ADMINS SECTION ── */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
-                <div className="px-6 py-3 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-[13px] font-semibold text-gray-900">Admins</h2>
+              <div className="bg-white rounded-xl overflow-hidden">
+                <div className="px-6 py-3 flex items-center justify-between">
+                  <h2 className="text-body-md font-semibold text-gray-900">Admins</h2>
                   <button
                     onClick={openModal}
                     className="text-xs px-3 py-1.5 rounded-xl font-medium btn-primary"
@@ -368,7 +365,7 @@ export default function FirmDetailPage() {
                   <div className="overflow-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5">Name</th>
                           <th className="px-6 py-2.5">Email</th>
                           <th className="px-6 py-2.5">Status</th>
@@ -376,8 +373,8 @@ export default function FirmDetailPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {admins.map((admin, i) => (
-                          <tr key={admin.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < admins.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        {admins.map((admin) => (
+                          <tr key={admin.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                             <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
                             <td className="px-6 py-3 text-gray-600">{admin.email}</td>
                             <td className="px-6 py-3">
@@ -440,7 +437,7 @@ export default function FirmDetailPage() {
 
               {/* LHDN / E-Invoice Section */}
               <div className="pt-2">
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -467,7 +464,7 @@ export default function FirmDetailPage() {
 
               {/* Address Section */}
               <div className="pt-2">
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Address</h3>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Address</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="input-label">Address Line 1</label>
@@ -502,8 +499,8 @@ export default function FirmDetailPage() {
 
               {/* LHDN Credentials Section */}
               <div className="pt-2">
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
-                <p className="text-[11px] text-gray-400 mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
+                <p className="text-label-sm text-gray-400 mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
                 <div className="space-y-3">
                   <div>
                     <label className="input-label">Client ID</label>
@@ -517,7 +514,7 @@ export default function FirmDetailPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -544,7 +541,7 @@ export default function FirmDetailPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -555,7 +552,7 @@ export default function FirmDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
                 <input
                   type="email"
                   value={modalEmail}
@@ -565,7 +562,7 @@ export default function FirmDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
                 <input
                   type="text"
                   value={modalPhone}
@@ -575,7 +572,7 @@ export default function FirmDetailPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
                 <input
                   type="password"
                   value={modalPassword}

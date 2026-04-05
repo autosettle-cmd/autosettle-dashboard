@@ -7,10 +7,6 @@ import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'rea
 import { useSearchParams } from 'next/navigation';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
-
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -140,7 +136,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -512,7 +508,7 @@ function AdminClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="admin" />
@@ -520,8 +516,8 @@ function AdminClaimsPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Claims</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Claims</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -532,7 +528,7 @@ function AdminClaimsPage() {
               <button
                 key={key}
                 onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
-                className={`px-4 py-1.5 rounded-xl text-[13px] font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-xl text-body-md font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -540,7 +536,7 @@ function AdminClaimsPage() {
                 style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
               >
                 {label}
-                <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
+                <span className={`ml-1.5 text-label-sm px-1.5 py-0.5 rounded-full font-semibold ${
                   claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                 }`}>{count}</span>
               </button>
@@ -604,7 +600,7 @@ function AdminClaimsPage() {
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl" style={{ height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl" style={{ height: '100%' }}>
             <AgGridReact<ClaimRow>
               onGridReady={onGridReady}
               rowData={claims}
@@ -626,7 +622,7 @@ function AdminClaimsPage() {
       {/* ═══ SUBMIT MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-semibold text-gray-900">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
@@ -659,26 +655,26 @@ function AdminClaimsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-field w-full" required />
               </div>
 
               {modalType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
                     <input type="text" value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} className="input-field w-full" placeholder="e.g. PJ Office" autoFocus />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
                     <input type="text" value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} className="input-field w-full" placeholder="e.g. Shah Alam client office" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
                     <input type="number" value={mileageDistance} onChange={(e) => setMileageDistance(e.target.value)} className="input-field w-full" placeholder="e.g. 25" step="0.1" min="0" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className="input-field w-full" placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
@@ -693,30 +689,30 @@ function AdminClaimsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
                     <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className="input-field w-full" placeholder="e.g. Petronas, Grab, etc." autoFocus />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
                     <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className="input-field w-full" placeholder="0.00" step="0.01" min="0" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
                     <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className="input-field w-full">
                       <option value="">Select a category</option>
                       {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
                     <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className="input-field w-full" placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
                     <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" rows={2} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -802,8 +798,8 @@ function AdminClaimsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-5 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-bold text-[15px] tracking-tight">Claim Details</h2>
+            <div className="h-16 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <h2 className="text-white font-bold text-title-md tracking-tight">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -884,7 +880,7 @@ function AdminClaimsPage() {
 
                   {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
-                      <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
+                      <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
                       {previewClaim.linked_payments.map((lp) => (
                         <div key={lp.payment_id} className="text-sm text-blue-800">
                           <p className="font-medium">{lp.supplier_name}</p>
@@ -910,7 +906,7 @@ function AdminClaimsPage() {
                   )}
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH'   ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -919,7 +915,7 @@ function AdminClaimsPage() {
 
                   {previewClaim.rejection_reason && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                      <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                      <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
@@ -934,7 +930,7 @@ function AdminClaimsPage() {
               )}
             </div>
 
-            <div className="p-4 border-t flex gap-3 flex-shrink-0">
+            <div className="p-4 flex gap-3 flex-shrink-0">
               {editMode ? (
                 <>
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">

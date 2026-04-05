@@ -1,14 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
 import { login, checkEmail, resetPassword } from "./actions";
 import { brand } from '@/config/branding';
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
 
 type View = "login" | "forgot-email" | "forgot-reset" | "forgot-done";
 
@@ -189,13 +183,13 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-[15px] focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
-    "block text-white/40 text-[11px] font-semibold uppercase tracking-[0.15em] mb-2.5";
+    "block text-white/40 text-label-sm font-semibold uppercase tracking-[0.15em] mb-2.5";
 
   const primaryBtnClass =
-    "w-full py-3 rounded-xl text-white font-bold text-[15px] transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group";
+    "w-full py-3 rounded-xl text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group";
 
   function ErrorBanner({ message }: { message: string }) {
     return (
@@ -230,7 +224,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className={jakarta.className}>
+    <div>
       <main className="flex min-h-screen" style={{ backgroundColor: "#0D1B2A" }}>
         {/* ── Left Panel: Decorative ─────────────────────────────── */}
         <div
@@ -330,7 +324,7 @@ export default function LoginPage() {
               alt={brand.logoAlt}
               className="h-10 mb-6 opacity-80"
             />
-            <p className="text-white/25 text-[13px] leading-relaxed max-w-[320px]">
+            <p className="text-white/25 text-body-md leading-relaxed max-w-[320px]">
               {brand.description}
             </p>
           </div>
@@ -369,7 +363,7 @@ export default function LoginPage() {
             <div className="hidden lg:block mb-10">
               <div className="flex items-center gap-2 mb-1.5">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--accent)" }} />
-                <span className="text-white/30 text-[11px] font-semibold uppercase tracking-[0.2em]">
+                <span className="text-white/30 text-label-sm font-semibold uppercase tracking-[0.2em]">
                   {brand.portalTitle}
                 </span>
               </div>
@@ -390,7 +384,7 @@ export default function LoginPage() {
                     <h1 className="text-white text-[26px] font-extrabold tracking-tight mb-1.5">
                       Welcome back
                     </h1>
-                    <p className="text-white/35 text-[14px]">
+                    <p className="text-white/35 text-title-sm">
                       Sign in to your account to continue
                     </p>
                   </div>
@@ -473,7 +467,7 @@ export default function LoginPage() {
                         setView("forgot-email");
                         setError("");
                       }}
-                      className="text-white/30 hover:text-white/60 text-[13px] transition-colors duration-300 mt-1"
+                      className="text-white/30 hover:text-white/60 text-body-md transition-colors duration-300 mt-1"
                     >
                       Forgot your password?
                     </button>
@@ -487,7 +481,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={goBackToLogin}
-                      className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-[13px] mb-6 transition-colors duration-300"
+                      className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-body-md mb-6 transition-colors duration-300"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m15 18-6-6 6-6" />
@@ -497,7 +491,7 @@ export default function LoginPage() {
                     <h1 className="text-white text-[26px] font-extrabold tracking-tight mb-1.5">
                       Reset password
                     </h1>
-                    <p className="text-white/35 text-[14px]">
+                    <p className="text-white/35 text-title-sm">
                       Enter your email to verify your account
                     </p>
                   </div>
@@ -550,7 +544,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={goBackToLogin}
-                      className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-[13px] mb-6 transition-colors duration-300"
+                      className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-body-md mb-6 transition-colors duration-300"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m15 18-6-6 6-6" />
@@ -560,7 +554,7 @@ export default function LoginPage() {
                     <h1 className="text-white text-[26px] font-extrabold tracking-tight mb-1.5">
                       New password
                     </h1>
-                    <p className="text-white/35 text-[14px]">
+                    <p className="text-white/35 text-title-sm">
                       Hi <span className="text-white/50 font-medium">{resetName}</span>, set your new password below
                     </p>
                   </div>
@@ -643,7 +637,7 @@ export default function LoginPage() {
                     <h1 className="text-white text-[26px] font-extrabold tracking-tight mb-2">
                       All set
                     </h1>
-                    <p className="text-white/35 text-[14px] mb-8">
+                    <p className="text-white/35 text-title-sm mb-8">
                       Your password has been updated successfully.
                     </p>
                     <button
@@ -666,7 +660,7 @@ export default function LoginPage() {
             {/* Sign up link */}
             {view === "login" && (
               <p
-                className="text-center text-white/25 text-[13px] mt-8"
+                className="text-center text-white/25 text-body-md mt-8"
                 style={{
                   opacity: mounted ? 1 : 0,
                   animation: mounted ? "fade-in-up 0.5s ease-out 0.6s both" : "none",
@@ -691,7 +685,7 @@ export default function LoginPage() {
               }}
             >
               <span className="w-8 h-px bg-white/10" />
-              <span className="text-white/15 text-[11px] tracking-widest uppercase">
+              <span className="text-white/15 text-label-sm tracking-widest uppercase">
                 Secured with 256-bit encryption
               </span>
               <span className="w-8 h-px bg-white/10" />

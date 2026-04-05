@@ -6,10 +6,6 @@ import Link from 'next/link';
 import { generateSOAPdf } from '@/lib/generate-soa-pdf';
 import type { StatementData } from '@/lib/generate-soa-pdf';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatDate(val: string) {
@@ -82,7 +78,7 @@ export default function AdminSupplierStatementPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="admin" />
@@ -92,7 +88,7 @@ export default function AdminSupplierStatementPage() {
         <div className="max-w-5xl mx-auto px-8 py-8">
 
           {/* Back link */}
-          <Link href="/admin/suppliers" className="inline-flex items-center gap-1.5 text-[13px] text-gray-400 hover:text-gray-600 transition-colors mb-4">
+          <Link href="/admin/suppliers" className="inline-flex items-center gap-1.5 text-body-md text-gray-400 hover:text-gray-600 transition-colors mb-4">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             Back to Suppliers
           </Link>
@@ -105,18 +101,18 @@ export default function AdminSupplierStatementPage() {
           {/* Date range picker */}
           <div className="mt-5 flex items-end gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">From</label>
+              <label className="block text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-1">From</label>
               <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                className="h-9 px-3 text-[13px] border border-gray-200 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                className="h-9 px-3 text-body-md border border-gray-200 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-1">To</label>
+              <label className="block text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-1">To</label>
               <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                className="h-9 px-3 text-[13px] border border-gray-200 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
+                className="h-9 px-3 text-body-md border border-gray-200 rounded-xl bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400" />
             </div>
             <button onClick={fetchStatement} disabled={loading}
-              className="btn-primary h-9 px-5 text-[13px] font-medium text-white rounded-xl disabled:opacity-50 transition-colors"
-              style={{ backgroundColor: 'var(--accent)' }}>
+              className="btn-primary h-9 px-5 text-body-md font-medium text-white rounded-xl disabled:opacity-50 transition-colors"
+              style={{ backgroundColor: 'var(--primary)' }}>
               {loading ? 'Loading...' : 'Generate'}
             </button>
           </div>
@@ -126,26 +122,26 @@ export default function AdminSupplierStatementPage() {
           {data && (
             <>
               {/* Supplier info */}
-              <div className="mt-6 bg-white rounded-xl border border-gray-100 p-5" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+              <div className="mt-6 bg-white rounded-xl p-5">
                 <div className="flex gap-8">
                   <div>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Supplier</p>
+                    <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier</p>
                     <p className="text-sm text-gray-900 mt-0.5 font-medium">{data.supplier.name}</p>
                   </div>
                   {data.supplier.contact_email && (
                     <div>
-                      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Email</p>
+                      <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Email</p>
                       <p className="text-sm text-gray-900 mt-0.5">{data.supplier.contact_email}</p>
                     </div>
                   )}
                   {data.supplier.contact_phone && (
                     <div>
-                      <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Phone</p>
+                      <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Phone</p>
                       <p className="text-sm text-gray-900 mt-0.5">{data.supplier.contact_phone}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Period</p>
+                    <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Period</p>
                     <p className="text-sm text-gray-900 mt-0.5">{formatDate(data.period.from)} — {formatDate(data.period.to)}</p>
                   </div>
                 </div>
@@ -153,45 +149,45 @@ export default function AdminSupplierStatementPage() {
 
               {/* Summary boxes */}
               <div className="mt-4 grid grid-cols-4 gap-3">
-                <div className="bg-white rounded-xl border border-gray-100 p-4 border-l-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)', borderLeftColor: data.opening_balance > 0 ? '#dc2626' : data.opening_balance < 0 ? '#16a34a' : '#9ca3af' }}>
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Opening Balance</p>
+                <div className="bg-white rounded-xl p-4 border-l-4" style={{ borderLeftColor: data.opening_balance > 0 ? '#dc2626' : data.opening_balance < 0 ? '#16a34a' : '#9ca3af' }}>
+                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Opening Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-100 p-4 border-l-4 border-l-red-400" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Total Debit</p>
+                <div className="bg-white rounded-xl p-4 border-l-4 border-l-red-400">
+                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Total Debit</p>
                   <p className="text-lg font-bold text-red-600 mt-1 tabular-nums">{formatRM(data.totals.total_debit)}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-100 p-4 border-l-4 border-l-green-400" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Total Credit</p>
+                <div className="bg-white rounded-xl p-4 border-l-4 border-l-green-400">
+                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Total Credit</p>
                   <p className="text-lg font-bold text-green-600 mt-1 tabular-nums">{formatRM(data.totals.total_credit)}</p>
                 </div>
-                <div className="bg-white rounded-xl border border-gray-100 p-4 border-l-4" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)', borderLeftColor: data.closing_balance > 0 ? '#dc2626' : data.closing_balance < 0 ? '#16a34a' : '#9ca3af' }}>
-                  <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Closing Balance</p>
+                <div className="bg-white rounded-xl p-4 border-l-4" style={{ borderLeftColor: data.closing_balance > 0 ? '#dc2626' : data.closing_balance < 0 ? '#16a34a' : '#9ca3af' }}>
+                  <p className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Closing Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</p>
                 </div>
               </div>
 
               {/* Statement table */}
-              <div className="mt-4 bg-white rounded-xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+              <div className="mt-4 bg-white rounded-xl overflow-hidden">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50">
-                      <th className="px-6 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Date</th>
-                      <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Reference</th>
-                      <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Description</th>
-                      <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-right">Debit</th>
-                      <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-right">Credit</th>
-                      <th className="px-6 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide text-right">Balance</th>
+                    <tr className="ds-table-header text-left">
+                      <th className="px-6 py-3">Date</th>
+                      <th className="px-3 py-3">Reference</th>
+                      <th className="px-3 py-3">Description</th>
+                      <th className="px-3 py-3 text-right">Debit</th>
+                      <th className="px-3 py-3 text-right">Credit</th>
+                      <th className="px-6 py-3 text-right">Balance</th>
                     </tr>
                   </thead>
                   <tbody>
                     {/* Opening balance row */}
-                    <tr className="group border-b border-gray-100 bg-gray-50/50">
-                      <td className="px-6 py-2.5 text-[12px] text-gray-500">{formatDate(data.period.from)}</td>
-                      <td className="px-3 py-2.5 text-[12px] text-gray-500" colSpan={2}>Opening Balance</td>
-                      <td className="px-3 py-2.5 text-[12px] text-right tabular-nums text-gray-400">—</td>
-                      <td className="px-3 py-2.5 text-[12px] text-right tabular-nums text-gray-400">—</td>
-                      <td className={`px-6 py-2.5 text-[12px] text-right tabular-nums font-semibold ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</td>
+                    <tr className="group bg-gray-50/50">
+                      <td className="px-6 py-2.5 text-body-sm text-gray-500">{formatDate(data.period.from)}</td>
+                      <td className="px-3 py-2.5 text-body-sm text-gray-500" colSpan={2}>Opening Balance</td>
+                      <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-gray-400">—</td>
+                      <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-gray-400">—</td>
+                      <td className={`px-6 py-2.5 text-body-sm text-right tabular-nums font-semibold ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</td>
                     </tr>
 
                     {/* Data rows */}
@@ -199,7 +195,7 @@ export default function AdminSupplierStatementPage() {
                       const isReceivable = entry.type === 'sales_invoice' || entry.type === 'incoming_payment';
                       const rowBg = isReceivable ? 'bg-green-50/40' : '';
                       return (
-                        <tr key={i} className={`group text-[12px] hover:bg-white/60 transition-colors border-b border-gray-100 ${rowBg}`}>
+                        <tr key={i} className={`group text-body-sm hover:bg-white/60 transition-colors ${rowBg}`}>
                           <td className="px-6 py-2.5 text-gray-500 tabular-nums">{formatDate(entry.date)}</td>
                           <td className="px-3 py-2.5 text-gray-700 font-medium">{entry.reference}</td>
                           <td className="px-3 py-2.5 text-gray-500">{entry.description}</td>
@@ -212,11 +208,11 @@ export default function AdminSupplierStatementPage() {
 
                     {/* Closing balance row */}
                     <tr className="group bg-gray-50/50 border-t-2 border-gray-200">
-                      <td className="px-6 py-3 text-[12px] font-semibold text-gray-900">{formatDate(data.period.to)}</td>
-                      <td className="px-3 py-3 text-[12px] font-semibold text-gray-900" colSpan={2}>Closing Balance</td>
-                      <td className="px-3 py-3 text-[12px] text-right tabular-nums font-semibold text-red-600">{formatRM(data.totals.total_debit)}</td>
-                      <td className="px-3 py-3 text-[12px] text-right tabular-nums font-semibold text-green-600">{formatRM(data.totals.total_credit)}</td>
-                      <td className={`px-6 py-3 text-[12px] text-right tabular-nums font-bold ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</td>
+                      <td className="px-6 py-3 text-body-sm font-semibold text-gray-900">{formatDate(data.period.to)}</td>
+                      <td className="px-3 py-3 text-body-sm font-semibold text-gray-900" colSpan={2}>Closing Balance</td>
+                      <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-red-600">{formatRM(data.totals.total_debit)}</td>
+                      <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-green-600">{formatRM(data.totals.total_credit)}</td>
+                      <td className={`px-6 py-3 text-body-sm text-right tabular-nums font-bold ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</td>
                     </tr>
                   </tbody>
                 </table>

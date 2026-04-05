@@ -2,11 +2,8 @@
 
 import React from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -139,14 +136,13 @@ function formatRMStr(val: string | number) {
 }
 
 function AgingCell({ value, warn }: { value: number; warn?: boolean }) {
-  if (value === 0) return <td className="px-3 py-2.5 text-right text-gray-300 tabular-nums text-[12px]">-</td>;
+  if (value === 0) return <td className="px-3 py-2.5 text-right text-gray-300 tabular-nums text-body-sm">-</td>;
   return (
-    <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold ${warn && value > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+    <td className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-red-600' : 'text-gray-900'}`}>
       {formatRM(value)}
     </td>
   );
 }
-
 
 // ─── Field helper ─────────────────────────────────────────────────────────────
 
@@ -154,7 +150,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -427,7 +423,7 @@ export default function AccountantSuppliersPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -435,23 +431,23 @@ export default function AccountantSuppliersPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Suppliers</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Suppliers</h1>
           <p className="text-gray-400 text-xs">
             {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </header>
 
         {/* ── Static top section (aging cards + filters) ── */}
-        <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F5F6F8] border-b border-gray-100">
+        <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F7F9FB]">
           {/* ── Aging Report ─────────────────────────────── */}
           {agingSummary && (
             <div className="mb-3">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-[13px] font-semibold text-gray-900">Aging Report — Accounts Payable</h2>
+                <h2 className="text-body-md font-semibold text-gray-900">Aging Report — Accounts Payable</h2>
                 <button
                   onClick={() => setShowAging(!showAging)}
-                  className="text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
+                  className="text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
                 >
                   {showAging ? 'Collapse' : 'Expand'}
                 </button>
@@ -465,9 +461,9 @@ export default function AccountantSuppliersPage() {
                   { label: '90+ Days', value: agingSummary.days90plus, color: agingSummary.days90plus > 0 ? 'text-red-600' : 'text-gray-900' },
                   { label: 'Total Payable', value: agingSummary.total, color: 'text-gray-900' },
                 ].map((b) => (
-                  <div key={b.label} className="bg-white rounded-lg border border-gray-100 p-3 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{b.label}</p>
-                    <p className={`text-[15px] font-bold tabular-nums ${b.color}`}>{formatRM(b.value)}</p>
+                  <div key={b.label} className="bg-white rounded-lg p-3">
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">{b.label}</p>
+                    <p className={`text-title-md font-bold tabular-nums ${b.color}`}>{formatRM(b.value)}</p>
                   </div>
                 ))}
               </div>
@@ -497,10 +493,10 @@ export default function AccountantSuppliersPage() {
           {/* ── Aging expanded table ────────────────────── */}
           {showAging && agingData.length > 0 && agingSummary && (
             <div className="mb-4">
-              <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+              <div className="bg-white rounded-xl overflow-hidden">
                   <table className="w-full">
                     <thead>
-                      <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                      <tr className="ds-table-header">
                         <th className="px-4 py-2.5 text-left">Supplier</th>
                         <th className="px-3 py-2.5 text-right">0-30</th>
                         <th className="px-3 py-2.5 text-right">31-60</th>
@@ -514,7 +510,7 @@ export default function AccountantSuppliersPage() {
                         <React.Fragment key={s.supplier_id}>
                           <tr
                             onClick={() => setAgingExpanded(agingExpanded === s.supplier_id ? null : s.supplier_id)}
-                            className="hover:bg-gray-50/50 transition-colors cursor-pointer border-b border-gray-50"
+                            className="hover:bg-[#F2F4F6] transition-colors cursor-pointer"
                           >
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
@@ -523,20 +519,20 @@ export default function AccountantSuppliersPage() {
                                 >
                                   <path d="M9 18l6-6-6-6" />
                                 </svg>
-                                <span className="text-[12px] font-semibold text-gray-900">{s.supplier_name}</span>
-                                <span className="text-[10px] text-gray-400">({s.invoices.length})</span>
+                                <span className="text-body-sm font-semibold text-gray-900">{s.supplier_name}</span>
+                                <span className="text-label-sm text-gray-400">({s.invoices.length})</span>
                               </div>
                             </td>
                             <AgingCell value={s.days0_30} warn />
                             <AgingCell value={s.days31_60} warn />
                             <AgingCell value={s.days61_90} warn />
                             <AgingCell value={s.days90plus} warn />
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-bold text-gray-900">{formatRM(s.total)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-gray-900">{formatRM(s.total)}</td>
                           </tr>
                           {agingExpanded === s.supplier_id && s.invoices.map((inv) => (
                             <tr
                               key={inv.id}
-                              className="bg-gray-50/50 border-b border-gray-50/80 text-[11px] cursor-pointer hover:bg-gray-100/60 transition-colors"
+                              className="bg-gray-50/50 text-label-sm cursor-pointer hover:bg-gray-100/60 transition-colors"
                               onClick={() => setPreviewInvoice({
                                 id: inv.id,
                                 invoice_number: inv.invoice_number,
@@ -565,7 +561,7 @@ export default function AccountantSuppliersPage() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-[12px]">
+                      <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-body-sm">
                         <td className="px-4 py-2.5 text-gray-900">Total</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days0_30)}</td>
                         <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(agingSummary.days31_60)}</td>
@@ -590,7 +586,7 @@ export default function AccountantSuppliersPage() {
           ) : (
             <div className="space-y-2">
               {suppliers.map((s) => (
-                <div key={s.id} className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+                <div key={s.id} className="bg-white rounded-xl overflow-hidden">
                   {/* Supplier row */}
                   <div
                     className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-gray-50/50 transition-colors"
@@ -607,31 +603,31 @@ export default function AccountantSuppliersPage() {
                     {/* Name + firm + aliases */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-[13px] font-semibold text-gray-900 truncate">{s.name}</p>
+                        <p className="text-body-md font-semibold text-gray-900 truncate">{s.name}</p>
                         {s.firm_name && (
-                          <span className="text-[11px] text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 flex-shrink-0">{s.firm_name}</span>
+                          <span className="text-label-sm text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 flex-shrink-0">{s.firm_name}</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-gray-400 truncate">
+                      <p className="text-label-sm text-gray-400 truncate">
                         {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''} · {s.invoice_count} invoice{s.invoice_count !== 1 ? 's' : ''}
                       </p>
                     </div>
 
                     {/* Outstanding */}
                     <div className="text-right flex-shrink-0">
-                      <p className="text-[13px] font-semibold text-gray-900 tabular-nums">{formatRM(s.total_outstanding)}</p>
+                      <p className="text-body-md font-semibold text-gray-900 tabular-nums">{formatRM(s.total_outstanding)}</p>
                       {Number(s.overdue_amount) > 0 && (
-                        <p className="text-[11px] text-red-500 font-medium tabular-nums">{formatRM(s.overdue_amount)} overdue</p>
+                        <p className="text-label-sm text-red-500 font-medium tabular-nums">{formatRM(s.overdue_amount)} overdue</p>
                       )}
                       {Number(s.credit_balance) > 0 && (
-                        <p className="text-[11px] text-green-600 font-medium tabular-nums">Credit: {formatRM(s.credit_balance)}</p>
+                        <p className="text-label-sm text-green-600 font-medium tabular-nums">Credit: {formatRM(s.credit_balance)}</p>
                       )}
                     </div>
 
                     {/* Action buttons */}
                     <button
                       onClick={(e) => { e.stopPropagation(); openPayment(s); }}
-                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-dark transition-all duration-200"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-dark transition-all duration-200"
                     >
                       Pay
                     </button>
@@ -639,13 +635,13 @@ export default function AccountantSuppliersPage() {
                       href={`/accountant/suppliers/${s.id}/statement`}
                       target="_blank"
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200"
                     >
                       Statement
                     </Link>
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(s); }}
-                      className="flex-shrink-0 text-[11px] px-3 py-1.5 rounded-xl font-medium text-white shadow-sm btn-primary transition-opacity hover:opacity-85"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-xl font-medium text-white shadow-sm btn-primary transition-opacity hover:opacity-85"
                     >
                       Edit
                     </button>
@@ -653,7 +649,7 @@ export default function AccountantSuppliersPage() {
 
                   {/* Expanded invoices */}
                   {expandedId === s.id && (
-                    <div className="border-t border-gray-100 bg-gray-50/50">
+                    <div className="bg-gray-50/50">
                       {loadingInvoices ? (
                         <div className="px-5 py-6 text-center text-sm text-gray-400">Loading invoices...</div>
                       ) : expandedInvoices.length === 0 ? (
@@ -661,7 +657,7 @@ export default function AccountantSuppliersPage() {
                       ) : (
                         <table className="w-full">
                           <thead>
-                            <tr className="text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                            <tr className="ds-table-header text-left">
                               <th className="px-5 py-2 pl-14">Issue Date</th>
                               <th className="px-3 py-2">Invoice #</th>
                               <th className="px-3 py-2">Due Date</th>
@@ -673,12 +669,12 @@ export default function AccountantSuppliersPage() {
                             </tr>
                           </thead>
                           <tbody>
-                            {expandedInvoices.map((inv, i) => {
+                            {expandedInvoices.map((inv) => {
                               const pmtCfg = PAYMENT_CFG[inv.payment_status];
                               return (
                                 <React.Fragment key={inv.id}>
                                   <tr
-                                    className={`text-[12px] hover:bg-white/60 transition-colors cursor-pointer ${i < expandedInvoices.length - 1 && !(inv.allocations?.length) ? 'border-b border-gray-100' : ''}`}
+                                    className={`text-body-sm hover:bg-white/60 transition-colors cursor-pointer`}
                                     onClick={() => setPreviewInvoice(inv)}
                                   >
                                     <td className="px-5 py-2.5 pl-14 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
@@ -690,7 +686,7 @@ export default function AccountantSuppliersPage() {
                                     <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
                                     <td className="px-3 py-2.5">
                                       {inv.payment_status !== 'paid' && (
-                                        <span className={`text-[11px] font-medium ${
+                                        <span className={`text-label-sm font-medium ${
                                           agingBucket(inv.due_date) === 'Current' ? 'text-green-600' :
                                           agingBucket(inv.due_date) === '90+' ? 'text-red-600' :
                                           'text-amber-600'
@@ -701,7 +697,7 @@ export default function AccountantSuppliersPage() {
                                     </td>
                                   </tr>
                                   {inv.allocations && inv.allocations.length > 0 && inv.allocations.map((alloc) => (
-                                    <tr key={alloc.id} className="text-[11px] bg-gray-50/50 border-b border-gray-50">
+                                    <tr key={alloc.id} className="text-label-sm bg-gray-50/50">
                                       <td className="px-5 py-1.5 pl-20 text-gray-400" colSpan={3}>
                                         <span>Payment: {formatDate(alloc.payment_date)}{alloc.reference ? ` · ${alloc.reference}` : ''}</span>
                                         {alloc.receipts && alloc.receipts.length > 0 && (
@@ -775,7 +771,7 @@ export default function AccountantSuppliersPage() {
               {Number(paymentSupplier.credit_balance) > 0 && (
                 <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center justify-between">
                   <div>
-                    <p className="text-[11px] font-semibold text-green-700 uppercase tracking-wide">Available Credit</p>
+                    <p className="text-label-sm font-semibold text-green-700 uppercase tracking-wide">Available Credit</p>
                     <p className="text-lg font-bold text-green-700 tabular-nums">{formatRM(paymentSupplier.credit_balance)}</p>
                   </div>
                   <button
@@ -789,7 +785,7 @@ export default function AccountantSuppliersPage() {
                         if (res.ok) { setPaymentSupplier(null); refresh(); }
                       } catch (e) { console.error(e); }
                     }}
-                    className="text-[11px] px-3 py-1.5 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
+                    className="text-label-sm px-3 py-1.5 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
                     style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Apply Credit
@@ -821,7 +817,7 @@ export default function AccountantSuppliersPage() {
               {/* Attach Receipts */}
               {availableReceipts.length > 0 && (
                 <div>
-                  <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Attach Receipts (optional)</h3>
+                  <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Attach Receipts (optional)</h3>
                   <div className="flex gap-2 overflow-x-auto pb-1">
                     {availableReceipts.map((r) => {
                       const selected = selectedReceiptIds.includes(r.id);
@@ -838,7 +834,7 @@ export default function AccountantSuppliersPage() {
                         >
                           {selected && (
                             <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                              <span className="text-white text-[10px] leading-none">&#10003;</span>
+                              <span className="text-white text-label-sm leading-none">&#10003;</span>
                             </div>
                           )}
                           {r.thumbnail_url ? (
@@ -848,8 +844,8 @@ export default function AccountantSuppliersPage() {
                               <span className="text-gray-400 text-[18px]">&#128196;</span>
                             </div>
                           )}
-                          <p className="text-[10px] font-medium text-gray-700 truncate">{r.receipt_number || r.merchant}</p>
-                          <p className="text-[10px] text-gray-500 tabular-nums">RM {Number(r.amount).toFixed(2)}</p>
+                          <p className="text-label-sm font-medium text-gray-700 truncate">{r.receipt_number || r.merchant}</p>
+                          <p className="text-label-sm text-gray-500 tabular-nums">RM {Number(r.amount).toFixed(2)}</p>
                         </button>
                       );
                     })}
@@ -860,11 +856,11 @@ export default function AccountantSuppliersPage() {
               {/* Invoice allocation */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Allocate to Invoices</h3>
+                  <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide">Allocate to Invoices</h3>
                   <button
                     onClick={autoAllocate}
                     disabled={!paymentAmount || Number(paymentAmount) <= 0}
-                    className="text-[11px] px-2.5 py-1 rounded-md font-medium text-white disabled:opacity-40 transition-opacity hover:opacity-85"
+                    className="text-label-sm px-2.5 py-1 rounded-md font-medium text-white disabled:opacity-40 transition-opacity hover:opacity-85"
                     style={{ backgroundColor: 'var(--sidebar)' }}
                   >
                     Auto-allocate
@@ -876,10 +872,10 @@ export default function AccountantSuppliersPage() {
                 ) : paymentInvoices.length === 0 ? (
                   <div className="text-center text-sm text-gray-400 py-4">No unpaid invoices</div>
                 ) : (
-                  <div className="border border-gray-100 rounded-lg overflow-hidden">
+                  <div className="rounded-lg overflow-hidden">
                     <table className="w-full">
                       <thead>
-                        <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50 border-b border-gray-100">
+                        <tr className="ds-table-header">
                           <th className="px-3 py-2 text-left">Invoice #</th>
                           <th className="px-3 py-2 text-right">Total</th>
                           <th className="px-3 py-2 text-right">Balance</th>
@@ -888,7 +884,7 @@ export default function AccountantSuppliersPage() {
                       </thead>
                       <tbody>
                         {paymentInvoices.map((inv, i) => (
-                          <tr key={inv.id} className={`text-[12px] ${i < paymentInvoices.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <tr key={inv.id} className={`text-body-sm`}>
                             <td className="px-3 py-2 text-gray-700 font-medium">{inv.invoice_number ?? '-'}</td>
                             <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{formatRM(inv.total_amount)}</td>
                             <td className="px-3 py-2 text-right text-gray-900 font-semibold tabular-nums">{formatRM(inv.balance)}</td>
@@ -902,7 +898,7 @@ export default function AccountantSuppliersPage() {
                                   updated[i] = { ...inv, allocation: e.target.value };
                                   setPaymentInvoices(updated);
                                 }}
-                                className="input-field w-[100px] text-right text-[12px] py-1"
+                                className="input-field w-[100px] text-right text-body-sm py-1"
                                 placeholder="0.00"
                               />
                             </td>
@@ -912,7 +908,7 @@ export default function AccountantSuppliersPage() {
                     </table>
 
                     {/* Totals row */}
-                    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-100 text-[12px]">
+                    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-body-sm">
                       <span className="text-gray-500 font-medium">Total allocated</span>
                       <span className={`font-bold tabular-nums ${
                         paymentInvoices.reduce((sum, inv) => sum + Number(inv.allocation || 0), 0) > Number(paymentAmount || 0)
@@ -928,7 +924,7 @@ export default function AccountantSuppliersPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <button
                 onClick={submitPayment}
                 disabled={paymentSaving || !paymentAmount || Number(paymentAmount) <= 0}
@@ -976,13 +972,13 @@ export default function AccountantSuppliersPage() {
 
               {/* Aliases */}
               <div>
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Vendor Name Aliases</h3>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Vendor Name Aliases</h3>
                 <div className="space-y-1.5">
                   {editSupplier.aliases.map((a) => (
                     <div key={a.id} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2">
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-700">{a.alias}</span>
-                        {a.is_confirmed && <span className="badge-green text-[10px]">Confirmed</span>}
+                        {a.is_confirmed && <span className="badge-green text-label-sm">Confirmed</span>}
                       </div>
                       <button onClick={() => removeAlias(a.id)} className="text-gray-400 hover:text-red-500 text-xs transition-colors">Remove</button>
                     </div>
@@ -1004,7 +1000,7 @@ export default function AccountantSuppliersPage() {
               </div>
 
               {/* Summary */}
-              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                 <Field label="Firm" value={editSupplier.firm_name} />
                 <Field label="Invoices" value={String(editSupplier.invoice_count)} />
                 <Field label="Outstanding" value={formatRM(editSupplier.total_outstanding)} />
@@ -1014,7 +1010,7 @@ export default function AccountantSuppliersPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -1057,7 +1053,7 @@ export default function AccountantSuppliersPage() {
               </div>
               {previewInvoice.allocations && previewInvoice.allocations.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Payment History</p>
+                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-2">Payment History</p>
                   <div className="space-y-1.5">
                     {previewInvoice.allocations.map((a) => (
                       <div key={a.id} className="text-xs text-gray-600 bg-gray-50 rounded px-3 py-2 flex justify-between">
@@ -1074,7 +1070,7 @@ export default function AccountantSuppliersPage() {
                 </a>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0">
+            <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
                 className="w-full py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-85"
@@ -1109,7 +1105,7 @@ export default function AccountantSuppliersPage() {
                 {previewReceipt.claim_date && <Field label="Date" value={formatDate(previewReceipt.claim_date)} />}
               </dl>
             </div>
-            <div className="p-4 border-t flex-shrink-0">
+            <div className="p-4 flex-shrink-0">
               <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-xl text-sm font-semibold border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors">
                 Close
               </button>

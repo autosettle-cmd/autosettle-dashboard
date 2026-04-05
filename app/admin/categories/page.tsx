@@ -2,10 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CategoryRow {
@@ -179,7 +175,7 @@ export default function AdminCategoriesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
 
       {/* === SIDEBAR === */}
       <Sidebar role="admin" />
@@ -187,8 +183,8 @@ export default function AdminCategoriesPage() {
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Categories</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Categories</h1>
         </header>
 
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
@@ -198,7 +194,7 @@ export default function AdminCategoriesPage() {
             <button
               onClick={openAddModal}
               className="btn-primary text-sm px-4 py-2 rounded-xl font-medium text-white transition-opacity hover:opacity-85"
-              style={{ backgroundColor: 'var(--accent)' }}
+              style={{ backgroundColor: 'var(--primary)' }}
             >
               Add Custom Category
             </button>
@@ -210,14 +206,14 @@ export default function AdminCategoriesPage() {
             <>
               {/* ── Default Categories ── */}
               <section>
-                <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">Default Categories</h2>
-                <div className="bg-white rounded-xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+                <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Default Categories</h2>
+                <div className="bg-white rounded-xl overflow-hidden">
                   {defaultCats.length === 0 ? (
                     <div className="px-5 py-8 text-center text-sm text-gray-400">No default categories available.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5">Category Name</th>
                           <th className="px-6 py-2.5">Type</th>
                           <th className="px-6 py-2.5">Tax Code</th>
@@ -227,8 +223,8 @@ export default function AdminCategoriesPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {defaultCats.map((cat, i) => (
-                          <tr key={cat.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < defaultCats.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        {defaultCats.map((cat) => (
+                          <tr key={cat.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
                             <td className="px-6 py-3 text-gray-900 font-medium">{cat.name}</td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
                             <td className="px-6 py-3 text-gray-600">{cat.tax_code ?? '---'}</td>
@@ -258,14 +254,14 @@ export default function AdminCategoriesPage() {
 
               {/* ── Custom Categories ── */}
               <section>
-                <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Categories</h2>
-                <div className="bg-white rounded-xl border border-gray-100 overflow-hidden" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+                <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Categories</h2>
+                <div className="bg-white rounded-xl overflow-hidden">
                   {customCats.length === 0 ? (
                     <div className="px-5 py-8 text-center text-sm text-gray-400">No custom categories yet. Add one above.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5">Category Name</th>
                           <th className="px-6 py-2.5">Type</th>
                           <th className="px-6 py-2.5">Tax Code</th>
@@ -275,17 +271,17 @@ export default function AdminCategoriesPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {customCats.map((cat, i) => (
-                          <tr key={cat.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < customCats.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        {customCats.map((cat) => (
+                          <tr key={cat.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
                             <td className="px-6 py-3 text-gray-900 font-medium">
                               {editingId === cat.id ? (
-                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-[13px]" autoFocus />
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
                             <td className="px-6 py-3 text-gray-600">
                               {editingId === cat.id ? (
-                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-[13px]" placeholder="Optional" />
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
@@ -304,7 +300,7 @@ export default function AdminCategoriesPage() {
                                       onClick={saveEdit}
                                       disabled={editSaving}
                                       className="btn-primary text-xs font-medium px-3 py-1.5 rounded-xl text-white transition-opacity hover:opacity-85 disabled:opacity-40"
-                                      style={{ backgroundColor: 'var(--accent)' }}
+                                      style={{ backgroundColor: 'var(--primary)' }}
                                     >
                                       {editSaving ? 'Saving...' : 'Save'}
                                     </button>
@@ -383,7 +379,7 @@ export default function AdminCategoriesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -394,7 +390,7 @@ export default function AdminCategoriesPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
                 <input
                   type="text"
                   value={modalTaxCode}
@@ -410,7 +406,7 @@ export default function AdminCategoriesPage() {
                 onClick={submitCategory}
                 disabled={modalSaving}
                 className="btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--accent)' }}
+                style={{ backgroundColor: 'var(--primary)' }}
               >
                 {modalSaving ? 'Creating...' : 'Create Category'}
               </button>

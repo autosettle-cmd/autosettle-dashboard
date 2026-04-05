@@ -7,9 +7,6 @@ import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'rea
 import { useSearchParams } from 'next/navigation';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -147,7 +144,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -570,7 +567,7 @@ function ClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -578,8 +575,8 @@ function ClaimsPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Claims</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Claims</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -590,7 +587,7 @@ function ClaimsPage() {
               <button
                 key={key}
                 onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
-                className={`px-4 py-1.5 rounded-full text-[13px] font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-full text-body-md font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
@@ -598,7 +595,7 @@ function ClaimsPage() {
                 style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
               >
                 {label}
-                <span className={`ml-1.5 text-[11px] px-1.5 py-0.5 rounded-full font-semibold ${
+                <span className={`ml-1.5 text-label-sm px-1.5 py-0.5 rounded-full font-semibold ${
                   claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                 }`}>{count}</span>
               </button>
@@ -726,7 +723,7 @@ function ClaimsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
                 <select
                   value={modalFirmId}
                   onChange={(e) => setModalFirmId(e.target.value)}
@@ -737,26 +734,26 @@ function ClaimsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className={`${inputCls} w-full`} required />
               </div>
 
               {modalType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
                     <input type="text" value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. PJ Office" autoFocus />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
                     <input type="text" value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Shah Alam client office" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
                     <input type="number" value={mileageDistance} onChange={(e) => setMileageDistance(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. 25" step="0.1" min="0" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
@@ -771,30 +768,30 @@ function ClaimsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
                     <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Petronas, Grab, etc." autoFocus />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
                     <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className={`${inputCls} w-full`} placeholder="0.00" step="0.01" min="0" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
                     <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className={`${inputCls} w-full`}>
                       <option value="">Select a category</option>
                       {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
                     <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className={`${inputCls} w-full`} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
                     <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className={`${inputCls} w-full`} rows={2} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -932,32 +929,32 @@ function ClaimsPage() {
               {editMode && editData ? (
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Date</dt>
+                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Date</dt>
                     <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Merchant</dt>
+                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Merchant</dt>
                     <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
                   <Field label="Firm" value={previewClaim.firm_name} />
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Category</dt>
+                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Category</dt>
                     <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className={`${inputCls} w-full mt-0.5`}>
                       <option value="">Select category</option>
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Amount (RM)</dt>
+                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Amount (RM)</dt>
                     <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Receipt No.</dt>
+                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Receipt No.</dt>
                     <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Description</dt>
+                    <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Description</dt>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                 </dl>
@@ -988,7 +985,7 @@ function ClaimsPage() {
 
               {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                  <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
+                  <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
                   {previewClaim.linked_payments.map((lp) => (
                     <div key={lp.payment_id} className="text-sm text-blue-800">
                       <p className="font-medium">{lp.supplier_name}</p>
@@ -1014,7 +1011,7 @@ function ClaimsPage() {
               )}
 
               <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                 <span className={`text-xs font-semibold ${
                   previewClaim.confidence === 'HIGH'   ? 'text-green-600' :
                   previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -1023,7 +1020,7 @@ function ClaimsPage() {
 
               {previewClaim.rejection_reason && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                  <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                   <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                 </div>
               )}
@@ -1036,7 +1033,7 @@ function ClaimsPage() {
               )}
             </div>
 
-            <div className="p-4 border-t flex gap-3 flex-shrink-0">
+            <div className="p-4 flex gap-3 flex-shrink-0">
               {editMode ? (
                 <button
                   onClick={saveEdit}

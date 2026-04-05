@@ -4,9 +4,6 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -269,15 +266,15 @@ export default function AccountantDashboard() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">
             {getGreeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
           <p className="text-gray-400 text-xs">
@@ -306,9 +303,9 @@ export default function AccountantDashboard() {
           </div>
 
           {/* ── Needs Attention ────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div className="bg-white rounded-xl">
             {/* Tab header */}
-            <div className="flex items-center justify-between px-5 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5">
               <div className="flex gap-0">
                 {([
                   ['claims', 'Claims', pendingClaims.length],
@@ -318,13 +315,13 @@ export default function AccountantDashboard() {
                   <button
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
-                    className={`relative px-4 py-3 text-[13px] font-semibold transition-colors ${
+                    className={`relative px-4 py-3 text-body-md font-semibold transition-colors ${
                       activeTab === key ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
                     {label}
                     {count > 0 && (
-                      <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-label-sm font-bold ${
                         activeTab === key ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
                       }`}>
                         {count}
@@ -338,8 +335,8 @@ export default function AccountantDashboard() {
               </div>
               <Link
                 href={activeTab === 'claims' ? '/accountant/claims' : activeTab === 'receipts' ? '/accountant/claims?type=receipt' : '/accountant/invoices'}
-                className="text-[12px] font-medium hover:underline transition-colors"
-                style={{ color: 'var(--accent)' }}
+                className="text-body-sm font-medium hover:underline transition-colors"
+                style={{ color: 'var(--primary)' }}
               >
                 View all {activeTab} &rarr;
               </Link>
@@ -358,7 +355,7 @@ export default function AccountantDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5">Date</th>
                         <th className="px-6 py-2.5">Employee</th>
                         <th className="px-6 py-2.5">Merchant</th>
@@ -368,10 +365,10 @@ export default function AccountantDashboard() {
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c, i) => {
+                      {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c) => {
                         const cfg = STATUS_CFG[c.status];
                         return (
-                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer`}>
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-6 py-3 text-gray-900 font-medium">{c.employee_name}</td>
                             <td className="px-6 py-3 text-gray-600">{c.merchant}</td>
@@ -403,7 +400,7 @@ export default function AccountantDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50 border-b border-gray-100">
+                      <tr className="ds-table-header">
                         <th className="px-6 py-2.5 text-left">Date</th>
                         <th className="px-6 py-2.5 text-left">Merchant</th>
                         <th className="px-6 py-2.5 text-right">Amount</th>
@@ -414,7 +411,7 @@ export default function AccountantDashboard() {
                       {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r) => (
                         <tr
                           key={r.id}
-                          className="group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer text-[13px]"
+                          className="group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md"
                           onClick={() => setPreviewClaim(r)}
                         >
                           <td className="px-6 py-2.5 text-gray-500">{formatDate(r.claim_date)}</td>
@@ -443,7 +440,7 @@ export default function AccountantDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5">Issue Date</th>
                         <th className="px-6 py-2.5">Vendor</th>
                         <th className="px-6 py-2.5">Invoice #</th>
@@ -454,11 +451,11 @@ export default function AccountantDashboard() {
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv, i) => {
+                      {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv) => {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
-                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer`}>
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
                             <td className="px-6 py-3 text-gray-900 font-medium">{inv.vendor_name_raw}</td>
                             <td className="px-6 py-3 text-gray-600">{inv.invoice_number ?? '-'}</td>
@@ -546,7 +543,7 @@ export default function AccountantDashboard() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH' ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -554,7 +551,7 @@ export default function AccountantDashboard() {
                   </div>
                   {previewClaim.rejection_reason && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                      <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
@@ -566,7 +563,7 @@ export default function AccountantDashboard() {
                 </>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
                   <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: 'var(--accent)' }}>
@@ -647,9 +644,9 @@ export default function AccountantDashboard() {
                 ))}
               </div>
               {/* Supplier link */}
-              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-1">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Supplier</span>
+                  <span className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier</span>
                   {(() => {
                     const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                     return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
@@ -663,7 +660,7 @@ export default function AccountantDashboard() {
                 </a>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <Link
                 href="/accountant/invoices"
                 className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
@@ -705,12 +702,11 @@ function StatCard({ label, value, amount, color, href }: {
 
   const card = (
     <div
-      className={`bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${href ? 'cursor-pointer' : ''}`}
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}
+      className={`bg-white rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${href ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center gap-1.5 mb-3">
         <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
+        <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
       </div>
       <div className="flex items-end justify-between">
         <p className={`text-2xl font-bold tracking-tight ${accent.value}`}>
@@ -734,22 +730,22 @@ function Pagination({ total, page, pageSize, onPageChange }: {
 }) {
   if (total <= pageSize) return null;
   return (
-    <div className="flex items-center justify-between px-5 py-3 border-t border-gray-50">
-      <p className="text-[12px] text-gray-400">
+    <div className="flex items-center justify-between px-5 py-3">
+      <p className="text-body-sm text-gray-400">
         Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total}
       </p>
       <div className="flex gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-[12px] font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={(page + 1) * pageSize >= total}
-          className="px-3 py-1.5 text-[12px] font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>
@@ -764,7 +760,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );

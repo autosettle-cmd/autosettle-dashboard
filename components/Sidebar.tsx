@@ -74,12 +74,12 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
   }, [role]);
 
   return (
-    <aside className="w-[232px] flex-shrink-0 flex flex-col" style={{ backgroundColor: 'var(--sidebar)' }}>
+    <aside className="w-[232px] flex-shrink-0 flex flex-col backdrop-blur-[12px]" style={{ backgroundColor: 'rgba(21, 28, 40, 0.85)' }}>
       {/* Logo */}
       <div className="h-16 flex items-center gap-2.5 px-5 border-b border-white/[0.06]">
         <div
           className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg"
-          style={{ background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%)' }}
+          style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)' }}
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5z" />
@@ -110,7 +110,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
               {active && (
                 <span
                   className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full"
-                  style={{ backgroundColor: 'var(--accent)' }}
+                  style={{ backgroundColor: 'var(--primary)' }}
                 />
               )}
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -127,7 +127,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
         <div className="flex items-center gap-2.5">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-inner"
-            style={{ background: 'linear-gradient(135deg, rgba(var(--accent-rgb),0.4) 0%, rgba(var(--accent-rgb),0.2) 100%)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}
+            style={{ background: 'linear-gradient(135deg, rgba(var(--primary-rgb),0.4) 0%, rgba(var(--primary-rgb),0.2) 100%)', border: '1px solid rgba(var(--primary-rgb),0.3)' }}
           >
             {(session?.user?.name ?? '?')[0]}
           </div>

@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -395,15 +392,15 @@ export default function PeoplePage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       <Sidebar role="accountant" />
 
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">People</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">People</h1>
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
@@ -444,15 +441,15 @@ export default function PeoplePage() {
 
           {/* ── SECTION 0: PENDING APPROVAL ── */}
           {!pendingLoading && pending.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
-              <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2">
-                <h2 className="text-[13px] font-semibold text-amber-700">Pending Approval</h2>
+            <div className="bg-white rounded-xl overflow-hidden">
+              <div className="px-6 py-3 flex items-center gap-2">
+                <h2 className="text-body-md font-semibold text-amber-700">Pending Approval</h2>
                 <span className="badge-amber">{pending.length}</span>
               </div>
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5">Name</th>
                       <th className="px-6 py-2.5">Email</th>
                       <th className="px-6 py-2.5">Phone</th>
@@ -462,8 +459,8 @@ export default function PeoplePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pending.map((row, i) => (
-                      <tr key={row.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < pending.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                    {pending.map((row) => (
+                      <tr key={row.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                         <td className="px-6 py-3 text-gray-900 font-medium">{row.name}</td>
                         <td className="px-6 py-3 text-gray-600">{row.email}</td>
                         <td className="px-6 py-3 text-gray-600">{row.phone || '—'}</td>
@@ -492,11 +489,11 @@ export default function PeoplePage() {
           )}
 
           {/* ── SECTION 1: ADMINS ── */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
-            <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2">
-              <h2 className="text-[13px] font-semibold text-gray-900">Admins</h2>
+          <div className="bg-white rounded-xl overflow-hidden">
+            <div className="px-6 py-3 flex items-center gap-2">
+              <h2 className="text-body-md font-semibold text-gray-900">Admins</h2>
               {!adminsLoading && filteredAdmins.length > 0 && (
-                <span className="text-[11px] text-gray-400 font-medium">{filteredAdmins.length}</span>
+                <span className="text-label-sm text-gray-400 font-medium">{filteredAdmins.length}</span>
               )}
             </div>
             {!firmId ? (
@@ -509,7 +506,7 @@ export default function PeoplePage() {
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5">Name</th>
                       <th className="px-6 py-2.5">Email</th>
                       <th className="px-6 py-2.5">Status</th>
@@ -518,8 +515,8 @@ export default function PeoplePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAdmins.map((admin, i) => (
-                      <tr key={admin.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < filteredAdmins.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                    {filteredAdmins.map((admin) => (
+                      <tr key={admin.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                         <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
                         <td className="px-6 py-3 text-gray-600">{admin.email}</td>
                         <td className="px-6 py-3">
@@ -553,11 +550,11 @@ export default function PeoplePage() {
           </div>
 
           {/* ── SECTION 2: EMPLOYEES ── */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
-            <div className="px-6 py-3 border-b border-gray-100 flex items-center gap-2">
-              <h2 className="text-[13px] font-semibold text-gray-900">Employees</h2>
+          <div className="bg-white rounded-xl overflow-hidden">
+            <div className="px-6 py-3 flex items-center gap-2">
+              <h2 className="text-body-md font-semibold text-gray-900">Employees</h2>
               {!empLoading && employees.length > 0 && (
-                <span className="text-[11px] text-gray-400 font-medium">{employees.length}</span>
+                <span className="text-label-sm text-gray-400 font-medium">{employees.length}</span>
               )}
             </div>
             {empLoading ? (
@@ -568,7 +565,7 @@ export default function PeoplePage() {
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5">Name</th>
                       <th className="px-6 py-2.5">Phone</th>
                       <th className="px-6 py-2.5">Email</th>
@@ -579,8 +576,8 @@ export default function PeoplePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.map((emp, i) => (
-                      <tr key={emp.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < employees.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                    {employees.map((emp) => (
+                      <tr key={emp.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                         <td className="px-6 py-3 text-gray-900 font-medium">{emp.name}</td>
                         <td className="px-6 py-3 text-gray-600">{emp.phone}</td>
                         <td className="px-6 py-3 text-gray-600">{emp.email ?? '—'}</td>
@@ -637,23 +634,23 @@ export default function PeoplePage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Full Name *</label>
                 <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
                 <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone</label>
                 <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Temporary Password *</label>
                 <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-field w-full" placeholder="Min 8 characters" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
                 <select value={adminFirmId} onChange={(e) => setAdminFirmId(e.target.value)} className="input-field w-full">
                   <option value="">Select a firm</option>
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -688,19 +685,19 @@ export default function PeoplePage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
                 <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
                 <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Firm *</label>
                 <select value={empFirmId} onChange={(e) => setEmpFirmId(e.target.value)} className="input-field w-full">
                   <option value="">Select a firm</option>
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -737,20 +734,20 @@ export default function PeoplePage() {
                 </div>
               )}
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
                 <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email</label>
                 <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
               </div>
             </div>
 
-            <div className="flex-shrink-0 border-t border-gray-100 p-4 flex gap-3">
+            <div className="flex-shrink-0 p-4 flex gap-3">
               <button onClick={submitEditEmp} disabled={editSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -779,16 +776,16 @@ export default function PeoplePage() {
                 </div>
               )}
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input type="text" value={editAdminName} onChange={(e) => setEditAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
                 <input type="email" value={editAdminEmail} onChange={(e) => setEditAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
               </div>
             </div>
 
-            <div className="flex-shrink-0 border-t border-gray-100 p-4 flex gap-3">
+            <div className="flex-shrink-0 p-4 flex gap-3">
               <button onClick={submitEditAdmin} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editAdminSaving ? 'Saving...' : 'Save Changes'}
               </button>

@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -218,15 +215,15 @@ export default function CategoriesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       <Sidebar role="accountant" />
 
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Categories</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Categories</h1>
         </header>
 
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
@@ -252,7 +249,7 @@ export default function CategoriesPage() {
 
           {!hasFirmSelected ? (
             /* ── No firm selected: flat list of all categories ── */
-            <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+            <div className="bg-white rounded-xl overflow-hidden">
               {loading ? (
                 <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
               ) : categories.length === 0 ? (
@@ -261,7 +258,7 @@ export default function CategoriesPage() {
                 <div className="overflow-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5">Category Name</th>
                         <th className="px-6 py-2.5">Type</th>
                         <th className="px-6 py-2.5">Firm</th>
@@ -271,8 +268,8 @@ export default function CategoriesPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {categories.map((cat, i) => (
-                        <tr key={cat.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < categories.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                      {categories.map((cat) => (
+                        <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                           <td className="px-6 py-3 text-gray-900 font-medium">{cat.name}</td>
                           <td className="px-6 py-3">
                             {cat.is_global
@@ -302,14 +299,14 @@ export default function CategoriesPage() {
             <>
               {/* ── Default Categories ── */}
               <section>
-                <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">Default Categories</h2>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+                <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Default Categories</h2>
+                <div className="bg-white rounded-xl overflow-hidden">
                   {defaultCats.length === 0 ? (
                     <div className="px-6 py-8 text-center text-sm text-gray-400">No default categories available.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5">Category Name</th>
                           <th className="px-6 py-2.5">Type</th>
                           <th className="px-6 py-2.5">Tax Code</th>
@@ -319,17 +316,17 @@ export default function CategoriesPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {defaultCats.map((cat, i) => (
-                          <tr key={cat.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < defaultCats.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        {defaultCats.map((cat) => (
+                          <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                             <td className="px-6 py-3 text-gray-900 font-medium">
                               {editingId === cat.id ? (
-                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-[13px]" autoFocus />
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
                             <td className="px-6 py-3 text-gray-600">
                               {editingId === cat.id ? (
-                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-[13px]" placeholder="Optional" />
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
@@ -375,14 +372,14 @@ export default function CategoriesPage() {
 
               {/* ── Custom Categories ── */}
               <section>
-                <h2 className="text-[13px] font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Categories</h2>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+                <h2 className="text-body-md font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Categories</h2>
+                <div className="bg-white rounded-xl overflow-hidden">
                   {customCats.length === 0 ? (
                     <div className="px-6 py-8 text-center text-sm text-gray-400">No custom categories yet. Add one above.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5">Category Name</th>
                           <th className="px-6 py-2.5">Type</th>
                           <th className="px-6 py-2.5">Tax Code</th>
@@ -392,17 +389,17 @@ export default function CategoriesPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {customCats.map((cat, i) => (
-                          <tr key={cat.id} className={`group text-[13px] hover:bg-gray-50/50 transition-colors ${i < customCats.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        {customCats.map((cat) => (
+                          <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
                             <td className="px-6 py-3 text-gray-900 font-medium">
                               {editingId === cat.id ? (
-                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-[13px]" autoFocus />
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
                             <td className="px-6 py-3 text-gray-600">
                               {editingId === cat.id ? (
-                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-[13px]" placeholder="Optional" />
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-gray-900 font-semibold text-right tabular-nums">{cat.claims_count}</td>
@@ -491,7 +488,7 @@ export default function CategoriesPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -502,7 +499,7 @@ export default function CategoriesPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Tax Code</label>
                 <input
                   type="text"
                   value={modalTaxCode}

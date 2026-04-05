@@ -4,10 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
-
 interface PaymentAllocation {
   invoice_id: string;
   invoice_number: string | null;
@@ -90,7 +86,7 @@ function formatRM(val: string | number | null) {
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   matched:          { label: 'Matched',  cls: 'badge-green' },
   manually_matched: { label: 'Manual',   cls: 'badge-blue' },
-  unmatched:        { label: 'Unmatched', cls: 'badge-amber' },
+  unmatched:        { label: 'Unmatched', cls: 'badge-red' },
   excluded:         { label: 'Excluded', cls: 'badge-gray' },
 };
 
@@ -193,29 +189,29 @@ export default function ReconciliationWorkspacePage() {
 
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
       <Sidebar role="admin" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div className="flex items-center gap-3">
             <Link href="/admin/bank-reconciliation" className="text-gray-400 hover:text-gray-600 transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">
+            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">
               {statement ? `${statement.bank_name} — ${statement.account_number ?? 'N/A'} — ${formatDate(statement.statement_date)}` : 'Loading...'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
             {rematchResult && (
-              <span className="text-[12px] text-green-600 font-medium">{rematchResult.matched} new match{rematchResult.matched !== 1 ? 'es' : ''} found</span>
+              <span className="text-body-sm text-green-600 font-medium">{rematchResult.matched} new match{rematchResult.matched !== 1 ? 'es' : ''} found</span>
             )}
             <button
               onClick={doRematch}
               disabled={rematching}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium btn-blue rounded-xl text-white disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-blue rounded-xl text-white disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -224,7 +220,7 @@ export default function ReconciliationWorkspacePage() {
             </button>
             {statement?.file_url && (
               <a href={statement.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium btn-primary rounded-xl">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-primary rounded-xl">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
@@ -236,7 +232,7 @@ export default function ReconciliationWorkspacePage() {
 
         {/* ── Static summary + filter tabs ── */}
         {!loading && statement && (
-          <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F5F6F8] border-b border-gray-100">
+          <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F7F9FB]">
 
               {/* Summary cards */}
               <div className="grid grid-cols-6 gap-3 mb-4">
@@ -252,9 +248,9 @@ export default function ReconciliationWorkspacePage() {
                     { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-red-600' : 'text-green-600' },
                   ];
                 })().map((c) => (
-                  <div key={c.label} className="bg-white rounded-xl border border-gray-100 p-3">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
-                    <p className={`text-[15px] font-bold tabular-nums ${c.color}`}>{c.value}</p>
+                  <div key={c.label} className="bg-white rounded-xl p-3">
+                    <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
+                    <p className={`text-title-md font-bold tabular-nums ${c.color}`}>{c.value}</p>
                   </div>
                 ))}
               </div>
@@ -263,7 +259,7 @@ export default function ReconciliationWorkspacePage() {
               <div className="flex gap-1 mb-3">
                 {(['all', 'unmatched', 'matched', 'excluded'] as const).map((f) => (
                   <button key={f} onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
+                    className={`px-3 py-1.5 text-body-sm font-medium rounded-md transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}
                   >
                     {f === 'all' ? 'All' : f === 'unmatched' ? `Unmatched (${statement.summary.unmatched})` : f === 'matched' ? `Matched (${statement.summary.matched})` : `Excluded (${statement.summary.excluded})`}
                   </button>
@@ -278,10 +274,10 @@ export default function ReconciliationWorkspacePage() {
           ) : (
             <>
               {/* Transaction table */}
-              <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-xl overflow-hidden">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/50">
+                    <tr className="ds-table-header">
                       <th className="px-6 py-2.5 text-left w-[70px]">Status</th>
                       <th className="px-3 py-2.5 text-left w-[80px]">Date</th>
                       <th className="px-3 py-2.5 text-left">Description</th>
@@ -299,7 +295,7 @@ export default function ReconciliationWorkspacePage() {
                       const mp = txn.matched_payment;
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`border-b border-gray-50 transition-colors ${mp ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-gray-50/50'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : txn.recon_status === 'excluded' ? 'bg-gray-50/40' : ''}`}
+                        <tr className={`transition-colors ${mp ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-[#F2F4F6]'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : txn.recon_status === 'excluded' ? 'bg-gray-50/40' : ''}`}
                           onClick={() => mp ? setPreviewTxn(isExpanded ? null : txn) : null}
                         >
                           <td className="px-4 py-2.5">
@@ -313,15 +309,15 @@ export default function ReconciliationWorkspacePage() {
                               <span className={cfg.cls}>{cfg.label}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-[12px] text-gray-700 tabular-nums">{formatDate(txn.transaction_date)}</td>
-                          <td className="px-3 py-2.5 text-[12px] text-gray-900 max-w-[250px] truncate" title={txn.description}>
+                          <td className="px-3 py-2.5 text-body-sm text-gray-700 tabular-nums">{formatDate(txn.transaction_date)}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-gray-900 max-w-[250px] truncate" title={txn.description}>
                             {txn.description.split(' | ')[0]}
-                            {txn.reference && <span className="ml-1 text-gray-400 text-[11px]">({txn.reference})</span>}
+                            {txn.reference && <span className="ml-1 text-gray-400 text-label-sm">({txn.reference})</span>}
                           </td>
-                          <td className="px-3 py-2.5 text-[12px] text-right tabular-nums text-red-600">{txn.debit ? formatRM(txn.debit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-[12px] text-right tabular-nums text-green-600">{txn.credit ? formatRM(txn.credit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-[12px] text-right tabular-nums text-gray-700">{txn.balance ? formatRM(txn.balance) : '-'}</td>
-                          <td className="px-3 py-2.5 text-[12px] text-gray-500">
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-red-600">{txn.debit ? formatRM(txn.debit) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-green-600">{txn.credit ? formatRM(txn.credit) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-gray-700">{txn.balance ? formatRM(txn.balance) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-gray-500">
                             {mp ? (
                               <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
                             ) : txn.notes ? (
@@ -331,59 +327,59 @@ export default function ReconciliationWorkspacePage() {
                           <td className="px-3 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-[11px] w-[70px] py-1.5 text-white btn-blue rounded-xl transition-all duration-200 text-center">Match</button>
-                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-[11px] w-[70px] py-1.5 text-white btn-dark rounded-xl transition-all duration-200 text-center">Exclude</button>
+                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-xl transition-all duration-200 text-center">Match</button>
+                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-xl transition-all duration-200 text-center">Exclude</button>
                               </div>
                             )}
                             {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-[11px] w-[70px] py-1.5 text-white btn-primary rounded-xl transition-all duration-200 text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-xl transition-all duration-200 text-center">Unmatch</button>
                               </div>
                             )}
                             {txn.recon_status === 'excluded' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-[11px] w-[70px] py-1.5 text-white bg-gray-500 hover:bg-gray-600 rounded transition-colors text-center">Restore</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white bg-gray-500 hover:bg-gray-600 rounded transition-colors text-center">Restore</button>
                               </div>
                             )}
                           </td>
                         </tr>
                         {isExpanded && mp && (
-                          <tr className="bg-blue-50/30 border-b border-gray-100">
+                          <tr className="bg-blue-50/30">
                             <td colSpan={8} className="px-5 py-4">
                               <div className="grid grid-cols-3 gap-4 mb-3">
                                 <div>
-                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Payment To</p>
-                                  <p className="text-[13px] font-medium text-gray-900">{mp.supplier_name}</p>
-                                  <p className="text-[12px] text-gray-500">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
-                                  {mp.reference && <p className="text-[11px] text-gray-400">Ref: {mp.reference}</p>}
-                                  {mp.notes && <p className="text-[11px] text-gray-400 italic">{mp.notes}</p>}
+                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Payment To</p>
+                                  <p className="text-body-md font-medium text-gray-900">{mp.supplier_name}</p>
+                                  <p className="text-body-sm text-gray-500">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
+                                  {mp.reference && <p className="text-label-sm text-gray-400">Ref: {mp.reference}</p>}
+                                  {mp.notes && <p className="text-label-sm text-gray-400 italic">{mp.notes}</p>}
                                 </div>
                                 <div>
-                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Match Info</p>
+                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Match Info</p>
                                   <span className={cfg.cls}>{cfg.label}</span>
-                                  {txn.matched_at && <p className="text-[11px] text-gray-400 mt-1">{formatDate(txn.matched_at)}</p>}
+                                  {txn.matched_at && <p className="text-label-sm text-gray-400 mt-1">{formatDate(txn.matched_at)}</p>}
                                 </div>
                                 <div>
-                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Bank Description</p>
-                                  <p className="text-[12px] text-gray-600">{txn.description.replace(/ \| /g, '\n')}</p>
+                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Bank Description</p>
+                                  <p className="text-body-sm text-gray-600">{txn.description.replace(/ \| /g, '\n')}</p>
                                 </div>
                               </div>
 
                               {mp.allocations.length > 0 && (
                                 <div className="mb-3">
-                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Linked Invoices ({mp.allocations.length})</p>
+                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Linked Invoices ({mp.allocations.length})</p>
                                   <div className="space-y-1">
                                     {mp.allocations.map((a) => (
                                       <div key={a.invoice_id}
                                         onClick={(e) => { e.stopPropagation(); setPreviewInvoice(a); }}
                                         className="flex items-center justify-between bg-white rounded px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
                                         <div>
-                                          <span className="text-[12px] font-medium text-blue-700">{a.invoice_number ?? 'No number'}</span>
-                                          <span className="text-[11px] text-gray-400 ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
+                                          <span className="text-body-sm font-medium text-blue-700">{a.invoice_number ?? 'No number'}</span>
+                                          <span className="text-label-sm text-gray-400 ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
                                         </div>
                                         <div className="text-right">
-                                          <span className="text-[12px] font-semibold tabular-nums text-gray-900">{formatRM(a.allocated_amount)}</span>
-                                          <span className="text-[11px] text-gray-400 ml-1">/ {formatRM(a.total_amount)}</span>
+                                          <span className="text-body-sm font-semibold tabular-nums text-gray-900">{formatRM(a.allocated_amount)}</span>
+                                          <span className="text-label-sm text-gray-400 ml-1">/ {formatRM(a.total_amount)}</span>
                                         </div>
                                       </div>
                                     ))}
@@ -393,7 +389,7 @@ export default function ReconciliationWorkspacePage() {
 
                               {mp.receipts.length > 0 && (
                                 <div>
-                                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Linked Receipts ({mp.receipts.length})</p>
+                                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Linked Receipts ({mp.receipts.length})</p>
                                   <div className="grid grid-cols-2 gap-2">
                                     {mp.receipts.map((r) => (
                                       <div key={r.id}
@@ -401,8 +397,8 @@ export default function ReconciliationWorkspacePage() {
                                         className="flex items-center gap-3 bg-white rounded px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
                                         {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />}
                                         <div className="min-w-0">
-                                          <p className="text-[12px] font-medium text-blue-700 truncate">{r.merchant}</p>
-                                          <p className="text-[11px] text-gray-400">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — {formatRM(r.amount)}</p>
+                                          <p className="text-body-sm font-medium text-blue-700 truncate">{r.merchant}</p>
+                                          <p className="text-label-sm text-gray-400">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — {formatRM(r.amount)}</p>
                                         </div>
                                       </div>
                                     ))}
@@ -411,7 +407,7 @@ export default function ReconciliationWorkspacePage() {
                               )}
 
                               {mp.allocations.length === 0 && mp.receipts.length === 0 && (
-                                <p className="text-[12px] text-gray-400 italic">No invoices or receipts linked to this payment yet.</p>
+                                <p className="text-body-sm text-gray-400 italic">No invoices or receipts linked to this payment yet.</p>
                               )}
                             </td>
                           </tr>
@@ -433,14 +429,14 @@ export default function ReconciliationWorkspacePage() {
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setMatchingTxn(null)}>
               <div className="bg-white rounded-xl shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-[15px] font-semibold text-gray-900 mb-3">Match Transaction</h2>
-                <div className="bg-gray-50 rounded-md p-3 mb-4 text-[12px]">
+                <h2 className="text-title-md font-semibold text-gray-900 mb-3">Match Transaction</h2>
+                <div className="bg-gray-50 rounded-md p-3 mb-4 text-body-sm">
                   <p className="font-medium text-gray-900">{matchingTxn.description.split(' | ')[0]}</p>
                   <p className="text-gray-500 mt-1">
                     {formatDate(matchingTxn.transaction_date)} — {matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}
                   </p>
                 </div>
-                <p className="text-[12px] font-medium text-gray-500 mb-2">Select a payment to match:</p>
+                <p className="text-body-sm font-medium text-gray-500 mb-2">Select a payment to match:</p>
                 {loadingCandidates ? (
                   <p className="text-sm text-gray-400 py-4 text-center">Loading...</p>
                 ) : candidates.length === 0 ? (
@@ -454,15 +450,15 @@ export default function ReconciliationWorkspacePage() {
                         className="flex items-center justify-between p-3 rounded-md border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
                       >
                         <div>
-                          <p className="text-[12px] font-medium text-gray-900">{p.supplier_name}</p>
-                          <p className="text-[11px] text-gray-400">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
+                          <p className="text-body-sm font-medium text-gray-900">{p.supplier_name}</p>
+                          <p className="text-label-sm text-gray-400">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
                         </div>
-                        <p className="text-[13px] font-semibold tabular-nums text-gray-900">{formatRM(p.amount)}</p>
+                        <p className="text-body-md font-semibold tabular-nums text-gray-900">{formatRM(p.amount)}</p>
                       </div>
                     ))}
                   </div>
                 )}
-                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-[13px] text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">
+                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">
                   Cancel
                 </button>
               </div>
@@ -473,14 +469,14 @@ export default function ReconciliationWorkspacePage() {
           {excludingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setExcludingTxn(null)}>
               <div className="bg-white rounded-xl shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-[15px] font-semibold text-gray-900 mb-3">Exclude Transaction</h2>
-                <div className="bg-gray-50 rounded-md p-3 mb-4 text-[12px]">
+                <h2 className="text-title-md font-semibold text-gray-900 mb-3">Exclude Transaction</h2>
+                <div className="bg-gray-50 rounded-md p-3 mb-4 text-body-sm">
                   <p className="font-medium text-gray-900">{excludingTxn.description.split(' | ')[0]}</p>
                   <p className="text-gray-500 mt-1">
                     {formatDate(excludingTxn.transaction_date)} — {excludingTxn.debit ? `Debit ${formatRM(excludingTxn.debit)}` : `Credit ${formatRM(excludingTxn.credit)}`}
                   </p>
                 </div>
-                <label className="text-[12px] font-medium text-gray-500 mb-1.5 block">Reason for excluding</label>
+                <label className="text-body-sm font-medium text-gray-500 mb-1.5 block">Reason for excluding</label>
                 <div className="space-y-1.5 mb-4">
                   {[
                     { value: 'Personal transaction', label: 'Personal transaction' },
@@ -494,14 +490,14 @@ export default function ReconciliationWorkspacePage() {
                     >
                       <input type="radio" name="exclude_reason" value={opt.value} checked={excludeReason === opt.value}
                         onChange={() => setExcludeReason(opt.value)} className="accent-blue-600" />
-                      <span className="text-[13px] text-gray-700">{opt.label}</span>
+                      <span className="text-body-md text-gray-700">{opt.label}</span>
                     </label>
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-[13px] text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">Cancel</button>
+                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-body-md text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">Cancel</button>
                   <button onClick={doExclude} disabled={!excludeReason}
-                    className="flex-1 px-3 py-2 text-[13px] text-white bg-gray-700 rounded-md hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
+                    className="flex-1 px-3 py-2 text-body-md text-white bg-gray-700 rounded-md hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
                     Exclude
                   </button>
                 </div>
@@ -516,29 +512,29 @@ export default function ReconciliationWorkspacePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="space-y-3">
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Invoice No.</dt><dd className="text-[13px] text-gray-900 font-medium">{previewInvoice.invoice_number ?? '-'}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Vendor</dt><dd className="text-[13px] text-gray-900">{previewInvoice.vendor_name}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Issue Date</dt><dd className="text-[13px] text-gray-900">{formatDate(previewInvoice.issue_date)}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Total Amount</dt><dd className="text-[15px] font-bold text-gray-900 tabular-nums">{formatRM(previewInvoice.total_amount)}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Allocated to Payment</dt><dd className="text-[15px] font-bold text-green-600 tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Invoice No.</dt><dd className="text-body-md text-gray-900 font-medium">{previewInvoice.invoice_number ?? '-'}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Vendor</dt><dd className="text-body-md text-gray-900">{previewInvoice.vendor_name}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Issue Date</dt><dd className="text-body-md text-gray-900">{formatDate(previewInvoice.issue_date)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Total Amount</dt><dd className="text-title-md font-bold text-gray-900 tabular-nums">{formatRM(previewInvoice.total_amount)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Allocated to Payment</dt><dd className="text-title-md font-bold text-green-600 tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
               </dl>
 
               {/* Show which bank txn this links through */}
               {previewTxn && (
                 <div className="bg-gray-50 rounded-md p-3">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
-                  <p className="text-[12px] text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
-                  <p className="text-[11px] text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
+                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
+                  <p className="text-body-sm text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
+                  <p className="text-label-sm text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0">
+            <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/admin/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
                 className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
@@ -556,7 +552,7 @@ export default function ReconciliationWorkspacePage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
             </div>
@@ -567,21 +563,21 @@ export default function ReconciliationWorkspacePage() {
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
               )}
               <dl className="space-y-3">
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Merchant</dt><dd className="text-[13px] text-gray-900 font-medium">{previewReceipt.merchant}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Receipt No.</dt><dd className="text-[13px] text-gray-900">{previewReceipt.receipt_number ?? '-'}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Date</dt><dd className="text-[13px] text-gray-900">{formatDate(previewReceipt.claim_date)}</dd></div>
-                <div><dt className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Amount</dt><dd className="text-[15px] font-bold text-gray-900 tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-gray-900 font-medium">{previewReceipt.merchant}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Receipt No.</dt><dd className="text-body-md text-gray-900">{previewReceipt.receipt_number ?? '-'}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Date</dt><dd className="text-body-md text-gray-900">{formatDate(previewReceipt.claim_date)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-gray-900 tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
               </dl>
 
               {previewTxn && (
                 <div className="bg-gray-50 rounded-md p-3">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
-                  <p className="text-[12px] text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
-                  <p className="text-[11px] text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
+                  <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
+                  <p className="text-body-sm text-gray-700">{previewTxn.description.split(' | ')[0]}</p>
+                  <p className="text-label-sm text-gray-400">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
                 </div>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0">
+            <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/admin/claims?search=${encodeURIComponent(previewReceipt.receipt_number ?? previewReceipt.merchant)}`, '_blank')}
                 className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"

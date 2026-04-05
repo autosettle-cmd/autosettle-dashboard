@@ -3,13 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import Sidebar from '@/components/Sidebar';
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-});
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -73,8 +67,8 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
+      <dt className="text-label-sm uppercase text-ds-text-secondary">{label}</dt>
+      <dd className="text-body-md text-ds-text mt-0.5">{value}</dd>
     </div>
   );
 }
@@ -149,28 +143,25 @@ export default function EmployeeDashboard() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-surface-base">
 
       <Sidebar role="employee" />
 
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Header */}
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-8 bg-white border-b border-gray-100/80">
+        {/* Header — tonal layering, no border */}
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-8 bg-surface-card">
           <div>
-            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">
+            <h1 className="text-title-md text-ds-text tracking-tight">
               {greeting}{firstName ? `, ${firstName}` : ''}
             </h1>
-            <p className="text-gray-400 text-[12px] mt-0.5">
+            <p className="text-label-sm text-ds-text-muted mt-0.5">
               {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
-          <Link
-            href="/employee/claims"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-[13px] font-semibold btn-primary transition-all duration-200"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <Link href="/employee/claims" className="btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -232,13 +223,10 @@ export default function EmployeeDashboard() {
           </div>
 
           {/* ── Recent Submissions ─────────────────────────── */}
-          <div
-            className="bg-white rounded-xl border border-gray-100/80 overflow-hidden"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
+          <div className="ds-card overflow-hidden p-0">
+            <div className="flex items-center justify-between px-6 py-5">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400">
+                <div className="w-8 h-8 rounded-ds-md bg-surface-low flex items-center justify-center text-ds-text-muted">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                     <line x1="3" y1="9" x2="21" y2="9" />
@@ -246,14 +234,13 @@ export default function EmployeeDashboard() {
                   </svg>
                 </div>
                 <div>
-                  <h2 className="text-[14px] font-bold text-gray-900 tracking-tight">Recent Submissions</h2>
-                  <p className="text-[11px] text-gray-400 mt-0.5">Your latest expense claims</p>
+                  <h2 className="text-title-sm text-ds-text">Recent Submissions</h2>
+                  <p className="text-label-sm text-ds-text-muted mt-0.5">Your latest expense claims</p>
                 </div>
               </div>
               <Link
                 href="/employee/claims"
-                className="flex items-center gap-1.5 text-[12px] font-semibold transition-colors duration-200 hover:opacity-80"
-                style={{ color: 'var(--accent)' }}
+                className="flex items-center gap-1.5 text-label-md text-primary transition-colors duration-200 hover:opacity-80"
               >
                 View all
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -264,7 +251,7 @@ export default function EmployeeDashboard() {
 
             {loadingClaims ? (
               <div className="px-6 py-16 text-center">
-                <div className="inline-flex items-center gap-2 text-sm text-gray-400">
+                <div className="inline-flex items-center gap-2 text-body-md text-ds-text-muted">
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -274,19 +261,19 @@ export default function EmployeeDashboard() {
               </div>
             ) : recentClaims.length === 0 ? (
               <div className="px-6 py-16 text-center">
-                <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-300">
+                <div className="w-12 h-12 rounded-ds-lg bg-surface-low flex items-center justify-center mx-auto mb-3 text-ds-text-muted">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium text-gray-500">No claims submitted yet</p>
-                <p className="text-xs text-gray-400 mt-1">Submit your first expense claim to get started.</p>
+                <p className="text-body-md font-medium text-ds-text-secondary">No claims submitted yet</p>
+                <p className="text-body-sm text-ds-text-muted mt-1">Submit your first expense claim to get started.</p>
               </div>
             ) : (
               <table className="w-full">
                 <thead>
-                  <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                  <tr className="ds-table-header text-left">
                     <th className="px-6 py-3">Date</th>
                     <th className="px-6 py-3">Merchant</th>
                     <th className="px-6 py-3 text-right">Amount</th>
@@ -295,24 +282,22 @@ export default function EmployeeDashboard() {
                   </tr>
                 </thead>
                 <tbody className="table-stagger">
-                  {recentClaims.map((c, i) => {
+                  {recentClaims.map((c) => {
                     const sCfg = STATUS_CFG[c.status];
                     const aCfg = APPROVAL_CFG[c.approval];
                     return (
                       <tr
                         key={c.id}
                         onClick={() => setPreviewClaim(c)}
-                        className={`text-[13px] hover:bg-[#FAFBFC] transition-colors duration-150 cursor-pointer group ${
-                          i < recentClaims.length - 1 ? 'border-b border-gray-50' : ''
-                        }`}
+                        className="ds-table-row text-body-md cursor-pointer group"
                       >
-                        <td className="px-6 py-3.5 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
+                        <td className="px-6 py-3.5 text-ds-text-secondary tabular-nums">{formatDate(c.claim_date)}</td>
                         <td className="px-6 py-3.5">
-                          <span className="text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
+                          <span className="text-ds-text font-medium group-hover:text-primary transition-colors duration-200">
                             {c.merchant}
                           </span>
                         </td>
-                        <td className="px-6 py-3.5 text-gray-900 font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td className="px-6 py-3.5 text-ds-text font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-6 py-3.5">
                           {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                         </td>
@@ -333,28 +318,22 @@ export default function EmployeeDashboard() {
       {/* ═══ CLAIM PREVIEW ═══ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40 transition-opacity" onClick={() => setPreviewClaim(null)} />
-          <div
-            className="fixed right-0 top-0 h-screen w-[420px] bg-white z-50 flex flex-col preview-slide-in"
-            style={{ boxShadow: '-8px 0 30px rgba(0,0,0,0.08)' }}
-          >
+          <div className="ds-overlay fixed inset-0 z-40 transition-opacity" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed right-0 top-0 h-screen w-[420px] bg-white z-50 flex flex-col preview-slide-in shadow-ds-ambient">
             {/* Preview header */}
-            <div
-              className="h-16 flex items-center justify-between px-5 flex-shrink-0"
-              style={{ backgroundColor: 'var(--sidebar)' }}
-            >
+            <div className="h-16 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-ds-md bg-white/10 flex items-center justify-center">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                 </div>
-                <h2 className="text-white font-bold text-[14px] tracking-tight">Claim Details</h2>
+                <h2 className="text-white text-title-sm">Claim Details</h2>
               </div>
               <button
                 onClick={() => setPreviewClaim(null)}
-                className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all duration-200"
+                className="w-8 h-8 rounded-ds-md bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70 hover:text-white transition-all duration-200"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -366,17 +345,17 @@ export default function EmployeeDashboard() {
             {/* Preview body */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {previewClaim.thumbnail_url ? (
-                <div className="rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                <div className="rounded-ds-lg overflow-hidden bg-surface-low">
                   <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain" />
                 </div>
               ) : (
-                <div className="w-full h-40 rounded-xl border border-gray-100 bg-gray-50 flex flex-col items-center justify-center text-gray-400 gap-2">
+                <div className="w-full h-40 rounded-ds-lg bg-surface-low flex flex-col items-center justify-center text-ds-text-muted gap-2">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
                     <circle cx="8.5" cy="8.5" r="1.5" />
                     <polyline points="21 15 16 10 5 21" />
                   </svg>
-                  <span className="text-xs">No image</span>
+                  <span className="text-label-sm">No image</span>
                 </div>
               )}
 
@@ -408,13 +387,13 @@ export default function EmployeeDashboard() {
                     <label className="input-label">Description</label>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
-                  <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
+                  <div className="flex items-start gap-2.5 bg-[#FFF3E0] rounded-ds-lg px-4 py-3">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E65100" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
                       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                       <line x1="12" y1="9" x2="12" y2="13" />
                       <line x1="12" y1="17" x2="12.01" y2="17" />
                     </svg>
-                    <p className="text-xs text-amber-700 leading-relaxed">
+                    <p className="text-body-sm text-[#E65100] leading-relaxed">
                       Saving will reset status to Pending Review and approval to Pending.
                     </p>
                   </div>
@@ -434,17 +413,17 @@ export default function EmployeeDashboard() {
                     {APPROVAL_CFG[previewClaim.approval] && <span className={APPROVAL_CFG[previewClaim.approval].cls}>{APPROVAL_CFG[previewClaim.approval].label}</span>}
                     {PAYMENT_CFG[previewClaim.payment_status] && <span className={PAYMENT_CFG[previewClaim.payment_status].cls}>{PAYMENT_CFG[previewClaim.payment_status].label}</span>}
                   </div>
-                  <div className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
-                    <span className={`text-xs font-bold ${
-                      previewClaim.confidence === 'HIGH' ? 'text-green-600' :
-                      previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
+                  <div className="flex items-center gap-2 bg-surface-low rounded-ds-md px-3 py-2">
+                    <span className="text-label-sm text-ds-text-muted uppercase">Confidence</span>
+                    <span className={`text-label-md ${
+                      previewClaim.confidence === 'HIGH' ? 'text-[#1B5E20]' :
+                      previewClaim.confidence === 'MEDIUM' ? 'text-[#E65100]' : 'text-[#B71C1C]'
                     }`}>{previewClaim.confidence}</span>
                   </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-100 rounded-xl p-4">
-                      <p className="text-[11px] font-bold text-red-700 uppercase tracking-wide mb-1.5">Rejection Reason</p>
-                      <p className="text-sm text-red-700 leading-relaxed">{previewClaim.rejection_reason}</p>
+                    <div className="bg-[#FFEBEE] rounded-ds-lg p-4">
+                      <p className="text-label-md text-[#B71C1C] uppercase mb-1.5">Rejection Reason</p>
+                      <p className="text-body-md text-[#B71C1C] leading-relaxed">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
                   {previewClaim.file_url && (
@@ -452,8 +431,7 @@ export default function EmployeeDashboard() {
                       href={previewClaim.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-xs font-medium transition-colors duration-200 hover:opacity-80"
-                      style={{ color: 'var(--accent)' }}
+                      className="flex items-center gap-2 text-label-md text-primary transition-colors duration-200 hover:opacity-80"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -467,14 +445,14 @@ export default function EmployeeDashboard() {
               )}
             </div>
 
-            {/* Preview footer */}
-            <div className="p-5 border-t flex-shrink-0 flex gap-3">
+            {/* Preview footer — no border, tonal shift */}
+            <div className="p-5 bg-surface-low flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
                   <button
                     onClick={saveEdit}
                     disabled={editSaving}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all duration-200 btn-primary"
+                    className="flex-1 btn-primary"
                   >
                     {editSaving ? (
                       <span className="flex items-center justify-center gap-2">
@@ -488,7 +466,7 @@ export default function EmployeeDashboard() {
                   </button>
                   <button
                     onClick={() => { setEditMode(false); setEditData(null); }}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors duration-200"
+                    className="flex-1 btn-secondary"
                   >
                     Cancel
                   </button>
@@ -506,9 +484,9 @@ export default function EmployeeDashboard() {
                       description: previewClaim.description ?? '',
                     });
                   }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all duration-200 btn-primary flex items-center justify-center gap-2"
+                  className="flex-1 btn-primary"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
@@ -534,28 +512,25 @@ function StatCard({ label, sublabel, value, color, icon }: {
   icon?: React.ReactNode;
 }) {
   const accent = {
-    default: { iconBg: 'bg-gray-100', iconText: 'text-gray-500', value: 'text-gray-900', border: 'border-gray-100/80' },
-    amber:   { iconBg: 'bg-amber-50', iconText: 'text-amber-500', value: 'text-amber-600', border: 'border-amber-100/50' },
-    green:   { iconBg: 'bg-emerald-50', iconText: 'text-emerald-500', value: 'text-emerald-600', border: 'border-emerald-100/50' },
+    default: { iconBg: 'bg-[#E6E8EA]',    iconText: 'text-[#434654]',        value: 'text-ds-text' },
+    amber:   { iconBg: 'bg-[#FFF3E0]',    iconText: 'text-[#E65100]',        value: 'text-[#E65100]' },
+    green:   { iconBg: 'bg-[#E8F5E9]',    iconText: 'text-[#1B5E20]',        value: 'text-[#1B5E20]' },
   }[color];
 
   return (
-    <div
-      className={`bg-white rounded-xl border ${accent.border} p-5 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 group`}
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}
-    >
+    <div className="ds-card transition-all duration-300 hover:-translate-y-0.5 group">
       <div className="flex items-start justify-between mb-4">
-        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-tight">{label}</p>
+        <p className="text-label-md text-ds-text-muted uppercase leading-tight">{label}</p>
         {icon && (
-          <div className={`w-9 h-9 rounded-lg ${accent.iconBg} ${accent.iconText} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
+          <div className={`w-9 h-9 rounded-ds-md ${accent.iconBg} ${accent.iconText} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
             {icon}
           </div>
         )}
       </div>
-      <p className={`text-[26px] font-extrabold tracking-tight ${accent.value} stat-number`}>
-        {value ?? <span className="text-gray-200">&mdash;</span>}
+      <p className={`text-[28px] font-extrabold tracking-tight ${accent.value} stat-number`}>
+        {value ?? <span className="text-ds-text-muted">&mdash;</span>}
       </p>
-      {sublabel && <p className="text-[11px] text-gray-400 mt-1">{sublabel}</p>}
+      {sublabel && <p className="text-label-sm text-ds-text-muted mt-1">{sublabel}</p>}
     </div>
   );
 }

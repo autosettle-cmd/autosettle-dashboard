@@ -5,12 +5,9 @@ import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -126,7 +123,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -417,7 +414,7 @@ function AdminInvoicesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="admin" />
@@ -425,18 +422,18 @@ function AdminInvoicesPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="flex-shrink-0 bg-white border-b border-gray-100">
+        <header className="flex-shrink-0 bg-white">
           <div className="h-16 flex items-center justify-between px-6">
-            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Invoices</h1>
-            <Link href="/admin/suppliers" className="text-[12px] font-medium hover:underline transition-colors" style={{ color: 'var(--accent)' }}>
+            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Invoices</h1>
+            <Link href="/admin/suppliers" className="text-body-sm font-medium hover:underline transition-colors" style={{ color: 'var(--primary)' }}>
               Aging Report &rarr;
             </Link>
           </div>
           <div className="flex px-6 gap-0">
-            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Received
             </button>
-            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Issued
             </button>
           </div>
@@ -499,7 +496,7 @@ function AdminInvoicesPage() {
           </div>
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]" style={{ height: '100%' }}>
             <AgGridReact<InvoiceRow>
               onGridReady={onGridReady}
               rowData={invoices}
@@ -522,7 +519,7 @@ function AdminInvoicesPage() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">Submit New Invoice</h2>
                 <button onClick={() => setShowNewInvoice(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
@@ -547,7 +544,7 @@ function AdminInvoicesPage() {
                     autoComplete="off"
                   />
                   {newInv.supplier_id && (
-                    <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-[10px]">Linked</span>
+                    <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-label-sm">Linked</span>
                   )}
                   {vendorDropdownOpen && newInv.vendor_name.length >= 1 && (() => {
                     const q = newInv.vendor_name.toLowerCase();
@@ -633,7 +630,7 @@ function AdminInvoicesPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 px-5 py-4 border-t">
+              <div className="flex gap-3 px-5 py-4">
                 <button
                   onClick={submitNewInvoice}
                   disabled={newInvSubmitting || ocrScanning}
@@ -658,7 +655,7 @@ function AdminInvoicesPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -749,9 +746,9 @@ function AdminInvoicesPage() {
                   </div>
 
                   {/* Supplier link */}
-                  <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Supplier Account</span>
+                      <span className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier Account</span>
                       {(() => {
                         const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                         return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
@@ -808,7 +805,7 @@ function AdminInvoicesPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewInvoice.confidence === 'HIGH' ? 'text-green-600' :
                       previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -824,7 +821,7 @@ function AdminInvoicesPage() {
               )}
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">

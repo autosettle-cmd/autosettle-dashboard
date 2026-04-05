@@ -5,11 +5,8 @@ import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
 import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -126,14 +123,13 @@ function LinkCell({ value }: { value: string }) {
   return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
 }
 
-
 // ─── Preview field helper ─────────────────────────────────────────────────────
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -445,7 +441,7 @@ function AccountantInvoicesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -453,18 +449,18 @@ function AccountantInvoicesPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="flex-shrink-0 bg-white border-b border-gray-100">
+        <header className="flex-shrink-0 bg-white">
           <div className="h-16 flex items-center justify-between px-6">
-            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Invoices</h1>
+            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Invoices</h1>
             <p className="text-gray-400 text-xs">
               {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
           <div className="flex px-6 gap-0">
-            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Received
             </button>
-            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-[13px] font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
               Issued
             </button>
           </div>
@@ -534,7 +530,7 @@ function AccountantInvoicesPage() {
           </div>
 
           {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]" style={{ height: '100%' }}>
+          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-xl" style={{ height: '100%' }}>
             <AgGridReact<InvoiceRow>
               onGridReady={onGridReady}
               rowData={invoices}
@@ -590,7 +586,7 @@ function AccountantInvoicesPage() {
                     autoComplete="off"
                   />
                   {newInv.supplier_id && (
-                    <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-[10px]">Linked</span>
+                    <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-label-sm">Linked</span>
                   )}
                   {vendorDropdownOpen && newInv.vendor_name.length >= 1 && (() => {
                     const q = newInv.vendor_name.toLowerCase();
@@ -794,9 +790,9 @@ function AccountantInvoicesPage() {
                   </div>
 
                   {/* Supplier link */}
-                  <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Supplier Account</span>
+                      <span className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier Account</span>
                       {(() => {
                         const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                         return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
@@ -853,7 +849,7 @@ function AccountantInvoicesPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewInvoice.confidence === 'HIGH' ? 'text-green-600' :
                       previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -869,7 +865,7 @@ function AccountantInvoicesPage() {
               )}
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">

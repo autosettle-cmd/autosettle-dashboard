@@ -3,9 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,9 +73,9 @@ function formatRMStr(val: string | number) {
 // ─── Bucket cell helper ──────────────────────────────────────────────────────
 
 function BucketCell({ value, highlight }: { value: number; highlight?: boolean }) {
-  if (value === 0) return <td className="px-6 py-3 text-right text-gray-300 tabular-nums text-[13px]">-</td>;
+  if (value === 0) return <td className="px-6 py-3 text-right text-gray-300 tabular-nums text-body-md">-</td>;
   return (
-    <td className={`px-6 py-3 text-right tabular-nums text-[13px] font-semibold ${highlight ? 'text-red-600' : 'text-gray-900'}`}>
+    <td className={`px-6 py-3 text-right tabular-nums text-body-md font-semibold ${highlight ? 'text-red-600' : 'text-gray-900'}`}>
       {formatRM(value)}
     </td>
   );
@@ -124,7 +121,7 @@ export default function AccountantAgingReportPage() {
   }, [firmFilter]);
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -132,18 +129,18 @@ export default function AccountantAgingReportPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div className="flex items-center gap-3">
             <Link href="/accountant/invoices" className="text-gray-400 hover:text-gray-600 transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Aging Report — Accounts Payable</h1>
+            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Aging Report — Accounts Payable</h1>
           </div>
           <div className="flex items-center gap-3">
             {firms.length > 1 && (
-              <select value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} className="input-field text-[13px]">
+              <select value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} className="input-field text-body-md">
                 <option value="">All Firms</option>
                 {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
@@ -164,10 +161,10 @@ export default function AccountantAgingReportPage() {
               <p className="text-xs text-gray-300 mt-1">All invoices are paid.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+            <div className="bg-white rounded-xl overflow-hidden">
               <table className="w-full">
                 <thead>
-                  <tr className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100 bg-gray-50/50">
+                  <tr className="ds-table-header">
                     <th className="px-6 py-3 text-left" style={{ width: '28%' }}>Supplier</th>
                     <th className="px-6 py-3 text-right">0-30 Days</th>
                     <th className="px-6 py-3 text-right">31-60 Days</th>
@@ -183,7 +180,7 @@ export default function AccountantAgingReportPage() {
                       <tr
                         key={s.supplier_id}
                         onClick={() => setExpandedId(expandedId === s.supplier_id ? null : s.supplier_id)}
-                        className="group hover:bg-gray-50/50 transition-colors cursor-pointer border-b border-gray-50"
+                        className="group hover:bg-[#F2F4F6] transition-colors cursor-pointer"
                       >
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2">
@@ -194,8 +191,8 @@ export default function AccountantAgingReportPage() {
                               <path d="M9 18l6-6-6-6" />
                             </svg>
                             <div>
-                              <p className="text-[13px] font-semibold text-gray-900">{s.supplier_name}</p>
-                              <p className="text-[11px] text-gray-400">{s.invoices.length} invoice{s.invoices.length !== 1 ? 's' : ''}</p>
+                              <p className="text-body-md font-semibold text-gray-900">{s.supplier_name}</p>
+                              <p className="text-label-sm text-gray-400">{s.invoices.length} invoice{s.invoices.length !== 1 ? 's' : ''}</p>
                             </div>
                           </div>
                         </td>
@@ -203,7 +200,7 @@ export default function AccountantAgingReportPage() {
                         <BucketCell value={s.days31_60} highlight={s.days31_60 > 0} />
                         <BucketCell value={s.days61_90} highlight={s.days61_90 > 0} />
                         <BucketCell value={s.days90plus} highlight={s.days90plus > 0} />
-                        <td className="px-6 py-3 text-right tabular-nums text-[13px] font-bold text-gray-900">
+                        <td className="px-6 py-3 text-right tabular-nums text-body-md font-bold text-gray-900">
                           {formatRM(s.total)}
                         </td>
                       </tr>
@@ -212,14 +209,14 @@ export default function AccountantAgingReportPage() {
                       {expandedId === s.supplier_id && s.invoices.map((inv) => {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         return (
-                          <tr key={inv.id} className="bg-gray-50/50 border-b border-gray-50/80 text-[12px]">
+                          <tr key={inv.id} className="bg-gray-50/50 text-body-sm">
                             <td className="px-6 py-2.5 pl-12">
                               <div className="flex items-center gap-3">
                                 <span className="text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</span>
                                 <span className="text-gray-700 font-medium">{inv.invoice_number ?? '-'}</span>
                                 {pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}
                               </div>
-                              <p className="text-[11px] text-gray-400 mt-0.5">
+                              <p className="text-label-sm text-gray-400 mt-0.5">
                                 Due: {inv.due_date ? formatDate(inv.due_date) : 'N/A'} · {inv.category_name}
                               </p>
                             </td>
@@ -238,7 +235,7 @@ export default function AccountantAgingReportPage() {
                 {/* Summary footer */}
                 {summary && (
                   <tfoot>
-                    <tr className="border-t-2 border-gray-200 bg-gray-50/50 font-bold text-[13px]">
+                    <tr className="border-t-2 border-gray-200 bg-gray-50/50 font-bold text-body-md">
                       <td className="px-6 py-3.5 text-gray-900">Total</td>
                       <td className="px-6 py-3.5 text-right tabular-nums text-gray-900">{formatRM(summary.days0_30)}</td>
                       <td className={`px-6 py-3.5 text-right tabular-nums ${summary.days31_60 > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatRM(summary.days31_60)}</td>

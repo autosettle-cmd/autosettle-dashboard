@@ -3,9 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -196,15 +193,15 @@ export default function ClientsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       <Sidebar role="accountant" />
 
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Clients</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Clients</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -220,7 +217,7 @@ export default function ClientsPage() {
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
               <div className="px-6 py-10 text-center text-sm text-gray-400">Loading...</div>
             ) : firms.length === 0 ? (
@@ -229,7 +226,7 @@ export default function ClientsPage() {
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50/50">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-3">Firm Name</th>
                       <th className="px-6 py-3">Reg. Number</th>
                       <th className="px-6 py-3 text-right">Employees</th>
@@ -241,7 +238,7 @@ export default function ClientsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {firms.map((firm) => (
-                      <tr key={firm.id} className="group hover:bg-gray-50/60 transition-colors">
+                      <tr key={firm.id} className="group hover:bg-[#F2F4F6] transition-colors">
                         <td className="px-6 py-3 font-medium">
                           <Link
                             href={`/accountant/clients/${firm.id}`}
@@ -344,7 +341,7 @@ export default function ClientsPage() {
 
               {/* LHDN / E-Invoice Section */}
               <div className="pt-2">
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -371,7 +368,7 @@ export default function ClientsPage() {
 
               {/* Address Section */}
               <div className="pt-2">
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Address</h3>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">Address</h3>
                 <div className="space-y-3">
                   <div>
                     <label className="input-label">Address Line 1</label>
@@ -406,8 +403,8 @@ export default function ClientsPage() {
 
               {/* LHDN Credentials Section */}
               <div className="pt-2">
-                <h3 className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
-                <p className="text-[11px] text-gray-400 mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
+                <h3 className="text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
+                <p className="text-label-sm text-gray-400 mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
                 <div className="space-y-3">
                   <div>
                     <label className="input-label">Client ID</label>
@@ -421,7 +418,7 @@ export default function ClientsPage() {
               </div>
 
               {/* Summary */}
-              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                 <Field label="Employees" value={String(editFirm.employee_count)} />
                 <Field label="Claims This Month" value={String(editFirm.claims_this_month)} />
                 <Field label="Receipts" value={`${editFirm.receipt_count} / 500`} />
@@ -429,7 +426,7 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2 rounded-xl text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -456,7 +453,7 @@ export default function ClientsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -467,7 +464,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Registration Number</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Registration Number</label>
                 <input
                   type="text"
                   value={modalRegNumber}
@@ -477,7 +474,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact Email</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact Email</label>
                 <input
                   type="email"
                   value={modalEmail}
@@ -487,7 +484,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact Phone</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Contact Phone</label>
                 <input
                   type="text"
                   value={modalPhone}
@@ -497,7 +494,7 @@ export default function ClientsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Plan</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Plan</label>
                 <select
                   value={modalPlan}
                   onChange={(e) => setModalPlan(e.target.value)}
@@ -539,7 +536,7 @@ const inputCls = 'input-field';
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between text-[13px]">
+    <div className="flex justify-between text-body-md">
       <span className="text-gray-500">{label}</span>
       <span className="text-gray-900 font-medium">{value}</span>
     </div>

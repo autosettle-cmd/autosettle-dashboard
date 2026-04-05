@@ -17,10 +17,40 @@ export const brand = {
 
   // ── Brand Colors ──────────────────────────────────────────────────────────
   colors: {
-    accent: '#A60201',       // Primary brand color (buttons, links, active states)
-    accentHover: '#8B0101',  // Darker accent for hover states
-    sidebar: '#152237',      // Sidebar background
-    surface: '#1a2d47',      // Secondary dark surface (gradients, dark buttons)
+    // Primary action (CTA buttons, active states, links)
+    primary: '#003D9B',
+    primaryContainer: '#0052CC',    // Gradient end for primary buttons
+
+    // Sidebar / Navigation anchor
+    sidebar: '#151C28',
+
+    // Surfaces (tonal layering — no borders, use bg shifts)
+    surfaceBase: '#F7F9FB',         // Level 0: page background
+    surfaceLow: '#F2F4F6',          // Level 1: sections
+    surfaceCard: '#FFFFFF',         // Level 2: cards
+    surfaceHeader: '#E6E8EA',       // Table headers, elevated sections
+
+    // Text hierarchy
+    textPrimary: '#191C1E',         // Main text — never use #000
+    textSecondary: '#434654',       // Labels, metadata
+    textMuted: '#8E9196',           // Placeholder, disabled
+
+    // Borders (ghost borders only — 15% opacity)
+    outline: '#C3C6D6',
+
+    // Status: Warning / Pending (amber spectrum — use sparingly)
+    warningBg: '#805000',
+    warningText: '#2A1700',
+    warningAccent: '#FFB95F',
+    warningMuted: '#603B00',
+
+    // Status: Success
+    successBg: '#E8F5E9',
+    successText: '#1B5E20',
+
+    // Status: Error
+    errorBg: '#FFEBEE',
+    errorText: '#B71C1C',
   },
 
   // ── AI Assistant (WhatsApp) ───────────────────────────────────────────────
@@ -41,15 +71,44 @@ function hexToRgb(hex: string): string {
 
 /** CSS custom-property map injected into :root by BrandingStyles */
 export function getBrandCssVars(): Record<string, string> {
-  const { accent, accentHover, sidebar, surface } = brand.colors;
+  const c = brand.colors;
   return {
-    '--accent': accent,
-    '--accent-hover': accentHover,
-    '--accent-rgb': hexToRgb(accent),
-    '--accent-hover-rgb': hexToRgb(accentHover),
-    '--sidebar': sidebar,
-    '--sidebar-rgb': hexToRgb(sidebar),
-    '--surface-dark': surface,
-    '--surface-dark-rgb': hexToRgb(surface),
+    // Primary
+    '--primary': c.primary,
+    '--primary-container': c.primaryContainer,
+    '--primary-rgb': hexToRgb(c.primary),
+
+    // Legacy aliases (backward compat while migrating pages)
+    '--accent': c.primary,
+    '--accent-hover': c.primaryContainer,
+    '--accent-rgb': hexToRgb(c.primary),
+    '--accent-hover-rgb': hexToRgb(c.primaryContainer),
+
+    // Sidebar
+    '--sidebar': c.sidebar,
+    '--sidebar-rgb': hexToRgb(c.sidebar),
+    '--surface-dark': c.sidebar,
+    '--surface-dark-rgb': hexToRgb(c.sidebar),
+
+    // Surfaces
+    '--surface-base': c.surfaceBase,
+    '--surface-low': c.surfaceLow,
+    '--surface-card': c.surfaceCard,
+    '--surface-header': c.surfaceHeader,
+
+    // Text
+    '--text-primary': c.textPrimary,
+    '--text-secondary': c.textSecondary,
+    '--text-muted': c.textMuted,
+
+    // Outline
+    '--outline': c.outline,
+    '--outline-ghost': `${c.outline}26`,  // 15% opacity
+
+    // Legacy aliases
+    '--surface': c.surfaceCard,
+    '--surface-secondary': c.surfaceBase,
+    '--border': `${c.outline}33`,         // 20% opacity
+    '--border-light': `${c.outline}1A`,   // 10% opacity
   };
 }

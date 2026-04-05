@@ -98,7 +98,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -339,10 +339,10 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       </div>
 
       {/* ── Table ────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-gray-100 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] bg-white">
+      <div className="flex-1 min-h-0 overflow-auto rounded-xl bg-white">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50/50 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+            <tr className="ds-table-header text-left">
               <th className="px-6 py-3">Invoice #</th>
               <th className="px-6 py-3">Buyer</th>
               <th className="px-6 py-3">Issue Date</th>
@@ -353,7 +353,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               <th className="px-6 py-3">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody>
             {loading ? (
               <tr>
                 <td colSpan={8} className="px-6 py-16 text-center text-gray-400 text-sm">Loading...</td>
@@ -368,7 +368,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 return (
                   <tr
                     key={inv.id}
-                    className="group hover:bg-gray-50/60 cursor-pointer transition-colors"
+                    className="group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
                     onClick={() => setPreview(inv)}
                   >
                     <td className="px-6 py-3 font-medium text-gray-900">{inv.invoice_number || '-'}</td>
@@ -383,8 +383,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     <td className="px-6 py-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setPreview(inv); }}
-                        className="text-xs font-medium hover:underline transition-colors"
-                        style={{ color: 'var(--accent)' }}
+                        className="btn-blue text-label-sm px-3 py-1"
                       >
                         View
                       </button>
@@ -403,7 +402,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowCreate(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">New Sales Invoice</h2>
                 <button onClick={() => setShowCreate(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
@@ -426,7 +425,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       type="text"
                       value={newBuyerName}
                       onChange={(e) => setNewBuyerName(e.target.value)}
-                      className="input-field flex-1 text-[12px]"
+                      className="input-field flex-1 text-body-sm"
                       placeholder="Or type new buyer name..."
                     />
                     <button
@@ -451,7 +450,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                         } catch { setCreateError('Failed to create buyer'); }
                         setCreatingBuyer(false);
                       }}
-                      className="text-[11px] px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
+                      className="text-label-sm px-3 py-1.5 rounded-xl font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
                     >
                       {creatingBuyer ? 'Adding...' : 'Add'}
                     </button>
@@ -509,7 +508,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       type="button"
                       onClick={() => setLineItems((prev) => [...prev, emptyLineItem()])}
                       className="text-xs font-medium hover:underline transition-colors"
-                      style={{ color: 'var(--accent)' }}
+                      style={{ color: 'var(--primary)' }}
                     >
                       + Add Line Item
                     </button>
@@ -528,7 +527,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                           />
                           <div className="grid grid-cols-3 gap-2">
                             <div>
-                              <label className="text-[10px] text-gray-400 font-medium">Qty</label>
+                              <label className="text-label-sm text-gray-400 font-medium">Qty</label>
                               <input
                                 type="number"
                                 step="1"
@@ -539,7 +538,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] text-gray-400 font-medium">Unit Price (RM)</label>
+                              <label className="text-label-sm text-gray-400 font-medium">Unit Price (RM)</label>
                               <input
                                 type="number"
                                 step="0.01"
@@ -550,7 +549,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                               />
                             </div>
                             <div>
-                              <label className="text-[10px] text-gray-400 font-medium">Tax Rate (%)</label>
+                              <label className="text-label-sm text-gray-400 font-medium">Tax Rate (%)</label>
                               <input
                                 type="number"
                                 step="0.01"
@@ -582,7 +581,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                   </div>
 
                   {/* ── Totals ─────────────────────────────────── */}
-                  <div className="mt-3 border-t border-gray-200 pt-3 space-y-1 text-sm text-right">
+                  <div className="mt-3 pt-3 space-y-1 text-sm text-right">
                     <div className="flex justify-end gap-4">
                       <span className="text-gray-500">Subtotal:</span>
                       <span className="font-medium text-gray-900 w-32">{formatRM(subtotal)}</span>
@@ -599,7 +598,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 </div>
               </div>
 
-              <div className="flex gap-3 px-5 py-4 border-t">
+              <div className="flex gap-3 px-5 py-4">
                 <button
                   onClick={submitCreate}
                   disabled={submitting}
@@ -624,7 +623,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreview(null)} />
           <div className="fixed right-0 top-0 h-screen w-[420px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Sales Invoice Details</h2>
               <button onClick={() => setPreview(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -652,11 +651,11 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               {/* ── Line items ───────────────────────────── */}
               {preview.items && preview.items.length > 0 && (
                 <div>
-                  <h3 className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-2">Line Items</h3>
-                  <div className="border border-gray-100 rounded-lg overflow-hidden">
+                  <h3 className="text-label-sm font-medium text-gray-400 uppercase tracking-wide mb-2">Line Items</h3>
+                  <div className="rounded-lg overflow-hidden">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="bg-gray-50/50 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                        <tr className="ds-table-header text-left">
                           <th className="px-3 py-2">Description</th>
                           <th className="px-3 py-2 text-right">Qty</th>
                           <th className="px-3 py-2 text-right">Price</th>
@@ -664,7 +663,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                           <th className="px-3 py-2 text-right">Total</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody>
                         {preview.items.map((item) => (
                           <tr key={item.id}>
                             <td className="px-3 py-2 text-gray-700">{item.description}</td>
@@ -682,7 +681,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
             </div>
 
             {/* ── Actions ──────────────────────────────── */}
-            <div className="flex-shrink-0 border-t px-4 py-3">
+            <div className="flex-shrink-0 px-4 py-3">
               <button
                 onClick={() => deleteInvoice(preview.id)}
                 disabled={deleting}

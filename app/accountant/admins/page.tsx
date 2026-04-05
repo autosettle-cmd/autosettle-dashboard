@@ -1,10 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import Sidebar from '@/components/Sidebar';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -157,7 +154,7 @@ export default function AdminsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -165,8 +162,8 @@ export default function AdminsPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Admins</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">Admins</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -191,7 +188,7 @@ export default function AdminsPage() {
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white rounded-xl shadow overflow-hidden flex-1 min-h-0 flex flex-col">
             {!firmId ? (
               <div className="px-6 py-10 text-center text-sm text-gray-400">Please select a firm to view admins.</div>
             ) : loading ? (
@@ -201,8 +198,8 @@ export default function AdminsPage() {
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50/50">
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <thead>
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-3">Name</th>
                       <th className="px-6 py-3">Email</th>
                       <th className="px-6 py-3">Status</th>
@@ -212,7 +209,7 @@ export default function AdminsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {admins.map((admin) => (
-                      <tr key={admin.id} className="group hover:bg-gray-50/60 transition-colors">
+                      <tr key={admin.id} className="group hover:bg-[#F2F4F6] transition-colors">
                         <td className="px-6 py-3 text-gray-900 font-medium">{admin.name}</td>
                         <td className="px-6 py-3 text-gray-600">{admin.email}</td>
                         <td className="px-6 py-3">
@@ -261,7 +258,7 @@ export default function AdminsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -272,7 +269,7 @@ export default function AdminsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Email *</label>
                 <input
                   type="email"
                   value={modalEmail}
@@ -282,7 +279,7 @@ export default function AdminsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Phone *</label>
                 <input
                   type="text"
                   value={modalPhone}
@@ -292,7 +289,7 @@ export default function AdminsPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Password *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Password *</label>
                 <input
                   type="password"
                   value={modalPassword}

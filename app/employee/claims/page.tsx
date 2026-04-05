@@ -2,9 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,7 +54,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
@@ -296,7 +293,7 @@ export default function EmployeeClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={`flex h-screen overflow-hidden bg-[#F7F9FB]`}>
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="employee" />
@@ -304,10 +301,10 @@ export default function EmployeeClaimsPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
+        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div>
-            <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">My Claims</h1>
-            <p className="text-[12px] text-gray-400">{formatDisplayDate()}</p>
+            <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">My Claims</h1>
+            <p className="text-body-sm text-gray-400">{formatDisplayDate()}</p>
           </div>
         </header>
 
@@ -315,14 +312,14 @@ export default function EmployeeClaimsPage() {
 
           {/* ── Success toast ─────────────────────────────── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-xl p-3" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-xl p-3">
               <p className="text-sm text-green-700">{successMsg}</p>
             </div>
           )}
 
           {/* ── Top bar ───────────────────────────────────── */}
           <div className="flex items-center justify-between flex-shrink-0">
-            <h2 className="text-[13px] font-semibold text-gray-900">All Claims</h2>
+            <h2 className="text-body-md font-semibold text-gray-900">All Claims</h2>
             <button
               onClick={openModal}
               className="btn-primary text-sm px-4 py-2 rounded-xl font-medium"
@@ -332,7 +329,7 @@ export default function EmployeeClaimsPage() {
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div className="bg-white rounded-xl overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
               <div className="px-6 py-12 text-center text-sm text-gray-400">Loading...</div>
             ) : claims.length === 0 ? (
@@ -341,7 +338,7 @@ export default function EmployeeClaimsPage() {
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full">
                   <thead>
-                    <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5">Date</th>
                       <th className="px-6 py-2.5">Merchant</th>
                       <th className="px-6 py-2.5">Category</th>
@@ -352,16 +349,16 @@ export default function EmployeeClaimsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {claims.map((c, i) => {
+                    {claims.map((c) => {
                       const sCfg = STATUS_CFG[c.status];
                       const aCfg = APPROVAL_CFG[c.approval];
                       return (
-                        <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < claims.length - 1 ? 'border-b border-gray-50' : ''}`}>
+                        <tr key={c.id} onClick={() => setPreviewClaim(c)} className="group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer">
                           <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                           <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
                             {c.type === 'mileage' ? (
                               <span className="flex items-center gap-1.5">
-                                <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold flex-shrink-0">M</span>
+                                <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-label-sm font-bold flex-shrink-0">M</span>
                                 {c.from_location} &rarr; {c.to_location}
                               </span>
                             ) : c.merchant}
@@ -396,7 +393,7 @@ export default function EmployeeClaimsPage() {
       {/* ═══ SUBMIT CLAIM MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-base font-semibold text-gray-900">Submit New Claim</h3>
             <p className="text-sm text-gray-500 mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
 
@@ -424,7 +421,7 @@ export default function EmployeeClaimsPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Claim Date *</label>
+                <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Claim Date *</label>
                 <input
                   type="date"
                   value={modalDate}
@@ -437,7 +434,7 @@ export default function EmployeeClaimsPage() {
               {claimType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">From *</label>
                     <input
                       type="text"
                       value={mileageFrom}
@@ -448,7 +445,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">To *</label>
                     <input
                       type="text"
                       value={mileageTo}
@@ -458,7 +455,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Distance (km) *</label>
                     <input
                       type="number"
                       value={mileageDistance}
@@ -470,7 +467,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Purpose *</label>
                     <input
                       type="text"
                       value={mileagePurpose}
@@ -493,7 +490,7 @@ export default function EmployeeClaimsPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Merchant Name *</label>
                     <input
                       type="text"
                       value={modalMerchant}
@@ -504,7 +501,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Amount (RM) *</label>
                     <input
                       type="number"
                       value={modalAmount}
@@ -516,7 +513,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Category *</label>
                     <select
                       value={modalCategory}
                       onChange={(e) => setModalCategory(e.target.value)}
@@ -527,7 +524,7 @@ export default function EmployeeClaimsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt Number</label>
                     <input
                       type="text"
                       value={modalReceipt}
@@ -537,7 +534,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Description</label>
                     <textarea
                       value={modalDesc}
                       onChange={(e) => setModalDesc(e.target.value)}
@@ -547,7 +544,7 @@ export default function EmployeeClaimsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt *</label>
+                    <label className="block text-label-sm font-semibold text-gray-400 uppercase tracking-wide mb-1">Receipt *</label>
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
@@ -623,7 +620,7 @@ export default function EmployeeClaimsPage() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
@@ -633,15 +630,15 @@ export default function EmployeeClaimsPage() {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.type === 'mileage' ? (
                 <div className="w-full rounded-xl border border-blue-200 bg-blue-50 p-4 space-y-1.5">
-                  <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wide">Mileage Claim</p>
+                  <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Mileage Claim</p>
                   <p className="text-sm text-blue-900">{previewClaim.from_location} &rarr; {previewClaim.to_location}</p>
                   <p className="text-sm text-blue-800">{previewClaim.distance_km} km</p>
                   {previewClaim.trip_purpose && <p className="text-xs text-blue-600">{previewClaim.trip_purpose}</p>}
                 </div>
               ) : previewClaim.thumbnail_url ? (
-                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-xl border border-gray-200" />
+                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-xl" />
               ) : (
-                <div className="w-full h-40 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
+                <div className="w-full h-40 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
@@ -692,7 +689,7 @@ export default function EmployeeClaimsPage() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH' ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -700,7 +697,7 @@ export default function EmployeeClaimsPage() {
                   </div>
                   {previewClaim.rejection_reason && (
                     <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                      <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                      <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
@@ -713,7 +710,7 @@ export default function EmployeeClaimsPage() {
               )}
             </div>
 
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold disabled:opacity-40">

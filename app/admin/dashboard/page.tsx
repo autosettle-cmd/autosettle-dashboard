@@ -4,10 +4,6 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-
-const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['400', '500', '600', '700', '800'] });
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClaimStats {
@@ -265,7 +261,7 @@ export default function AdminDashboard() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F5F6F8] ${jakarta.className}`}>
+    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="admin" />
@@ -273,8 +269,8 @@ export default function AdminDashboard() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+          <h1 className="text-gray-900 font-bold text-title-lg tracking-tight">
             {firstName ? `${getGreeting()}, ${firstName}` : 'Dashboard'}
           </h1>
           <p className="text-gray-400 text-xs">
@@ -303,9 +299,9 @@ export default function AdminDashboard() {
           </div>
 
           {/* ── Needs Attention ────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-100" style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}>
+          <div className="bg-white rounded-xl">
             {/* Tab header */}
-            <div className="flex items-center justify-between px-5 border-b border-gray-100">
+            <div className="flex items-center justify-between px-5">
               <div className="flex gap-0">
                 {([
                   ['claims', 'Claims', pendingClaims.length],
@@ -315,28 +311,28 @@ export default function AdminDashboard() {
                   <button
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
-                    className={`relative px-4 py-3 text-[13px] font-semibold transition-colors ${
+                    className={`relative px-4 py-3 text-body-md font-semibold transition-colors ${
                       activeTab === key ? 'text-gray-900' : 'text-gray-400 hover:text-gray-600'
                     }`}
                   >
                     {label}
                     {count > 0 && (
-                      <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-label-sm font-bold ${
                         activeTab === key ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
                       }`}>
                         {count}
                       </span>
                     )}
                     {activeTab === key && (
-                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: 'var(--accent)' }} />
+                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: 'var(--primary)' }} />
                     )}
                   </button>
                 ))}
               </div>
               <Link
                 href={activeTab === 'claims' ? '/admin/claims' : activeTab === 'receipts' ? '/admin/claims' : '/admin/invoices'}
-                className="text-[12px] font-medium hover:underline transition-colors"
-                style={{ color: 'var(--accent)' }}
+                className="text-body-sm font-medium hover:underline transition-colors"
+                style={{ color: 'var(--primary)' }}
               >
                 View all {activeTab} &rarr;
               </Link>
@@ -355,7 +351,7 @@ export default function AdminDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5">Date</th>
                         <th className="px-6 py-2.5">Employee</th>
                         <th className="px-6 py-2.5">Merchant</th>
@@ -365,10 +361,10 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c, i) => {
+                      {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c) => {
                         const cfg = STATUS_CFG[c.status];
                         return (
-                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className="group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer">
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-6 py-3 text-gray-900 font-medium">{c.employee_name}</td>
                             <td className="px-6 py-3 text-gray-600 group-hover:text-[var(--accent)] transition-colors duration-200">{c.merchant}</td>
@@ -400,7 +396,7 @@ export default function AdminDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50 border-b border-gray-100">
+                      <tr className="ds-table-header">
                         <th className="px-6 py-2.5 text-left">Date</th>
                         <th className="px-6 py-2.5 text-left">Merchant</th>
                         <th className="px-6 py-2.5 text-right">Amount</th>
@@ -411,7 +407,7 @@ export default function AdminDashboard() {
                       {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r) => (
                         <tr
                           key={r.id}
-                          className="group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer text-[13px]"
+                          className="group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md"
                           onClick={() => setPreviewClaim(r)}
                         >
                           <td className="px-6 py-2.5 text-gray-500">{formatDate(r.claim_date)}</td>
@@ -440,7 +436,7 @@ export default function AdminDashboard() {
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5">Issue Date</th>
                         <th className="px-6 py-2.5">Vendor</th>
                         <th className="px-6 py-2.5">Invoice #</th>
@@ -451,11 +447,11 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv, i) => {
+                      {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv) => {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
-                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-[13px] hover:bg-gray-50/50 transition-colors cursor-pointer ${i < PAGE_SIZE - 1 ? 'border-b border-gray-50' : ''}`}>
+                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className="group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer">
                             <td className="px-6 py-3 text-gray-500 tabular-nums">{formatDate(inv.issue_date)}</td>
                             <td className="px-6 py-3 text-gray-900 font-medium group-hover:text-[var(--accent)] transition-colors duration-200">{inv.vendor_name_raw}</td>
                             <td className="px-6 py-3 text-gray-600">{inv.invoice_number ?? '-'}</td>
@@ -482,7 +478,7 @@ export default function AdminDashboard() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -543,7 +539,7 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-label-sm text-gray-400 uppercase tracking-wide font-medium">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH' ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
@@ -551,7 +547,7 @@ export default function AdminDashboard() {
                   </div>
                   {previewClaim.rejection_reason && (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                      <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
@@ -563,7 +559,7 @@ export default function AdminDashboard() {
                 </>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
                   <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85">
@@ -611,7 +607,7 @@ export default function AdminDashboard() {
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -636,9 +632,9 @@ export default function AdminDashboard() {
                 ))}
               </div>
               {/* Supplier link */}
-              <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-1">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Supplier</span>
+                  <span className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">Supplier</span>
                   {(() => {
                     const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                     return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
@@ -652,7 +648,7 @@ export default function AdminDashboard() {
                 </a>
               )}
             </div>
-            <div className="p-4 border-t flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <Link
                 href="/admin/invoices"
                 className="btn-primary flex-1 py-2 rounded-xl text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
@@ -693,18 +689,17 @@ function StatCard({ label, value, amount, color, href }: {
 
   const content = (
     <div
-      className={`bg-white rounded-xl border border-gray-100 p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group ${href ? 'cursor-pointer' : ''}`}
-      style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.03), 0 4px 12px rgba(0,0,0,0.02)' }}
+      className={`bg-white rounded-xl p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group ${href ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center gap-1.5 mb-3">
         <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
+        <p className="text-label-sm font-semibold text-gray-400 uppercase tracking-wider">{label}</p>
       </div>
       <div className="flex items-end justify-between">
         <p className={`text-2xl font-bold tracking-tight ${accent.value}`}>
           {value ?? <span className="text-gray-200">&mdash;</span>}
         </p>
-        {amount && <p className="text-[13px] font-semibold text-gray-400">{amount}</p>}
+        {amount && <p className="text-body-md font-semibold text-gray-400">{amount}</p>}
       </div>
     </div>
   );
@@ -722,22 +717,22 @@ function Pagination({ total, page, pageSize, onPageChange }: {
 }) {
   if (total <= pageSize) return null;
   return (
-    <div className="flex items-center justify-between px-5 py-3 border-t border-gray-50">
-      <p className="text-[12px] text-gray-400">
+    <div className="flex items-center justify-between px-5 py-3">
+      <p className="text-body-sm text-gray-400">
         Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total}
       </p>
       <div className="flex gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-[12px] font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={(page + 1) * pageSize >= total}
-          className="px-3 py-1.5 text-[12px] font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1.5 text-body-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>
@@ -752,7 +747,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
+      <dt className="text-label-sm font-medium text-gray-400 uppercase tracking-wide">{label}</dt>
       <dd className="text-sm text-gray-900 mt-0.5">{value}</dd>
     </div>
   );
