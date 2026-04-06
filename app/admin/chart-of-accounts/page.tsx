@@ -166,7 +166,7 @@ export default function AdminChartOfAccountsPage() {
                   </thead>
                   <tbody>
                     {flatRows.map((row) => (
-                      <tr key={row.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
+                      <tr key={row.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 cursor-pointer" onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
                         <td className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (

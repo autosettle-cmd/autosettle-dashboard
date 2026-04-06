@@ -371,8 +371,8 @@ export default function FiscalPeriodsPage() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowModal(false)} />
       )}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[480px] max-h-[90vh] flex flex-col animate-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[480px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <span className="text-white font-semibold text-sm">Create Fiscal Year</span>
               <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>

@@ -324,7 +324,7 @@ export default function ChartOfAccountsPage() {
                   </thead>
                   <tbody>
                     {flatRows.map((row) => (
-                      <tr key={row.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
+                      <tr key={row.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 cursor-pointer" onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
                         <td className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (
@@ -355,7 +355,7 @@ export default function ChartOfAccountsPage() {
                             : <span className="badge-gray">Inactive</span>
                           }
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => openEditModal(row)}
@@ -393,8 +393,8 @@ export default function ChartOfAccountsPage() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowModal(false)} />
       )}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <span className="text-white font-semibold text-sm">{editId ? 'Edit Account' : 'Add Account'}</span>
               <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
