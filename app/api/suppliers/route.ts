@@ -30,65 +30,79 @@ export async function GET(request: NextRequest) {
         firm: { select: { name: true } },
         aliases: { select: { id: true, alias: true, is_confirmed: true } },
         _count: { select: { invoices: true } },
-        invoices: {
-          where: { payment_status: { not: 'paid' } },
-          select: { total_amount: true, amount_paid: true, due_date: true },
-        },
-        payments: {
-          select: {
-            amount: true,
-            allocations: { select: { amount: true } },
-          },
-        },
       },
       orderBy: { name: 'asc' },
-      take: takeParam || 500,
+      take: takeParam || 100,
     }),
     prisma.supplier.count({ where }),
   ]);
 
-  const now = new Date();
-  const data = suppliers.map((s) => {
-    const outstanding = s.invoices.reduce(
-      (sum, inv) => sum + (Number(inv.total_amount) - Number(inv.amount_paid)), 0
-    );
-    const overdueAmount = s.invoices
-      .filter((inv) => inv.due_date && inv.due_date < now)
-      .reduce((sum, inv) => sum + (Number(inv.total_amount) - Number(inv.amount_paid)), 0);
-    const totalPayments = s.payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const totalAllocated = s.payments.reduce(
-      (sum, p) => sum + p.allocations.reduce((s2, a) => s2 + Number(a.amount), 0), 0
-    );
-    const creditBalance = Math.max(0, totalPayments - totalAllocated);
+  const supplierIds = suppliers.map(s => s.id);
 
-    return {
-      id: s.id,
-      name: s.name,
-      contact_email: s.contact_email,
-      contact_phone: s.contact_phone,
-      notes: s.notes,
-      is_active: s.is_active,
-      firm_name: s.firm.name,
-      firm_id: s.firm_id,
-      aliases: s.aliases,
-      invoice_count: s._count.invoices,
-      total_outstanding: outstanding.toFixed(2),
-      overdue_amount: overdueAmount.toFixed(2),
-      credit_balance: creditBalance.toFixed(2),
-      // LHDN buyer fields
-      tin: s.tin,
-      brn: s.brn,
-      sst_registration_number: s.sst_registration_number,
-      address_line1: s.address_line1,
-      address_line2: s.address_line2,
-      city: s.city,
-      postal_code: s.postal_code,
-      state: s.state,
-      country: s.country,
-    };
-  });
+  // Batch aggregate queries instead of fetching all invoice/payment rows
+  const [outstandingBySupplier, overdueBySupplier, creditBySupplier] = supplierIds.length > 0
+    ? await Promise.all([
+        prisma.invoice.groupBy({
+          by: ['supplier_id'],
+          where: { supplier_id: { in: supplierIds }, payment_status: { not: 'paid' } },
+          _sum: { total_amount: true, amount_paid: true },
+        }),
+        prisma.invoice.groupBy({
+          by: ['supplier_id'],
+          where: { supplier_id: { in: supplierIds }, payment_status: { not: 'paid' }, due_date: { lt: new Date() } },
+          _sum: { total_amount: true, amount_paid: true },
+        }),
+        prisma.$queryRaw<Array<{ supplier_id: string; credit_balance: number }>>`
+          SELECT
+            p.supplier_id,
+            GREATEST(0, SUM(p.amount) - COALESCE(SUM(pa_sum.allocated), 0)) as credit_balance
+          FROM "Payment" p
+          LEFT JOIN (
+            SELECT pa.payment_id, SUM(pa.amount) as allocated
+            FROM "PaymentAllocation" pa
+            GROUP BY pa.payment_id
+          ) pa_sum ON pa_sum.payment_id = p.id
+          WHERE p.supplier_id = ANY(${supplierIds})
+          GROUP BY p.supplier_id
+        `,
+      ])
+    : [[], [], []];
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
+  const outstandingMap = new Map(outstandingBySupplier.map(r => [
+    r.supplier_id!, Number(r._sum.total_amount ?? 0) - Number(r._sum.amount_paid ?? 0),
+  ]));
+  const overdueMap = new Map(overdueBySupplier.map(r => [
+    r.supplier_id!, Number(r._sum.total_amount ?? 0) - Number(r._sum.amount_paid ?? 0),
+  ]));
+  const creditMap = new Map(creditBySupplier.map(r => [r.supplier_id, Number(r.credit_balance)]));
+
+  const data = suppliers.map((s) => ({
+    id: s.id,
+    name: s.name,
+    contact_email: s.contact_email,
+    contact_phone: s.contact_phone,
+    notes: s.notes,
+    is_active: s.is_active,
+    firm_name: s.firm.name,
+    firm_id: s.firm_id,
+    aliases: s.aliases,
+    invoice_count: s._count.invoices,
+    total_outstanding: (outstandingMap.get(s.id) ?? 0).toFixed(2),
+    overdue_amount: (overdueMap.get(s.id) ?? 0).toFixed(2),
+    credit_balance: (creditMap.get(s.id) ?? 0).toFixed(2),
+    // LHDN buyer fields
+    tin: s.tin,
+    brn: s.brn,
+    sst_registration_number: s.sst_registration_number,
+    address_line1: s.address_line1,
+    address_line2: s.address_line2,
+    city: s.city,
+    postal_code: s.postal_code,
+    state: s.state,
+    country: s.country,
+  }));
+
+  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
   } catch (err) {
     console.error('[API Error]', err);
     return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });

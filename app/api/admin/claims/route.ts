@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
     where.OR = [
       { merchant: { contains: search, mode: 'insensitive' } },
       { employee: { name: { contains: search, mode: 'insensitive' } } },
+      { receipt_number: { contains: search, mode: 'insensitive' } },
     ];
   }
 
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { claim_date: 'desc' },
-      take: takeParam || 500,
+      take: takeParam || 100,
     }),
     prisma.claim.count({ where }),
   ]);
@@ -145,7 +146,7 @@ export async function GET(request: NextRequest) {
     })),
   }));
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
 }
 
 export async function POST(request: NextRequest) {

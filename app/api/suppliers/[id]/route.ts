@@ -103,6 +103,19 @@ export async function GET(
     })),
   }));
 
+  // Find orphaned payments (no allocations = unallocated credit)
+  const orphanedPayments = await prisma.payment.findMany({
+    where: {
+      supplier_id: id,
+      allocations: { none: {} },
+    },
+    select: {
+      id: true, amount: true, payment_date: true, reference: true, notes: true,
+      receipts: { select: { claim_id: true, claim: { select: { merchant: true, receipt_number: true } } } },
+    },
+    orderBy: { payment_date: 'desc' },
+  });
+
   return NextResponse.json({
     data: {
       id: supplier.id,
@@ -114,6 +127,18 @@ export async function GET(
       firm_name: supplier.firm.name,
       aliases: supplier.aliases,
       invoices,
+      orphanedPayments: orphanedPayments.map((p) => ({
+        id: p.id,
+        amount: p.amount.toString(),
+        payment_date: p.payment_date,
+        reference: p.reference,
+        notes: p.notes,
+        receipts: p.receipts.map((r) => ({
+          claim_id: r.claim_id,
+          merchant: r.claim.merchant,
+          receipt_number: r.claim.receipt_number,
+        })),
+      })),
       // LHDN buyer fields
       tin: supplier.tin,
       brn: supplier.brn,

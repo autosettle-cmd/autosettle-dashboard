@@ -13,18 +13,30 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const firmId = searchParams.get('firmId');
+  const search = searchParams.get('search');
+  const limit = parseInt(searchParams.get('limit') ?? '50');
 
   // firmIds=null means super admin (sees all firms)
   const firmScope = firmId && (firmIds === null || firmIds.includes(firmId))
     ? { firm_id: firmId }
     : firmIds === null ? {} : { firm_id: { in: firmIds } };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = {
+    ...firmScope,
+    type: 'receipt',
+    paymentReceipts: { none: {} },
+  };
+
+  if (search) {
+    where.OR = [
+      { receipt_number: { contains: search, mode: 'insensitive' } },
+      { merchant: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
   const receipts = await prisma.claim.findMany({
-    where: {
-      ...firmScope,
-      type: 'receipt',
-      paymentReceipts: { none: {} },
-    },
+    where,
     select: {
       id: true,
       receipt_number: true,
@@ -32,8 +44,10 @@ export async function GET(req: Request) {
       amount: true,
       claim_date: true,
       thumbnail_url: true,
+      file_url: true,
     },
     orderBy: { claim_date: 'desc' },
+    take: limit,
   });
 
   return NextResponse.json({
@@ -44,6 +58,7 @@ export async function GET(req: Request) {
       amount: r.amount.toString(),
       claim_date: r.claim_date,
       thumbnail_url: r.thumbnail_url,
+      file_url: r.file_url,
     })),
   });
 }

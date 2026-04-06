@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { useTableSort } from '@/lib/use-table-sort';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EmployeeRow {
@@ -58,6 +59,10 @@ export default function AdminEmployeesPage() {
 
   // Filters
   const [search, setSearch] = useState('');
+
+  // ── Table sorting ──
+  const { sorted: sortedAdmins, toggleSort: toggleAdminSort, sortIndicator: adminSortIndicator } = useTableSort(admins, 'name', 'asc');
+  const { sorted: sortedEmployees, toggleSort: toggleEmpSort, sortIndicator: empSortIndicator } = useTableSort(employees, 'name', 'asc');
 
   // ── Add Admin Modal ──
   const [showAdminModal, setShowAdminModal]   = useState(false);
@@ -359,13 +364,13 @@ export default function AdminEmployeesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="ds-table-header text-left">
-                      <th className="px-6 py-2.5">Name</th>
-                      <th className="px-6 py-2.5">Email</th>
-                      <th className="px-6 py-2.5">Status</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleAdminSort('is_active')}>Status{adminSortIndicator('is_active')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {admins.map((admin) => (
+                    {sortedAdmins.map((admin) => (
                       <tr key={admin.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
                         <td className="px-6 py-3 text-[#191C1E] font-medium">{admin.name}</td>
                         <td className="px-6 py-3 text-[#434654]">{admin.email}</td>
@@ -414,16 +419,16 @@ export default function AdminEmployeesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="ds-table-header text-left">
-                      <th className="px-6 py-2.5">Name</th>
-                      <th className="px-6 py-2.5">Phone</th>
-                      <th className="px-6 py-2.5">Email</th>
-                      <th className="px-6 py-2.5 text-right">Claims</th>
-                      <th className="px-6 py-2.5">Status</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
+                      <th className="px-6 py-2.5 text-right cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
                       <th className="px-6 py-2.5">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {employees.map((emp) => (
+                    {sortedEmployees.map((emp) => (
                       <tr key={emp.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
                         <td className="px-6 py-3 text-[#191C1E] font-medium">{emp.name}</td>
                         <td className="px-6 py-3 text-[#434654]">{emp.phone}</td>

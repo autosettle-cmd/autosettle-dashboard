@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
         category: { select: { name: true } },
       },
       orderBy: { issue_date: 'desc' },
-      take: takeParam || 500,
+      take: takeParam || 100,
     }),
     prisma.invoice.count({ where }),
   ]);
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     submitted_via: inv.submitted_via,
   }));
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
 }
 
 export async function POST(request: NextRequest) {

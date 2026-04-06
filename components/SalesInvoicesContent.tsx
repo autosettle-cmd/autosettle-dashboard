@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTableSort } from '@/lib/use-table-sort';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -287,6 +288,8 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
     setLineItems((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx));
   };
 
+  const { sorted: sortedInvoices, toggleSort, sortIndicator } = useTableSort(invoices, 'issue_date', 'desc');
+
   const subtotal = lineItems.reduce((sum, li) => sum + calcLineTotal(li), 0);
   const taxTotal = lineItems.reduce((sum, li) => sum + calcLineTax(li), 0);
   const grandTotal = subtotal + taxTotal;
@@ -343,13 +346,13 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
         <table className="w-full text-sm">
           <thead>
             <tr className="ds-table-header text-left">
-              <th className="px-6 py-3">Invoice #</th>
-              <th className="px-6 py-3">Buyer</th>
-              <th className="px-6 py-3">Issue Date</th>
-              <th className="px-6 py-3">Due Date</th>
-              <th className="px-6 py-3 text-right">Total (RM)</th>
-              <th className="px-6 py-3 text-right">Paid (RM)</th>
-              <th className="px-6 py-3">Status</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('buyer_name')}>Buyer{sortIndicator('buyer_name')}</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('due_date')}>Due Date{sortIndicator('due_date')}</th>
+              <th className="px-6 py-3 text-right cursor-pointer select-none" onClick={() => toggleSort('total_amount')}>Total (RM){sortIndicator('total_amount')}</th>
+              <th className="px-6 py-3 text-right cursor-pointer select-none" onClick={() => toggleSort('amount_paid')}>Paid (RM){sortIndicator('amount_paid')}</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Status{sortIndicator('payment_status')}</th>
               <th className="px-6 py-3">Actions</th>
             </tr>
           </thead>
@@ -358,12 +361,12 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               <tr>
                 <td colSpan={8} className="px-6 py-16 text-center text-[#8E9196] text-sm">Loading...</td>
               </tr>
-            ) : invoices.length === 0 ? (
+            ) : sortedInvoices.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-6 py-16 text-center text-[#8E9196] text-sm">No sales invoices found.</td>
               </tr>
             ) : (
-              invoices.map((inv) => {
+              sortedInvoices.map((inv) => {
                 const paymentCfg = PAYMENT_CFG[inv.payment_status];
                 return (
                   <tr
@@ -622,14 +625,15 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       {preview && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreview(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[420px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Sales Invoice Details</h2>
               <button onClick={() => setPreview(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              <dl className="space-y-3">
+              <dl className="grid grid-cols-2 gap-3">
                 <Field label="Invoice No."  value={preview.invoice_number} />
                 <Field label="Buyer"        value={preview.buyer_name} />
                 <Field label="Issue Date"   value={formatDate(preview.issue_date)} />
@@ -681,16 +685,20 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
             </div>
 
             {/* ── Actions ──────────────────────────────── */}
-            <div className="flex-shrink-0 px-4 py-3">
+            <div className="flex-shrink-0 p-4 flex gap-3">
               <button
                 onClick={() => deleteInvoice(preview.id)}
                 disabled={deleting}
-                className="w-full py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'var(--accent)' }}
               >
                 {deleting ? 'Deleting...' : 'Delete Invoice'}
               </button>
+              <button onClick={() => setPreview(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                Close
+              </button>
             </div>
+          </div>
           </div>
         </>
       )}

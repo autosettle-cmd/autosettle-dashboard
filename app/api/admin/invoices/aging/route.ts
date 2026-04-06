@@ -40,7 +40,16 @@ export async function GET() {
       firm_id: firmId,
       payment_status: { not: 'paid' },
     },
-    include: {
+    select: {
+      id: true,
+      supplier_id: true,
+      vendor_name_raw: true,
+      invoice_number: true,
+      issue_date: true,
+      due_date: true,
+      total_amount: true,
+      amount_paid: true,
+      payment_status: true,
       supplier: { select: { id: true, name: true } },
       category: { select: { name: true } },
     },

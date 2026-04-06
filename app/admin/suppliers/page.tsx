@@ -2,7 +2,9 @@
 
 import React from 'react';
 import Sidebar from '@/components/Sidebar';
-import { useState, useEffect } from 'react';
+import LoadMoreBanner from '@/components/LoadMoreBanner';
+import ReceiptSelector from '@/components/ReceiptSelector';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -28,6 +30,7 @@ interface ReceiptInfo {
   amount?: string;
   claim_date?: string;
   thumbnail_url?: string | null;
+  file_url?: string | null;
 }
 
 interface InvoiceRow {
@@ -158,6 +161,27 @@ export default function AdminSuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [search, setSearch] = useState('');
+  const [supplierSort, setSupplierSort] = useState('name|asc');
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [takeLimit, setTakeLimit] = useState<number | undefined>(undefined);
+
+  const sortedSuppliers = useMemo(() => {
+    const [field, dir] = supplierSort.split('|') as [string, string];
+    return [...suppliers].sort((a, b) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const va = (a as any)[field];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const vb = (b as any)[field];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      const cmp = typeof va === 'string' && isNaN(Number(va))
+        ? va.localeCompare(vb, 'en', { sensitivity: 'base' })
+        : Number(va) - Number(vb);
+      return dir === 'asc' ? cmp : -cmp;
+    });
+  }, [suppliers, supplierSort]);
 
   // Aging report
   const [agingData, setAgingData] = useState<AgingSupplier[]>([]);
@@ -168,6 +192,7 @@ export default function AdminSuppliersPage() {
   // Expanded supplier — shows invoices drill-down
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<InvoiceRow[]>([]);
+  const [orphanedPayments, setOrphanedPayments] = useState<{ id: string; amount: string; payment_date: string; reference: string | null; receipts: { claim_id: string; merchant: string; receipt_number: string | null }[] }[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
   // Preview panels
@@ -193,21 +218,50 @@ export default function AdminSuppliersPage() {
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [loadingPaymentInvoices, setLoadingPaymentInvoices] = useState(false);
   const [selectedReceiptIds, setSelectedReceiptIds] = useState<string[]>([]);
-  const [availableReceipts, setAvailableReceipts] = useState<{ id: string; receipt_number: string | null; merchant: string; amount: string; thumbnail_url: string | null }[]>([]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
+
+  // Re-fetch supplier list + expanded invoices in-place (no scroll jump)
+  const refreshInPlace = async () => {
+    const p = new URLSearchParams();
+    if (search) p.set('search', search);
+    if (takeLimit) p.set('take', String(takeLimit));
+
+    const [suppRes, agingRes] = await Promise.all([
+      fetch(`/api/admin/suppliers?${p}`).then(r => r.json()),
+      fetch('/api/admin/invoices/aging').then(r => r.json()),
+    ]);
+    if (suppRes.data) {
+      setSuppliers(suppRes.data);
+      setHasMore(suppRes.hasMore ?? false);
+      setTotalCount(suppRes.totalCount ?? 0);
+    }
+    if (agingRes.data) {
+      setAgingData(agingRes.data.suppliers);
+      setAgingSummary(agingRes.data.summary);
+    }
+    if (expandedId) {
+      try {
+        const res = await fetch(`/api/admin/suppliers/${expandedId}`);
+        const j = await res.json();
+        setExpandedInvoices(j.data?.invoices ?? []);
+        setOrphanedPayments(j.data?.orphanedPayments ?? []);
+      } catch (e) { console.error(e); }
+    }
+  };
 
   // Load suppliers
   useEffect(() => {
     setLoading(true);
     const p = new URLSearchParams();
     if (search) p.set('search', search);
+    if (takeLimit) p.set('take', String(takeLimit));
 
     fetch(`/api/admin/suppliers?${p}`)
       .then((r) => r.json())
-      .then((j) => { setSuppliers(j.data ?? []); setLoading(false); })
+      .then((j) => { setSuppliers(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
       .catch((e) => { console.error(e); setLoading(false); });
-  }, [search, refreshKey]);
+  }, [search, refreshKey, takeLimit]);
 
   // Load aging report
   useEffect(() => {
@@ -227,6 +281,7 @@ export default function AdminSuppliersPage() {
     if (expandedId === supplierId) {
       setExpandedId(null);
       setExpandedInvoices([]);
+      setOrphanedPayments([]);
       return;
     }
     setExpandedId(supplierId);
@@ -235,6 +290,7 @@ export default function AdminSuppliersPage() {
       const res = await fetch(`/api/admin/suppliers/${supplierId}`);
       const j = await res.json();
       setExpandedInvoices(j.data?.invoices ?? []);
+      setOrphanedPayments(j.data?.orphanedPayments ?? []);
     } catch (e) { console.error(e); }
     finally { setLoadingInvoices(false); }
   };
@@ -294,13 +350,9 @@ export default function AdminSuppliersPage() {
     setPaymentNotes('');
     setPaymentInvoices([]);
     setSelectedReceiptIds([]);
-    setAvailableReceipts([]);
     setLoadingPaymentInvoices(true);
     try {
-      const [invRes, rcptRes] = await Promise.all([
-        fetch(`/api/admin/suppliers/${s.id}`),
-        fetch('/api/admin/receipts/unlinked'),
-      ]);
+      const invRes = await fetch(`/api/admin/suppliers/${s.id}`);
       const invJson = await invRes.json();
       const invoices = (invJson.data?.invoices ?? [])
         .filter((inv: InvoiceRow) => inv.payment_status !== 'paid')
@@ -313,8 +365,6 @@ export default function AdminSuppliersPage() {
           allocation: '',
         }));
       setPaymentInvoices(invoices);
-      const rcptJson = await rcptRes.json();
-      if (rcptJson.data) setAvailableReceipts(rcptJson.data);
     } catch (e) { console.error(e); }
     finally { setLoadingPaymentInvoices(false); }
   };
@@ -331,21 +381,6 @@ export default function AdminSuppliersPage() {
   };
 
   const autoAllocate = () => autoAllocateWith(Number(paymentAmount));
-
-  const toggleReceipt = (id: string) => {
-    const next = selectedReceiptIds.includes(id)
-      ? selectedReceiptIds.filter((r) => r !== id)
-      : [...selectedReceiptIds, id];
-    setSelectedReceiptIds(next);
-    const total = next.reduce((sum, rid) => {
-      const r = availableReceipts.find((x) => x.id === rid);
-      return sum + (r ? Number(r.amount) : 0);
-    }, 0);
-    const amt = total > 0 ? total.toFixed(2) : '';
-    setPaymentAmount(amt);
-    if (total > 0) autoAllocateWith(total);
-    else setPaymentInvoices((prev) => prev.map((inv) => ({ ...inv, allocation: '' })));
-  };
 
   const submitPayment = async () => {
     if (!paymentSupplier || !paymentAmount) return;
@@ -367,7 +402,7 @@ export default function AdminSuppliersPage() {
           ...(selectedReceiptIds.length ? { claim_ids: selectedReceiptIds } : {}),
         }),
       });
-      if (res.ok) { setPaymentSupplier(null); refresh(); }
+      if (res.ok) { setPaymentSupplier(null); refreshInPlace(); }
     } catch (e) { console.error(e); }
     finally { setPaymentSaving(false); }
   };
@@ -443,10 +478,22 @@ export default function AdminSuppliersPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="input-field min-w-[250px]"
             />
+            <select
+              className="input-field"
+              value={supplierSort}
+              onChange={(e) => setSupplierSort(e.target.value)}
+            >
+              <option value="name|asc">Name A-Z</option>
+              <option value="name|desc">Name Z-A</option>
+              <option value="total_outstanding|desc">Outstanding High-Low</option>
+              <option value="total_outstanding|asc">Outstanding Low-High</option>
+              <option value="overdue_amount|desc">Overdue High-Low</option>
+              <option value="overdue_amount|asc">Overdue Low-High</option>
+            </select>
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-6 animate-in">
+        <main className="flex-1 overflow-y-auto px-6 py-3 animate-in">
           {/* Aging detail table */}
           {showAging && agingData.length > 0 && agingSummary && (
             <div className="mb-4">
@@ -532,6 +579,9 @@ export default function AdminSuppliersPage() {
             </div>
           )}
 
+          {/* ── Load More ─────────────────────────────────── */}
+          <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={suppliers.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
+
           {/* ── Supplier list ─────────────────────────────── */}
           {loading ? (
             <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
@@ -542,7 +592,7 @@ export default function AdminSuppliersPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {suppliers.map((s) => (
+              {sortedSuppliers.map((s) => (
                 <div key={s.id} className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
                   {/* Supplier row */}
                   <div
@@ -589,7 +639,7 @@ export default function AdminSuppliersPage() {
                       href={`/admin/suppliers/${s.id}/statement`}
                       target="_blank"
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200"
+                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg font-medium border border-[#C0C4CC] text-[#434654] hover:bg-[#F2F4F6] transition-all duration-200"
                     >
                       Statement
                     </Link>
@@ -678,7 +728,7 @@ export default function AdminSuppliersPage() {
                                             if (!confirm('Remove this payment allocation?')) return;
                                             try {
                                               const res = await fetch(`/api/admin/payments/allocations/${alloc.id}`, { method: 'DELETE' });
-                                              if (res.ok) refresh();
+                                              if (res.ok) refreshInPlace();
                                             } catch (err) { console.error(err); }
                                           }}
                                           className="text-red-500 hover:text-red-700 font-medium"
@@ -694,6 +744,41 @@ export default function AdminSuppliersPage() {
                           </tbody>
                         </table>
                       )}
+                      {/* Orphaned credit payments */}
+                      {orphanedPayments.length > 0 && (
+                        <div className="px-5 py-3 border-t border-gray-100">
+                          <p className="text-label-sm font-semibold text-amber-700 uppercase tracking-wide mb-2">Unallocated Credit</p>
+                          {orphanedPayments.map((op) => (
+                            <div key={op.id} className="flex items-center justify-between py-1.5 text-body-sm">
+                              <div className="text-[#434654]">
+                                <span className="tabular-nums">{formatDate(op.payment_date)}</span>
+                                {op.reference && <span className="ml-2 text-[#8E9196]">{op.reference}</span>}
+                                {op.receipts.length > 0 && (
+                                  <span className="ml-2 text-[#8E9196]">
+                                    (Receipt: {op.receipts.map(r => r.receipt_number || r.merchant).join(', ')})
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-semibold text-amber-600 tabular-nums">{formatRM(op.amount)}</span>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm('Delete this payment and unlink its receipts? Receipts will become unpaid/unlinked.')) return;
+                                    try {
+                                      const res = await fetch(`/api/admin/payments/${op.id}`, { method: 'DELETE' });
+                                      if (res.ok) refreshInPlace();
+                                    } catch (err) { console.error(err); }
+                                  }}
+                                  className="text-red-500 hover:text-red-700 font-medium text-label-sm"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -708,8 +793,9 @@ export default function AdminSuppliersPage() {
       {paymentSupplier && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPaymentSupplier(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[480px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Record Payment</h2>
               <button onClick={() => setPaymentSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -736,7 +822,7 @@ export default function AdminSuppliersPage() {
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ supplier_id: paymentSupplier.id }),
                         });
-                        if (res.ok) { setPaymentSupplier(null); refresh(); }
+                        if (res.ok) { setPaymentSupplier(null); refreshInPlace(); }
                       } catch (e) { console.error(e); }
                     }}
                     className="text-label-sm px-3 py-1.5 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
@@ -769,43 +855,19 @@ export default function AdminSuppliersPage() {
               </div>
 
               {/* Attach Receipts */}
-              {availableReceipts.length > 0 && (
-                <div>
-                  <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-2">Attach Receipts (optional)</h3>
-                  <div className="flex gap-2 overflow-x-auto pb-1">
-                    {availableReceipts.map((r) => {
-                      const selected = selectedReceiptIds.includes(r.id);
-                      return (
-                        <button
-                          key={r.id}
-                          type="button"
-                          onClick={() => toggleReceipt(r.id)}
-                          className={`relative flex-shrink-0 w-[90px] rounded-lg border-2 p-1.5 text-center transition-all ${
-                            selected
-                              ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200'
-                              : 'border-gray-200 hover:border-gray-300 bg-white'
-                          }`}
-                        >
-                          {selected && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
-                              <span className="text-white text-label-sm leading-none">&#10003;</span>
-                            </div>
-                          )}
-                          {r.thumbnail_url ? (
-                            <img src={r.thumbnail_url} alt="" className="w-full h-[56px] object-cover rounded mb-1" />
-                          ) : (
-                            <div className="w-full h-[56px] bg-gray-100 rounded mb-1 flex items-center justify-center">
-                              <span className="text-[#8E9196] text-[18px]">&#128196;</span>
-                            </div>
-                          )}
-                          <p className="text-label-sm font-medium text-[#434654] truncate">{r.receipt_number || r.merchant}</p>
-                          <p className="text-label-sm text-[#434654] tabular-nums">RM {Number(r.amount).toFixed(2)}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              <ReceiptSelector
+                apiBasePath="/api/admin/receipts"
+                invoiceBalances={paymentInvoices.map(inv => inv.balance)}
+                selectedIds={selectedReceiptIds}
+                onSelectionChange={(ids, total) => {
+                  setSelectedReceiptIds(ids);
+                  const amt = total > 0 ? total.toFixed(2) : '';
+                  setPaymentAmount(amt);
+                  if (total > 0) autoAllocateWith(total);
+                  else setPaymentInvoices(prev => prev.map(inv => ({ ...inv, allocation: '' })));
+                }}
+                onPreview={(r) => setPreviewReceipt(r)}
+              />
 
               {/* Invoice allocation */}
               <div>
@@ -890,6 +952,7 @@ export default function AdminSuppliersPage() {
                 Cancel
               </button>
             </div>
+          </div>
           </div>
         </>
       )}
@@ -979,18 +1042,19 @@ export default function AdminSuppliersPage() {
       {previewInvoice && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
-                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200" />
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}
-              <dl className="space-y-3">
+              <dl className="grid grid-cols-2 gap-3">
                 <Field label="Vendor" value={previewInvoice.vendor_name_raw} />
                 <Field label="Invoice No." value={previewInvoice.invoice_number} />
                 <Field label="Issue Date" value={formatDate(previewInvoice.issue_date)} />
@@ -1023,15 +1087,18 @@ export default function AdminSuppliersPage() {
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0">
+            <div className="p-4 flex-shrink-0 flex gap-3">
               <button
                 onClick={() => window.open(`/admin/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--sidebar)' }}
+                className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
               >
                 Open in Invoices
               </button>
+              <button onClick={() => setPreviewInvoice(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                Close
+              </button>
             </div>
+          </div>
           </div>
         </>
       )}
@@ -1057,6 +1124,11 @@ export default function AdminSuppliersPage() {
                 {previewReceipt.amount && <Field label="Amount" value={formatRM(previewReceipt.amount)} />}
                 {previewReceipt.claim_date && <Field label="Date" value={formatDate(previewReceipt.claim_date)} />}
               </dl>
+              {previewReceipt.file_url && (
+                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                  View full document &rarr;
+                </a>
+              )}
             </div>
             <div className="p-4 flex-shrink-0">
               <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">

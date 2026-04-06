@@ -166,50 +166,28 @@ export default function AdminDashboard() {
     }
   }, [editMode, categories.length]);
 
-  // Load stats
+  // Single consolidated dashboard fetch
   useEffect(() => {
-    fetch('/api/admin/claims/stats')
-      .then((r) => r.json())
-      .then((j) => { if (j.data) setStats(j.data); })
-      .catch(console.error);
-    fetch('/api/admin/bank-reconciliation/stats')
-      .then((r) => r.json())
-      .then((j) => { if (j.data) setBankReconStats(j.data); })
-      .catch(console.error);
-  }, [refreshKey]);
-
-  // Load pending claims
-  useEffect(() => {
-    fetch('/api/admin/claims?status=pending_review&type=claim')
+    fetch('/api/admin/dashboard')
       .then((r) => r.json())
       .then((j) => {
-        setPendingClaims(j.data ?? []);
+        if (j.data) {
+          setStats(j.data.stats);
+          setBankReconStats(j.data.bankRecon);
+          setPendingClaims(j.data.pendingClaims ?? []);
+          setUnlinkedReceipts(j.data.unlinkedReceipts ?? []);
+          setPendingInvoices(j.data.pendingInvoices ?? []);
+        }
         setLoadingClaims(false);
-      })
-      .catch((e) => { console.error(e); setLoadingClaims(false); });
-  }, [refreshKey]);
-
-  // Load unlinked receipts
-  useEffect(() => {
-    fetch('/api/admin/claims?type=receipt')
-      .then((r) => r.json())
-      .then((j) => {
-        const all = j.data ?? [];
-        setUnlinkedReceipts(all.filter((r: ClaimRow & { linked_payment_count: number }) => r.linked_payment_count === 0));
         setLoadingReceipts(false);
-      })
-      .catch((e) => { console.error(e); setLoadingReceipts(false); });
-  }, [refreshKey]);
-
-  // Load pending invoices
-  useEffect(() => {
-    fetch('/api/admin/invoices?status=pending_review')
-      .then((r) => r.json())
-      .then((j) => {
-        setPendingInvoices(j.data ?? []);
         setLoadingInvoices(false);
       })
-      .catch((e) => { console.error(e); setLoadingInvoices(false); });
+      .catch((e) => {
+        console.error(e);
+        setLoadingClaims(false);
+        setLoadingReceipts(false);
+        setLoadingInvoices(false);
+      });
   }, [refreshKey]);
 
   // ─── Actions ─────────────────────────────────────────────────────────────────

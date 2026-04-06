@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Shows a banner when the API returns hasMore=true (more than 500 records).
+ * Shows a banner when the API returns hasMore=true (more than 100 records).
  * Offers the user to either adjust date filters or load all records.
  */
 export default function LoadMoreBanner({

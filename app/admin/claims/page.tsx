@@ -1,13 +1,10 @@
 'use client';
 
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
-import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
-import { Suspense, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
-ModuleRegistry.registerModules([AllCommunityModule]);
+import { useTableSort } from '@/lib/use-table-sort';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,7 +101,7 @@ function getDateRange(range: string, customFrom: string, customTo: string) {
   }
 }
 
-// ─── AG Grid cell renderers ──────────────────────────────────────────────────
+// ─── Cell renderers ─────────────────────────────────────────────────────────
 
 function StatusCell({ value }: { value: string }) {
   const cfg = STATUS_CFG[value];
@@ -164,7 +161,6 @@ function AdminClaimsPage() {
   const [takeLimit, setTakeLimit] = useState<number | undefined>(undefined);
 
   // UI
-  const [selectedRows, setSelectedRows] = useState<ClaimRow[]>([]);
   const [previewClaim, setPreviewClaim] = useState<ClaimRow | null>(null);
 
   // Edit mode
@@ -255,7 +251,12 @@ function AdminClaimsPage() {
   const [statusFilter,  setStatusFilter] = useState(initialStatus);
   const [search,        setSearch]       = useState('');
 
-  const gridApiRef = useRef<GridApi<ClaimRow> | null>(null);
+  // Pagination
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
+
+  // Selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Load claims
   useEffect(() => {
@@ -293,67 +294,46 @@ function AdminClaimsPage() {
       .catch(console.error);
   }, [refreshKey]);
 
-  // Column definitions
-  const columnDefs = useMemo<ColDef<ClaimRow>[]>(() => {
-    const checkboxCol: ColDef<ClaimRow> = {
-      checkboxSelection: true,
-      headerCheckboxSelection: true,
-      width: 48, minWidth: 48, maxWidth: 48,
-      pinned: 'left',
-      resizable: false,
-      sortable: false,
-      suppressHeaderMenuButton: true,
-    };
-    const dateCol: ColDef<ClaimRow> = {
-      field: 'claim_date',
-      headerName: 'Date',
-      width: 110,
-      sort: 'desc',
-      valueFormatter: (p) => formatDate(p.value),
-      comparator: (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-    };
-    const merchantCol: ColDef<ClaimRow> = { field: 'merchant', headerName: 'Merchant', flex: 1, minWidth: 120 };
-    const categoryCol: ColDef<ClaimRow> = { field: 'category_name', headerName: 'Category', width: 110 };
-    const amountCol: ColDef<ClaimRow> = {
-      field: 'amount',
-      headerName: 'Amount (RM)',
-      width: 125,
-      type: 'rightAligned',
-      valueFormatter: (p) => p.value != null ? Number(p.value).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-      comparator: (a, b) => Number(a) - Number(b),
-    };
-    const statusCol: ColDef<ClaimRow> = { field: 'status', headerName: 'Status', width: 145, cellRenderer: StatusCell };
+  // Sort
+  const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(claims, 'claim_date', 'desc');
 
-    if (claimTab === 'claim') {
-      return [
-        checkboxCol, dateCol,
-        { field: 'employee_name', headerName: 'Employee', flex: 1, minWidth: 120 },
-        merchantCol, categoryCol, amountCol, statusCol,
-        { field: 'approval', headerName: 'Approval', width: 125, cellRenderer: ApprovalCell },
-      ];
-    } else if (claimTab === 'mileage') {
-      return [
-        checkboxCol, dateCol,
-        { field: 'employee_name', headerName: 'Employee', flex: 1, minWidth: 120 },
-        { field: 'from_location', headerName: 'From', flex: 1, minWidth: 120 },
-        { field: 'to_location', headerName: 'To', flex: 1, minWidth: 120 },
-        { field: 'distance_km', headerName: 'Distance (km)', width: 120, type: 'rightAligned' },
-        amountCol, statusCol,
-        { field: 'approval', headerName: 'Approval', width: 125, cellRenderer: ApprovalCell },
-      ];
-    } else {
-      return [
-        checkboxCol, dateCol,
-        merchantCol, categoryCol, amountCol, statusCol,
-        { field: 'payment_status', headerName: 'Payment', width: 110, cellRenderer: PaymentStatusCell },
-        { field: 'linked_payment_count', headerName: 'Linked', width: 110, cellRenderer: LinkedCell },
-      ];
-    }
-  }, [claimTab]);
+  // Reset page when tab changes
+  useEffect(() => { setPage(0); setSelectedIds(new Set()); }, [claimTab]);
 
-  const onGridReady = (e: GridReadyEvent<ClaimRow>) => {
-    gridApiRef.current = e.api;
+  // Reset page when sort changes
+  useEffect(() => { setPage(0); }, [sortField, sortDir]);
+
+  // Paged data
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const pagedClaims = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
+
+  const toggleSelectAll = () => {
+    const allOnPage = pagedClaims.map((c) => c.id);
+    const allSelected = allOnPage.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        allOnPage.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        allOnPage.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const selectedRows = claims.filter((c) => selectedIds.has(c.id));
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
@@ -497,7 +477,7 @@ function AdminClaimsPage() {
       });
       if (res.ok) {
         refresh();
-        gridApiRef.current?.deselectAll();
+        setSelectedIds(new Set());
         if (previewClaim && claimIds.includes(previewClaim.id)) setPreviewClaim(null);
       }
     } catch (e) {
@@ -527,7 +507,7 @@ function AdminClaimsPage() {
             {([['claim', 'Employee Claims', claimCount], ['receipt', 'Receipts', receiptCount], ['mileage', 'Mileage', mileageCount]] as const).map(([key, label, count]) => (
               <button
                 key={key}
-                onClick={() => { setClaimTab(key); setPreviewClaim(null); gridApiRef.current?.deselectAll(); }}
+                onClick={() => { setClaimTab(key); setPreviewClaim(null); }}
                 className={`px-4 py-1.5 rounded-lg text-body-md font-medium transition-all ${
                   claimTab === key
                     ? 'text-white shadow-sm'
@@ -582,7 +562,7 @@ function AdminClaimsPage() {
 
             <input
               type="text"
-              placeholder="Search merchant or employee…"
+              placeholder="Search merchant, employee or receipt no…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="input-field min-w-[210px]"
@@ -599,21 +579,64 @@ function AdminClaimsPage() {
 
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
-          {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-lg" style={{ height: '100%' }}>
-            <AgGridReact<ClaimRow>
-              onGridReady={onGridReady}
-              rowData={claims}
-              columnDefs={columnDefs}
-              loading={loading}
-              pagination
-              paginationPageSize={50}
-              rowSelection="multiple"
-              suppressRowClickSelection
-              onSelectionChanged={(e) => setSelectedRows(e.api.getSelectedRows())}
-              onRowClicked={(e) => { if (e.data) setPreviewClaim(e.data); }}
-              overlayNoRowsTemplate="<span style='color:#9ca3af;font-size:14px'>No claims found for the selected filters.</span>"
-            />
+          {/* ── Table ────────────────────────────────── */}
+          <div className="flex-1 min-h-0 overflow-auto rounded-lg bg-white">
+            <table className="w-full">
+              <thead>
+                <tr className="ds-table-header text-left">
+                  <th className="px-3 py-2.5 w-10"><input type="checkbox" checked={pagedClaims.length > 0 && pagedClaims.every((c) => selectedIds.has(c.id))} onChange={toggleSelectAll} /></th>
+                  <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
+                  {claimTab === 'claim' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>}
+                  {claimTab !== 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('merchant')}>Merchant{sortIndicator('merchant')}</th>}
+                  {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('receipt_number')}>Receipt No.{sortIndicator('receipt_number')}</th>}
+                  {claimTab !== 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('category_name')}>Category{sortIndicator('category_name')}</th>}
+                  {claimTab === 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>}
+                  {claimTab === 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('from_location')}>From{sortIndicator('from_location')}</th>}
+                  {claimTab === 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('to_location')}>To{sortIndicator('to_location')}</th>}
+                  {claimTab === 'mileage' && <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('distance_km')}>Distance (km){sortIndicator('distance_km')}</th>}
+                  <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
+                  <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
+                  {claimTab !== 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>}
+                  {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>}
+                  {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('linked_payment_count')}>Linked{sortIndicator('linked_payment_count')}</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={20} className="px-5 py-12 text-center text-body-sm text-[#8E9196]">Loading...</td></tr>
+                ) : pagedClaims.length === 0 ? (
+                  <tr><td colSpan={20} className="px-5 py-12 text-center text-body-sm text-[#8E9196]">No claims found for the selected filters.</td></tr>
+                ) : pagedClaims.map((c) => (
+                  <tr key={c.id} onClick={() => setPreviewClaim(c)} className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50">
+                    <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} /></td>
+                    <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
+                    {claimTab === 'claim' && <td className="px-5 py-3 text-[#434654]">{c.employee_name}</td>}
+                    {claimTab !== 'mileage' && <td className="px-5 py-3 text-[#434654]">{c.merchant}</td>}
+                    {claimTab === 'receipt' && <td className="px-5 py-3 text-[#434654]">{c.receipt_number}</td>}
+                    {claimTab !== 'mileage' && <td className="px-5 py-3 text-[#434654]">{c.category_name}</td>}
+                    {claimTab === 'mileage' && <td className="px-5 py-3 text-[#434654]">{c.employee_name}</td>}
+                    {claimTab === 'mileage' && <td className="px-5 py-3 text-[#434654]">{c.from_location}</td>}
+                    {claimTab === 'mileage' && <td className="px-5 py-3 text-[#434654]">{c.to_location}</td>}
+                    {claimTab === 'mileage' && <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{c.distance_km}</td>}
+                    <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{Number(c.amount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-5 py-3"><StatusCell value={c.status} /></td>
+                    {claimTab !== 'receipt' && <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>}
+                    {claimTab === 'receipt' && <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>}
+                    {claimTab === 'receipt' && <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+                <p className="text-body-sm text-[#8E9196]">{page * PAGE_SIZE + 1}&ndash;{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}</p>
+                <div className="flex gap-1.5">
+                  <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
+                  <button onClick={() => setPage(page + 1)} disabled={page + 1 >= totalPages} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                </div>
+              </div>
+            )}
           </div>
 
         </main>
@@ -785,7 +808,7 @@ function AdminClaimsPage() {
             Mark as Reviewed
           </button>
           <button
-            onClick={() => gridApiRef.current?.deselectAll()}
+            onClick={() => setSelectedIds(new Set())}
             className="text-sm text-white/55 hover:text-white transition-colors"
           >
             Clear
