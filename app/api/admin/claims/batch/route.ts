@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -29,6 +30,12 @@ export async function PATCH(request: NextRequest) {
     chunks.push(claimIds.slice(i, i + CHUNK));
   }
 
+  // Fetch old values for audit before updating
+  const oldClaims = await prisma.claim.findMany({
+    where: { id: { in: claimIds }, firm_id: firmId },
+    select: { id: true, status: true },
+  });
+
   await Promise.all(
     chunks.map((chunk) =>
       prisma.claim.updateMany({
@@ -37,6 +44,20 @@ export async function PATCH(request: NextRequest) {
       })
     )
   );
+
+  // Audit log per claim
+  for (const claim of oldClaims) {
+    await auditLog({
+      firmId,
+      tableName: 'Claim',
+      recordId: claim.id,
+      action: 'update',
+      oldValues: { status: claim.status },
+      newValues: { status: 'reviewed' },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
+  }
 
   return NextResponse.json({ data: { updated: claimIds.length }, error: null });
 }

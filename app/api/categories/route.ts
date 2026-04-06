@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         claims_count: g._count.claims,
         is_active: g.overrides.length > 0 ? g.overrides[0].is_active : true,
         is_global: true,
+        gl_account_id: g.overrides.length > 0 ? g.overrides[0].gl_account_id : null,
       })),
       ...firmCats.map((c) => ({
         id: c.id,
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
         claims_count: c._count.claims,
         is_active: c.is_active,
         is_global: false,
+        gl_account_id: null as string | null,
       })),
     ].sort((a, b) => a.name.localeCompare(b.name));
 

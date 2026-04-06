@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
+import { auditLog } from '@/lib/audit';
 
 async function verifyAccess(session: { user: { id: string; role: string } }, salesInvoiceId: string) {
   const firmIds = await getAccountantFirmIds(session.user.id);
@@ -111,6 +112,12 @@ export async function PATCH(
     return NextResponse.json({ data: null, error: 'Sales invoice not found' }, { status: 404 });
   }
 
+  // Fetch old values for audit
+  const oldInvoice = await prisma.salesInvoice.findUnique({
+    where: { id },
+    select: { invoice_number: true, supplier_id: true, issue_date: true, due_date: true, currency: true, notes: true, payment_status: true, amount_paid: true, subtotal: true, tax_amount: true, total_amount: true },
+  });
+
   const body = await request.json();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -164,6 +171,17 @@ export async function PATCH(
       });
     });
 
+    await auditLog({
+      firmId: access.firm_id,
+      tableName: 'SalesInvoice',
+      recordId: id,
+      action: 'update',
+      oldValues: oldInvoice ? { invoice_number: oldInvoice.invoice_number, supplier_id: oldInvoice.supplier_id, total_amount: oldInvoice.total_amount.toString(), subtotal: oldInvoice.subtotal.toString(), tax_amount: oldInvoice.tax_amount.toString() } : undefined,
+      newValues: { invoice_number: updated.invoice_number, supplier_id: updated.supplier_id, total_amount: updated.total_amount.toString(), subtotal: updated.subtotal.toString(), tax_amount: updated.tax_amount.toString() },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
+
     return NextResponse.json({ data: {
       ...updated,
       subtotal: updated.subtotal.toString(),
@@ -197,6 +215,17 @@ export async function PATCH(
     },
   });
 
+  await auditLog({
+    firmId: access.firm_id,
+    tableName: 'SalesInvoice',
+    recordId: id,
+    action: 'update',
+    oldValues: oldInvoice ? { invoice_number: oldInvoice.invoice_number, supplier_id: oldInvoice.supplier_id, payment_status: oldInvoice.payment_status, amount_paid: oldInvoice.amount_paid.toString(), notes: oldInvoice.notes } : undefined,
+    newValues: { invoice_number: updated.invoice_number, supplier_id: updated.supplier_id, payment_status: updated.payment_status, amount_paid: updated.amount_paid.toString(), notes: updated.notes },
+    userId: session.user.id,
+    userName: session.user.name,
+  });
+
   return NextResponse.json({ data: {
     ...updated,
     subtotal: updated.subtotal.toString(),
@@ -223,7 +252,23 @@ export async function DELETE(
     return NextResponse.json({ data: null, error: 'Sales invoice not found' }, { status: 404 });
   }
 
+  // Fetch old values for audit before deleting
+  const deletedInvoice = await prisma.salesInvoice.findUnique({
+    where: { id },
+    select: { invoice_number: true, supplier_id: true, total_amount: true, payment_status: true },
+  });
+
   await prisma.salesInvoice.delete({ where: { id } });
+
+  await auditLog({
+    firmId: access.firm_id,
+    tableName: 'SalesInvoice',
+    recordId: id,
+    action: 'delete',
+    oldValues: deletedInvoice ? { invoice_number: deletedInvoice.invoice_number, supplier_id: deletedInvoice.supplier_id, total_amount: deletedInvoice.total_amount.toString(), payment_status: deletedInvoice.payment_status } : undefined,
+    userId: session.user.id,
+    userName: session.user.name,
+  });
 
   return NextResponse.json({ data: { deleted: true }, error: null });
 }

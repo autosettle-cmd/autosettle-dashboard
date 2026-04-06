@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { recalcInvoicePayment } from '@/lib/payment-utils';
+import { auditLog } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -99,6 +100,18 @@ export async function POST(request: NextRequest) {
     for (const invId of affectedInvoiceIds) {
       await recalcInvoicePayment(invId);
     }
+  }
+
+  if (totalApplied > 0) {
+    await auditLog({
+      firmId: supplier!.firm_id,
+      tableName: 'PaymentAllocation',
+      recordId: supplier_id,
+      action: 'create',
+      newValues: { supplier_id, applied: totalApplied, allocations_count: allocationsToCreate.length },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
   }
 
   return NextResponse.json({

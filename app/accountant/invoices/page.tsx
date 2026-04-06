@@ -1,14 +1,11 @@
 'use client';
 
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
-import type { ColDef, GridApi, GridReadyEvent } from 'ag-grid-community';
-import { AgGridReact } from 'ag-grid-react';
 import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
-import { Suspense, useState, useEffect, useRef, useMemo } from 'react';
+import LoadMoreBanner from '@/components/LoadMoreBanner';
+import { Suspense, useState, useEffect, useRef } from 'react';
+import { useTableSort } from '@/lib/use-table-sort';
 import { useSearchParams } from 'next/navigation';
-
-ModuleRegistry.registerModules([AllCommunityModule]);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +33,8 @@ interface InvoiceRow {
   confidence: string;
   file_url: string | null;
   thumbnail_url: string | null;
+  gl_account_id: string | null;
+  gl_account_label: string | null;
 }
 
 interface FirmOption {
@@ -148,9 +147,14 @@ function AccountantInvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [takeLimit, setTakeLimit] = useState<number | undefined>(undefined);
 
   // UI
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceRow | null>(null);
+  const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -286,6 +290,30 @@ function AccountantInvoicesPage() {
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); setCreatingSupplier(false); }, [previewInvoice]);
 
+  // Fetch GL accounts + pre-fill suggestion
+  useEffect(() => {
+    if (previewInvoice) {
+      Promise.all([
+        fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+      ])
+        .then(([glJson, catJson]) => {
+          setGlAccounts(glJson.data ?? []);
+          if (previewInvoice.gl_account_id) {
+            setSelectedGlAccountId(previewInvoice.gl_account_id);
+          } else {
+            const catData = catJson.data ?? [];
+            const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
+            setSelectedGlAccountId(match?.gl_account_id ?? '');
+          }
+        })
+        .catch(console.error);
+    } else {
+      setGlAccounts([]);
+      setSelectedGlAccountId('');
+    }
+  }, [previewInvoice]);
+
   // Fetch categories for edit
   useEffect(() => {
     if (editMode) {
@@ -312,14 +340,25 @@ function AccountantInvoicesPage() {
     finally { setEditSaving(false); }
   };
 
-  const markAsReviewed = async (id: string) => {
+  const markAsReviewed = async (id: string, glAccountId?: string) => {
     try {
       const res = await fetch(`/api/invoices/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'reviewed' }),
+        body: JSON.stringify({ status: 'reviewed', ...(glAccountId && { gl_account_id: glAccountId }) }),
       });
-      if (res.ok) { setPreviewInvoice(null); refresh(); }
+      if (res.ok) {
+        refresh();
+        if (previewInvoice) {
+          const glMatch = glAccountId ? glAccounts.find(a => a.id === glAccountId) : null;
+          setPreviewInvoice({
+            ...previewInvoice,
+            status: 'reviewed',
+            ...(glAccountId ? { gl_account_id: glAccountId, gl_account_label: glMatch ? `${glMatch.account_code} — ${glMatch.name}` : null } : {}),
+          });
+          if (glAccountId) setSelectedGlAccountId(glAccountId);
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -367,7 +406,8 @@ function AccountantInvoicesPage() {
   const [paymentFilter,   setPaymentFilter]  = useState(initialPayment);
   const [search,          setSearch]         = useState('');
 
-  const gridApiRef = useRef<GridApi<InvoiceRow> | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 50;
 
   // Load firms for filter
   useEffect(() => {
@@ -394,49 +434,21 @@ function AccountantInvoicesPage() {
     if (statusFilter)  p.set('status',        statusFilter);
     if (paymentFilter) p.set('paymentStatus', paymentFilter);
     if (search)        p.set('search',        search);
+    if (takeLimit)     p.set('take',          String(takeLimit));
 
     fetch(`/api/invoices?${p}`)
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) { setInvoices(j.data ?? []); setLoading(false); } })
+      .then((j) => { if (!cancelled) { setInvoices(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmFilter, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey]);
+  }, [firmFilter, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey, takeLimit]);
 
-  // Column definitions
-  const columnDefs = useMemo<ColDef<InvoiceRow>[]>(() => [
-    {
-      field: 'issue_date',
-      headerName: 'Issue Date',
-      width: 110,
-      sort: 'desc',
-      valueFormatter: (p) => formatDate(p.value),
-      comparator: (a, b) => new Date(a).getTime() - new Date(b).getTime(),
-    },
-    { field: 'vendor_name_raw', headerName: 'Vendor',     flex: 1, minWidth: 140 },
-    { field: 'invoice_number',  headerName: 'Invoice #',  width: 130 },
-    { field: 'firm_name',       headerName: 'Firm',        width: 150, hide: !!firmFilter },
-    {
-      field: 'due_date',
-      headerName: 'Due Date',
-      width: 110,
-      valueFormatter: (p) => p.value ? formatDate(p.value) : '-',
-    },
-    {
-      field: 'total_amount',
-      headerName: 'Amount (RM)',
-      width: 125,
-      type: 'rightAligned',
-      valueFormatter: (p) => p.value != null ? Number(p.value).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
-      comparator: (a, b) => Number(a) - Number(b),
-    },
-    { field: 'status',              headerName: 'Status',   width: 140, cellRenderer: StatusCell },
-    { field: 'payment_status',      headerName: 'Payment',  width: 110, cellRenderer: PaymentCell },
-    { field: 'supplier_link_status', headerName: 'Supplier', width: 120, cellRenderer: LinkCell },
-  ], [firmFilter]);
-
-  const onGridReady = (e: GridReadyEvent<InvoiceRow>) => { gridApiRef.current = e.api; };
   const refresh = () => setRefreshKey((k) => k + 1);
+  const { sorted: sortedInvoices, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(invoices, 'issue_date', 'desc');
+  useEffect(() => { setPage(0); }, [sortField, sortDir]);
+  const pagedInvoices = sortedInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(sortedInvoices.length / PAGE_SIZE);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -529,18 +541,64 @@ function AccountantInvoicesPage() {
             </div>
           </div>
 
-          {/* ── AG Grid ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 ag-theme-alpine overflow-hidden rounded-lg" style={{ height: '100%' }}>
-            <AgGridReact<InvoiceRow>
-              onGridReady={onGridReady}
-              rowData={invoices}
-              columnDefs={columnDefs}
-              loading={loading}
-              pagination
-              paginationPageSize={50}
-              onRowClicked={(e) => { if (e.data) setPreviewInvoice(e.data); }}
-              overlayNoRowsTemplate="<span style='color:#9ca3af;font-size:14px'>No invoices found for the selected filters.</span>"
-            />
+          {/* ── Load More ─────────────────────────────────── */}
+          <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={invoices.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
+
+          {/* ── Invoice Table ────────────────────────────── */}
+          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
+            {loading ? (
+              <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
+            ) : invoices.length === 0 ? (
+              <div className="text-center text-sm text-[#8E9196] py-12">No invoices found for the selected filters.</div>
+            ) : (
+              <>
+                <table className="w-full">
+                  <thead>
+                    <tr className="ds-table-header text-left">
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('vendor_name_raw')}>Vendor{sortIndicator('vendor_name_raw')}</th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
+                      {!firmFilter && <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('due_date')}>Due Date{sortIndicator('due_date')}</th>
+                      <th className="px-3 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('total_amount')}>Amount (RM){sortIndicator('total_amount')}</th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('supplier_link_status')}>Supplier{sortIndicator('supplier_link_status')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedInvoices.map((inv) => (
+                      <tr
+                        key={inv.id}
+                        onClick={() => setPreviewInvoice(inv)}
+                        className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50"
+                      >
+                        <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                        <td className="px-3 py-3 text-[#191C1E] font-medium">{inv.vendor_name_raw}</td>
+                        <td className="px-3 py-3 text-[#434654]">{inv.invoice_number ?? '-'}</td>
+                        {!firmFilter && <td className="px-3 py-3 text-[#434654]">{inv.firm_name}</td>}
+                        <td className="px-3 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                        <td className="px-3 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                        <td className="px-3 py-3"><StatusCell value={inv.status} /></td>
+                        <td className="px-3 py-3"><PaymentCell value={inv.payment_status} /></td>
+                        <td className="px-3 py-3"><LinkCell value={inv.supplier_link_status} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+                    <p className="text-body-sm text-[#8E9196]">
+                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sortedInvoices.length)} of {sortedInvoices.length}
+                    </p>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
+                      <button onClick={() => setPage(page + 1)} disabled={page + 1 >= totalPages} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
         </main>
@@ -697,15 +755,16 @@ function AccountantInvoicesPage() {
       {previewInvoice && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
-                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200" />
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
@@ -768,7 +827,7 @@ function AccountantInvoicesPage() {
                 </div>
               ) : (
                 <>
-                  <dl className="space-y-3">
+                  <dl className="grid grid-cols-2 gap-3">
                     <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
                     <Field label="Invoice No."   value={previewInvoice.invoice_number} />
                     <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
@@ -865,6 +924,36 @@ function AccountantInvoicesPage() {
               )}
             </div>
 
+            {/* GL Account Assignment */}
+            {!editMode && glAccounts.length > 0 && (
+              <div className="px-5 pb-2">
+                <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">GL Account</label>
+                {previewInvoice.status === 'reviewed' ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                    <span className="text-sm font-medium text-[#191C1E]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedGlAccountId}
+                    onChange={(e) => setSelectedGlAccountId(e.target.value)}
+                    className="input-field w-full text-sm"
+                  >
+                    <option value="">Select GL Account</option>
+                    {glAccounts.filter(a => a.account_type === 'Expense').map(a => (
+                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
+                    ))}
+                    <option disabled>──────────</option>
+                    {glAccounts.filter(a => a.account_type !== 'Expense').map(a => (
+                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
             <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
@@ -897,17 +986,38 @@ function AccountantInvoicesPage() {
                   >
                     Edit
                   </button>
-                  <button
-                    onClick={() => markAsReviewed(previewInvoice.id)}
-                    disabled={previewInvoice.status === 'reviewed'}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: 'var(--sidebar)' }}
-                  >
-                    Mark as Reviewed
-                  </button>
+                  {previewInvoice.status === 'reviewed' ? (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'pending_review' }),
+                          });
+                          if (res.ok) {
+                            refresh();
+                            setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
+                          }
+                        } catch (e) { console.error(e); }
+                      }}
+                      className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                    >
+                      Revert to Pending
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                      style={{ backgroundColor: 'var(--sidebar)' }}
+                    >
+                      Mark as Reviewed
+                    </button>
+                  )}
                 </>
               )}
             </div>
+          </div>
           </div>
         </>
       )}

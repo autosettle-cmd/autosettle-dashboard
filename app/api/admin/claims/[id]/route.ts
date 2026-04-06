@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 export async function PATCH(
   request: NextRequest,
@@ -18,7 +19,6 @@ export async function PATCH(
   // Verify claim belongs to admin's firm
   const claim = await prisma.claim.findUnique({
     where: { id },
-    select: { firm_id: true },
   });
 
   if (!claim) {
@@ -44,6 +44,17 @@ export async function PATCH(
   const updated = await prisma.claim.update({
     where: { id },
     data,
+  });
+
+  await auditLog({
+    firmId,
+    tableName: 'Claim',
+    recordId: id,
+    action: 'update',
+    oldValues: { status: claim!.status, approval: claim!.approval, amount: String(claim!.amount), category_id: claim!.category_id },
+    newValues: { status: updated.status, approval: updated.approval, amount: String(updated.amount), category_id: updated.category_id },
+    userId: session.user.id,
+    userName: session.user.name,
   });
 
   return NextResponse.json({ data: updated, error: null });

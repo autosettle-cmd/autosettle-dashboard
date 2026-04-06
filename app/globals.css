@@ -15,6 +15,12 @@
   /* Sidebar interaction states */
   --sidebar-hover: rgba(255, 255, 255, 0.06);
   --sidebar-active: rgba(255, 255, 255, 0.1);
+
+  /* Approval action colors */
+  --approve: #2F6F3E;
+  --approve-hover: #256332;
+  --reject: #8B1E24;
+  --reject-hover: #741A1F;
 }
 
 /* ─── Base ─────────────────────────────────────────────────────────────────── */
@@ -127,6 +133,46 @@ body {
     transform: translateY(-1px);
   }
   .btn-danger:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
+
+  /* Approve: green action button */
+  .btn-approve {
+    @apply inline-flex items-center justify-center font-semibold text-white
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: 12px 24px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border-radius: 0.375rem;
+    background: linear-gradient(135deg, var(--approve) 0%, var(--approve-hover) 100%);
+  }
+  .btn-approve:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+  .btn-approve:active:not(:disabled) {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
+
+  /* Reject: red action button */
+  .btn-reject {
+    @apply inline-flex items-center justify-center font-semibold text-white
+           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: 12px 24px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border-radius: 0.375rem;
+    background: linear-gradient(135deg, var(--reject) 0%, var(--reject-hover) 100%);
+  }
+  .btn-reject:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+  .btn-reject:active:not(:disabled) {
     transform: translateY(0);
     filter: brightness(0.95);
   }
@@ -405,6 +451,10 @@ body {
 
 .ag-theme-alpine .ag-header-cell {
   border-right: none !important;
+}
+
+.ag-theme-alpine .ag-header-row {
+  border-bottom: 2px solid var(--outline-ghost) !important;
 }
 
 .ag-theme-alpine .ag-cell {

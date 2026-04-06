@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { issue_date: 'desc' },
-      take: takeParam || 500,
+      take: takeParam || 100,
     }),
     prisma.salesInvoice.count({ where }),
   ]);
@@ -81,7 +82,7 @@ export async function GET(request: NextRequest) {
     created_at: inv.created_at,
   }));
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 500), totalCount });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
 }
 
 export async function POST(request: NextRequest) {
@@ -188,6 +189,16 @@ export async function POST(request: NextRequest) {
       })),
       created_at: salesInvoice.created_at,
     };
+
+    await auditLog({
+      firmId,
+      tableName: 'SalesInvoice',
+      recordId: salesInvoice.id,
+      action: 'create',
+      newValues: { invoice_number, total_amount: totalAmount, supplier_id },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
 
     return NextResponse.json({ data, error: null }, { status: 201 });
   } catch (error) {

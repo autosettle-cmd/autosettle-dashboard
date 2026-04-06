@@ -131,6 +131,9 @@ model Firm {
   categoryFirmOverrides  CategoryFirmOverride[]
   accountantFirms        AccountantFirm[]
   bankStatements         BankStatement[]
+  glAccounts             GLAccount[]
+  fiscalYears            FiscalYear[]
+  taxCodes               TaxCode[]
   mileage_rate_per_km    Decimal?  @db.Decimal(4, 2)
 }
 
@@ -150,6 +153,8 @@ model Employee {
   invoices      Invoice[]
   salesInvoices SalesInvoice[]
   messageLogs   MessageLog[]
+
+  @@index([firm_id])
 }
 
 model User {
@@ -169,6 +174,8 @@ model User {
   employee       Employee?        @relation(fields: [employee_id], references: [id])
   accountantFirms AccountantFirm[]
   bankStatements  BankStatement[]
+
+  @@index([firm_id])
 }
 
 model AccountantFirm {
@@ -197,17 +204,20 @@ model Category {
   overrides CategoryFirmOverride[]
 
   @@unique([firm_id, name])
+  @@index([firm_id])
 }
 
 model CategoryFirmOverride {
-  id          String   @id @default(uuid())
-  category_id String
-  firm_id     String
-  is_active   Boolean  @default(true)
-  created_at  DateTime @default(now())
+  id            String   @id @default(uuid())
+  category_id   String
+  firm_id       String
+  is_active     Boolean  @default(true)
+  gl_account_id String?
+  created_at    DateTime @default(now())
 
-  category Category @relation(fields: [category_id], references: [id])
-  firm     Firm     @relation(fields: [firm_id], references: [id])
+  category  Category   @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  firm      Firm       @relation(fields: [firm_id], references: [id])
+  glAccount GLAccount? @relation(fields: [gl_account_id], references: [id])
 
   @@unique([category_id, firm_id])
 }
@@ -236,12 +246,18 @@ model Claim {
   to_location      String?
   distance_km      Decimal?       @db.Decimal(8, 2)
   trip_purpose     String?
+  gl_account_id    String?
+  tax_amount       Decimal?       @db.Decimal(10, 2)
+  tax_rate         Decimal?       @db.Decimal(5, 2)
+  tax_code_id      String?
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
 
   firm     Firm     @relation(fields: [firm_id], references: [id])
   employee Employee @relation(fields: [employee_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
+  glAccount  GLAccount? @relation(fields: [gl_account_id], references: [id])
+  taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id])
   paymentReceipts PaymentReceipt[]
 
   @@index([firm_id, type, claim_date])
@@ -279,6 +295,7 @@ model Supplier {
   payments      Payment[]
 
   @@unique([firm_id, name])
+  @@index([firm_id])
 }
 
 model SupplierAlias {
@@ -288,9 +305,10 @@ model SupplierAlias {
   is_confirmed Boolean  @default(false)
   created_at   DateTime @default(now())
 
-  supplier Supplier @relation(fields: [supplier_id], references: [id])
+  supplier Supplier @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
 
   @@unique([supplier_id, alias])
+  @@index([supplier_id])
 }
 
 model Invoice {
@@ -316,6 +334,7 @@ model Invoice {
   file_download_url   String?
   thumbnail_url       String?
   submitted_via       SubmittedVia
+  gl_account_id       String?
   created_at          DateTime             @default(now())
   updated_at          DateTime             @updatedAt
 
@@ -323,10 +342,13 @@ model Invoice {
   uploader Employee  @relation(fields: [uploaded_by], references: [id])
   supplier            Supplier?            @relation(fields: [supplier_id], references: [id])
   category            Category             @relation(fields: [category_id], references: [id])
+  glAccount           GLAccount?           @relation(fields: [gl_account_id], references: [id])
   paymentAllocations  PaymentAllocation[]
 
   @@index([firm_id, status])
   @@index([firm_id, issue_date])
+  @@index([supplier_id])
+  @@index([firm_id, payment_status])
 }
 
 model Payment {
@@ -358,10 +380,11 @@ model PaymentAllocation {
   invoice_id String
   amount     Decimal @db.Decimal(10, 2)
 
-  payment Payment @relation(fields: [payment_id], references: [id])
-  invoice Invoice @relation(fields: [invoice_id], references: [id])
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
 
   @@unique([payment_id, invoice_id])
+  @@index([invoice_id])
 }
 
 model PaymentReceipt {
@@ -369,8 +392,8 @@ model PaymentReceipt {
   payment_id String
   claim_id   String
 
-  payment Payment @relation(fields: [payment_id], references: [id])
-  claim   Claim   @relation(fields: [claim_id], references: [id])
+  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  claim   Claim   @relation(fields: [claim_id], references: [id], onDelete: Cascade)
 
   @@unique([payment_id, claim_id])
   @@index([claim_id])
@@ -398,6 +421,8 @@ model MessageLog {
   received_at    DateTime  @default(now())
 
   employee Employee? @relation(fields: [employee_id], references: [id])
+
+  @@index([employee_id])
 }
 
 // ─── Sales Invoicing (Issued) ────────────────────────────────────────────────
@@ -464,13 +489,46 @@ model SalesPaymentAllocation {
   sales_invoice_id  String
   amount            Decimal @db.Decimal(10, 2)
 
-  payment           Payment       @relation(fields: [payment_id], references: [id])
-  salesInvoice      SalesInvoice  @relation(fields: [sales_invoice_id], references: [id])
+  payment           Payment       @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  salesInvoice      SalesInvoice  @relation(fields: [sales_invoice_id], references: [id], onDelete: Cascade)
 
   @@unique([payment_id, sales_invoice_id])
+  @@index([sales_invoice_id])
 }
 
 // ─── Bank Reconciliation ─────────────────────────────────────────────────────
+
+// ─── Accounting Foundation ───────────────────────────────────────────────────
+
+enum AccountType {
+  Asset
+  Liability
+  Equity
+  Revenue
+  Expense
+}
+
+enum NormalBalance {
+  Debit
+  Credit
+}
+
+enum FiscalYearStatus {
+  open
+  closed
+}
+
+enum PeriodStatus {
+  open
+  closed
+  locked
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+}
 
 enum ReconStatus {
   unmatched
@@ -522,4 +580,111 @@ model BankTransaction {
 
   @@index([bank_statement_id, recon_status])
   @@index([matched_payment_id])
+}
+
+// ─── Chart of Accounts ──────────────────────────────────────────────────────
+
+model GLAccount {
+  id             String        @id @default(uuid())
+  firm_id        String
+  account_code   String
+  name           String
+  account_type   AccountType
+  normal_balance NormalBalance
+  parent_id      String?
+  is_active      Boolean       @default(true)
+  is_system      Boolean       @default(false)
+  sort_order     Int           @default(0)
+  description    String?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  firm     Firm       @relation(fields: [firm_id], references: [id])
+  parent   GLAccount? @relation("GLAccountHierarchy", fields: [parent_id], references: [id])
+  children GLAccount[] @relation("GLAccountHierarchy")
+
+  claims                Claim[]
+  invoices              Invoice[]
+  categoryFirmOverrides CategoryFirmOverride[]
+  taxCodes              TaxCode[]
+
+  @@unique([firm_id, account_code])
+  @@index([firm_id, account_type])
+  @@index([firm_id, is_active])
+  @@index([parent_id])
+}
+
+// ─── Fiscal Periods ─────────────────────────────────────────────────────────
+
+model FiscalYear {
+  id         String           @id @default(uuid())
+  firm_id    String
+  year_label String
+  start_date DateTime         @db.Date
+  end_date   DateTime         @db.Date
+  status     FiscalYearStatus @default(open)
+  created_at DateTime         @default(now())
+  updated_at DateTime         @updatedAt
+
+  firm    Firm     @relation(fields: [firm_id], references: [id])
+  periods Period[]
+
+  @@unique([firm_id, year_label])
+  @@index([firm_id, status])
+}
+
+model Period {
+  id             String       @id @default(uuid())
+  fiscal_year_id String
+  period_number  Int
+  start_date     DateTime     @db.Date
+  end_date       DateTime     @db.Date
+  status         PeriodStatus @default(open)
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+
+  fiscalYear FiscalYear @relation(fields: [fiscal_year_id], references: [id])
+
+  @@unique([fiscal_year_id, period_number])
+  @@index([fiscal_year_id, status])
+}
+
+// ─── Audit Trail ────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id             String      @id @default(uuid())
+  firm_id        String
+  table_name     String
+  record_id      String
+  action         AuditAction
+  changed_fields Json?
+  old_values     Json?
+  new_values     Json?
+  user_id        String?
+  user_name      String?
+  timestamp      DateTime    @default(now())
+
+  @@index([firm_id, table_name, timestamp])
+  @@index([firm_id, record_id])
+}
+
+// ─── Tax Codes ──────────────────────────────────────────────────────────────
+
+model TaxCode {
+  id            String   @id @default(uuid())
+  firm_id       String
+  code          String
+  description   String
+  rate          Decimal  @db.Decimal(5, 2)
+  tax_type      String
+  gl_account_id String?
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  firm      Firm       @relation(fields: [firm_id], references: [id])
+  glAccount GLAccount? @relation(fields: [gl_account_id], references: [id])
+  claims    Claim[]
+
+  @@unique([firm_id, code])
+  @@index([firm_id, is_active])
 }

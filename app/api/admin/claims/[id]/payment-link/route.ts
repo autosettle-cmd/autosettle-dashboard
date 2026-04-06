@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 export async function DELETE(
   _request: NextRequest,
@@ -29,6 +30,16 @@ export async function DELETE(
   await prisma.claim.update({
     where: { id: claimId },
     data: { payment_status: 'unpaid' },
+  });
+
+  await auditLog({
+    firmId: session.user.firm_id,
+    tableName: 'PaymentReceipt',
+    recordId: claimId,
+    action: 'delete',
+    oldValues: { claim_id: claimId, payment_status: 'paid' },
+    userId: session.user.id,
+    userName: session.user.name,
   });
 
   return NextResponse.json({ success: true });

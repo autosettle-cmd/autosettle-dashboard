@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
+import { auditLog } from '@/lib/audit';
 
 export async function PATCH(
   request: NextRequest,
@@ -16,7 +17,7 @@ export async function PATCH(
   const { id } = await params;
   const firmIds = await getAccountantFirmIds(session.user.id);
 
-  const claim = await prisma.claim.findUnique({ where: { id }, select: { firm_id: true } });
+  const claim = await prisma.claim.findUnique({ where: { id } });
   if (!claim) return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
   if (firmIds && !firmIds.includes(claim.firm_id)) {
     return NextResponse.json({ data: null, error: 'Not authorized' }, { status: 403 });
@@ -33,5 +34,17 @@ export async function PATCH(
   if (body.description !== undefined) data.description = body.description || null;
 
   const updated = await prisma.claim.update({ where: { id }, data });
+
+  await auditLog({
+    firmId: claim!.firm_id,
+    tableName: 'Claim',
+    recordId: id,
+    action: 'update',
+    oldValues: { status: claim!.status, approval: claim!.approval, category_id: claim!.category_id, amount: String(claim!.amount), gl_account_id: claim!.gl_account_id },
+    newValues: { status: updated.status, approval: updated.approval, category_id: updated.category_id, amount: String(updated.amount), gl_account_id: updated.gl_account_id },
+    userId: session.user.id,
+    userName: session.user.name,
+  });
+
   return NextResponse.json({ data: updated, error: null });
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { auditLog } from '@/lib/audit';
 
 export async function PATCH(
   request: NextRequest,
@@ -16,7 +17,6 @@ export async function PATCH(
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
-    select: { firm_id: true },
   });
 
   if (!invoice) {
@@ -55,6 +55,7 @@ export async function PATCH(
   }
   if (body.payment_status !== undefined) data.payment_status = body.payment_status;
   if (body.status !== undefined) data.status = body.status;
+  if (body.gl_account_id !== undefined) data.gl_account_id = body.gl_account_id || null;
 
   // Supplier link confirmation
   if (body.supplier_id !== undefined) {
@@ -75,5 +76,17 @@ export async function PATCH(
   if (body.supplier_link_status !== undefined) data.supplier_link_status = body.supplier_link_status;
 
   const updated = await prisma.invoice.update({ where: { id }, data });
+
+  await auditLog({
+    firmId,
+    tableName: 'Invoice',
+    recordId: id,
+    action: 'update',
+    oldValues: { status: invoice!.status, payment_status: invoice!.payment_status, supplier_id: invoice!.supplier_id, total_amount: String(invoice!.total_amount) },
+    newValues: { status: updated.status, payment_status: updated.payment_status, supplier_id: updated.supplier_id, total_amount: String(updated.total_amount) },
+    userId: session.user.id,
+    userName: session.user.name,
+  });
+
   return NextResponse.json({ data: updated, error: null });
 }

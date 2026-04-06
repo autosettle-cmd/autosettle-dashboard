@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { recalcInvoicePayment } from '@/lib/payment-utils';
 import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
+import { auditLog } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
@@ -109,6 +110,16 @@ export async function POST(request: NextRequest) {
       await recalcSalesInvoicePayment(alloc.sales_invoice_id);
     }
 
+    await auditLog({
+      firmId: supplier.firm_id,
+      tableName: 'Payment',
+      recordId: payment.id,
+      action: 'create',
+      newValues: { direction: 'incoming', amount: String(amount), supplier_id, reference: reference || null },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
+
     return NextResponse.json({ data: payment, error: null });
   }
 
@@ -182,6 +193,16 @@ export async function POST(request: NextRequest) {
   for (const alloc of allocations) {
     await recalcInvoicePayment(alloc.invoice_id);
   }
+
+  await auditLog({
+    firmId: supplier.firm_id,
+    tableName: 'Payment',
+    recordId: payment.id,
+    action: 'create',
+    newValues: { direction: 'outgoing', amount: String(amount), supplier_id, reference: reference || null, invoices: allocations.map((a) => a.invoice_id) },
+    userId: session.user.id,
+    userName: session.user.name,
+  });
 
   return NextResponse.json({ data: payment, error: null });
   } catch (err) {

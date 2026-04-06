@@ -105,9 +105,10 @@ export async function GET(request: NextRequest) {
         firm: { select: { name: true } },
         supplier: { select: { id: true, name: true } },
         category: { select: { name: true } },
+        glAccount: { select: { id: true, account_code: true, name: true } },
       },
       orderBy: { issue_date: 'desc' },
-      take: takeParam || 500,
+      take: takeParam || 100,
     }),
     prisma.invoice.count({ where }),
   ]);
@@ -137,9 +138,11 @@ export async function GET(request: NextRequest) {
     file_url: inv.file_url,
     thumbnail_url: inv.thumbnail_url,
     submitted_via: inv.submitted_via,
+    gl_account_id: inv.gl_account_id,
+    gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
   }));
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
 }
 
 export async function POST(request: NextRequest) {

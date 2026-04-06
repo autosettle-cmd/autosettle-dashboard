@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
     where.OR = [
       { merchant: { contains: search, mode: 'insensitive' } },
       { employee: { name: { contains: search, mode: 'insensitive' } } },
+      { receipt_number: { contains: search, mode: 'insensitive' } },
     ];
   }
 
@@ -101,6 +102,7 @@ export async function GET(request: NextRequest) {
         employee: { select: { name: true } },
         firm: { select: { name: true } },
         category: { select: { name: true } },
+        glAccount: { select: { id: true, account_code: true, name: true } },
         _count: { select: { paymentReceipts: true } },
         paymentReceipts: {
           include: {
@@ -111,7 +113,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { claim_date: 'desc' },
-      take: takeParam || 500,
+      take: takeParam || 100,
     }),
     prisma.claim.count({ where }),
   ]);
@@ -136,6 +138,8 @@ export async function GET(request: NextRequest) {
     confidence: c.confidence,
     receipt_number: c.receipt_number,
     type: c.type,
+    gl_account_id: c.gl_account_id,
+    gl_account_label: c.glAccount ? `${c.glAccount.account_code} — ${c.glAccount.name}` : null,
     from_location: c.from_location,
     to_location: c.to_location,
     distance_km: c.distance_km?.toString() ?? null,
@@ -150,7 +154,7 @@ export async function GET(request: NextRequest) {
     })),
   }));
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > 500, totalCount });
+  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
 }
 
 export async function POST(request: NextRequest) {

@@ -1,0 +1,23 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const fy = await prisma.fiscalYear.findUnique({
+    where: { id },
+    include: { periods: { orderBy: { period_number: 'asc' } } },
+  });
+
+  if (!fy || fy.firm_id !== session.user.firm_id) {
+    return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({ data: fy, error: null });
+}
