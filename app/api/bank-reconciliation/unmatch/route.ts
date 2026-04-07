@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     data: {
       id: updated.id,
       recon_status: updated.recon_status,
-      ...(jvResult.warning && { jv_warning: jvResult.warning }),
+      ...(jvResult.error && { jv_warning: jvResult.error }),
     },
     error: null,
   });
