@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EmployeeDashboard() {
+  usePageTitle('Dashboard');
   const { data: session } = useSession();
 
   const [stats, setStats] = useState<Stats | null>(null);

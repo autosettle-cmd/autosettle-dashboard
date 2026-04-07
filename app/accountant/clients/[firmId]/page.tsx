@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ function formatDate(val: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function FirmDetailPage() {
+  usePageTitle('Client Details');
   const params = useParams();
   const firmId = params.firmId as string;
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ function formatValue(val: unknown): string {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function AdminAuditLogPage() {
+  usePageTitle('Audit Log');
   const [logs, setLogs] = useState<AuditEntry[]>([]);
   const [tableFilter, setTableFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');

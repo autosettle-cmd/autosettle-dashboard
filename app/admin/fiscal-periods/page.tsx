@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ const STATUS_BADGE: Record<string, { class: string; label: string }> = {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function AdminFiscalPeriodsPage() {
+  usePageTitle('Fiscal Periods');
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedFY, setExpandedFY] = useState<Set<string>>(new Set());

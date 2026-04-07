@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,7 @@ function formatDisplayDate() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function EmployeeClaimsPage() {
+  usePageTitle('My Claims');
   // Data
   const [claims, setClaims]       = useState<ClaimRow[]>([]);
   const [loading, setLoading]     = useState(true);

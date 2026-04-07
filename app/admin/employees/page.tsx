@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
+import { usePageTitle } from '@/lib/use-page-title';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EmployeeRow {
@@ -42,6 +43,7 @@ function formatDate(val: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminEmployeesPage() {
+  usePageTitle('Employees');
   // ── Pending Approval data ──
   const [pending, setPending]               = useState<PendingRow[]>([]);
   const [pendingLoading, setPendingLoading] = useState(true);

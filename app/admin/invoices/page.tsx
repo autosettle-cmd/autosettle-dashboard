@@ -5,6 +5,7 @@ import SalesInvoicesContent from '@/components/SalesInvoicesContent';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
+import { usePageTitle } from '@/lib/use-page-title';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -133,6 +134,7 @@ export default function AdminInvoicesPageWrapper() {
 }
 
 function AdminInvoicesPage() {
+  usePageTitle('Invoices');
   const [activeTab, setActiveTab] = useState<'received' | 'issued'>('received');
 
   // Data

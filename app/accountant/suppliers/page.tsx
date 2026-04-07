@@ -6,6 +6,7 @@ import LoadMoreBanner from '@/components/LoadMoreBanner';
 import ReceiptSelector from '@/components/ReceiptSelector';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AccountantSuppliersPage() {
+  usePageTitle('Suppliers');
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,6 +147,7 @@ export default function AdminClaimsPageWrapper() {
 }
 
 function AdminClaimsPage() {
+  usePageTitle('Claims');
   // Tab
   const [claimTab, setClaimTab] = useState<'claim' | 'receipt' | 'mileage'>('claim');
   const [claimCount, setClaimCount] = useState(0);

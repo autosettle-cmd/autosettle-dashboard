@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClaimStats {
@@ -128,6 +129,7 @@ function getGreeting(): string {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
+  usePageTitle('Dashboard');
   const { data: session } = useSession();
 
   const [stats, setStats] = useState<Stats | null>(null);

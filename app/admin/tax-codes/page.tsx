@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 interface TaxCodeRow {
   id: string;
@@ -14,6 +15,7 @@ interface TaxCodeRow {
 }
 
 export default function AdminTaxCodesPage() {
+  usePageTitle('Tax Codes');
   const [taxCodes, setTaxCodes] = useState<TaxCodeRow[]>([]);
   const [loading, setLoading] = useState(true);
 

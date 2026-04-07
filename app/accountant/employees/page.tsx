@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ function formatDate(val: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function PeoplePage() {
+  usePageTitle('Employees');
   // ── Firms ──
   const [firms, setFirms] = useState<Firm[]>([]);
   const [firmId, setFirmId] = useState('');

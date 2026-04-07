@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ function flattenTree(nodes: TreeNode[], expandedSet: Set<string>): TreeNode[] {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export default function ChartOfAccountsPage() {
+  usePageTitle('Chart of Accounts');
   const [accounts, setAccounts] = useState<GLAccount[]>([]);
   const [firms, setFirms] = useState<Firm[]>([]);
   const [firmId, setFirmId] = useState('');

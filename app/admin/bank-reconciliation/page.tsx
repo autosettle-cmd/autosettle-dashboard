@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 interface StatementRow {
   id: string;
   bank_name: string;
@@ -30,6 +31,7 @@ function formatRM(val: string | number | null) {
 }
 
 export default function BankReconciliationPage() {
+  usePageTitle('Bank Reconciliation');
   const router = useRouter();
 
   const [statements, setStatements] = useState<StatementRow[]>([]);

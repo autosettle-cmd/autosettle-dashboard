@@ -13,7 +13,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: brand.name,
+  title: {
+    default: brand.name,
+    template: `%s — ${brand.name}`,
+  },
   description: brand.tagline,
 };
 

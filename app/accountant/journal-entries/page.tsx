@@ -4,6 +4,7 @@ import Sidebar from '@/components/Sidebar';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import { useState, useEffect } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ function getDateRange(range: string, customFrom: string, customTo: string) {
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 export default function JournalEntriesPage() {
+  usePageTitle('Journal Entries');
   const [entries, setEntries] = useState<JournalEntryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);

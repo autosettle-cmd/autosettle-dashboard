@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ interface FirmRow {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ClientsPage() {
+  usePageTitle('Clients');
   // Data
   const [firms, setFirms]           = useState<FirmRow[]>([]);
   const [loading, setLoading]       = useState(true);

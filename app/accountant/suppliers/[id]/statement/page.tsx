@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { generateSOAPdf } from '@/lib/generate-soa-pdf';
 import type { StatementData } from '@/lib/generate-soa-pdf';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ function balanceColor(val: number) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AccountantSupplierStatementPage() {
+  usePageTitle('Statement of Account');
   const params = useParams();
   const id = params.id as string;
 

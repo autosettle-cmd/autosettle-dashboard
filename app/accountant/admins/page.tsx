@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ function formatDate(val: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminsPage() {
+  usePageTitle('Admins');
   // Data
   const [admins, setAdmins]         = useState<AdminRow[]>([]);
   const [firms, setFirms]           = useState<Firm[]>([]);

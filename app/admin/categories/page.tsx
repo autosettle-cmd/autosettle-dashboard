@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CategoryRow {
@@ -16,6 +17,7 @@ interface CategoryRow {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminCategoriesPage() {
+  usePageTitle('Categories');
   // Data
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [loading, setLoading]       = useState(true);

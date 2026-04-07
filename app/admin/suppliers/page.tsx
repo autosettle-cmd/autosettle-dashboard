@@ -6,6 +6,7 @@ import LoadMoreBanner from '@/components/LoadMoreBanner';
 import ReceiptSelector from '@/components/ReceiptSelector';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -156,6 +157,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminSuppliersPage() {
+  usePageTitle('Suppliers');
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);

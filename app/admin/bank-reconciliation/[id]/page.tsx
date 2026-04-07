@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import { usePageTitle } from '@/lib/use-page-title';
 interface PaymentAllocation {
   invoice_id: string;
   invoice_number: string | null;
@@ -91,6 +92,7 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
 };
 
 export default function ReconciliationWorkspacePage() {
+  usePageTitle('Bank Reconciliation');
   const { id } = useParams<{ id: string }>();
 
   const [statement, setStatement] = useState<StatementDetail | null>(null);
