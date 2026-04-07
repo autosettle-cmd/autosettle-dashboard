@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
+import { reverseBankReconJV } from '@/lib/bank-recon-jv';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -24,9 +25,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Transaction not found' }, { status: 404 });
   }
 
+  const jvResult = await reverseBankReconJV(bankTransactionId, session.user.id);
+
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
     data: { matched_payment_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null },
   });
-  return NextResponse.json({ data: { id: updated.id, recon_status: updated.recon_status }, error: null });
+
+  return NextResponse.json({
+    data: {
+      id: updated.id,
+      recon_status: updated.recon_status,
+      ...(jvResult.warning && { jv_warning: jvResult.warning }),
+    },
+    error: null,
+  });
 }

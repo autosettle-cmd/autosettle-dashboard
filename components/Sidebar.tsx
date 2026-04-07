@@ -32,10 +32,14 @@ const ACCOUNTANT_NAV = [
   { label: 'Clients',         href: '/accountant/clients',              icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Employees',       href: '/accountant/employees',            icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
   { label: 'Categories',      href: '/accountant/categories',           icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
-  { label: 'Chart of Accounts', href: '/accountant/chart-of-accounts', icon: 'M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z' },
-  { label: 'Fiscal Periods',    href: '/accountant/fiscal-periods',    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-  { label: 'Tax Codes',          href: '/accountant/tax-codes',          icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
-  { label: 'Audit Log',         href: '/accountant/audit-log',         icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+  { label: 'Accounting', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
+    children: [
+      { label: 'Journal Entries', href: '/accountant/journal-entries' },
+      { label: 'Fiscal Periods',  href: '/accountant/fiscal-periods' },
+      { label: 'Audit Log',       href: '/accountant/audit-log' },
+      { label: 'Chart of Accounts', href: '/accountant/chart-of-accounts' },
+    ],
+  },
 ];
 
 const EMPLOYEE_NAV = [
@@ -43,11 +47,13 @@ const EMPLOYEE_NAV = [
   { label: 'My Claims',  href: '/employee/claims',    icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
 ];
 
-const NAV_MAP = {
+type NavItem = { label: string; href: string; icon: string } | { label: string; icon: string; children: { label: string; href: string }[] };
+
+const NAV_MAP: Record<string, NavItem[]> = {
   admin: ADMIN_NAV,
   accountant: ACCOUNTANT_NAV,
   employee: EMPLOYEE_NAV,
-} as const;
+};
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
@@ -61,8 +67,19 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
   const { data: session } = useSession();
   const pathname = usePathname();
   const handleLogout = useLogout();
-  const nav = NAV_MAP[role];
+  const nav = NAV_MAP[role] ?? [];
   const [firmName, setFirmName] = useState<string | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  // Auto-expand dropdown if current path is inside it
+  useEffect(() => {
+    for (const item of nav) {
+      if ('children' in item && item.children.some((c) => pathname === c.href || pathname.startsWith(c.href))) {
+        setOpenDropdown(item.label);
+        break;
+      }
+    }
+  }, [pathname]);
 
   // Fetch firm name for subtitle (admin always, accountant only if single firm)
   useEffect(() => {
@@ -103,7 +120,57 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {nav.map(({ label, href, icon }) => {
+        {nav.map((item) => {
+          if ('children' in item) {
+            const isOpen = openDropdown === item.label;
+            const hasActiveChild = item.children.some((c) => pathname === c.href || pathname.startsWith(c.href));
+            return (
+              <div key={item.label}>
+                <button
+                  onClick={() => setOpenDropdown(isOpen ? null : item.label)}
+                  className={`relative w-full flex items-center gap-2.5 h-10 px-3 rounded-lg text-[13px] font-medium transition-all duration-200 ${
+                    hasActiveChild
+                      ? 'text-white bg-white/[0.1] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                      : 'text-white/45 hover:text-white/80 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {hasActiveChild && (
+                    <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full" style={{ backgroundColor: 'var(--primary)' }} />
+                  )}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={item.icon} />
+                  </svg>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                    className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {isOpen && (
+                  <div className="mt-0.5 ml-4 pl-4 border-l border-white/[0.06] space-y-0.5">
+                    {item.children.map((child) => {
+                      const active = pathname === child.href || pathname.startsWith(child.href);
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={`block h-8 flex items-center px-2.5 rounded-md text-[12px] font-medium transition-all duration-200 ${
+                            active
+                              ? 'text-white bg-white/[0.08]'
+                              : 'text-white/40 hover:text-white/70 hover:bg-white/[0.03]'
+                          }`}
+                        >
+                          {child.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const { label, href, icon } = item;
           const active = pathname === href || (href !== `/${role}/dashboard` && pathname.startsWith(href));
           return (
             <Link

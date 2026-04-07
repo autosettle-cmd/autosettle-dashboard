@@ -1,8 +1,11 @@
 import { prisma } from './prisma';
+import { createBankReconJV } from './bank-recon-jv';
 
 interface MatchResult {
   matched: number;
   unmatched: number;
+  jvCreated: number;
+  jvWarnings: string[];
 }
 
 /**
@@ -21,7 +24,7 @@ export async function autoMatchTransactions(
     where: { bank_statement_id: bankStatementId, recon_status: 'unmatched' },
   });
 
-  if (bankTxns.length === 0) return { matched: 0, unmatched: 0 };
+  if (bankTxns.length === 0) return { matched: 0, unmatched: 0, jvCreated: 0, jvWarnings: [] };
 
   // Load all unreconciled payments for this firm (not already linked to a bank transaction)
   const payments = await prisma.payment.findMany({
@@ -168,8 +171,23 @@ export async function autoMatchTransactions(
     );
   }
 
+  // ── Create bank recon JVs for matched transactions ──
+  let jvCreated = 0;
+  const jvWarnings: string[] = [];
+
+  for (const m of matched) {
+    const result = await createBankReconJV(m.bankTxnId, m.paymentId, firmId);
+    if (result.created) {
+      jvCreated++;
+    } else if (result.warning) {
+      jvWarnings.push(result.warning);
+    }
+  }
+
   return {
     matched: matched.length,
     unmatched: unmatchedBankTxnIds.size,
+    jvCreated,
+    jvWarnings,
   };
 }

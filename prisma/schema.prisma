@@ -119,6 +119,10 @@ model Firm {
   lhdn_client_id         String?
   lhdn_client_secret     String?
 
+  // GL defaults
+  default_trade_payables_gl_id  String?
+  default_staff_claims_gl_id    String?
+
   users           User[]
   employees       Employee[]
   claims          Claim[]
@@ -134,7 +138,12 @@ model Firm {
   glAccounts             GLAccount[]
   fiscalYears            FiscalYear[]
   taxCodes               TaxCode[]
+  bankAccounts           BankAccount[]
+  journalEntries         JournalEntry[]
   mileage_rate_per_km    Decimal?  @db.Decimal(4, 2)
+
+  defaultTradePayables   GLAccount? @relation("FirmTradePayables", fields: [default_trade_payables_gl_id], references: [id])
+  defaultStaffClaims     GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id])
 }
 
 model Employee {
@@ -335,6 +344,8 @@ model Invoice {
   thumbnail_url       String?
   submitted_via       SubmittedVia
   gl_account_id       String?
+  approval            ApprovalStatus       @default(pending_approval)
+  rejection_reason    String?
   created_at          DateTime             @default(now())
   updated_at          DateTime             @updatedAt
 
@@ -349,6 +360,7 @@ model Invoice {
   @@index([firm_id, issue_date])
   @@index([supplier_id])
   @@index([firm_id, payment_status])
+  @@index([firm_id, approval])
 }
 
 model Payment {
@@ -537,6 +549,18 @@ enum ReconStatus {
   excluded
 }
 
+enum JournalEntryStatus {
+  posted
+  reversed
+}
+
+enum JournalSourceType {
+  claim_approval
+  invoice_posting
+  bank_recon
+  manual
+}
+
 model BankStatement {
   id              String    @id @default(uuid())
   firm_id         String
@@ -607,6 +631,10 @@ model GLAccount {
   invoices              Invoice[]
   categoryFirmOverrides CategoryFirmOverride[]
   taxCodes              TaxCode[]
+  journalLines          JournalLine[]
+  bankAccounts          BankAccount[]
+  firmsTradePayables    Firm[]  @relation("FirmTradePayables")
+  firmsStaffClaims      Firm[]  @relation("FirmStaffClaims")
 
   @@unique([firm_id, account_code])
   @@index([firm_id, account_type])
@@ -643,7 +671,8 @@ model Period {
   created_at     DateTime     @default(now())
   updated_at     DateTime     @updatedAt
 
-  fiscalYear FiscalYear @relation(fields: [fiscal_year_id], references: [id])
+  fiscalYear     FiscalYear     @relation(fields: [fiscal_year_id], references: [id])
+  journalEntries JournalEntry[]
 
   @@unique([fiscal_year_id, period_number])
   @@index([fiscal_year_id, status])
@@ -687,4 +716,69 @@ model TaxCode {
 
   @@unique([firm_id, code])
   @@index([firm_id, is_active])
+}
+
+// ─── Bank Accounts (GL mapping) ────────────────────────────────────────────
+
+model BankAccount {
+  id              String   @id @default(uuid())
+  firm_id         String
+  bank_name       String
+  account_number  String
+  gl_account_id   String
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  firm      Firm      @relation(fields: [firm_id], references: [id])
+  glAccount GLAccount @relation(fields: [gl_account_id], references: [id])
+
+  @@unique([firm_id, bank_name, account_number])
+  @@index([firm_id])
+}
+
+// ─── Journal Entries (Double-Entry Ledger) ──────────────────────────────────
+
+model JournalEntry {
+  id              String             @id @default(uuid())
+  firm_id         String
+  voucher_number  String
+  posting_date    DateTime           @db.Date
+  period_id       String
+  description     String?
+  source_type     JournalSourceType
+  source_id       String?
+  status          JournalEntryStatus @default(posted)
+  reversed_by_id  String?            @unique
+  reversal_of_id  String?            @unique
+  created_by      String?
+  created_at      DateTime           @default(now())
+
+  firm           Firm           @relation(fields: [firm_id], references: [id])
+  period         Period         @relation(fields: [period_id], references: [id])
+  reversedBy     JournalEntry?  @relation("JournalReversedBy", fields: [reversed_by_id], references: [id])
+  reversedByOf   JournalEntry?  @relation("JournalReversedBy")
+  reversalOf     JournalEntry?  @relation("JournalReversalOf", fields: [reversal_of_id], references: [id])
+  originalEntry  JournalEntry?  @relation("JournalReversalOf")
+  lines          JournalLine[]
+
+  @@unique([firm_id, voucher_number])
+  @@index([firm_id, posting_date])
+  @@index([firm_id, source_type, source_id])
+  @@index([period_id])
+}
+
+model JournalLine {
+  id               String  @id @default(uuid())
+  journal_entry_id String
+  gl_account_id    String
+  debit_amount     Decimal @default(0) @db.Decimal(12, 2)
+  credit_amount    Decimal @default(0) @db.Decimal(12, 2)
+  description      String?
+
+  journalEntry JournalEntry @relation(fields: [journal_entry_id], references: [id], onDelete: Cascade)
+  glAccount    GLAccount    @relation(fields: [gl_account_id], references: [id])
+
+  @@index([journal_entry_id])
+  @@index([gl_account_id])
 }

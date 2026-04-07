@@ -140,6 +140,8 @@ export async function GET(request: NextRequest) {
     submitted_via: inv.submitted_via,
     gl_account_id: inv.gl_account_id,
     gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
+    approval: inv.approval,
+    rejection_reason: inv.rejection_reason,
   }));
 
   return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });

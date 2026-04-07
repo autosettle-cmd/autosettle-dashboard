@@ -116,6 +116,7 @@ export default function AccountantReconciliationWorkspacePage() {
 
   useEffect(() => { loadStatement(); }, [id]);
 
+
   const filteredTxns = statement?.transactions.filter((t) => {
     if (filter === 'all') return true;
     if (filter === 'matched') return t.recon_status === 'matched' || t.recon_status === 'manually_matched';

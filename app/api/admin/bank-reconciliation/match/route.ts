@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { createBankReconJV } from '@/lib/bank-recon-jv';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,5 +43,15 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  return NextResponse.json({ data: { id: updated.id, recon_status: updated.recon_status }, error: null });
+  // Auto-create bank recon JV (non-blocking — match succeeds even if JV fails)
+  const jvResult = await createBankReconJV(bankTransactionId, paymentId, session.user.firm_id, session.user.id);
+
+  return NextResponse.json({
+    data: {
+      id: updated.id,
+      recon_status: updated.recon_status,
+      ...(jvResult.warning && { jv_warning: jvResult.warning }),
+    },
+    error: null,
+  });
 }

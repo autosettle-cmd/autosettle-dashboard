@@ -87,7 +87,172 @@ export default function ChartOfAccountsPage() {
   const [expandedSet, setExpandedSet] = useState<Set<string>>(new Set());
   const [seeding, setSeeding] = useState(false);
 
-  // Modal
+  // Accounting settings
+  const [tradePayablesId, setTradePayablesId] = useState('');
+  const [staffClaimsId, setStaffClaimsId] = useState('');
+  const [origTradePayables, setOrigTradePayables] = useState<{ id: string; label: string } | null>(null);
+  const [origStaffClaims, setOrigStaffClaims] = useState<{ id: string; label: string } | null>(null);
+  const [bankMappings, setBankMappings] = useState<{ bank_name: string; account_number: string; gl_account_id: string | null; gl_account_label: string | null }[]>([]);
+  const [bankGlEdits, setBankGlEdits] = useState<Record<string, string>>({});
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{ label: string; changes: { from: string; to: string }[]; onConfirm: () => void } | null>(null);
+
+  // Load accounting settings when firm changes
+  useEffect(() => {
+    if (!firmId) return;
+    fetch(`/api/accounting-settings?firmId=${firmId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        const d = j.data;
+        setOrigTradePayables(d.gl_defaults.trade_payables);
+        setOrigStaffClaims(d.gl_defaults.staff_claims);
+        setTradePayablesId(d.gl_defaults.trade_payables?.id ?? '');
+        setStaffClaimsId(d.gl_defaults.staff_claims?.id ?? '');
+        setBankMappings(d.bank_mappings ?? []);
+        setBankGlEdits({});
+      })
+      .catch(console.error);
+  }, [firmId, refreshKey]);
+
+  const liabilityAccounts = accounts.filter((a) => a.account_type === 'Liability');
+  const bankGlAccounts = accounts.filter((a) => a.account_type === 'Asset');
+
+  const saveGlDefaults = () => {
+    const tpChanged = origTradePayables && tradePayablesId !== origTradePayables.id;
+    const scChanged = origStaffClaims && staffClaimsId !== origStaffClaims.id;
+    if (tpChanged || scChanged) {
+      const changes: { from: string; to: string }[] = [];
+      if (tpChanged) {
+        const newTp = accounts.find((a) => a.id === tradePayablesId);
+        changes.push({ from: `Trade Payables: ${origTradePayables.label}`, to: `Trade Payables: ${newTp ? `${newTp.account_code} — ${newTp.name}` : 'Not configured'}` });
+      }
+      if (scChanged) {
+        const newSc = accounts.find((a) => a.id === staffClaimsId);
+        changes.push({ from: `Staff Claims: ${origStaffClaims.label}`, to: `Staff Claims: ${newSc ? `${newSc.account_code} — ${newSc.name}` : 'Not configured'}` });
+      }
+      setConfirmModal({ label: 'GL Defaults', changes, onConfirm: doSaveGlDefaults });
+      return;
+    }
+    doSaveGlDefaults();
+  };
+
+  const doSaveGlDefaults = async () => {
+    setConfirmModal(null);
+    setSettingsSaving(true);
+    setSettingsMsg('');
+    try {
+      const res = await fetch(`/api/firms/${firmId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ default_trade_payables_gl_id: tradePayablesId || null, default_staff_claims_gl_id: staffClaimsId || null }),
+      });
+      if (res.ok) {
+        const tp = accounts.find((a) => a.id === tradePayablesId);
+        const sc = accounts.find((a) => a.id === staffClaimsId);
+        setOrigTradePayables(tp ? { id: tp.id, label: `${tp.account_code} — ${tp.name}` } : null);
+        setOrigStaffClaims(sc ? { id: sc.id, label: `${sc.account_code} — ${sc.name}` } : null);
+        setSettingsMsg('GL defaults saved');
+      }
+    } catch (e) { console.error(e); }
+    finally { setSettingsSaving(false); }
+  };
+
+  const saveBankMapping = (bankName: string, accountNumber: string) => {
+    const key = `${bankName}|${accountNumber}`;
+    const glId = bankGlEdits[key];
+    if (!glId) return;
+    const existing = bankMappings.find((m) => m.bank_name === bankName && m.account_number === accountNumber);
+    if (existing?.gl_account_id && existing.gl_account_id !== glId) {
+      const newGl = accounts.find((a) => a.id === glId);
+      setConfirmModal({
+        label: `${bankName} ${accountNumber}`,
+        changes: [{ from: existing.gl_account_label ?? 'Unknown', to: newGl ? `${newGl.account_code} — ${newGl.name}` : 'Unknown' }],
+        onConfirm: () => doSaveBankMapping(bankName, accountNumber),
+      });
+      return;
+    }
+    doSaveBankMapping(bankName, accountNumber);
+  };
+
+  const doSaveBankMapping = async (bankName: string, accountNumber: string) => {
+    setConfirmModal(null);
+    const key = `${bankName}|${accountNumber}`;
+    const glId = bankGlEdits[key];
+    if (!glId) return;
+    setSettingsSaving(true);
+    setSettingsMsg('');
+    try {
+      const res = await fetch('/api/accounting-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firmId, bank_name: bankName, account_number: accountNumber, gl_account_id: glId }),
+      });
+      if (res.ok) {
+        const gl = accounts.find((a) => a.id === glId);
+        setBankMappings((prev) => prev.map((m) => m.bank_name === bankName && m.account_number === accountNumber ? { ...m, gl_account_id: glId, gl_account_label: gl ? `${gl.account_code} — ${gl.name}` : null } : m));
+        setBankGlEdits((prev) => { const next = { ...prev }; delete next[key]; return next; });
+        setSettingsMsg(`Bank mapping saved for ${bankName}`);
+      }
+    } catch (e) { console.error(e); }
+    finally { setSettingsSaving(false); }
+  };
+
+  // Tax codes
+  interface TaxCodeRow { id: string; code: string; description: string; rate: string; tax_type: string; gl_account_id: string | null; glAccount: { account_code: string; name: string } | null; is_active: boolean; }
+  const [taxCodes, setTaxCodes] = useState<TaxCodeRow[]>([]);
+
+  // Load tax codes when firm changes
+  useEffect(() => {
+    if (!firmId) { setTaxCodes([]); return; }
+    fetch(`/api/tax-codes?firmId=${firmId}`)
+      .then((r) => r.json())
+      .then((j) => setTaxCodes(j.data ?? []))
+      .catch(console.error);
+  }, [firmId, refreshKey]);
+
+  const taxGlAccounts = accounts.filter((a) => ['Asset', 'Liability'].includes(a.account_type));
+
+  // Tax code modal
+  const [showTaxModal, setShowTaxModal] = useState(false);
+  const [taxEditId, setTaxEditId] = useState<string | null>(null);
+  const [taxModalCode, setTaxModalCode] = useState('');
+  const [taxModalDesc, setTaxModalDesc] = useState('');
+  const [taxModalRate, setTaxModalRate] = useState('');
+  const [taxModalType, setTaxModalType] = useState('');
+  const [taxModalGlId, setTaxModalGlId] = useState('');
+  const [taxModalError, setTaxModalError] = useState('');
+  const [taxModalSaving, setTaxModalSaving] = useState(false);
+
+  const openAddTaxModal = () => {
+    setTaxEditId(null); setTaxModalCode(''); setTaxModalDesc(''); setTaxModalRate('0'); setTaxModalType('SST'); setTaxModalGlId(''); setTaxModalError(''); setTaxModalSaving(false); setShowTaxModal(true);
+  };
+
+  const openEditTaxModal = (tc: TaxCodeRow) => {
+    setTaxEditId(tc.id); setTaxModalCode(tc.code); setTaxModalDesc(tc.description); setTaxModalRate(String(tc.rate)); setTaxModalType(tc.tax_type); setTaxModalGlId(tc.gl_account_id ?? ''); setTaxModalError(''); setTaxModalSaving(false); setShowTaxModal(true);
+  };
+
+  const submitTaxModal = async () => {
+    if (!taxModalCode.trim() || !taxModalDesc.trim() || !taxModalType.trim()) { setTaxModalError('Code, description, and tax type are required.'); return; }
+    setTaxModalSaving(true); setTaxModalError('');
+    try {
+      const url = taxEditId ? `/api/tax-codes/${taxEditId}` : '/api/tax-codes';
+      const method = taxEditId ? 'PATCH' : 'POST';
+      const body = taxEditId
+        ? { code: taxModalCode.trim(), description: taxModalDesc.trim(), rate: parseFloat(taxModalRate), tax_type: taxModalType.trim(), gl_account_id: taxModalGlId || null }
+        : { firmId, code: taxModalCode.trim(), description: taxModalDesc.trim(), rate: parseFloat(taxModalRate), tax_type: taxModalType.trim(), gl_account_id: taxModalGlId || null };
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const json = await res.json();
+      if (!res.ok) { setTaxModalError(json.error || 'Failed to save'); setTaxModalSaving(false); return; }
+      setShowTaxModal(false); refresh();
+    } catch { setTaxModalError('Network error'); setTaxModalSaving(false); }
+  };
+
+  const toggleTaxActive = async (tc: TaxCodeRow) => {
+    try { await fetch(`/api/tax-codes/${tc.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !tc.is_active }) }); refresh(); } catch { alert('Network error'); }
+  };
+
+  // GL Account Modal
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [modalCode, setModalCode] = useState('');
@@ -124,8 +289,8 @@ export default function ChartOfAccountsPage() {
         if (!cancelled) {
           const data = j.data ?? [];
           setAccounts(data);
-          // Expand all by default
-          setExpandedSet(new Set(data.map((a: GLAccount) => a.id)));
+          // Start collapsed
+          setExpandedSet(new Set());
           setLoading(false);
         }
       })
@@ -280,9 +445,14 @@ export default function ChartOfAccountsPage() {
             )}
 
             {hasFirmSelected && hasAccounts && (
-              <button onClick={() => openAddModal()} className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-semibold">
-                Add Account
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                <button onClick={() => openAddModal()} className="btn-primary text-sm px-4 py-2 rounded-lg font-semibold">
+                  Add Account Code
+                </button>
+                <button onClick={openAddTaxModal} className="btn-dark text-sm px-4 py-2 rounded-lg font-semibold">
+                  Add Tax Code
+                </button>
+              </div>
             )}
           </div>
 
@@ -308,7 +478,82 @@ export default function ChartOfAccountsPage() {
               </button>
             </div>
           ) : (
-            /* Accounts tree table */
+            <>
+            {/* ═══ ACCOUNTING SETTINGS ═══ */}
+            {settingsMsg && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700">{settingsMsg}</div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* GL Defaults */}
+              <section className="bg-white rounded-lg p-4 space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-[#191C1E]">GL Defaults</h2>
+                  <p className="text-xs text-[#8E9196] mt-0.5">Contra accounts for auto-generated journal entries.</p>
+                </div>
+                <div className="space-y-2.5">
+                  <div>
+                    <label className="input-label">Trade Payables (invoices)</label>
+                    <select value={tradePayablesId} onChange={(e) => setTradePayablesId(e.target.value)} className="input-field w-full text-sm">
+                      <option value="">Not configured</option>
+                      {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="input-label">Staff Claims Payable (claims)</label>
+                    <select value={staffClaimsId} onChange={(e) => setStaffClaimsId(e.target.value)} className="input-field w-full text-sm">
+                      <option value="">Not configured</option>
+                      {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={saveGlDefaults} disabled={settingsSaving} className="btn-primary px-4 py-1.5 rounded-lg text-sm font-semibold disabled:opacity-40">
+                    {settingsSaving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </section>
+
+              {/* Bank Account GL Mappings */}
+              <section className="bg-white rounded-lg p-4 space-y-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-[#191C1E]">Bank Account GL</h2>
+                  <p className="text-xs text-[#8E9196] mt-0.5">Maps bank accounts to GL for bank reconciliation journal entries.</p>
+                </div>
+                {bankMappings.length === 0 ? (
+                  <p className="text-xs text-[#8E9196]">No bank statements uploaded yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {bankMappings.map((m) => {
+                      const key = `${m.bank_name}|${m.account_number}`;
+                      const editValue = bankGlEdits[key] ?? m.gl_account_id ?? '';
+                      const hasChanged = bankGlEdits[key] !== undefined && bankGlEdits[key] !== (m.gl_account_id ?? '');
+                      return (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-[#191C1E] min-w-[120px]">{m.bank_name}</span>
+                          <span className="text-xs text-[#8E9196] font-mono min-w-[110px]">{m.account_number || '-'}</span>
+                          <select
+                            value={editValue}
+                            onChange={(e) => setBankGlEdits((prev) => ({ ...prev, [key]: e.target.value }))}
+                            className="input-field flex-1 text-sm"
+                          >
+                            <option value="">Not mapped</option>
+                            {bankGlAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                          </select>
+                          {hasChanged ? (
+                            <button onClick={() => saveBankMapping(m.bank_name, m.account_number)} disabled={settingsSaving} className="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40">Save</button>
+                          ) : m.gl_account_id ? (
+                            <span className="badge-green text-xs">Mapped</span>
+                          ) : (
+                            <span className="badge-amber text-xs">Unmapped</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            {/* Accounts tree table */}
             <div className="bg-white rounded-lg overflow-hidden">
               <div className="overflow-auto">
                 <table className="w-full">
@@ -384,6 +629,60 @@ export default function ChartOfAccountsPage() {
                 <p className="text-body-sm text-[#8E9196]">{accounts.length} accounts</p>
               </div>
             </div>
+
+            {/* ═══ TAX CODES TABLE ═══ */}
+            <div className="bg-white rounded-lg overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100">
+                <h2 className="text-sm font-semibold text-[#191C1E]">Tax Codes</h2>
+              </div>
+              {taxCodes.length === 0 ? (
+                <div className="px-5 py-6 text-center text-sm text-[#8E9196]">No tax codes. Click &quot;Add Tax Code&quot; to create one.</div>
+              ) : (
+                <div className="overflow-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="ds-table-header text-left">
+                        <th className="px-5 py-2.5">Code</th>
+                        <th className="px-3 py-2.5">Description</th>
+                        <th className="px-3 py-2.5 text-right w-[80px]">Rate</th>
+                        <th className="px-3 py-2.5">Type</th>
+                        <th className="px-3 py-2.5">GL Account</th>
+                        <th className="px-3 py-2.5 w-[80px]">Status</th>
+                        <th className="px-3 py-2.5 w-[140px]">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {taxCodes.map((tc) => (
+                        <tr key={tc.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
+                          <td className="px-5 py-3 font-mono font-semibold text-[#191C1E]">{tc.code}</td>
+                          <td className="px-3 py-3 text-[#434654] font-medium">{tc.description}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-[#191C1E] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
+                          <td className="px-3 py-3 text-[#8E9196]">{tc.tax_type}</td>
+                          <td className="px-3 py-3 text-[#434654] text-xs">{tc.glAccount ? `${tc.glAccount.account_code} — ${tc.glAccount.name}` : '—'}</td>
+                          <td className="px-3 py-3">{tc.is_active ? <span className="badge-green">Active</span> : <span className="badge-gray">Inactive</span>}</td>
+                          <td className="px-3 py-3">
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => openEditTaxModal(tc)} className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors" title="Edit">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                              </button>
+                              <button onClick={() => toggleTaxActive(tc)} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                                {tc.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="px-5 py-3 border-t border-gray-100">
+                <p className="text-body-sm text-[#8E9196]">{taxCodes.length} tax codes</p>
+              </div>
+            </div>
+            </>
           )}
         </main>
       </div>
@@ -474,6 +773,83 @@ export default function ChartOfAccountsPage() {
           </div>
         </div>
       )}
+      {/* === ADD/EDIT TAX CODE MODAL === */}
+      {showTaxModal && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowTaxModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowTaxModal(false)}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+                <span className="text-white font-semibold text-sm">{taxEditId ? 'Edit Tax Code' : 'Add Tax Code'}</span>
+                <button onClick={() => setShowTaxModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {taxModalError && <div className="bg-red-50 border border-red-200 rounded-lg p-3"><p className="text-sm text-red-700">{taxModalError}</p></div>}
+                <div className="grid grid-cols-2 gap-4">
+                  <div><label className="input-label">Code *</label><input type="text" value={taxModalCode} onChange={(e) => setTaxModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. SR-6" autoFocus /></div>
+                  <div><label className="input-label">Rate (%)</label><input type="number" value={taxModalRate} onChange={(e) => setTaxModalRate(e.target.value)} className="input-field w-full" step="0.01" min="0" max="100" /></div>
+                </div>
+                <div><label className="input-label">Description *</label><input type="text" value={taxModalDesc} onChange={(e) => setTaxModalDesc(e.target.value)} className="input-field w-full" placeholder="e.g. Standard Rate SST 6%" /></div>
+                <div>
+                  <label className="input-label">Tax Type *</label>
+                  <select value={taxModalType} onChange={(e) => setTaxModalType(e.target.value)} className="input-field w-full">
+                    <option value="">Select type</option>
+                    <option value="SST">SST</option>
+                    <option value="Service Tax">Service Tax</option>
+                    <option value="Zero-rated">Zero-rated</option>
+                    <option value="Exempt">Exempt</option>
+                    <option value="Out of Scope">Out of Scope</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">GL Account (Tax Payable/Receivable)</label>
+                  <select value={taxModalGlId} onChange={(e) => setTaxModalGlId(e.target.value)} className="input-field w-full">
+                    <option value="">None</option>
+                    {taxGlAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="p-4 flex-shrink-0 flex gap-3 border-t border-gray-100">
+                <button onClick={submitTaxModal} disabled={taxModalSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">{taxModalSaving ? 'Saving...' : taxEditId ? 'Save Changes' : 'Create Tax Code'}</button>
+                <button onClick={() => setShowTaxModal(false)} disabled={taxModalSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ═══ CHANGE CONFIRMATION MODAL ═══ */}
+      {confirmModal && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setConfirmModal(null)}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[#191C1E] mb-3">Change {confirmModal.label}</h3>
+            <div className="space-y-3 text-sm text-[#434654]">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                {confirmModal.changes.map((c, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#8E9196] text-xs font-medium uppercase w-12">From</span>
+                      <span className="font-medium">{c.from}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#8E9196] text-xs font-medium uppercase w-12">To</span>
+                      <span className="font-medium">{c.to}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
+                Existing journal entries will not be affected. Please review your Journal Entries if any corrections are needed.
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={confirmModal.onConfirm} className="btn-reject flex-1 py-2.5 rounded-lg text-sm font-semibold">Confirm Change</button>
+              <button onClick={() => setConfirmModal(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

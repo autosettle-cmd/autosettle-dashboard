@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { createJournalEntry, reverseJVsForSource } from '@/lib/journal-entries';
 
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,10 +43,14 @@ export async function PATCH(request: NextRequest) {
     chunks.push(claimIds.slice(i, i + CHUNK));
   }
 
-  // Fetch old values for audit before updating
+  // Fetch claims with GL + amount data for JV creation
   const oldClaims = await prisma.claim.findMany({
     where: { id: { in: claimIds }, ...scope },
-    select: { id: true, firm_id: true, approval: true, rejection_reason: true },
+    select: {
+      id: true, firm_id: true, approval: true, rejection_reason: true,
+      amount: true, claim_date: true, gl_account_id: true, merchant: true,
+      category: { select: { name: true } },
+    },
   });
   const oldClaimMap = new Map(oldClaims.map((c) => [c.id, c]));
 
@@ -57,6 +62,62 @@ export async function PATCH(request: NextRequest) {
       })
     )
   );
+
+  // ─── Auto-JV on approve / reverse on revert ────────────────────────────
+  const jvErrors: string[] = [];
+
+  if (action === 'approve') {
+    // Load firm GL defaults (grouped by firm to avoid repeated queries)
+    const firmDefaults = new Map<string, string | null>();
+    for (const claim of oldClaims) {
+      if (!firmDefaults.has(claim.firm_id)) {
+        const firm = await prisma.firm.findUnique({
+          where: { id: claim.firm_id },
+          select: { default_staff_claims_gl_id: true },
+        });
+        firmDefaults.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
+      }
+    }
+
+    for (const claim of oldClaims) {
+      // Resolve the GL account: request-level override > claim's existing GL
+      const expenseGlId = gl_account_id || claim.gl_account_id;
+      const contraGlId = firmDefaults.get(claim.firm_id);
+
+      if (!expenseGlId || !contraGlId) {
+        jvErrors.push(`Claim ${claim.id}: missing GL account (expense: ${!!expenseGlId}, contra: ${!!contraGlId})`);
+        continue;
+      }
+
+      try {
+        await createJournalEntry({
+          firmId: claim.firm_id,
+          postingDate: claim.claim_date,
+          description: `${claim.category.name} — ${claim.merchant}`,
+          sourceType: 'claim_approval',
+          sourceId: claim.id,
+          lines: [
+            { glAccountId: expenseGlId, debitAmount: Number(claim.amount), creditAmount: 0, description: claim.merchant },
+            { glAccountId: contraGlId, debitAmount: 0, creditAmount: Number(claim.amount), description: 'Staff Claims Payable' },
+          ],
+          createdBy: session.user.id,
+        });
+      } catch (err) {
+        jvErrors.push(`Claim ${claim.id}: ${err instanceof Error ? err.message : 'JV creation failed'}`);
+      }
+    }
+  }
+
+  if (action === 'revert') {
+    for (const claim of oldClaims) {
+      if (claim.approval !== 'approved') continue; // only reverse if was approved
+      try {
+        await reverseJVsForSource('claim_approval', claim.id, session.user.id);
+      } catch (err) {
+        jvErrors.push(`Claim ${claim.id}: ${err instanceof Error ? err.message : 'JV reversal failed'}`);
+      }
+    }
+  }
 
   // Audit log per claim
   for (const claim of oldClaims) {
@@ -72,5 +133,8 @@ export async function PATCH(request: NextRequest) {
     });
   }
 
-  return NextResponse.json({ data: { updated: claimIds.length }, error: null });
+  return NextResponse.json({
+    data: { updated: claimIds.length, ...(jvErrors.length > 0 && { jv_warnings: jvErrors }) },
+    error: null,
+  });
 }

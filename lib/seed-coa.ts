@@ -112,6 +112,25 @@ export async function seedCoAForFirm(firmId: string) {
     }
   }
 
+  // ─── Firm GL Defaults ────────────────────────────────────────────────────
+  // Auto-set default contra accounts if not already configured
+  const firm = await prisma.firm.findUnique({
+    where: { id: firmId },
+    select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true },
+  });
+
+  const updates: Record<string, string> = {};
+  if (!firm?.default_trade_payables_gl_id && codeToId["211-001"]) {
+    updates.default_trade_payables_gl_id = codeToId["211-001"];
+  }
+  if (!firm?.default_staff_claims_gl_id && codeToId["214-000"]) {
+    updates.default_staff_claims_gl_id = codeToId["214-000"];
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await prisma.firm.update({ where: { id: firmId }, data: updates });
+  }
+
   const seeded = accountsCreated > 0 || taxCodesCreated > 0;
   return {
     seeded,

@@ -52,6 +52,12 @@ export default function AccountantBankReconciliationPage() {
   const [uploadFirmId, setUploadFirmId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Bank GL mappings
+  const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [bankGlMap, setBankGlMap] = useState<Record<string, { gl_account_id: string | null; gl_account_label: string | null }>>({});
+  const [glEditKey, setGlEditKey] = useState<string | null>(null);
+  const [glEditValue, setGlEditValue] = useState('');
+
   useEffect(() => {
     fetch('/api/firms').then((r) => r.json()).then((j) => {
       const list = j.data ?? [];
@@ -76,6 +82,65 @@ export default function AccountantBankReconciliationPage() {
   };
 
   useEffect(() => { setLoading(true); loadStatements(); }, [firmFilter]);
+
+  // Load GL accounts + bank mappings when statements change
+  useEffect(() => {
+    if (statements.length === 0) return;
+    // Get unique firm IDs from statements
+    const firmIdArr = Array.from(new Set(statements.map((s) => s.firm_id)));
+    const firmId = firmIdArr.length === 1 ? firmIdArr[0] : firmFilter;
+    if (!firmId) return;
+
+    Promise.all([
+      fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()),
+      fetch(`/api/accounting-settings?firmId=${firmId}`).then((r) => r.json()),
+    ]).then(([glJson, settingsJson]) => {
+      setGlAccounts(glJson.data ?? []);
+      const mappings: Record<string, { gl_account_id: string | null; gl_account_label: string | null }> = {};
+      for (const m of settingsJson.data?.bank_mappings ?? []) {
+        mappings[`${m.bank_name}|${m.account_number}`] = { gl_account_id: m.gl_account_id, gl_account_label: m.gl_account_label };
+      }
+      setBankGlMap(mappings);
+    }).catch(console.error);
+  }, [statements.length, firmFilter]);
+
+  // GL change confirmation modal
+  const [glConfirm, setGlConfirm] = useState<{ bankName: string; accountNumber: string; glAccountId: string; oldLabel: string; newLabel: string } | null>(null);
+
+  const saveBankGl = async (bankName: string, accountNumber: string, glAccountId: string) => {
+    const key = `${bankName}|${accountNumber}`;
+    const existing = bankGlMap[key];
+
+    // If changing from an existing GL, show confirmation
+    if (existing?.gl_account_id && existing.gl_account_id !== glAccountId) {
+      const newGl = glAccounts.find((a) => a.id === glAccountId);
+      setGlConfirm({
+        bankName,
+        accountNumber,
+        glAccountId,
+        oldLabel: existing.gl_account_label ?? 'Unknown',
+        newLabel: newGl ? `${newGl.account_code} — ${newGl.name}` : 'Unknown',
+      });
+      return;
+    }
+
+    await doSaveBankGl(bankName, accountNumber, glAccountId);
+  };
+
+  const doSaveBankGl = async (bankName: string, accountNumber: string, glAccountId: string) => {
+    const firmId = statements.find((s) => s.bank_name === bankName && (s.account_number ?? '') === accountNumber)?.firm_id;
+    if (!firmId) return;
+    await fetch('/api/accounting-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firmId, bank_name: bankName, account_number: accountNumber, gl_account_id: glAccountId }),
+    });
+    const gl = glAccounts.find((a) => a.id === glAccountId);
+    const key = `${bankName}|${accountNumber}`;
+    setBankGlMap((prev) => ({ ...prev, [key]: { gl_account_id: glAccountId, gl_account_label: gl ? `${gl.account_code} — ${gl.name}` : null } }));
+    setGlEditKey(null);
+    setGlConfirm(null);
+  };
 
   const handleUpload = async () => {
     const file = fileRef.current?.files?.[0];
@@ -254,7 +319,59 @@ export default function AccountantBankReconciliationPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                        {/* GL Account mapping */}
+                        {(() => {
+                          const glMapping = bankGlMap[key];
+                          const isEditing = glEditKey === key;
+                          const bankAccounts = glAccounts.filter((a) => a.account_type === 'Asset' && a.account_code.startsWith('111'));
+
+                          if (isEditing) {
+                            return (
+                              <div className="flex items-center gap-1.5">
+                                <select
+                                  value={glEditValue}
+                                  onChange={(e) => setGlEditValue(e.target.value)}
+                                  className="input-field text-xs py-1"
+                                  autoFocus
+                                >
+                                  <option value="">Select GL...</option>
+                                  {bankAccounts.map((a) => (
+                                    <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => { if (glEditValue) saveBankGl(group.bank, group.account === '-' ? '' : group.account, glEditValue); }}
+                                  disabled={!glEditValue}
+                                  className="text-xs px-2 py-1 rounded font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-40"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={() => setGlEditKey(null)}
+                                  className="text-xs px-2 py-1 rounded font-medium text-[#434654] border border-gray-200 hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <button
+                              onClick={() => { setGlEditKey(key); setGlEditValue(glMapping?.gl_account_id ?? ''); }}
+                              className={`text-label-sm font-medium px-2.5 py-1 rounded transition-colors ${
+                                glMapping?.gl_account_id
+                                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
+                                  : 'text-amber-700 bg-amber-50 hover:bg-amber-100'
+                              }`}
+                              title={glMapping?.gl_account_id ? 'Change GL account' : 'Assign GL account'}
+                            >
+                              {glMapping?.gl_account_label ?? 'No GL assigned'}
+                            </button>
+                          );
+                        })()}
+
                         {needsAttention && (
                           <span className="text-label-sm font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">{totalUnmatched} unmatched</span>
                         )}
@@ -344,6 +461,46 @@ export default function AccountantBankReconciliationPage() {
           })()}
         </main>
       </div>
+
+      {/* ═══ GL CHANGE CONFIRMATION MODAL ═══ */}
+      {glConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setGlConfirm(null)}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[#191C1E] mb-3">Change GL Account</h3>
+            <div className="space-y-3 text-sm text-[#434654]">
+              <p>You are changing the GL account for <strong>{glConfirm.bankName} {glConfirm.accountNumber}</strong>:</p>
+              <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[#8E9196] text-xs font-medium uppercase w-12">From</span>
+                  <span className="font-medium">{glConfirm.oldLabel}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#8E9196] text-xs font-medium uppercase w-12">To</span>
+                  <span className="font-medium">{glConfirm.newLabel}</span>
+                </div>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
+                Existing journal entries will not be affected. Please review your Journal Entries if any corrections are needed.
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => doSaveBankGl(glConfirm.bankName, glConfirm.accountNumber, glConfirm.glAccountId)}
+                className="btn-reject flex-1 py-2.5 rounded-lg text-sm font-semibold"
+              >
+                Confirm Change
+              </button>
+              <button
+                onClick={() => setGlConfirm(null)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

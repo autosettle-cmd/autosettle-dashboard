@@ -35,6 +35,8 @@ interface InvoiceRow {
   thumbnail_url: string | null;
   gl_account_id: string | null;
   gl_account_label: string | null;
+  approval: 'pending_approval' | 'approved' | 'not_approved';
+  rejection_reason: string | null;
 }
 
 interface FirmOption {
@@ -65,6 +67,12 @@ const LINK_CFG: Record<string, { label: string; cls: string }> = {
   confirmed:    { label: 'Confirmed',    cls: 'badge-green' },
   auto_matched: { label: 'Suggested',    cls: 'badge-amber' },
   unmatched:    { label: 'Unconfirmed',  cls: 'badge-red'   },
+};
+
+const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
+  pending_approval: { label: 'Pending',      cls: 'badge-gray'   },
+  approved:         { label: 'Approved',     cls: 'badge-green'  },
+  not_approved:     { label: 'Not Approved', cls: 'badge-red'    },
 };
 
 function formatDate(val: string) {
@@ -155,6 +163,46 @@ function AccountantInvoicesPage() {
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceRow | null>(null);
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
+
+  // Selection for batch actions
+  const [selectedRows, setSelectedRows] = useState<InvoiceRow[]>([]);
+  const toggleSelectOne = (row: InvoiceRow) => {
+    setSelectedRows((prev) =>
+      prev.some((r) => r.id === row.id) ? prev.filter((r) => r.id !== row.id) : [...prev, row]
+    );
+  };
+  const toggleSelectAll = () => {
+    const allOnPageSelected = pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id));
+    setSelectedRows(allOnPageSelected ? [] : pagedInvoices);
+  };
+
+  const batchAction = async (invoiceIds: string[], action: 'approve' | 'reject' | 'revert', reason?: string) => {
+    try {
+      const res = await fetch('/api/invoices/batch', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceIds, action, ...(reason && { reason }) }),
+      });
+      if (res.ok) {
+        refresh();
+        setSelectedRows([]);
+        if (previewInvoice && invoiceIds.includes(previewInvoice.id)) {
+          setPreviewInvoice({
+            ...previewInvoice,
+            approval: action === 'approve' ? 'approved' : action === 'reject' ? 'not_approved' : 'pending_approval',
+            ...(action === 'reject' && reason ? { rejection_reason: reason } : {}),
+          });
+        }
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  // Reject modal
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; invoiceIds: string[]; reason: string }>({ open: false, invoiceIds: [], reason: '' });
+  const confirmReject = () => {
+    batchAction(rejectModal.invoiceIds, 'reject', rejectModal.reason);
+    setRejectModal({ open: false, invoiceIds: [], reason: '' });
+  };
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -404,6 +452,7 @@ function AccountantInvoicesPage() {
   const [customTo,        setCustomTo]       = useState('');
   const [statusFilter,    setStatusFilter]   = useState(initialStatus);
   const [paymentFilter,   setPaymentFilter]  = useState(initialPayment);
+  const [approvalFilter,  setApprovalFilter] = useState('');
   const [search,          setSearch]         = useState('');
 
   const [page, setPage] = useState(0);
@@ -445,7 +494,10 @@ function AccountantInvoicesPage() {
   }, [firmFilter, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey, takeLimit]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
-  const { sorted: sortedInvoices, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(invoices, 'issue_date', 'desc');
+  const filteredInvoices = approvalFilter
+    ? invoices.filter((inv) => inv.approval === approvalFilter)
+    : invoices;
+  const { sorted: sortedInvoices, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(filteredInvoices, 'issue_date', 'desc');
   useEffect(() => { setPage(0); }, [sortField, sortDir]);
   const pagedInvoices = sortedInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(sortedInvoices.length / PAGE_SIZE);
@@ -516,6 +568,13 @@ function AccountantInvoicesPage() {
               <option value="reviewed">Reviewed</option>
             </Select>
 
+            <Select value={approvalFilter} onChange={setApprovalFilter}>
+              <option value="">All Approval</option>
+              <option value="pending_approval">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="not_approved">Not Approved</option>
+            </Select>
+
             <Select value={paymentFilter} onChange={setPaymentFilter}>
               <option value="">All Payments</option>
               <option value="unpaid">Unpaid</option>
@@ -544,6 +603,31 @@ function AccountantInvoicesPage() {
           {/* ── Load More ─────────────────────────────────── */}
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={invoices.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
+          {/* ── Batch action bar ────────────────────────────── */}
+          {selectedRows.length > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-[#1B2559]/5 rounded-lg flex-shrink-0">
+              <span className="text-body-sm font-medium text-[#191C1E]">{selectedRows.length} selected</span>
+              <button
+                onClick={() => batchAction(selectedRows.map((r) => r.id), 'approve')}
+                className="btn-approve text-sm px-4 py-1.5 rounded-full"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => setRejectModal({ open: true, invoiceIds: selectedRows.map((r) => r.id), reason: '' })}
+                className="btn-reject text-sm px-4 py-1.5 rounded-full"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => setSelectedRows([])}
+                className="text-sm text-[#8E9196] hover:text-[#191C1E] transition-colors"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
           {/* ── Invoice Table ────────────────────────────── */}
           <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
             {loading ? (
@@ -555,35 +639,45 @@ function AccountantInvoicesPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="ds-table-header text-left">
-                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
+                      <th className="px-3 py-2.5 w-10"><input type="checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
                       <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('vendor_name_raw')}>Vendor{sortIndicator('vendor_name_raw')}</th>
                       <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
                       {!firmFilter && <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
                       <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('due_date')}>Due Date{sortIndicator('due_date')}</th>
                       <th className="px-3 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('total_amount')}>Amount (RM){sortIndicator('total_amount')}</th>
                       <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
+                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
                       <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
                       <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('supplier_link_status')}>Supplier{sortIndicator('supplier_link_status')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pagedInvoices.map((inv) => (
+                    {pagedInvoices.map((inv) => {
+                      const isSelected = selectedRows.some((r) => r.id === inv.id);
+                      const approvalCfg = APPROVAL_CFG[inv.approval];
+                      return (
                       <tr
                         key={inv.id}
                         onClick={() => setPreviewInvoice(inv)}
-                        className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50"
+                        className={`text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50 ${isSelected ? 'bg-blue-50/40' : ''}`}
                       >
-                        <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                        <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
+                        </td>
+                        <td className="px-3 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
                         <td className="px-3 py-3 text-[#191C1E] font-medium">{inv.vendor_name_raw}</td>
                         <td className="px-3 py-3 text-[#434654]">{inv.invoice_number ?? '-'}</td>
                         {!firmFilter && <td className="px-3 py-3 text-[#434654]">{inv.firm_name}</td>}
                         <td className="px-3 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
                         <td className="px-3 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
                         <td className="px-3 py-3"><StatusCell value={inv.status} /></td>
+                        <td className="px-3 py-3">{approvalCfg && <span className={approvalCfg.cls}>{approvalCfg.label}</span>}</td>
                         <td className="px-3 py-3"><PaymentCell value={inv.payment_status} /></td>
                         <td className="px-3 py-3"><LinkCell value={inv.supplier_link_status} /></td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
                 {totalPages > 1 && (
@@ -846,6 +940,11 @@ function AccountantInvoicesPage() {
                     {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
                       <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
                     ))}
+                    {APPROVAL_CFG[previewInvoice.approval] && (
+                      <span className={APPROVAL_CFG[previewInvoice.approval].cls}>
+                        {APPROVAL_CFG[previewInvoice.approval].label}
+                      </span>
+                    )}
                   </div>
 
                   {/* Supplier link */}
@@ -1014,12 +1113,68 @@ function AccountantInvoicesPage() {
                       Mark as Reviewed
                     </button>
                   )}
+                  {previewInvoice.approval === 'approved' ? (
+                    <button
+                      onClick={() => batchAction([previewInvoice.id], 'revert')}
+                      className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                    >
+                      Revert Approval
+                    </button>
+                  ) : previewInvoice.approval === 'not_approved' ? (
+                    <button
+                      onClick={() => batchAction([previewInvoice.id], 'revert')}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                    >
+                      Revert to Pending
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => batchAction([previewInvoice.id], 'approve')}
+                        className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
+                        className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </div>
           </div>
           </div>
         </>
+      )}
+
+      {/* ═══ REJECT MODAL ═══ */}
+      {rejectModal.open && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[#191C1E] mb-3">
+              Reject {rejectModal.invoiceIds.length} Invoice{rejectModal.invoiceIds.length !== 1 ? 's' : ''}
+            </h3>
+            <textarea
+              value={rejectModal.reason}
+              onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
+              placeholder="Enter rejection reason..."
+              rows={3}
+              className="input-field w-full resize-none"
+            />
+            <div className="flex gap-3 mt-4">
+              <button onClick={confirmReject} disabled={!rejectModal.reason.trim()} className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                Confirm
+              </button>
+              <button onClick={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>
