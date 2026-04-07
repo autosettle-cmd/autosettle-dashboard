@@ -10,11 +10,14 @@ export async function GET() {
   }
   const firmId = session.user.firm_id;
 
-  const [claim, receipt, mileage] = await Promise.all([
+  const [claim, receipt, mileage, claimPending, receiptPending, mileagePending] = await Promise.all([
     prisma.claim.count({ where: { firm_id: firmId, type: 'claim' } }),
     prisma.claim.count({ where: { firm_id: firmId, type: 'receipt' } }),
     prisma.claim.count({ where: { firm_id: firmId, type: 'mileage' } }),
+    prisma.claim.count({ where: { firm_id: firmId, type: 'claim', status: 'pending_review' } }),
+    prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', status: 'pending_review' } }),
+    prisma.claim.count({ where: { firm_id: firmId, type: 'mileage', status: 'pending_review' } }),
   ]);
 
-  return NextResponse.json({ data: { claim, receipt, mileage }, error: null });
+  return NextResponse.json({ data: { claim, receipt, mileage, claimPending, receiptPending, mileagePending }, error: null });
 }

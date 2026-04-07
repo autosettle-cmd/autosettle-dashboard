@@ -21,16 +21,19 @@ export async function GET() {
     const monthFilter = { gte: monthStart, lte: monthEnd };
 
     const [
-      // Stats (12 queries)
+      // Stats
       claimsThisMonth, claimsThisMonthAmt,
       pendingClaimsCount, pendingClaimsAmt,
+      approvalClaimsCount, approvalClaimsAmt,
       receiptsThisMonth, receiptsThisMonthAmt,
       unlinkedReceiptsCount, unlinkedReceiptsAmt,
+      notApprovedReceiptsCount, notApprovedReceiptsAmt,
       invoicesThisMonth, invoicesThisMonthAmt,
       pendingInvoicesCount, pendingInvoicesAmt,
-      // Bank recon stats (2 queries)
-      totalStatements, unmatchedTxns,
-      // Table data (3 queries)
+      approvalInvoicesCount, approvalInvoicesAmt,
+      // Bank recon stats
+      totalStatements, unmatchedTxns, suggestedMatchTxns,
+      // Table data
       pendingClaims,
       unlinkedReceipts,
       pendingInvoices,
@@ -40,17 +43,24 @@ export async function GET() {
       prisma.claim.aggregate({ where: { ...scope, type: 'claim', claim_date: monthFilter }, _sum: { amount: true } }),
       prisma.claim.count({ where: { ...scope, type: 'claim', status: 'pending_review' } }),
       prisma.claim.aggregate({ where: { ...scope, type: 'claim', status: 'pending_review' }, _sum: { amount: true } }),
+      prisma.claim.count({ where: { ...scope, type: 'claim', approval: 'pending_approval' } }),
+      prisma.claim.aggregate({ where: { ...scope, type: 'claim', approval: 'pending_approval' }, _sum: { amount: true } }),
       prisma.claim.count({ where: { ...scope, type: 'receipt', claim_date: monthFilter } }),
       prisma.claim.aggregate({ where: { ...scope, type: 'receipt', claim_date: monthFilter }, _sum: { amount: true } }),
       prisma.claim.count({ where: { ...scope, type: 'receipt', paymentReceipts: { none: {} } } }),
       prisma.claim.aggregate({ where: { ...scope, type: 'receipt', paymentReceipts: { none: {} } }, _sum: { amount: true } }),
+      prisma.claim.count({ where: { ...scope, type: 'receipt', approval: 'not_approved' } }),
+      prisma.claim.aggregate({ where: { ...scope, type: 'receipt', approval: 'not_approved' }, _sum: { amount: true } }),
       prisma.invoice.count({ where: { ...scope, issue_date: monthFilter } }),
       prisma.invoice.aggregate({ where: { ...scope, issue_date: monthFilter }, _sum: { total_amount: true } }),
       prisma.invoice.count({ where: { ...scope, status: 'pending_review' } }),
       prisma.invoice.aggregate({ where: { ...scope, status: 'pending_review' }, _sum: { total_amount: true } }),
+      prisma.invoice.count({ where: { ...scope, approval: 'pending_approval' } }),
+      prisma.invoice.aggregate({ where: { ...scope, approval: 'pending_approval' }, _sum: { total_amount: true } }),
       // ── Bank recon ──
       prisma.bankStatement.count({ where: firmFilter }),
       prisma.bankTransaction.count({ where: { bankStatement: firmFilter, recon_status: 'unmatched' } }),
+      prisma.bankTransaction.count({ where: { bankStatement: firmFilter, recon_status: 'matched' } }),
       // ── Table data ──
       prisma.claim.findMany({
         where: { ...scope, type: 'claim', status: 'pending_review' },
@@ -106,21 +116,27 @@ export async function GET() {
             thisMonthAmount: claimsThisMonthAmt._sum.amount?.toString() ?? '0',
             pendingReview: pendingClaimsCount,
             pendingAmount: pendingClaimsAmt._sum.amount?.toString() ?? '0',
+            pendingApproval: approvalClaimsCount,
+            pendingApprovalAmount: approvalClaimsAmt._sum.amount?.toString() ?? '0',
           },
           receipts: {
             thisMonth: receiptsThisMonth,
             thisMonthAmount: receiptsThisMonthAmt._sum.amount?.toString() ?? '0',
             unlinked: unlinkedReceiptsCount,
             unlinkedAmount: unlinkedReceiptsAmt._sum.amount?.toString() ?? '0',
+            notApproved: notApprovedReceiptsCount,
+            notApprovedAmount: notApprovedReceiptsAmt._sum.amount?.toString() ?? '0',
           },
           invoices: {
             thisMonth: invoicesThisMonth,
             thisMonthAmount: invoicesThisMonthAmt._sum.total_amount?.toString() ?? '0',
             pendingReview: pendingInvoicesCount,
             pendingAmount: pendingInvoicesAmt._sum.total_amount?.toString() ?? '0',
+            pendingApproval: approvalInvoicesCount,
+            pendingApprovalAmount: approvalInvoicesAmt._sum.total_amount?.toString() ?? '0',
           },
         },
-        bankRecon: { totalStatements, unmatched: unmatchedTxns },
+        bankRecon: { totalStatements, unmatched: unmatchedTxns, suggestedMatch: suggestedMatchTxns },
         pendingClaims: pendingClaims.map((c) => ({
           id: c.id,
           claim_date: c.claim_date,

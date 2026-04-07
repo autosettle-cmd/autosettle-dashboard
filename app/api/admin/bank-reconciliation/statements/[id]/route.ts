@@ -33,7 +33,7 @@ export async function GET(
                 include: { invoice: { select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, issue_date: true } } },
               },
               receipts: {
-                select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true } } },
+                select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true } } },
               },
             },
           },
@@ -110,6 +110,7 @@ export async function GET(
             amount: r.claim.amount.toString(),
             claim_date: r.claim.claim_date,
             thumbnail_url: r.claim.thumbnail_url,
+            file_url: r.claim.file_url,
           })),
         } : null,
       })),

@@ -116,6 +116,11 @@ function ApprovalCell({ value }: { value: string }) {
   return <span className={cfg.cls}>{cfg.label}</span>;
 }
 
+function ConfidenceCell({ value }: { value: string }) {
+  const cls = value === 'HIGH' ? 'text-green-600' : value === 'MEDIUM' ? 'text-amber-600' : 'text-red-600';
+  return <span className={`text-xs font-semibold ${cls}`}>{value}</span>;
+}
+
 function LinkedCell({ value }: { value: number }) {
   return value > 0
     ? <span className="badge-green">Linked</span>
@@ -150,9 +155,7 @@ function AdminClaimsPage() {
   usePageTitle('Claims');
   // Tab
   const [claimTab, setClaimTab] = useState<'claim' | 'receipt' | 'mileage'>('claim');
-  const [claimCount, setClaimCount] = useState(0);
-  const [receiptCount, setReceiptCount] = useState(0);
-  const [mileageCount, setMileageCount] = useState(0);
+
 
   // Data
   const [claims, setClaims]   = useState<ClaimRow[]>([]);
@@ -250,8 +253,9 @@ function AdminClaimsPage() {
   const [dateRange,     setDateRange]    = useState(initialStatus ? '' : 'this_month');
   const [customFrom,    setCustomFrom]   = useState('');
   const [customTo,      setCustomTo]     = useState('');
-  const [statusFilter,  setStatusFilter] = useState(initialStatus);
-  const [search,        setSearch]       = useState('');
+  const [statusFilter,   setStatusFilter]   = useState(initialStatus);
+  const [approvalFilter, setApprovalFilter] = useState('');
+  const [search,         setSearch]         = useState('');
 
   // Pagination
   const [page, setPage] = useState(0);
@@ -270,9 +274,10 @@ function AdminClaimsPage() {
     p.set('type', claimTab);
     if (from)         p.set('dateFrom', from);
     if (to)           p.set('dateTo',   to);
-    if (statusFilter) p.set('status',   statusFilter);
-    if (search)       p.set('search',   search);
-    if (takeLimit)    p.set('take',     String(takeLimit));
+    if (statusFilter)   p.set('status',   statusFilter);
+    if (approvalFilter) p.set('approval', approvalFilter);
+    if (search)         p.set('search',   search);
+    if (takeLimit)      p.set('take',     String(takeLimit));
 
     fetch(`/api/admin/claims?${p}`)
       .then((r) => r.json())
@@ -280,24 +285,12 @@ function AdminClaimsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [claimTab, dateRange, customFrom, customTo, statusFilter, search, refreshKey, takeLimit]);
+  }, [claimTab, dateRange, customFrom, customTo, statusFilter, approvalFilter, search, refreshKey, takeLimit]);
 
-  // Fetch tab counts
-  useEffect(() => {
-    fetch('/api/admin/claims/counts')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setClaimCount(j.data.claim ?? 0);
-          setReceiptCount(j.data.receipt ?? 0);
-          setMileageCount(j.data.mileage ?? 0);
-        }
-      })
-      .catch(console.error);
-  }, [refreshKey]);
+
 
   // Sort
-  const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(claims, 'claim_date', 'desc');
+  const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(claims, 'status', 'asc', 'confidence', 'asc');
 
   // Reset page when tab changes
   useEffect(() => { setPage(0); setSelectedIds(new Set()); }, [claimTab]);
@@ -504,32 +497,7 @@ function AdminClaimsPage() {
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
-          {/* ── Tabs + Actions ────────────────────────────── */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {([['claim', 'Employee Claims', claimCount], ['receipt', 'Receipts', receiptCount], ['mileage', 'Mileage', mileageCount]] as const).map(([key, label, count]) => (
-              <button
-                key={key}
-                onClick={() => { setClaimTab(key); setPreviewClaim(null); }}
-                className={`px-4 py-1.5 rounded-lg text-body-md font-medium transition-all ${
-                  claimTab === key
-                    ? 'text-white shadow-sm'
-                    : 'text-[#434654] hover:text-[#434654] hover:bg-gray-100'
-                }`}
-                style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
-              >
-                {label}
-                <span className={`ml-1.5 text-label-sm px-1.5 py-0.5 rounded-full font-semibold ${
-                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#434654]'
-                }`}>{count}</span>
-              </button>
-            ))}
-            <button
-              onClick={openModal}
-              className="btn-primary ml-auto text-sm px-4 py-2 rounded-lg font-semibold text-white"
-            >
-              + Submit New
-            </button>
-          </div>
+
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -560,6 +528,13 @@ function AdminClaimsPage() {
               <option value="">All Status</option>
               <option value="pending_review">Pending Review</option>
               <option value="reviewed">Reviewed</option>
+            </Select>
+
+            <Select value={approvalFilter} onChange={setApprovalFilter}>
+              <option value="">All Approval</option>
+              <option value="pending_approval">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="not_approved">Not Approved</option>
             </Select>
 
             <input
@@ -598,7 +573,8 @@ function AdminClaimsPage() {
                   {claimTab === 'mileage' && <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('distance_km')}>Distance (km){sortIndicator('distance_km')}</th>}
                   <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                   <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
-                  {claimTab !== 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>}
+                  <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                  {claimTab !== 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('confidence')}>Confidence{sortIndicator('confidence')}</th>}
                   {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>}
                   {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('linked_payment_count')}>Linked{sortIndicator('linked_payment_count')}</th>}
                 </tr>
@@ -622,7 +598,8 @@ function AdminClaimsPage() {
                     {claimTab === 'mileage' && <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{c.distance_km}</td>}
                     <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{Number(c.amount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                    {claimTab !== 'receipt' && <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>}
+                    <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>
+                    {claimTab !== 'mileage' && <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>}
                     {claimTab === 'receipt' && <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>}
                     {claimTab === 'receipt' && <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>}
                   </tr>
@@ -836,11 +813,13 @@ function AdminClaimsPage() {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.thumbnail_url ? (
-                <img
-                  src={previewClaim.thumbnail_url}
-                  alt="Receipt"
-                  className="w-full max-h-52 object-contain rounded-lg border border-gray-200"
-                />
+                previewClaim.file_url ? (
+                  <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">
                   No image available

@@ -348,7 +348,13 @@ export default function EmployeeDashboard() {
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {previewClaim.thumbnail_url ? (
                 <div className="rounded-ds-lg overflow-hidden bg-surface-low">
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain" />
+                  {previewClaim.file_url ? (
+                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                      <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                    </a>
+                  ) : (
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain" />
+                  )}
                 </div>
               ) : (
                 <div className="w-full h-40 rounded-ds-lg bg-surface-low flex flex-col items-center justify-center text-ds-text-muted gap-2">

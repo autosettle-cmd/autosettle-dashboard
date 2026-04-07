@@ -125,6 +125,11 @@ function ApprovalCell({ value }: { value: string }) {
   return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
 }
 
+function ConfidenceCell({ value }: { value: string }) {
+  const cls = value === 'HIGH' ? 'text-green-600' : value === 'MEDIUM' ? 'text-amber-600' : 'text-red-600';
+  return <span className={`text-xs font-semibold ${cls}`}>{value}</span>;
+}
+
 function LinkedCell({ value }: { value: number }) {
   return value > 0
     ? <span className="badge-green">Linked</span>
@@ -159,9 +164,7 @@ function ClaimsPage() {
   usePageTitle('Claims');
   // Tab
   const [claimTab, setClaimTab] = useState<'claim' | 'receipt' | 'mileage'>('claim');
-  const [claimCount, setClaimCount] = useState(0);
-  const [receiptCount, setReceiptCount] = useState(0);
-  const [mileageCount, setMileageCount] = useState(0);
+
 
   // Data
   const [claims, setClaims]   = useState<ClaimRow[]>([]);
@@ -285,21 +288,7 @@ function ClaimsPage() {
     return () => { cancelled = true; };
   }, [claimTab, firmId, dateRange, customFrom, customTo, approvalFilter, search, refreshKey, takeLimit]);
 
-  // Fetch tab counts
-  useEffect(() => {
-    const p = new URLSearchParams();
-    if (firmId) p.set('firmId', firmId);
-    fetch(`/api/claims/counts?${p}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setClaimCount(j.data.claim ?? 0);
-          setReceiptCount(j.data.receipt ?? 0);
-          setMileageCount(j.data.mileage ?? 0);
-        }
-      })
-      .catch(console.error);
-  }, [firmId, refreshKey]);
+
 
   // When previewClaim changes, exit edit mode
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
@@ -343,7 +332,7 @@ function ClaimsPage() {
   }, [previewClaim]);
 
   // Sort
-  const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(claims, 'claim_date', 'desc');
+  const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(claims, 'status', 'asc', 'confidence', 'asc');
 
   // Reset page when tab changes
   useEffect(() => { setPage(0); }, [claimTab]);
@@ -602,40 +591,7 @@ function ClaimsPage() {
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
-          {/* ── Tabs + Actions ────────────────────────────── */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {([['claim', 'Employee Claims', claimCount], ['receipt', 'Receipts', receiptCount], ['mileage', 'Mileage', mileageCount]] as const).map(([key, label, count]) => (
-              <button
-                key={key}
-                onClick={() => { setClaimTab(key); setPreviewClaim(null); setSelectedRows([]); }}
-                className={`px-4 py-1.5 rounded-full text-body-md font-medium transition-all ${
-                  claimTab === key
-                    ? 'text-white shadow-sm'
-                    : 'text-[#434654] hover:text-[#434654] hover:bg-gray-100'
-                }`}
-                style={claimTab === key ? { backgroundColor: 'var(--sidebar)' } : undefined}
-              >
-                {label}
-                <span className={`ml-1.5 text-label-sm px-1.5 py-0.5 rounded-full font-semibold ${
-                  claimTab === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-[#434654]'
-                }`}>{count}</span>
-              </button>
-            ))}
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={openModal}
-                className="btn-primary text-sm px-4 py-2 rounded-lg font-semibold text-white"
-              >
-                + Submit New
-              </button>
-              <button
-                onClick={exportCSV}
-                className="text-sm px-4 py-2 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
-              >
-                Export CSV
-              </button>
-            </div>
-          </div>
+
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -670,7 +626,7 @@ function ClaimsPage() {
             )}
 
             <Select value={approvalFilter} onChange={setApprovalFilter}>
-              <option value="">All Statuses</option>
+              <option value="">All Approval</option>
               <option value="pending_approval">Pending</option>
               <option value="approved">Approved</option>
               <option value="not_approved">Not Approved</option>
@@ -715,6 +671,7 @@ function ClaimsPage() {
                       <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('confidence')}>Confidence{sortIndicator('confidence')}</th>
                     </tr>
                   )}
                   {claimTab === 'receipt' && (
@@ -727,6 +684,8 @@ function ClaimsPage() {
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('category_name')}>Category{sortIndicator('category_name')}</th>
                       <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('confidence')}>Confidence{sortIndicator('confidence')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('linked_payment_count')}>Linked{sortIndicator('linked_payment_count')}</th>
                     </tr>
@@ -760,6 +719,7 @@ function ClaimsPage() {
                         <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
                         <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>
+                        <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                       </tr>
                     );
                     if (claimTab === 'mileage') return (
@@ -787,6 +747,8 @@ function ClaimsPage() {
                         <td className="px-5 py-3 text-[#434654]">{c.category_name}</td>
                         <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
+                        <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>
+                        <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                         <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                         <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>
                       </tr>
@@ -1045,11 +1007,13 @@ function ClaimsPage() {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.thumbnail_url ? (
-                <img
-                  src={previewClaim.thumbnail_url}
-                  alt="Receipt"
-                  className="w-full max-h-52 object-contain rounded-lg border border-gray-200"
-                />
+                previewClaim.file_url ? (
+                  <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">
                   No image available

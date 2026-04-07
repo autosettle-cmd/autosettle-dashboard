@@ -2,7 +2,37 @@ import { useState, useMemo } from 'react';
 
 type SortDir = 'asc' | 'desc';
 
-export function useTableSort<T>(items: T[], defaultField: string, defaultDir: SortDir = 'desc') {
+const ORDINAL_MAPS: Record<string, Record<string, number>> = {
+  confidence: { LOW: 0, MEDIUM: 1, HIGH: 2 },
+  status: { pending_review: 0, reviewed: 1 },
+  approval: { pending_approval: 0, approved: 1, not_approved: 2 },
+};
+
+function compare(sortField: string, va: unknown, vb: unknown): number {
+  if (va == null && vb == null) return 0;
+  if (va == null) return 1;
+  if (vb == null) return -1;
+
+  const ordinal = ORDINAL_MAPS[sortField];
+  if (ordinal && (va as string) in ordinal && (vb as string) in ordinal) {
+    return ordinal[va as string] - ordinal[vb as string];
+  }
+  if (typeof va === 'string' && /^\d{4}-\d{2}-\d{2}/.test(va)) {
+    return new Date(va).getTime() - new Date(vb as string).getTime();
+  }
+  if (!isNaN(Number(va)) && !isNaN(Number(vb)) && va !== '' && vb !== '') {
+    return Number(va) - Number(vb);
+  }
+  return String(va).localeCompare(String(vb), 'en', { sensitivity: 'base' });
+}
+
+export function useTableSort<T>(
+  items: T[],
+  defaultField: string,
+  defaultDir: SortDir = 'desc',
+  secondaryField?: string,
+  secondaryDir?: SortDir,
+) {
   const [sortField, setSortField] = useState(defaultField);
   const [sortDir, setSortDir] = useState<SortDir>(defaultDir);
 
@@ -23,27 +53,22 @@ export function useTableSort<T>(items: T[], defaultField: string, defaultDir: So
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vb = (b as any)[sortField];
 
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
+      let cmp = compare(sortField, va, vb);
+      cmp = sortDir === 'asc' ? cmp : -cmp;
 
-      let cmp: number;
-      // Date strings (ISO format)
-      if (typeof va === 'string' && /^\d{4}-\d{2}-\d{2}/.test(va)) {
-        cmp = new Date(va).getTime() - new Date(vb).getTime();
-      }
-      // Numeric strings or numbers
-      else if (!isNaN(Number(va)) && !isNaN(Number(vb)) && va !== '' && vb !== '') {
-        cmp = Number(va) - Number(vb);
-      }
-      // Strings
-      else {
-        cmp = String(va).localeCompare(String(vb), 'en', { sensitivity: 'base' });
+      // Secondary sort (tiebreaker)
+      if (cmp === 0 && secondaryField) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sa = (a as any)[secondaryField];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const sb = (b as any)[secondaryField];
+        const scmp = compare(secondaryField, sa, sb);
+        return (secondaryDir ?? 'asc') === 'asc' ? scmp : -scmp;
       }
 
-      return sortDir === 'asc' ? cmp : -cmp;
+      return cmp;
     });
-  }, [items, sortField, sortDir]);
+  }, [items, sortField, sortDir, secondaryField, secondaryDir]);
 
   const sortIndicator = (field: string) =>
     sortField === field ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';

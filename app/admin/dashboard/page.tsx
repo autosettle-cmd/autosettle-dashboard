@@ -12,6 +12,8 @@ interface ClaimStats {
   thisMonthAmount: string;
   pendingReview: number;
   pendingAmount: string;
+  pendingApproval: number;
+  pendingApprovalAmount: string;
 }
 
 interface ReceiptStats {
@@ -19,6 +21,8 @@ interface ReceiptStats {
   thisMonthAmount: string;
   unlinked: number;
   unlinkedAmount: string;
+  notApproved: number;
+  notApprovedAmount: string;
 }
 
 interface InvoiceStats {
@@ -26,6 +30,8 @@ interface InvoiceStats {
   thisMonthAmount: string;
   pendingReview: number;
   pendingAmount: string;
+  pendingApproval: number;
+  pendingApprovalAmount: string;
 }
 
 interface Stats {
@@ -133,7 +139,7 @@ export default function AdminDashboard() {
   const { data: session } = useSession();
 
   const [stats, setStats] = useState<Stats | null>(null);
-  const [bankReconStats, setBankReconStats] = useState<{ totalStatements: number; unmatched: number } | null>(null);
+  const [bankReconStats, setBankReconStats] = useState<{ totalStatements: number; unmatched: number; suggestedMatch: number } | null>(null);
   const [pendingClaims, setPendingClaims] = useState<ClaimRow[]>([]);
   const [loadingClaims, setLoadingClaims] = useState(true);
   const [pendingInvoices, setPendingInvoices] = useState<InvoiceRow[]>([]);
@@ -261,21 +267,42 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-y-auto p-6 animate-in">
 
           {/* ── Stats ─────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-4 mb-2 card-stagger">
-            <StatCard label="Claims This Month"        value={stats?.claims.thisMonth ?? null}      amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}  color="default" href="/admin/claims" />
-            <StatCard label="Pending Review (Claims)"  value={stats?.claims.pendingReview ?? null}  amount={stats ? formatRM(stats.claims.pendingAmount) : null}    color="amber"   href="/admin/claims?status=pending_review" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 mb-2 card-stagger">
-            <StatCard label="Receipts This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null} color="default" href="/admin/claims?type=receipt" />
-            <StatCard label="Unallocated Receipts"    value={stats?.receipts.unlinked ?? null}     amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null}  color="amber"   href="/admin/claims?type=receipt" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 mb-2 card-stagger">
-            <StatCard label="Invoices This Month"       value={stats?.invoices.thisMonth ?? null}     amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null} color="default" href="/admin/invoices" />
-            <StatCard label="Pending Review (Invoices)" value={stats?.invoices.pendingReview ?? null} amount={stats ? formatRM(stats.invoices.pendingAmount) : null}   color="amber"   href="/admin/invoices?status=pending_review" />
-          </div>
-          <div className="grid grid-cols-2 gap-4 mb-6 card-stagger">
-            <StatCard label="Bank Statements" value={bankReconStats?.totalStatements ?? null} color="default" href="/admin/bank-reconciliation" />
-            <StatCard label="Unmatched Transactions" value={bankReconStats?.unmatched ?? null} color={bankReconStats && bankReconStats.unmatched > 0 ? 'amber' : 'green'} href="/admin/bank-reconciliation" />
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Expense Claims</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
+                <StatCard label="This Month"        value={stats?.claims.thisMonth ?? null}        amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}            color="default" href="/admin/claims?type=claim" />
+                <StatCard label="Pending Review"     value={stats?.claims.pendingReview ?? null}    amount={stats ? formatRM(stats.claims.pendingAmount) : null}              color="amber"   href="/admin/claims?type=claim&status=pending_review" />
+                <StatCard label="Pending Approval"   value={stats?.claims.pendingApproval ?? null}  amount={stats ? formatRM(stats.claims.pendingApprovalAmount) : null}      color="primary" href="/admin/claims?type=claim&status=pending_approval" />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Receipts</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
+                <StatCard label="This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null}   color="default" href="/admin/claims?type=receipt" />
+                <StatCard label="Unallocated"    value={stats?.receipts.unlinked ?? null}     amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null}    color="amber"   href="/admin/claims?type=receipt" />
+                <StatCard label="Not Approved"   value={stats?.receipts.notApproved ?? null}  amount={stats ? formatRM(stats.receipts.notApprovedAmount) : null} color="primary" href="/admin/claims?type=receipt" />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Invoices</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
+                <StatCard label="This Month"       value={stats?.invoices.thisMonth ?? null}       amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null}           color="default" href="/admin/invoices?tab=received" />
+                <StatCard label="Pending Review"   value={stats?.invoices.pendingReview ?? null}   amount={stats ? formatRM(stats.invoices.pendingAmount) : null}             color="amber"   href="/admin/invoices?tab=received&status=pending_review" />
+                <StatCard label="Pending Approval" value={stats?.invoices.pendingApproval ?? null} amount={stats ? formatRM(stats.invoices.pendingApprovalAmount) : null}     color="primary" href="/admin/invoices?tab=received&status=pending_approval" />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
+              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Bank Reconciliation</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
+                <StatCard label="Statements"           value={bankReconStats?.totalStatements ?? null}  color="default" href="/admin/bank-reconciliation" />
+                <StatCard label="Unmatched"            value={bankReconStats?.unmatched ?? null}         color={bankReconStats && bankReconStats.unmatched > 0 ? 'amber' : 'green'} href="/admin/bank-reconciliation" />
+                <StatCard label="Pending Confirmation" value={bankReconStats?.suggestedMatch ?? null}    color={bankReconStats && bankReconStats.suggestedMatch > 0 ? 'primary' : 'green'} href="/admin/bank-reconciliation" />
+              </div>
+            </div>
           </div>
 
           {/* ── Needs Attention ────────────────────────────── */}
@@ -465,7 +492,13 @@ export default function AdminDashboard() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.thumbnail_url ? (
-                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                previewClaim.file_url ? (
+                  <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
@@ -595,7 +628,13 @@ export default function AdminDashboard() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
-                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                previewInvoice.file_url ? (
+                  <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
@@ -691,28 +730,31 @@ function StatCard({ label, value, amount, color, href }: {
   label: string;
   value: string | number | null;
   amount?: string | null;
-  color: 'default' | 'amber' | 'green';
+  color: 'default' | 'amber' | 'red' | 'primary' | 'green';
   href?: string;
 }) {
+  const isPrimary = color === 'primary';
   const accent = {
     default: { dot: 'bg-gray-300', value: 'text-[#191C1E]' },
     amber:   { dot: 'bg-amber-400', value: 'text-amber-600' },
+    red:     { dot: 'bg-red-400', value: 'text-red-600' },
+    primary: { dot: '', value: '' },
     green:   { dot: 'bg-emerald-400', value: 'text-emerald-600' },
   }[color];
 
   const content = (
     <div
-      className={`bg-white rounded-lg p-4 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group ${href ? 'cursor-pointer' : ''}`}
+      className={`bg-white rounded-lg border px-3 py-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 group ${href ? 'cursor-pointer' : ''} ${isPrimary ? 'border-[rgba(var(--primary-rgb),0.2)]' : 'border-gray-100'}`}
     >
-      <div className="flex items-center gap-1.5 mb-3">
-        <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} />
-        <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">{label}</p>
+      <div className="flex items-center gap-1.5 mb-1">
+        <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} style={isPrimary ? { backgroundColor: 'var(--primary)' } : undefined} />
+        <p className="text-[10px] font-semibold text-[#8E9196] uppercase tracking-wider">{label}</p>
       </div>
-      <div className="flex items-end justify-between">
-        <p className={`text-2xl font-bold tracking-tight ${accent.value}`}>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className={`text-xl font-bold tracking-tight ${accent.value}`} style={isPrimary ? { color: 'var(--primary)' } : undefined}>
           {value ?? <span className="text-gray-200">&mdash;</span>}
         </p>
-        {amount && <p className="text-body-md font-semibold text-[#8E9196]">{amount}</p>}
+        {amount && <p className="text-xs font-medium text-[#434654] tabular-nums">{amount}</p>}
       </div>
     </div>
   );

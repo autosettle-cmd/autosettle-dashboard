@@ -638,7 +638,13 @@ export default function EmployeeClaimsPage() {
                   {previewClaim.trip_purpose && <p className="text-xs text-blue-600">{previewClaim.trip_purpose}</p>}
                 </div>
               ) : previewClaim.thumbnail_url ? (
-                <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg" />
+                previewClaim.file_url ? (
+                  <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}

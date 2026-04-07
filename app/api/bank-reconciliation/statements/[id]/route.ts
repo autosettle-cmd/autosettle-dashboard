@@ -27,7 +27,7 @@ export async function GET(
               id: true, reference: true, payment_date: true, amount: true, direction: true, notes: true,
               supplier: { select: { name: true } },
               allocations: { include: { invoice: { select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, issue_date: true } } } },
-              receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true } } } },
+              receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true } } } },
             },
           },
         },
@@ -74,7 +74,7 @@ export async function GET(
           })),
           receipts: t.matchedPayment.receipts.map((r) => ({
             id: r.claim.id, merchant: r.claim.merchant, receipt_number: r.claim.receipt_number,
-            amount: r.claim.amount.toString(), claim_date: r.claim.claim_date, thumbnail_url: r.claim.thumbnail_url,
+            amount: r.claim.amount.toString(), claim_date: r.claim.claim_date, thumbnail_url: r.claim.thumbnail_url, file_url: r.claim.file_url,
           })),
         } : null,
       })),

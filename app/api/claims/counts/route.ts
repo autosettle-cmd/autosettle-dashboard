@@ -16,11 +16,14 @@ export async function GET(request: NextRequest) {
   const firmId = searchParams.get('firmId');
   const scope = firmScope(firmIds, firmId);
 
-  const [claim, receipt, mileage] = await Promise.all([
+  const [claim, receipt, mileage, claimPending, receiptPending, mileagePending] = await Promise.all([
     prisma.claim.count({ where: { ...scope, type: 'claim' } }),
     prisma.claim.count({ where: { ...scope, type: 'receipt' } }),
     prisma.claim.count({ where: { ...scope, type: 'mileage' } }),
+    prisma.claim.count({ where: { ...scope, type: 'claim', approval: 'pending_approval' } }),
+    prisma.claim.count({ where: { ...scope, type: 'receipt', approval: 'pending_approval' } }),
+    prisma.claim.count({ where: { ...scope, type: 'mileage', approval: 'pending_approval' } }),
   ]);
 
-  return NextResponse.json({ data: { claim, receipt, mileage }, error: null });
+  return NextResponse.json({ data: { claim, receipt, mileage, claimPending, receiptPending, mileagePending }, error: null });
 }

@@ -70,6 +70,7 @@ export async function GET(request: NextRequest) {
   const dateFrom = searchParams.get('dateFrom');
   const dateTo = searchParams.get('dateTo');
   const status = searchParams.get('status');
+  const approval = searchParams.get('approval');
   const search = searchParams.get('search');
   const type = searchParams.get('type');
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
@@ -84,6 +85,7 @@ export async function GET(request: NextRequest) {
     if (dateTo) where.claim_date.lte = new Date(dateTo);
   }
   if (status && status !== 'all') where.status = status;
+  if (approval && approval !== 'all') where.approval = approval;
   if (search) {
     where.OR = [
       { merchant: { contains: search, mode: 'insensitive' } },

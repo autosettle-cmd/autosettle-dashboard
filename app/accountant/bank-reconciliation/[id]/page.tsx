@@ -23,6 +23,7 @@ interface PaymentReceipt {
   amount: string;
   claim_date: string;
   thumbnail_url: string | null;
+  file_url: string | null;
 }
 
 interface MatchedPayment {
@@ -768,7 +769,13 @@ export default function AccountantReconciliationWorkspacePage() {
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (
-                <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                previewReceipt.file_url ? (
+                  <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}

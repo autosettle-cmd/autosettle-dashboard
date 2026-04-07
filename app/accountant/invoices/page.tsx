@@ -151,7 +151,8 @@ export default function AccountantInvoicesPageWrapper() {
 
 function AccountantInvoicesPage() {
   usePageTitle('Invoices');
-  const [activeTab, setActiveTab] = useState<'received' | 'issued'>('received');
+  const pageSearchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'received' | 'issued'>(pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received');
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -445,9 +446,8 @@ function AccountantInvoicesPage() {
   const [firmFilter, setFirmFilter] = useState('');
 
   // Filters
-  const searchParams = useSearchParams();
-  const initialStatus = searchParams.get('status') ?? '';
-  const initialPayment = searchParams.get('paymentStatus') ?? '';
+  const initialStatus = pageSearchParams.get('status') ?? '';
+  const initialPayment = pageSearchParams.get('paymentStatus') ?? '';
 
   const [dateRange,       setDateRange]      = useState(initialStatus || initialPayment ? '' : 'this_month');
   const [customFrom,      setCustomFrom]     = useState('');
@@ -521,14 +521,6 @@ function AccountantInvoicesPage() {
             <p className="text-[#8E9196] text-xs">
               {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
-          </div>
-          <div className="flex px-6 gap-0">
-            <button onClick={() => setActiveTab('received')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'received' ? 'border-[var(--accent)] text-[#191C1E]' : 'border-transparent text-[#8E9196] hover:text-[#434654]'}`}>
-              Received
-            </button>
-            <button onClick={() => setActiveTab('issued')} className={`px-4 py-2 text-body-md font-medium border-b-2 transition-colors ${activeTab === 'issued' ? 'border-[var(--accent)] text-[#191C1E]' : 'border-transparent text-[#8E9196] hover:text-[#434654]'}`}>
-              Issued
-            </button>
           </div>
         </header>
 
@@ -860,7 +852,13 @@ function AccountantInvoicesPage() {
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
-                <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200" />
+                previewInvoice.file_url ? (
+                  <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
+                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                  </a>
+                ) : (
+                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200" />
+                )
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
