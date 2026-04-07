@@ -1055,96 +1055,120 @@ function AccountantInvoicesPage() {
               </div>
             )}
 
-            <div className="p-4 flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 space-y-2">
               {editMode ? (
-                <>
+                <div className="flex gap-3">
                   <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                   <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                     Cancel
                   </button>
-                </>
+                </div>
               ) : (
                 <>
-                  <button
-                    onClick={() => {
-                      setEditMode(true);
-                      setEditData({
-                        vendor_name_raw: previewInvoice.vendor_name_raw,
-                        invoice_number: previewInvoice.invoice_number ?? '',
-                        issue_date: previewInvoice.issue_date.split('T')[0],
-                        due_date: previewInvoice.due_date?.split('T')[0] ?? '',
-                        payment_terms: previewInvoice.payment_terms ?? '',
-                        subtotal: previewInvoice.subtotal ?? '',
-                        tax_amount: previewInvoice.tax_amount ?? '',
-                        total_amount: previewInvoice.total_amount,
-                        category_id: previewInvoice.category_id,
-                        supplier_id: previewInvoice.supplier_id ?? '',
-                      });
-                    }}
-                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
-                  >
-                    Edit
-                  </button>
-                  {previewInvoice.status === 'reviewed' ? (
+                  {/* ── Primary actions based on current state ── */}
+                  <div className="flex gap-3">
+                    {previewInvoice.status === 'pending_review' && previewInvoice.approval === 'pending_approval' && (
+                      <>
+                        <button
+                          onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
+                          className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
+                        >
+                          Mark as Reviewed
+                        </button>
+                        <button
+                          onClick={() => batchAction([previewInvoice.id], 'approve')}
+                          className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
+                          className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
+                      <>
+                        <button
+                          onClick={() => batchAction([previewInvoice.id], 'approve')}
+                          className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
+                          className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {previewInvoice.approval === 'approved' && (
+                      <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-sm font-semibold text-green-700 bg-green-50 border border-green-200">
+                        Approved
+                      </div>
+                    )}
+                    {previewInvoice.approval === 'not_approved' && (
+                      <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-sm font-semibold text-red-700 bg-red-50 border border-red-200">
+                        Rejected
+                      </div>
+                    )}
+                  </div>
+                  {/* ── Secondary actions (edit, revert) ── */}
+                  <div className="flex gap-3">
                     <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status: 'pending_review' }),
-                          });
-                          if (res.ok) {
-                            refresh();
-                            setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
-                          }
-                        } catch (e) { console.error(e); }
+                      onClick={() => {
+                        setEditMode(true);
+                        setEditData({
+                          vendor_name_raw: previewInvoice.vendor_name_raw,
+                          invoice_number: previewInvoice.invoice_number ?? '',
+                          issue_date: previewInvoice.issue_date.split('T')[0],
+                          due_date: previewInvoice.due_date?.split('T')[0] ?? '',
+                          payment_terms: previewInvoice.payment_terms ?? '',
+                          subtotal: previewInvoice.subtotal ?? '',
+                          tax_amount: previewInvoice.tax_amount ?? '',
+                          total_amount: previewInvoice.total_amount,
+                          category_id: previewInvoice.category_id,
+                          supplier_id: previewInvoice.supplier_id ?? '',
+                        });
                       }}
-                      className="btn-reject flex-1 py-2 rounded-lg text-sm"
-                    >
-                      Revert to Pending
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                      style={{ backgroundColor: 'var(--sidebar)' }}
-                    >
-                      Mark as Reviewed
-                    </button>
-                  )}
-                  {previewInvoice.approval === 'approved' ? (
-                    <button
-                      onClick={() => batchAction([previewInvoice.id], 'revert')}
-                      className="btn-reject flex-1 py-2 rounded-lg text-sm"
-                    >
-                      Revert Approval
-                    </button>
-                  ) : previewInvoice.approval === 'not_approved' ? (
-                    <button
-                      onClick={() => batchAction([previewInvoice.id], 'revert')}
                       className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                     >
-                      Revert to Pending
+                      Edit
                     </button>
-                  ) : (
-                    <>
+                    {previewInvoice.status === 'reviewed' && (
                       <button
-                        onClick={() => batchAction([previewInvoice.id], 'approve')}
-                        className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: 'pending_review' }),
+                            });
+                            if (res.ok) {
+                              refresh();
+                              setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
+                            }
+                          } catch (e) { console.error(e); }
+                        }}
+                        className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                       >
-                        Approve
+                        Revert Review
                       </button>
+                    )}
+                    {(previewInvoice.approval === 'approved' || previewInvoice.approval === 'not_approved') && (
                       <button
-                        onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                        className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                        onClick={() => batchAction([previewInvoice.id], 'revert')}
+                        className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                       >
-                        Reject
+                        Revert Approval
                       </button>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </>
               )}
             </div>

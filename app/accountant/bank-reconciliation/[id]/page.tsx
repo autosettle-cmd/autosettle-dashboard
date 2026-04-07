@@ -54,6 +54,7 @@ interface BankTxn {
 
 interface StatementDetail {
   id: string;
+  firm_id: string;
   bank_name: string;
   account_number: string | null;
   statement_date: string;
@@ -112,6 +113,14 @@ export default function AccountantReconciliationWorkspacePage() {
   const [rematching, setRematching] = useState(false);
   const [rematchResult, setRematchResult] = useState<{ matched: number } | null>(null);
 
+  // Payment voucher creation
+  const [showVoucherForm, setShowVoucherForm] = useState(false);
+  const [voucherSuppliers, setVoucherSuppliers] = useState<{ id: string; name: string }[]>([]);
+  const [voucherCategories, setVoucherCategories] = useState<{ id: string; name: string }[]>([]);
+  const [voucherData, setVoucherData] = useState({ supplier_id: '', category_id: '', reference: '', notes: '' });
+  const [creatingVoucher, setCreatingVoucher] = useState(false);
+  const [voucherError, setVoucherError] = useState('');
+
   const loadStatement = () => {
     fetch(`/api/bank-reconciliation/statements/${id}`)
       .then((r) => r.json())
@@ -158,8 +167,17 @@ export default function AccountantReconciliationWorkspacePage() {
     if (suggestedIds.length > 0) doConfirm(suggestedIds);
   };
 
+  const closeMatchModal = () => {
+    setMatchingTxn(null);
+    setShowVoucherForm(false);
+    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '' });
+    setVoucherError('');
+  };
+
   const openMatchModal = async (txn: BankTxn) => {
     setMatchingTxn(txn);
+    setShowVoucherForm(false);
+    setVoucherError('');
     setLoadingCandidates(true);
     const amount = txn.debit ?? txn.credit ?? '';
     const params = new URLSearchParams();
@@ -177,8 +195,43 @@ export default function AccountantReconciliationWorkspacePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bankTransactionId: matchingTxn.id, paymentId }),
     });
-    setMatchingTxn(null);
+    closeMatchModal();
     loadStatement();
+  };
+
+  const openVoucherForm = async () => {
+    setShowVoucherForm(true);
+    setVoucherError('');
+    const firmId = statement?.firm_id;
+    if (!firmId) return;
+    const [suppRes, catRes] = await Promise.all([
+      fetch(`/api/suppliers?firmId=${firmId}`).then((r) => r.json()),
+      fetch(`/api/categories?firmId=${firmId}`).then((r) => r.json()),
+    ]);
+    const suppliers = (suppRes.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
+    setVoucherSuppliers(suppliers);
+    setVoucherCategories(catRes.data ?? []);
+    // Pre-select "Walk-in Customer" if it exists
+    const walkIn = suppliers.find((s: { name: string }) => s.name === 'Walk-in Customer');
+    if (walkIn) setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
+  };
+
+  const doCreateVoucher = async () => {
+    if (!matchingTxn || !voucherData.supplier_id || !voucherData.category_id) return;
+    setCreatingVoucher(true);
+    setVoucherError('');
+    try {
+      const res = await fetch('/api/bank-reconciliation/create-voucher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankTransactionId: matchingTxn.id, ...voucherData }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setVoucherError(json.error || 'Failed to create payment voucher'); return; }
+      if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
+      closeMatchModal();
+      loadStatement();
+    } finally { setCreatingVoucher(false); }
   };
 
   const doUnmatch = async (txnId: string) => {
@@ -498,7 +551,7 @@ export default function AccountantReconciliationWorkspacePage() {
 
           {/* Match modal */}
           {matchingTxn && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setMatchingTxn(null)}>
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
               <div className="bg-white rounded-lg shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">Match Transaction</h2>
                 <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
@@ -529,7 +582,94 @@ export default function AccountantReconciliationWorkspacePage() {
                     ))}
                   </div>
                 )}
-                <button onClick={() => setMatchingTxn(null)} className="mt-4 w-full px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
+
+                {/* Payment voucher option — credit (incoming) transactions only */}
+                {matchingTxn.credit && (
+                  <>
+                    <div className="flex items-center gap-3 my-4">
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-label-sm text-[#8E9196]">or</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+
+                    {!showVoucherForm ? (
+                      <button
+                        onClick={openVoucherForm}
+                        className="w-full px-3 py-2 text-body-md font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        + Create Payment Voucher
+                      </button>
+                    ) : (
+                      <div className="space-y-3 border border-blue-100 rounded-lg p-4 bg-blue-50/30">
+                        <h3 className="text-body-md font-semibold text-[#191C1E]">Create Payment Voucher</h3>
+                        <div className="bg-white rounded-lg p-2.5 text-body-sm text-[#434654] flex gap-3">
+                          <span>Amount: <strong>{formatRM(matchingTxn.credit)}</strong></span>
+                          <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
+                        </div>
+                        <div>
+                          <label className="input-label">Supplier</label>
+                          <select
+                            value={voucherData.supplier_id}
+                            onChange={(e) => setVoucherData({ ...voucherData, supplier_id: e.target.value })}
+                            className="input-field w-full"
+                          >
+                            <option value="">Walk-in Customer (default)</option>
+                            {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="input-label">Category</label>
+                          <select
+                            value={voucherData.category_id}
+                            onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })}
+                            className="input-field w-full"
+                          >
+                            <option value="">Select category...</option>
+                            {voucherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="input-label">Reference (optional)</label>
+                          <input
+                            type="text"
+                            value={voucherData.reference}
+                            onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })}
+                            className="input-field w-full"
+                            placeholder="e.g. PV-001"
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label">Notes (optional)</label>
+                          <input
+                            type="text"
+                            value={voucherData.notes}
+                            onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })}
+                            className="input-field w-full"
+                            placeholder="e.g. Customer payment for order #123"
+                          />
+                        </div>
+                        {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
+                        <div className="flex gap-3">
+                          <button
+                            onClick={doCreateVoucher}
+                            disabled={creatingVoucher || !voucherData.category_id}
+                            className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {creatingVoucher ? 'Creating...' : 'Create & Match'}
+                          </button>
+                          <button
+                            onClick={() => setShowVoucherForm(false)}
+                            className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <button onClick={closeMatchModal} className="mt-4 w-full px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
                   Cancel
                 </button>
               </div>

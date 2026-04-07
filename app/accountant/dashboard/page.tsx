@@ -649,22 +649,51 @@ export default function AccountantDashboard() {
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0 flex gap-3">
-              <Link
-                href="/accountant/invoices"
-                className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white text-center transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                Open in Invoices
-              </Link>
-              <button
-                onClick={() => markInvoiceReviewed(previewInvoice.id)}
-                disabled={previewInvoice.status === 'reviewed'}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--sidebar)' }}
-              >
-                Mark as Reviewed
-              </button>
+            <div className="p-4 flex-shrink-0 space-y-2">
+              {/* ── Primary action based on status ── */}
+              <div className="flex gap-3">
+                {previewInvoice.status === 'pending_review' ? (
+                  <button
+                    onClick={() => markInvoiceReviewed(previewInvoice.id)}
+                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
+                  >
+                    Mark as Reviewed
+                  </button>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
+                    Reviewed
+                  </div>
+                )}
+              </div>
+              {/* ── Secondary actions ── */}
+              <div className="flex gap-3">
+                <Link
+                  href="/accountant/invoices"
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors text-center"
+                >
+                  Open in Invoices
+                </Link>
+                {previewInvoice.status === 'reviewed' && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'pending_review' }),
+                        });
+                        if (res.ok) {
+                          refresh();
+                          setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
+                        }
+                      } catch (e) { console.error(e); }
+                    }}
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                  >
+                    Revert Review
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           </div>

@@ -64,6 +64,7 @@ export async function GET(
   return NextResponse.json({
     data: {
       id: statement.id,
+      firm_id: statement.firm_id,
       bank_name: statement.bank_name,
       account_number: statement.account_number,
       statement_date: statement.statement_date,

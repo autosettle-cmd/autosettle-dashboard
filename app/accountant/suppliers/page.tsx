@@ -1139,16 +1139,22 @@ export default function AccountantSuppliersPage() {
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0 flex gap-3">
-              <button
-                onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
-              >
-                Open in Invoices
-              </button>
-              <button onClick={() => setPreviewInvoice(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
-                Close
-              </button>
+            <div className="p-4 flex-shrink-0 space-y-2">
+              {/* ── Primary action ── */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
+                  className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
+                >
+                  Open in Invoices
+                </button>
+              </div>
+              {/* ── Secondary actions ── */}
+              <div className="flex gap-3">
+                <button onClick={() => setPreviewInvoice(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                  Close
+                </button>
+              </div>
             </div>
           </div>
           </div>
