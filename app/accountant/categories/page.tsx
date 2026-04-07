@@ -25,6 +25,7 @@ interface Firm {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CategoriesPage() {
+  usePageTitle('Categories');
   // Data
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [firms, setFirms]           = useState<Firm[]>([]);

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
-import { createBankReconJV } from '@/lib/bank-recon-jv';
+import { validateBankReconJV, createBankReconJV } from '@/lib/bank-recon-jv';
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -30,19 +30,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Payment not found' }, { status: 404 });
   }
 
+  // Validate JV prerequisites before matching
+  const validationError = await validateBankReconJV(bankTransactionId, paymentId, txn.bankStatement.firm_id);
+  if (validationError) {
+    return NextResponse.json({ data: null, error: validationError }, { status: 400 });
+  }
+
+  // Match
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
     data: { matched_payment_id: paymentId, recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id },
   });
 
-  const jvResult = await createBankReconJV(bankTransactionId, paymentId, txn.bankStatement.firm_id, session.user.id);
+  // Create JV (already validated)
+  await createBankReconJV(bankTransactionId, paymentId, txn.bankStatement.firm_id, session.user.id);
 
-  return NextResponse.json({
-    data: {
-      id: updated.id,
-      recon_status: updated.recon_status,
-      ...(jvResult.warning && { jv_warning: jvResult.warning }),
-    },
-    error: null,
-  });
+  return NextResponse.json({ data: { id: updated.id, recon_status: updated.recon_status }, error: null });
 }

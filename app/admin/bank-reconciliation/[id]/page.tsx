@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
+import HelpTooltip from '@/components/HelpTooltip';
 import { usePageTitle } from '@/lib/use-page-title';
 interface PaymentAllocation {
   invoice_id: string;
@@ -85,10 +86,10 @@ function formatRM(val: string | number | null) {
 }
 
 const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  matched:          { label: 'Matched',  cls: 'badge-green' },
-  manually_matched: { label: 'Manual',   cls: 'badge-blue' },
-  unmatched:        { label: 'Unmatched', cls: 'badge-red' },
-  excluded:         { label: 'Excluded', cls: 'badge-gray' },
+  matched:          { label: 'Suggested',  cls: 'badge-amber' },
+  manually_matched: { label: 'Confirmed',  cls: 'badge-green' },
+  unmatched:        { label: 'Unmatched',  cls: 'badge-red' },
+  excluded:         { label: 'Excluded',   cls: 'badge-gray' },
 };
 
 export default function ReconciliationWorkspacePage() {
@@ -97,7 +98,9 @@ export default function ReconciliationWorkspacePage() {
 
   const [statement, setStatement] = useState<StatementDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'unmatched' | 'matched' | 'excluded'>('all');
+  const [filter, setFilter] = useState<'all' | 'unmatched' | 'suggested' | 'confirmed' | 'excluded'>('all');
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState('');
   const [matchingTxn, setMatchingTxn] = useState<BankTxn | null>(null);
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<PaymentAllocation | null>(null);
@@ -120,9 +123,39 @@ export default function ReconciliationWorkspacePage() {
 
   const filteredTxns = statement?.transactions.filter((t) => {
     if (filter === 'all') return true;
-    if (filter === 'matched') return t.recon_status === 'matched' || t.recon_status === 'manually_matched';
+    if (filter === 'suggested') return t.recon_status === 'matched';
+    if (filter === 'confirmed') return t.recon_status === 'manually_matched';
     return t.recon_status === filter;
   }) ?? [];
+
+  const suggestedCount = statement?.transactions.filter((t) => t.recon_status === 'matched').length ?? 0;
+  const confirmedCount = statement?.transactions.filter((t) => t.recon_status === 'manually_matched').length ?? 0;
+
+  const doConfirm = async (txnIds: string[]) => {
+    setConfirming(true);
+    setConfirmError('');
+    try {
+      const res = await fetch('/api/admin/bank-reconciliation/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankTransactionIds: txnIds }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setConfirmError(json.error || 'Failed to confirm');
+      } else {
+        loadStatement();
+      }
+    } catch (e) { console.error(e); }
+    finally { setConfirming(false); }
+  };
+
+  const doConfirmAll = () => {
+    const suggestedIds = (statement?.transactions ?? [])
+      .filter((t) => t.recon_status === 'matched')
+      .map((t) => t.id);
+    if (suggestedIds.length > 0) doConfirm(suggestedIds);
+  };
 
   const openMatchModal = async (txn: BankTxn) => {
     setMatchingTxn(txn);
@@ -234,10 +267,10 @@ export default function ReconciliationWorkspacePage() {
 
         {/* ── Static summary + filter tabs ── */}
         {!loading && statement && (
-          <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F7F9FB]">
+          <div className="flex-shrink-0 px-6 pt-4 pb-1 bg-[#F7F9FB]">
 
               {/* Summary cards */}
-              <div className="grid grid-cols-6 gap-3 mb-4">
+              <div className="grid grid-cols-7 gap-3 mb-4">
                 {(() => {
                   const totalDebit = statement.transactions.reduce((s, t) => s + Number(t.debit ?? 0), 0);
                   const totalCredit = statement.transactions.reduce((s, t) => s + Number(t.credit ?? 0), 0);
@@ -246,7 +279,8 @@ export default function ReconciliationWorkspacePage() {
                     { label: 'Total Debit', value: formatRM(totalDebit), color: 'text-red-600' },
                     { label: 'Total Credit', value: formatRM(totalCredit), color: 'text-green-600' },
                     { label: 'Closing Balance', value: formatRM(statement.closing_balance), color: 'text-[#191C1E]' },
-                    { label: 'Reconciled', value: `${statement.summary.matched} / ${statement.summary.total}`, color: 'text-green-600' },
+                    { label: 'Confirmed', value: `${confirmedCount} / ${statement.summary.total}`, color: 'text-green-600' },
+                    { label: 'Suggested', value: String(suggestedCount), color: suggestedCount > 0 ? 'text-amber-600' : 'text-green-600' },
                     { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-red-600' : 'text-green-600' },
                   ];
                 })().map((c) => (
@@ -257,20 +291,40 @@ export default function ReconciliationWorkspacePage() {
                 ))}
               </div>
 
-              {/* Filter tabs */}
-              <div className="flex gap-1 mb-3">
-                {(['all', 'unmatched', 'matched', 'excluded'] as const).map((f) => (
-                  <button key={f} onClick={() => setFilter(f)}
-                    className={`px-3 py-1.5 text-body-sm font-medium rounded-md transition-colors ${filter === f ? 'bg-gray-900 text-white' : 'bg-white text-[#434654] border border-gray-200 hover:bg-gray-50'}`}
+              {/* Filter tabs + Confirm All */}
+              <div className="flex items-center gap-1 mb-3">
+                {([
+                  { key: 'all', label: 'All' },
+                  { key: 'unmatched', label: `Unmatched (${statement.summary.unmatched})` },
+                  { key: 'suggested', label: `Suggested (${suggestedCount})` },
+                  { key: 'confirmed', label: `Confirmed (${confirmedCount})` },
+                  { key: 'excluded', label: `Excluded (${statement.summary.excluded})` },
+                ] as const).map((f) => (
+                  <button key={f.key} onClick={() => setFilter(f.key)}
+                    className={`px-3 py-1.5 text-body-sm font-medium rounded-lg transition-colors ${filter === f.key ? 'bg-gray-900 text-white' : 'bg-white text-[#434654] border border-gray-200 hover:bg-gray-50'}`}
                   >
-                    {f === 'all' ? 'All' : f === 'unmatched' ? `Unmatched (${statement.summary.unmatched})` : f === 'matched' ? `Matched (${statement.summary.matched})` : `Excluded (${statement.summary.excluded})`}
+                    {f.label}
                   </button>
                 ))}
+
+                {suggestedCount > 0 && (
+                  <button
+                    onClick={doConfirmAll}
+                    disabled={confirming}
+                    className="ml-auto btn-approve px-4 py-1.5 text-body-sm font-medium rounded-lg disabled:opacity-50"
+                  >
+                    {confirming ? 'Confirming...' : `Confirm All (${suggestedCount})`}
+                  </button>
+                )}
               </div>
+
+              {confirmError && (
+                <div className="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 whitespace-pre-line">{confirmError}</div>
+              )}
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto p-6 animate-in">
+        <main className="flex-1 overflow-y-auto px-6 pt-2 pb-6 animate-in">
           {loading || !statement ? (
             <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
           ) : (
@@ -287,7 +341,17 @@ export default function ReconciliationWorkspacePage() {
                       <th className="px-3 py-2.5 text-right w-[110px]">Credit</th>
                       <th className="px-3 py-2.5 text-right w-[110px]">Balance</th>
                       <th className="px-3 py-2.5 text-left">Matched To</th>
-                      <th className="px-6 py-2.5 text-right w-[120px]">Actions</th>
+                      <th className="px-6 py-2.5 text-right w-[120px]">
+                        <div className="flex items-center justify-end gap-1.5">
+                          Actions
+                          <HelpTooltip items={[
+                            { label: 'Confirm', description: 'Accept a suggested match and create a journal entry.' },
+                            { label: 'Match', description: 'Manually link an unmatched bank transaction to a payment.' },
+                            { label: 'Unmatch', description: 'Remove the match. Reverses the journal entry if confirmed.' },
+                            { label: 'Exclude', description: 'Mark as non-business (e.g. bank charges). No journal entry.' },
+                          ]} />
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -333,7 +397,13 @@ export default function ReconciliationWorkspacePage() {
                                 <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-lg transition-all duration-200 text-center">Exclude</button>
                               </div>
                             )}
-                            {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (
+                            {txn.recon_status === 'matched' && (
+                              <div className="flex gap-1 justify-end">
+                                <button onClick={(e) => { e.stopPropagation(); doConfirm([txn.id]); }} disabled={confirming} className="text-label-sm w-[70px] py-1.5 text-white btn-approve rounded-lg transition-all duration-200 text-center disabled:opacity-50">Confirm</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
+                              </div>
+                            )}
+                            {txn.recon_status === 'manually_matched' && (
                               <div className="flex gap-1 justify-end">
                                 <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
                               </div>
