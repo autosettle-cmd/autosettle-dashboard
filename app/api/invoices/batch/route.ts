@@ -13,11 +13,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { invoiceIds, action, reason, gl_account_id } = body as {
+  const { invoiceIds, action, reason, gl_account_id, contra_gl_account_id } = body as {
     invoiceIds: string[];
     action: 'approve' | 'reject' | 'revert';
     reason?: string;
     gl_account_id?: string;
+    contra_gl_account_id?: string;
   };
 
   if (!Array.isArray(invoiceIds) || invoiceIds.length === 0) {
@@ -45,17 +46,19 @@ export async function PATCH(request: NextRequest) {
   if (action === 'approve') {
     const errors: string[] = [];
 
-    // Check firm GL defaults
+    // Check firm GL defaults (skip if contra_gl_account_id provided)
     const firmDefaultsMap = new Map<string, string | null>();
-    for (const inv of invoices) {
-      if (!firmDefaultsMap.has(inv.firm_id)) {
-        const firm = await prisma.firm.findUnique({
-          where: { id: inv.firm_id },
-          select: { default_trade_payables_gl_id: true, name: true },
-        });
-        firmDefaultsMap.set(inv.firm_id, firm?.default_trade_payables_gl_id ?? null);
-        if (!firm?.default_trade_payables_gl_id) {
-          errors.push(`Firm "${firm?.name}" has no Trade Payables GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
+    if (!contra_gl_account_id) {
+      for (const inv of invoices) {
+        if (!firmDefaultsMap.has(inv.firm_id)) {
+          const firm = await prisma.firm.findUnique({
+            where: { id: inv.firm_id },
+            select: { default_trade_payables_gl_id: true, name: true },
+          });
+          firmDefaultsMap.set(inv.firm_id, firm?.default_trade_payables_gl_id ?? null);
+          if (!firm?.default_trade_payables_gl_id) {
+            errors.push(`Firm "${firm?.name}" has no Trade Payables GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
+          }
         }
       }
     }
@@ -126,7 +129,7 @@ export async function PATCH(request: NextRequest) {
 
     for (const inv of invoices) {
       const expenseGlId = gl_account_id || inv.gl_account_id;
-      const contraGlId = firmDefaults.get(inv.firm_id);
+      const contraGlId = contra_gl_account_id || firmDefaults.get(inv.firm_id);
       await createJournalEntry({
         firmId: inv.firm_id,
         postingDate: inv.issue_date,

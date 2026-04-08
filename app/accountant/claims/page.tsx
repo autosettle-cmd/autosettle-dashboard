@@ -6,6 +6,7 @@ import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
+import GlAccountSelect from '@/components/GlAccountSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -194,6 +195,8 @@ function ClaimsPage() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
+  const [selectedContraGlId, setSelectedContraGlId] = useState<string>('');
+  const [defaultContraGlId, setDefaultContraGlId] = useState<string>('');
 
   // Submit modal
   const [showModal, setShowModal]               = useState(false);
@@ -303,31 +306,37 @@ function ClaimsPage() {
     }
   }, [editMode, previewClaim]);
 
-  // Fetch GL accounts for the claim's firm + pre-fill GL suggestion from category mapping
+  // Fetch GL accounts for the claim's firm + pre-fill GL suggestion from category mapping + contra default
   useEffect(() => {
     if (previewClaim) {
       Promise.all([
         fetch(`/api/gl-accounts?firmId=${previewClaim.firm_id}`).then(r => r.json()),
         fetch(`/api/categories?firmId=${previewClaim.firm_id}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${previewClaim.firm_id}`).then(r => r.json()),
       ])
-        .then(([glJson, catJson]) => {
+        .then(([glJson, catJson, settingsJson]) => {
           const accounts = glJson.data ?? [];
           setGlAccounts(accounts);
 
           if (previewClaim.gl_account_id) {
-            // Already assigned — use it
             setSelectedGlAccountId(previewClaim.gl_account_id);
           } else {
-            // Try to find the default GL from category override
             const catData = catJson.data ?? [];
             const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewClaim.category_id);
             setSelectedGlAccountId(match?.gl_account_id ?? '');
           }
+
+          // Pre-fill contra GL from firm defaults
+          const contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
+          setDefaultContraGlId(contraId);
+          setSelectedContraGlId(contraId);
         })
         .catch(console.error);
     } else {
       setGlAccounts([]);
       setSelectedGlAccountId('');
+      setSelectedContraGlId('');
+      setDefaultContraGlId('');
     }
   }, [previewClaim]);
 
@@ -367,12 +376,12 @@ function ClaimsPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
-  const batchAction = async (claimIds: string[], action: 'approve' | 'reject', reason?: string, glAccountId?: string) => {
+  const batchAction = async (claimIds: string[], action: 'approve' | 'reject', reason?: string, glAccountId?: string, contraGlId?: string) => {
     try {
       const res = await fetch('/api/claims/batch', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claimIds, action, reason, ...(glAccountId && { gl_account_id: glAccountId }) }),
+        body: JSON.stringify({ claimIds, action, reason, ...(glAccountId && { gl_account_id: glAccountId }), ...(contraGlId && { contra_gl_account_id: contraGlId }) }),
       });
       if (res.ok) {
         refresh();
@@ -1129,31 +1138,52 @@ function ClaimsPage() {
 
             {/* GL Account Assignment */}
             {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
-              <div className="px-5 pb-2">
-                <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">GL Account</label>
-                {previewClaim.approval === 'approved' ? (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                    </svg>
-                    <span className="text-sm font-medium text-[#191C1E]">{previewClaim.gl_account_label ?? 'Not assigned'}</span>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedGlAccountId}
-                    onChange={(e) => setSelectedGlAccountId(e.target.value)}
-                    className="input-field w-full text-sm"
-                  >
-                    <option value="">Select GL Account</option>
-                    {glAccounts.filter(a => a.account_type === 'Expense').map(a => (
-                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                    ))}
-                    <option disabled>──────────</option>
-                    {glAccounts.filter(a => a.account_type !== 'Expense').map(a => (
-                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                    ))}
-                  </select>
-                )}
+              <div className="px-5 pb-2 space-y-2">
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  {previewClaim.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{previewClaim.gl_account_label ?? 'Not assigned'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedGlAccountId}
+                      onChange={setSelectedGlAccountId}
+                      accounts={glAccounts}
+                      firmId={previewClaim.firm_id}
+                      placeholder="Select GL Account"
+                      preferredType="Expense"
+                      defaultType="Expense"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  {previewClaim.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedContraGlId}
+                      onChange={setSelectedContraGlId}
+                      accounts={glAccounts}
+                      firmId={previewClaim.firm_id}
+                      placeholder="Select Contra GL Account"
+                      preferredType="Liability"
+                      defaultType="Liability"
+                      defaultBalance="Credit"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -1191,7 +1221,7 @@ function ClaimsPage() {
                   ) : (
                     <>
                       <button
-                        onClick={() => batchAction([previewClaim.id], 'approve', undefined, selectedGlAccountId || undefined)}
+                        onClick={() => batchAction([previewClaim.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
                         className="btn-approve flex-1 py-2 rounded-lg text-sm"
                       >
                         Approve

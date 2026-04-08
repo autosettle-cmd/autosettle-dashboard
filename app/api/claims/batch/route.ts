@@ -13,11 +13,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { claimIds, action, reason, gl_account_id } = body as {
+  const { claimIds, action, reason, gl_account_id, contra_gl_account_id } = body as {
     claimIds: string[];
     action: 'approve' | 'reject' | 'revert';
     reason?: string;
     gl_account_id?: string;
+    contra_gl_account_id?: string;
   };
 
   if (!Array.isArray(claimIds) || claimIds.length === 0) {
@@ -45,17 +46,19 @@ export async function PATCH(request: NextRequest) {
   if (action === 'approve') {
     const errors: string[] = [];
 
-    // Check firm GL defaults
+    // Check firm GL defaults (skip if contra_gl_account_id provided)
     const firmDefaultsMap = new Map<string, string | null>();
-    for (const claim of oldClaims) {
-      if (!firmDefaultsMap.has(claim.firm_id)) {
-        const firm = await prisma.firm.findUnique({
-          where: { id: claim.firm_id },
-          select: { default_staff_claims_gl_id: true, name: true },
-        });
-        firmDefaultsMap.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
-        if (!firm?.default_staff_claims_gl_id) {
-          errors.push(`Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
+    if (!contra_gl_account_id) {
+      for (const claim of oldClaims) {
+        if (!firmDefaultsMap.has(claim.firm_id)) {
+          const firm = await prisma.firm.findUnique({
+            where: { id: claim.firm_id },
+            select: { default_staff_claims_gl_id: true, name: true },
+          });
+          firmDefaultsMap.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
+          if (!firm?.default_staff_claims_gl_id) {
+            errors.push(`Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
+          }
         }
       }
     }
@@ -127,7 +130,7 @@ export async function PATCH(request: NextRequest) {
 
     for (const claim of oldClaims) {
       const expenseGlId = gl_account_id || claim.gl_account_id;
-      const contraGlId = firmDefaults.get(claim.firm_id);
+      const contraGlId = contra_gl_account_id || firmDefaults.get(claim.firm_id);
       // Already validated above — safe to create
       await createJournalEntry({
         firmId: claim.firm_id,

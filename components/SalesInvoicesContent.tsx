@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
+import GlAccountSelect from '@/components/GlAccountSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,11 @@ interface SalesInvoiceRow {
   notes: string | null;
   supplier_id: string;
   buyer_name: string;
+  firm_id?: string;
+  category_id: string | null;
+  category_name: string | null;
+  gl_account_id: string | null;
+  approval: 'pending_approval' | 'approved' | 'not_approved';
   lhdn_status: string | null;
   items: SalesInvoiceItem[];
   created_at: string;
@@ -56,6 +62,12 @@ const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
   unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
   partially_paid: { label: 'Partial', cls: 'badge-amber'  },
   paid:           { label: 'Paid',    cls: 'badge-green'  },
+};
+
+const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
+  pending_approval: { label: 'Pending',    cls: 'badge-amber'  },
+  approved:         { label: 'Approved',   cls: 'badge-green'  },
+  not_approved:     { label: 'Rejected',   cls: 'badge-red'    },
 };
 
 function formatDate(val: string) {
@@ -123,9 +135,18 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
 
+  // Filters — approval
+  const [approvalFilter, setApprovalFilter] = useState('');
+
   // Preview
   const [preview, setPreview] = useState<SalesInvoiceRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // GL accounts (accountant only)
+  const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [selectedGlAccountId, setSelectedGlAccountId] = useState('');
+  const [selectedContraGlId, setSelectedContraGlId] = useState('');
+  const [categories, setCategories] = useState<{ id: string; name: string; gl_account_id?: string }[]>([]);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -142,8 +163,91 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([emptyLineItem()]);
   const [createError, setCreateError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [createCategoryId, setCreateCategoryId] = useState('');
+  const [createGlAccountId, setCreateGlAccountId] = useState('');
+  const [createContraGlId, setCreateContraGlId] = useState('');
+  const [createGlAccounts, setCreateGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [createCategories, setCreateCategories] = useState<{ id: string; name: string; gl_account_id?: string }[]>([]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
+
+  // Fetch GL accounts + categories when preview opens (accountant only)
+  useEffect(() => {
+    if (role !== 'accountant' || !preview?.firm_id) {
+      setGlAccounts([]);
+      setSelectedGlAccountId('');
+      setSelectedContraGlId('');
+      return;
+    }
+    Promise.all([
+      fetch(`/api/gl-accounts?firmId=${preview.firm_id}`).then(r => r.json()),
+      fetch(`/api/categories?firmId=${preview.firm_id}`).then(r => r.json()),
+      fetch(`/api/accounting-settings?firmId=${preview.firm_id}`).then(r => r.json()),
+    ]).then(([glJson, catJson, settingsJson]) => {
+      const accounts = glJson.data ?? [];
+      setGlAccounts(accounts);
+      setCategories(catJson.data ?? []);
+
+      // Pre-fill revenue GL from category mapping
+      if (preview.gl_account_id) {
+        setSelectedGlAccountId(preview.gl_account_id);
+      } else if (preview.category_id) {
+        const catData = catJson.data ?? [];
+        const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === preview.category_id);
+        setSelectedGlAccountId(match?.gl_account_id ?? '');
+      } else {
+        setSelectedGlAccountId('');
+      }
+
+      // Pre-fill contra GL (Trade Receivables) — no firm default for this, leave empty
+      setSelectedContraGlId('');
+    }).catch(console.error);
+  }, [preview, role]);
+
+  // Fetch GL accounts + categories when create modal opens
+  useEffect(() => {
+    if (!showCreate) return;
+
+    if (role === 'accountant') {
+      // Accountant: fetch GL accounts (need firmId from supplier)
+      const selectedSupplier = suppliers.find(s => s.id === createData.supplier_id);
+      const firmId = selectedSupplier?.firm_id || suppliers[0]?.firm_id;
+      if (!firmId) { setCreateGlAccounts([]); return; }
+      fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json())
+        .then(j => setCreateGlAccounts(j.data ?? []))
+        .catch(console.error);
+    } else {
+      // Admin: fetch categories (admin API doesn't need firmId)
+      fetch(`/api/admin/categories`).then(r => r.json())
+        .then(j => setCreateCategories(j.data ?? []))
+        .catch(console.error);
+    }
+  }, [showCreate, createData.supplier_id, suppliers, role]);
+
+  // Batch approve/reject/revert for sales invoices
+  const batchAction = async (ids: string[], action: 'approve' | 'reject' | 'revert', glAccountId?: string, contraGlId?: string) => {
+    try {
+      const res = await fetch('/api/sales-invoices/batch', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          salesInvoiceIds: ids,
+          action,
+          ...(glAccountId && { gl_account_id: glAccountId }),
+          ...(contraGlId && { contra_gl_account_id: contraGlId }),
+        }),
+      });
+      if (res.ok) {
+        refresh();
+        if (preview && ids.includes(preview.id)) {
+          setPreview({ ...preview, approval: action === 'approve' ? 'approved' : action === 'reject' ? 'not_approved' : 'pending_approval' });
+        }
+      } else {
+        const j = await res.json();
+        alert(j.error || 'Action failed');
+      }
+    } catch (e) { console.error(e); }
+  };
 
   // ─── Fetch invoices ──────────────────────────────────────────────────────────
 
@@ -235,6 +339,9 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       if (role === 'accountant' && selectedSupplier?.firm_id) {
         payload.firm_id = selectedSupplier.firm_id;
       }
+      if (createCategoryId) payload.category_id = createCategoryId;
+      if (createGlAccountId) payload.gl_account_id = createGlAccountId;
+      if (createContraGlId) payload.contra_gl_account_id = createContraGlId;
 
       const res = await fetch(apiBase, {
         method: 'POST',
@@ -251,6 +358,9 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       setShowCreate(false);
       setCreateData({ supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', notes: '' });
       setLineItems([emptyLineItem()]);
+      setCreateCategoryId('');
+      setCreateGlAccountId('');
+      setCreateContraGlId('');
       refresh();
     } catch (e) {
       console.error(e);
@@ -288,7 +398,8 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
     setLineItems((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx));
   };
 
-  const { sorted: sortedInvoices, toggleSort, sortIndicator } = useTableSort(invoices, 'issue_date', 'desc');
+  const filteredByApproval = approvalFilter ? invoices.filter(inv => inv.approval === approvalFilter) : invoices;
+  const { sorted: sortedInvoices, toggleSort, sortIndicator } = useTableSort(filteredByApproval, 'issue_date', 'desc');
 
   const subtotal = lineItems.reduce((sum, li) => sum + calcLineTotal(li), 0);
   const taxTotal = lineItems.reduce((sum, li) => sum + calcLineTax(li), 0);
@@ -315,6 +426,13 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
             <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
           </>
         )}
+
+        <Select value={approvalFilter} onChange={setApprovalFilter}>
+          <option value="">All Approval</option>
+          <option value="pending_approval">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="not_approved">Rejected</option>
+        </Select>
 
         <Select value={paymentFilter} onChange={setPaymentFilter}>
           <option value="">All Payments</option>
@@ -352,18 +470,19 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('due_date')}>Due Date{sortIndicator('due_date')}</th>
               <th className="px-6 py-3 text-right cursor-pointer select-none" onClick={() => toggleSort('total_amount')}>Total (RM){sortIndicator('total_amount')}</th>
               <th className="px-6 py-3 text-right cursor-pointer select-none" onClick={() => toggleSort('amount_paid')}>Paid (RM){sortIndicator('amount_paid')}</th>
-              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Status{sortIndicator('payment_status')}</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
+              <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
               <th className="px-6 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-[#8E9196] text-sm">Loading...</td>
+                <td colSpan={9} className="px-6 py-16 text-center text-[#8E9196] text-sm">Loading...</td>
               </tr>
             ) : sortedInvoices.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-16 text-center text-[#8E9196] text-sm">No sales invoices found.</td>
+                <td colSpan={9} className="px-6 py-16 text-center text-[#8E9196] text-sm">No sales invoices found.</td>
               </tr>
             ) : (
               sortedInvoices.map((inv) => {
@@ -382,6 +501,9 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     <td className="px-6 py-3 text-right text-[#434654] tabular-nums">{formatRM(inv.amount_paid)}</td>
                     <td className="px-6 py-3">
                       {paymentCfg && <span className={paymentCfg.cls}>{paymentCfg.label}</span>}
+                    </td>
+                    <td className="px-6 py-3">
+                      {APPROVAL_CFG[inv.approval] && <span className={APPROVAL_CFG[inv.approval].cls}>{APPROVAL_CFG[inv.approval].label}</span>}
                     </td>
                     <td className="px-6 py-3">
                       <button
@@ -502,6 +624,53 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     placeholder="Optional notes"
                   />
                 </div>
+
+                {/* ── Category (admin only) ── */}
+                {role === 'admin' && createCategories.length > 0 && (
+                  <div>
+                    <label className="input-label">Category</label>
+                    <select value={createCategoryId} onChange={(e) => setCreateCategoryId(e.target.value)} className="input-field w-full">
+                      <option value="">Select category</option>
+                      {createCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                )}
+
+                {/* ── GL Account Selection (accountant only) ── */}
+                {role === 'accountant' && createGlAccounts.length > 0 && (() => {
+                  const createFirmId = suppliers.find(s => s.id === createData.supplier_id)?.firm_id || suppliers[0]?.firm_id || '';
+                  return (
+                    <>
+                      <div>
+                        <label className="input-label">Revenue GL (Credit)</label>
+                        <GlAccountSelect
+                          value={createGlAccountId}
+                          onChange={setCreateGlAccountId}
+                          accounts={createGlAccounts}
+                          firmId={createFirmId}
+                          placeholder="Select Revenue GL"
+                          preferredType="Revenue"
+                          defaultType="Revenue"
+                          defaultBalance="Credit"
+                          onAccountCreated={(a) => setCreateGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      </div>
+                      <div>
+                        <label className="input-label">Contra GL (Debit — Trade Receivables)</label>
+                        <GlAccountSelect
+                          value={createContraGlId}
+                          onChange={setCreateContraGlId}
+                          accounts={createGlAccounts}
+                          firmId={createFirmId}
+                          placeholder="Select Trade Receivables GL"
+                          preferredType="Asset"
+                          defaultType="Asset"
+                          onAccountCreated={(a) => setCreateGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      </div>
+                    </>
+                  );
+                })()}
 
                 {/* ── Line items ───────────────────────────────── */}
                 <div>
@@ -684,19 +853,92 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               )}
             </div>
 
+            {/* ── GL Account Assignment (accountant only) ── */}
+            {role === 'accountant' && glAccounts.length > 0 && (
+              <div className="px-5 pb-2 space-y-2">
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Revenue GL (Credit)</label>
+                  {preview.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedGlAccountId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedGlAccountId)?.name ?? 'Not assigned'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedGlAccountId}
+                      onChange={setSelectedGlAccountId}
+                      accounts={glAccounts}
+                      firmId={preview.firm_id}
+                      placeholder="Select Revenue GL"
+                      preferredType="Revenue"
+                      defaultType="Revenue"
+                      defaultBalance="Credit"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Debit — Trade Receivables)</label>
+                  {preview.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Not assigned'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedContraGlId}
+                      onChange={setSelectedContraGlId}
+                      accounts={glAccounts}
+                      firmId={preview.firm_id}
+                      placeholder="Select Trade Receivables GL"
+                      preferredType="Asset"
+                      defaultType="Asset"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* ── Actions ──────────────────────────────── */}
-            <div className="flex-shrink-0 p-4 flex gap-3">
-              <button
-                onClick={() => deleteInvoice(preview.id)}
-                disabled={deleting}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                {deleting ? 'Deleting...' : 'Delete Invoice'}
-              </button>
-              <button onClick={() => setPreview(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
-                Close
-              </button>
+            <div className="flex-shrink-0 p-4 space-y-2">
+              {role === 'accountant' && preview.approval === 'pending_approval' && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => batchAction([preview.id], 'approve', selectedGlAccountId || undefined, selectedContraGlId || undefined)}
+                    className="btn-approve flex-1 py-2 rounded-lg text-sm font-semibold"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    onClick={() => batchAction([preview.id], 'reject')}
+                    className="btn-reject flex-1 py-2 rounded-lg text-sm font-semibold"
+                  >
+                    Reject
+                  </button>
+                </div>
+              )}
+              {role === 'accountant' && (preview.approval === 'approved' || preview.approval === 'not_approved') && (
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => batchAction([preview.id], 'revert')}
+                    className="btn-reject flex-1 py-2 rounded-lg text-sm font-semibold"
+                  >
+                    Revert to Pending
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => deleteInvoice(preview.id)}
+                  disabled={deleting}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  {deleting ? 'Deleting...' : 'Delete Invoice'}
+                </button>
+                <button onClick={() => setPreview(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                  Close
+                </button>
+              </div>
             </div>
           </div>
           </div>

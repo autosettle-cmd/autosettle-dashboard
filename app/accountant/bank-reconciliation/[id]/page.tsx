@@ -91,7 +91,6 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
   matched:          { label: 'Suggested',  cls: 'badge-amber' },
   manually_matched: { label: 'Confirmed',  cls: 'badge-green' },
   unmatched:        { label: 'Unmatched',  cls: 'badge-red' },
-  excluded:         { label: 'Excluded',   cls: 'badge-gray' },
 };
 
 export default function AccountantReconciliationWorkspacePage() {
@@ -100,22 +99,21 @@ export default function AccountantReconciliationWorkspacePage() {
 
   const [statement, setStatement] = useState<StatementDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'unmatched' | 'suggested' | 'confirmed' | 'excluded'>('all');
+  const [filter, setFilter] = useState<'all' | 'unmatched' | 'suggested' | 'confirmed'>('all');
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [matchingTxn, setMatchingTxn] = useState<BankTxn | null>(null);
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<PaymentAllocation | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
-  const [excludingTxn, setExcludingTxn] = useState<BankTxn | null>(null);
-  const [excludeReason, setExcludeReason] = useState('');
   const [candidates, setCandidates] = useState<CandidatePayment[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [rematching, setRematching] = useState(false);
   const [rematchResult, setRematchResult] = useState<{ matched: number } | null>(null);
 
-  // Payment voucher creation
+  // Payment voucher / official receipt creation (shared supplier+category lists)
   const [showVoucherForm, setShowVoucherForm] = useState(false);
+  const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [voucherSuppliers, setVoucherSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [voucherCategories, setVoucherCategories] = useState<{ id: string; name: string }[]>([]);
   const [voucherData, setVoucherData] = useState({ supplier_id: '', category_id: '', reference: '', notes: '' });
@@ -171,6 +169,7 @@ export default function AccountantReconciliationWorkspacePage() {
   const closeMatchModal = () => {
     setMatchingTxn(null);
     setShowVoucherForm(false);
+    setShowReceiptForm(false);
     setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '' });
     setVoucherError('');
   };
@@ -235,6 +234,40 @@ export default function AccountantReconciliationWorkspacePage() {
     } finally { setCreatingVoucher(false); }
   };
 
+  const openReceiptForm = async () => {
+    setShowReceiptForm(true);
+    setVoucherError('');
+    const firmId = statement?.firm_id;
+    if (!firmId) return;
+    const [suppRes, catRes] = await Promise.all([
+      fetch(`/api/suppliers?firmId=${firmId}`).then((r) => r.json()),
+      fetch(`/api/categories?firmId=${firmId}`).then((r) => r.json()),
+    ]);
+    const suppliers = (suppRes.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
+    setVoucherSuppliers(suppliers);
+    setVoucherCategories(catRes.data ?? []);
+    const walkIn = suppliers.find((s: { name: string }) => s.name === 'Walk-in Customer');
+    if (walkIn) setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
+  };
+
+  const doCreateReceipt = async () => {
+    if (!matchingTxn || !voucherData.supplier_id || !voucherData.category_id) return;
+    setCreatingVoucher(true);
+    setVoucherError('');
+    try {
+      const res = await fetch('/api/bank-reconciliation/create-receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankTransactionId: matchingTxn.id, ...voucherData }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setVoucherError(json.error || 'Failed to create official receipt'); return; }
+      if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
+      closeMatchModal();
+      loadStatement();
+    } finally { setCreatingVoucher(false); }
+  };
+
   const doUnmatch = async (txnId: string) => {
     await fetch('/api/bank-reconciliation/unmatch', {
       method: 'POST',
@@ -244,21 +277,6 @@ export default function AccountantReconciliationWorkspacePage() {
     loadStatement();
   };
 
-  const openExcludeModal = (txn: BankTxn) => {
-    setExcludingTxn(txn);
-    setExcludeReason('');
-  };
-
-  const doExclude = async () => {
-    if (!excludingTxn || !excludeReason) return;
-    await fetch('/api/bank-reconciliation/exclude', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bankTransactionId: excludingTxn.id, notes: excludeReason }),
-    });
-    setExcludingTxn(null);
-    loadStatement();
-  };
 
   const doRematch = async () => {
     setRematching(true);
@@ -351,7 +369,6 @@ export default function AccountantReconciliationWorkspacePage() {
                   { key: 'unmatched', label: `Unmatched (${statement.summary.unmatched})` },
                   { key: 'suggested', label: `Suggested (${suggestedCount})` },
                   { key: 'confirmed', label: `Confirmed (${confirmedCount})` },
-                  { key: 'excluded', label: `Excluded (${statement.summary.excluded})` },
                 ] as const).map((f) => (
                   <button key={f.key} onClick={() => setFilter(f.key)}
                     className={`px-3 py-1.5 text-body-sm font-medium rounded-lg transition-colors ${filter === f.key ? 'bg-gray-900 text-white' : 'bg-white text-[#434654] border border-gray-200 hover:bg-gray-50'}`}
@@ -401,7 +418,6 @@ export default function AccountantReconciliationWorkspacePage() {
                             { label: 'Confirm', description: 'Accept a suggested match and create a journal entry.' },
                             { label: 'Match', description: 'Manually link an unmatched bank transaction to a payment.' },
                             { label: 'Unmatch', description: 'Remove the match. Reverses the journal entry if confirmed.' },
-                            { label: 'Exclude', description: 'Mark as non-business (e.g. bank charges). No journal entry.' },
                           ]} />
                         </div>
                       </th>
@@ -414,7 +430,7 @@ export default function AccountantReconciliationWorkspacePage() {
                       const mp = txn.matched_payment;
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`group transition-colors ${mp ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-[#F2F4F6]'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : txn.recon_status === 'excluded' ? 'bg-gray-50/40' : ''}`}
+                        <tr className={`group transition-colors ${mp ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-[#F2F4F6]'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : ''}`}
                           onClick={() => mp ? setPreviewTxn(isExpanded ? null : txn) : null}
                         >
                           <td className="px-4 py-2.5">
@@ -447,7 +463,6 @@ export default function AccountantReconciliationWorkspacePage() {
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
                                 <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-lg transition-all duration-200 text-center">Match</button>
-                                <button onClick={(e) => { e.stopPropagation(); openExcludeModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-dark rounded-lg transition-all duration-200 text-center">Exclude</button>
                               </div>
                             )}
                             {txn.recon_status === 'matched' && (
@@ -459,11 +474,6 @@ export default function AccountantReconciliationWorkspacePage() {
                             {txn.recon_status === 'manually_matched' && (
                               <div className="flex gap-1 justify-end">
                                 <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
-                              </div>
-                            )}
-                            {txn.recon_status === 'excluded' && (
-                              <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white bg-gray-500 hover:bg-gray-600 rounded-lg transition-colors text-center">Restore</button>
                               </div>
                             )}
                           </td>
@@ -541,6 +551,35 @@ export default function AccountantReconciliationWorkspacePage() {
                       );
                     })}
                   </tbody>
+                  <tfoot>
+                    {(() => {
+                      const allTxns = statement.transactions;
+                      const totalDr = allTxns.reduce((s, t) => s + Number(t.debit ?? 0), 0);
+                      const totalCr = allTxns.reduce((s, t) => s + Number(t.credit ?? 0), 0);
+                      const opening = Number(statement.opening_balance ?? 0);
+                      const closing = Number(statement.closing_balance ?? 0);
+                      const expected = opening - totalDr + totalCr;
+                      const diff = Math.abs(expected - closing);
+                      const mismatch = diff > 0.01;
+                      return (
+                        <>
+                          <tr className="bg-gray-50 border-t-2 border-gray-200">
+                            <td colSpan={3} className="px-4 py-2.5 text-body-sm font-semibold text-[#191C1E]">Total</td>
+                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-red-600 whitespace-nowrap">{formatRM(totalDr)}</td>
+                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-green-600 whitespace-nowrap">{formatRM(totalCr)}</td>
+                            <td colSpan={3} />
+                          </tr>
+                          {mismatch && (
+                            <tr className="bg-amber-50 border-t border-amber-200">
+                              <td colSpan={8} className="px-4 py-2.5 text-body-sm text-amber-700">
+                                <span className="font-semibold">Balance mismatch:</span> Opening ({formatRM(opening)}) − Debit ({formatRM(totalDr)}) + Credit ({formatRM(totalCr)}) = {formatRM(expected)}, but closing balance is {formatRM(closing)}. Difference: <strong>{formatRM(diff)}</strong> — the bank statement may have been parsed incorrectly.
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </tfoot>
                 </table>
                 {filteredTxns.length === 0 && (
                   <div className="text-center py-8 text-sm text-[#8E9196]">No transactions in this filter.</div>
@@ -584,7 +623,93 @@ export default function AccountantReconciliationWorkspacePage() {
                   </div>
                 )}
 
-                {/* Payment voucher option — credit (incoming) transactions only */}
+                {/* Official receipt option — debit (money received) transactions only */}
+                {matchingTxn.debit && (
+                  <>
+                    <div className="flex items-center gap-3 my-4">
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-label-sm text-[#8E9196]">or</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
+
+                    {!showReceiptForm ? (
+                      <button
+                        onClick={openReceiptForm}
+                        className="w-full px-3 py-2 text-body-md font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                      >
+                        + Create Official Receipt
+                      </button>
+                    ) : (
+                      <div className="space-y-3 border border-green-100 rounded-lg p-4 bg-green-50/30">
+                        <h3 className="text-body-md font-semibold text-[#191C1E]">Create Official Receipt</h3>
+                        <div className="bg-white rounded-lg p-2.5 text-body-sm text-[#434654] flex gap-3">
+                          <span>Amount: <strong>{formatRM(matchingTxn.debit)}</strong></span>
+                          <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
+                        </div>
+                        <div>
+                          <label className="input-label">Received From</label>
+                          <select
+                            value={voucherData.supplier_id}
+                            onChange={(e) => setVoucherData({ ...voucherData, supplier_id: e.target.value })}
+                            className="input-field w-full"
+                          >
+                            <option value="">Walk-in Customer (default)</option>
+                            {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="input-label">Category</label>
+                          <select
+                            value={voucherData.category_id}
+                            onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })}
+                            className="input-field w-full"
+                          >
+                            <option value="">Select category...</option>
+                            {voucherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="input-label">Receipt No. (optional)</label>
+                          <input
+                            type="text"
+                            value={voucherData.reference}
+                            onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })}
+                            className="input-field w-full"
+                            placeholder="e.g. OR-001"
+                          />
+                        </div>
+                        <div>
+                          <label className="input-label">Notes (optional)</label>
+                          <input
+                            type="text"
+                            value={voucherData.notes}
+                            onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })}
+                            className="input-field w-full"
+                            placeholder="e.g. Payment received for invoice #123"
+                          />
+                        </div>
+                        {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
+                        <div className="flex gap-3">
+                          <button
+                            onClick={doCreateReceipt}
+                            disabled={creatingVoucher || !voucherData.category_id}
+                            className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {creatingVoucher ? 'Creating...' : 'Create & Match'}
+                          </button>
+                          <button
+                            onClick={() => setShowReceiptForm(false)}
+                            className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Payment voucher option — credit (outgoing) transactions only */}
                 {matchingTxn.credit && (
                   <>
                     <div className="flex items-center gap-3 my-4">
@@ -677,45 +802,6 @@ export default function AccountantReconciliationWorkspacePage() {
             </div>
           )}
 
-          {/* Exclude modal */}
-          {excludingTxn && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setExcludingTxn(null)}>
-              <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">Exclude Transaction</h2>
-                <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
-                  <p className="font-medium text-[#191C1E]">{excludingTxn.description.split(' | ')[0]}</p>
-                  <p className="text-[#434654] mt-1">
-                    {formatDate(excludingTxn.transaction_date)} — {excludingTxn.debit ? `Debit ${formatRM(excludingTxn.debit)}` : `Credit ${formatRM(excludingTxn.credit)}`}
-                  </p>
-                </div>
-                <label className="text-body-sm font-medium text-[#434654] mb-1.5 block">Reason for excluding</label>
-                <div className="space-y-1.5 mb-4">
-                  {[
-                    { value: 'Personal transaction', label: 'Personal transaction' },
-                    { value: 'Bank charges / fees', label: 'Bank charges / fees' },
-                    { value: 'Inter-account transfer', label: 'Inter-account transfer' },
-                    { value: 'Not business related', label: 'Not business related' },
-                    { value: 'Duplicate entry', label: 'Duplicate entry' },
-                  ].map((opt) => (
-                    <label key={opt.value}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg border cursor-pointer transition-colors ${excludeReason === opt.value ? 'border-blue-300 bg-blue-50/50' : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'}`}
-                    >
-                      <input type="radio" name="exclude_reason" value={opt.value} checked={excludeReason === opt.value}
-                        onChange={() => setExcludeReason(opt.value)} className="accent-blue-600" />
-                      <span className="text-body-md text-[#434654]">{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setExcludingTxn(null)} className="flex-1 px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                  <button onClick={doExclude} disabled={!excludeReason}
-                    className="flex-1 px-3 py-2 text-body-md text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed">
-                    Exclude
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </main>
       </div>
 

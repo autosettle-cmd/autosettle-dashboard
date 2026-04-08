@@ -51,10 +51,10 @@ export async function GET(
   ]);
 
   // Positive = firm owes supplier, Negative = supplier owes firm
-  // Received invoices add to what firm owes (debit)
-  // Outgoing payments reduce what firm owes (credit)
-  // Sales invoices reduce what firm owes / supplier owes firm (credit)
-  // Incoming payments reduce what supplier owes (debit)
+  // Received invoices add to what firm owes (credit to AP)
+  // Outgoing payments reduce what firm owes (debit to AP)
+  // Sales invoices reduce what firm owes / supplier owes firm (debit to AP)
+  // Incoming payments add to what firm owes (credit to AP)
   const openingBalance =
     Number(invoicesBefore._sum.total_amount ?? 0)
     - Number(outPaymentsBefore._sum.amount ?? 0)
@@ -103,20 +103,20 @@ export async function GET(
   type Entry = { date: string; type: string; reference: string; description: string; debit: number; credit: number; balance: number };
   const entries: Entry[] = [];
 
-  // Received invoices = debit (firm owes supplier)
+  // Received invoices = credit (increases AP liability — firm owes supplier more)
   for (const inv of invoices) {
     entries.push({
       date: inv.issue_date.toISOString(),
       type: 'purchase_invoice',
       reference: inv.invoice_number ?? '-',
       description: `Purchase — ${inv.vendor_name_raw}`,
-      debit: Number(inv.total_amount),
-      credit: 0,
+      debit: 0,
+      credit: Number(inv.total_amount),
       balance: 0,
     });
   }
 
-  // Outgoing payments = credit (firm paid supplier)
+  // Outgoing payments = debit (decreases AP liability — firm paid supplier)
   for (const pmt of outPayments) {
     const receiptNames = receiptMap.get(pmt.id) ?? [];
     let description = 'Payment Out';
@@ -128,26 +128,26 @@ export async function GET(
       type: 'outgoing_payment',
       reference: pmt.reference ?? '-',
       description,
-      debit: 0,
-      credit: Number(pmt.amount),
+      debit: Number(pmt.amount),
+      credit: 0,
       balance: 0,
     });
   }
 
-  // Sales invoices = credit (supplier owes firm)
+  // Sales invoices = debit (decreases AP — supplier owes firm)
   for (const sinv of salesInvoices) {
     entries.push({
       date: sinv.issue_date.toISOString(),
       type: 'sales_invoice',
       reference: sinv.invoice_number,
       description: `Sales Invoice — ${sinv.invoice_number}`,
-      debit: 0,
-      credit: Number(sinv.total_amount),
+      debit: Number(sinv.total_amount),
+      credit: 0,
       balance: 0,
     });
   }
 
-  // Incoming payments = debit (supplier paid firm)
+  // Incoming payments = credit (increases AP — supplier paid firm, increasing what firm holds)
   for (const pmt of inPayments) {
     const receiptNames = receiptMap.get(pmt.id) ?? [];
     let description = 'Payment In';
@@ -159,8 +159,8 @@ export async function GET(
       type: 'incoming_payment',
       reference: pmt.reference ?? '-',
       description,
-      debit: Number(pmt.amount),
-      credit: 0,
+      debit: 0,
+      credit: Number(pmt.amount),
       balance: 0,
     });
   }
@@ -177,7 +177,7 @@ export async function GET(
   // Running balance
   let balance = openingBalance;
   for (const entry of entries) {
-    balance += entry.debit - entry.credit;
+    balance += entry.credit - entry.debit;
     entry.balance = balance;
   }
 

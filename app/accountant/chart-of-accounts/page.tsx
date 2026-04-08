@@ -89,11 +89,19 @@ export default function ChartOfAccountsPage() {
   const [expandedSet, setExpandedSet] = useState<Set<string>>(new Set());
   const [seeding, setSeeding] = useState(false);
 
+  // Drag and drop
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [moveConfirm, setMoveConfirm] = useState<{ account: GLAccount; oldParent: GLAccount | null; newParent: GLAccount | null; crossType: boolean } | null>(null);
+  const [moveSaving, setMoveSaving] = useState(false);
+
   // Accounting settings
   const [tradePayablesId, setTradePayablesId] = useState('');
   const [staffClaimsId, setStaffClaimsId] = useState('');
+  const [tradeReceivablesId, setTradeReceivablesId] = useState('');
   const [origTradePayables, setOrigTradePayables] = useState<{ id: string; label: string } | null>(null);
   const [origStaffClaims, setOrigStaffClaims] = useState<{ id: string; label: string } | null>(null);
+  const [origTradeReceivables, setOrigTradeReceivables] = useState<{ id: string; label: string } | null>(null);
   const [bankMappings, setBankMappings] = useState<{ bank_name: string; account_number: string; gl_account_id: string | null; gl_account_label: string | null }[]>([]);
   const [bankGlEdits, setBankGlEdits] = useState<Record<string, string>>({});
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -109,8 +117,10 @@ export default function ChartOfAccountsPage() {
         const d = j.data;
         setOrigTradePayables(d.gl_defaults.trade_payables);
         setOrigStaffClaims(d.gl_defaults.staff_claims);
+        setOrigTradeReceivables(d.gl_defaults.trade_receivables);
         setTradePayablesId(d.gl_defaults.trade_payables?.id ?? '');
         setStaffClaimsId(d.gl_defaults.staff_claims?.id ?? '');
+        setTradeReceivablesId(d.gl_defaults.trade_receivables?.id ?? '');
         setBankMappings(d.bank_mappings ?? []);
         setBankGlEdits({});
       })
@@ -118,12 +128,13 @@ export default function ChartOfAccountsPage() {
   }, [firmId, refreshKey]);
 
   const liabilityAccounts = accounts.filter((a) => a.account_type === 'Liability');
-  const bankGlAccounts = accounts.filter((a) => a.account_type === 'Asset');
+  const assetAccounts = accounts.filter((a) => a.account_type === 'Asset');
 
   const saveGlDefaults = () => {
     const tpChanged = origTradePayables && tradePayablesId !== origTradePayables.id;
     const scChanged = origStaffClaims && staffClaimsId !== origStaffClaims.id;
-    if (tpChanged || scChanged) {
+    const trChanged = origTradeReceivables && tradeReceivablesId !== origTradeReceivables.id;
+    if (tpChanged || scChanged || trChanged) {
       const changes: { from: string; to: string }[] = [];
       if (tpChanged) {
         const newTp = accounts.find((a) => a.id === tradePayablesId);
@@ -132,6 +143,10 @@ export default function ChartOfAccountsPage() {
       if (scChanged) {
         const newSc = accounts.find((a) => a.id === staffClaimsId);
         changes.push({ from: `Staff Claims: ${origStaffClaims.label}`, to: `Staff Claims: ${newSc ? `${newSc.account_code} — ${newSc.name}` : 'Not configured'}` });
+      }
+      if (trChanged) {
+        const newTr = accounts.find((a) => a.id === tradeReceivablesId);
+        changes.push({ from: `Trade Receivables: ${origTradeReceivables.label}`, to: `Trade Receivables: ${newTr ? `${newTr.account_code} — ${newTr.name}` : 'Not configured'}` });
       }
       setConfirmModal({ label: 'GL Defaults', changes, onConfirm: doSaveGlDefaults });
       return;
@@ -147,13 +162,15 @@ export default function ChartOfAccountsPage() {
       const res = await fetch(`/api/firms/${firmId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ default_trade_payables_gl_id: tradePayablesId || null, default_staff_claims_gl_id: staffClaimsId || null }),
+        body: JSON.stringify({ default_trade_payables_gl_id: tradePayablesId || null, default_staff_claims_gl_id: staffClaimsId || null, default_trade_receivables_gl_id: tradeReceivablesId || null }),
       });
       if (res.ok) {
         const tp = accounts.find((a) => a.id === tradePayablesId);
         const sc = accounts.find((a) => a.id === staffClaimsId);
+        const tr = accounts.find((a) => a.id === tradeReceivablesId);
         setOrigTradePayables(tp ? { id: tp.id, label: `${tp.account_code} — ${tp.name}` } : null);
         setOrigStaffClaims(sc ? { id: sc.id, label: `${sc.account_code} — ${sc.name}` } : null);
+        setOrigTradeReceivables(tr ? { id: tr.id, label: `${tr.account_code} — ${tr.name}` } : null);
         setSettingsMsg('GL defaults saved');
       }
     } catch (e) { console.error(e); }
@@ -308,6 +325,86 @@ export default function ChartOfAccountsPage() {
   const tree = buildTree(accounts);
   const flatRows = flattenTree(tree, expandedSet);
 
+  // ─── Drag and drop handlers ───────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDragId(id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (dragId && dragId !== targetId) {
+      setDropTargetId(targetId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDropTargetId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    setDropTargetId(null);
+    if (!dragId || dragId === targetId) return;
+
+    const dragAccount = accounts.find(a => a.id === dragId);
+    const targetAccount = accounts.find(a => a.id === targetId);
+    if (!dragAccount || !targetAccount) return;
+
+    // Prevent dropping onto own descendant (would create circular ref)
+    const isDescendant = (parentId: string, childId: string): boolean => {
+      const children = accounts.filter(a => a.parent_id === parentId);
+      return children.some(c => c.id === childId || isDescendant(c.id, childId));
+    };
+    if (isDescendant(dragId, targetId)) return;
+
+    // Don't move if already under this parent
+    if (dragAccount.parent_id === targetId) { setDragId(null); return; }
+
+    const oldParent = dragAccount.parent_id ? accounts.find(a => a.id === dragAccount.parent_id) ?? null : null;
+    const crossType = dragAccount.account_type !== targetAccount.account_type;
+
+    setMoveConfirm({ account: dragAccount, oldParent, newParent: targetAccount, crossType });
+    setDragId(null);
+  };
+
+  const handleDropRoot = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDropTargetId(null);
+    if (!dragId) return;
+
+    const dragAccount = accounts.find(a => a.id === dragId);
+    if (!dragAccount || !dragAccount.parent_id) { setDragId(null); return; }
+
+    const oldParent = accounts.find(a => a.id === dragAccount.parent_id) ?? null;
+    setMoveConfirm({ account: dragAccount, oldParent, newParent: null, crossType: false });
+    setDragId(null);
+  };
+
+  const doMove = async () => {
+    if (!moveConfirm) return;
+    setMoveSaving(true);
+    try {
+      const res = await fetch(`/api/gl-accounts/${moveConfirm.account.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_id: moveConfirm.newParent?.id ?? null }),
+      });
+      if (res.ok) {
+        // Update locally to preserve expanded state
+        setAccounts(prev => prev.map(a =>
+          a.id === moveConfirm.account.id ? { ...a, parent_id: moveConfirm.newParent?.id ?? null } : a
+        ));
+        // Auto-expand the new parent so the moved item is visible
+        if (moveConfirm.newParent) {
+          setExpandedSet(prev => { const next = new Set(Array.from(prev)); next.add(moveConfirm.newParent!.id); return next; });
+        }
+        setMoveConfirm(null);
+      }
+    } catch (e) { console.error(e); }
+    finally { setMoveSaving(false); }
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedSet((prev) => {
       const next = new Set(prev);
@@ -448,6 +545,15 @@ export default function ChartOfAccountsPage() {
 
             {hasFirmSelected && hasAccounts && (
               <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const allIds = accounts.filter(a => accounts.some(c => c.parent_id === a.id)).map(a => a.id);
+                    setExpandedSet(prev => prev.size === allIds.length ? new Set() : new Set(allIds));
+                  }}
+                  className="text-sm px-3 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                >
+                  {expandedSet.size > 0 ? 'Collapse All' : 'Expand All'}
+                </button>
                 <button onClick={() => openAddModal()} className="btn-primary text-sm px-4 py-2 rounded-lg font-semibold">
                   Add Account Code
                 </button>
@@ -486,74 +592,38 @@ export default function ChartOfAccountsPage() {
               <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700">{settingsMsg}</div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* GL Defaults */}
-              <section className="bg-white rounded-lg p-4 space-y-3">
+            <section className="bg-white rounded-lg p-4 space-y-3">
+              <div>
+                <h2 className="text-sm font-semibold text-[#191C1E]">GL Defaults</h2>
+                <p className="text-xs text-[#8E9196] mt-0.5">Contra accounts for auto-generated journal entries.</p>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-[#191C1E]">GL Defaults</h2>
-                  <p className="text-xs text-[#8E9196] mt-0.5">Contra accounts for auto-generated journal entries.</p>
+                  <label className="input-label">Trade Payables (invoices)</label>
+                  <select value={tradePayablesId} onChange={(e) => setTradePayablesId(e.target.value)} className="input-field w-full text-sm">
+                    <option value="">Not configured</option>
+                    {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                  </select>
                 </div>
-                <div className="space-y-2.5">
-                  <div>
-                    <label className="input-label">Trade Payables (invoices)</label>
-                    <select value={tradePayablesId} onChange={(e) => setTradePayablesId(e.target.value)} className="input-field w-full text-sm">
-                      <option value="">Not configured</option>
-                      {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="input-label">Staff Claims Payable (claims)</label>
-                    <select value={staffClaimsId} onChange={(e) => setStaffClaimsId(e.target.value)} className="input-field w-full text-sm">
-                      <option value="">Not configured</option>
-                      {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                    </select>
-                  </div>
-                  <button onClick={saveGlDefaults} disabled={settingsSaving} className="btn-primary px-4 py-1.5 rounded-lg text-sm font-semibold disabled:opacity-40">
-                    {settingsSaving ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              </section>
-
-              {/* Bank Account GL Mappings */}
-              <section className="bg-white rounded-lg p-4 space-y-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-[#191C1E]">Bank Account GL</h2>
-                  <p className="text-xs text-[#8E9196] mt-0.5">Maps bank accounts to GL for bank reconciliation journal entries.</p>
+                  <label className="input-label">Staff Claims Payable (claims)</label>
+                  <select value={staffClaimsId} onChange={(e) => setStaffClaimsId(e.target.value)} className="input-field w-full text-sm">
+                    <option value="">Not configured</option>
+                    {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                  </select>
                 </div>
-                {bankMappings.length === 0 ? (
-                  <p className="text-xs text-[#8E9196]">No bank statements uploaded yet.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {bankMappings.map((m) => {
-                      const key = `${m.bank_name}|${m.account_number}`;
-                      const editValue = bankGlEdits[key] ?? m.gl_account_id ?? '';
-                      const hasChanged = bankGlEdits[key] !== undefined && bankGlEdits[key] !== (m.gl_account_id ?? '');
-                      return (
-                        <div key={key} className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-[#191C1E] min-w-[120px]">{m.bank_name}</span>
-                          <span className="text-xs text-[#8E9196] font-mono min-w-[110px]">{m.account_number || '-'}</span>
-                          <select
-                            value={editValue}
-                            onChange={(e) => setBankGlEdits((prev) => ({ ...prev, [key]: e.target.value }))}
-                            className="input-field flex-1 text-sm"
-                          >
-                            <option value="">Not mapped</option>
-                            {bankGlAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                          </select>
-                          {hasChanged ? (
-                            <button onClick={() => saveBankMapping(m.bank_name, m.account_number)} disabled={settingsSaving} className="btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40">Save</button>
-                          ) : m.gl_account_id ? (
-                            <span className="badge-green text-xs">Mapped</span>
-                          ) : (
-                            <span className="badge-amber text-xs">Unmapped</span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            </div>
+                <div className="lg:col-span-2">
+                  <label className="input-label">Trade Receivables (sales invoices)</label>
+                  <select value={tradeReceivablesId} onChange={(e) => setTradeReceivablesId(e.target.value)} className="input-field w-full text-sm">
+                    <option value="">Not configured</option>
+                    {assetAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <button onClick={saveGlDefaults} disabled={settingsSaving} className="btn-primary px-4 py-1.5 rounded-lg text-sm font-semibold disabled:opacity-40">
+                {settingsSaving ? 'Saving...' : 'Save'}
+              </button>
+            </section>
 
             {/* Accounts tree table */}
             <div className="bg-white rounded-lg overflow-hidden">
@@ -571,7 +641,21 @@ export default function ChartOfAccountsPage() {
                   </thead>
                   <tbody>
                     {flatRows.map((row) => (
-                      <tr key={row.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 cursor-pointer" onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
+                      <tr
+                        key={row.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, row.id)}
+                        onDragOver={(e) => handleDragOver(e, row.id)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, row.id)}
+                        onDragEnd={() => { setDragId(null); setDropTargetId(null); }}
+                        className={`text-body-sm transition-colors border-b border-gray-50 cursor-pointer ${
+                          dragId === row.id ? 'opacity-40' :
+                          dropTargetId === row.id ? 'bg-blue-50 border-blue-300 border-2' :
+                          'hover:bg-[#F2F4F6]'
+                        }`}
+                        onClick={() => hasChildren(row.id) && toggleExpand(row.id)}
+                      >
                         <td className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (
@@ -847,6 +931,45 @@ export default function ChartOfAccountsPage() {
             <div className="flex gap-3 mt-4">
               <button onClick={confirmModal.onConfirm} className="btn-reject flex-1 py-2.5 rounded-lg text-sm font-semibold">Confirm Change</button>
               <button onClick={() => setConfirmModal(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ MOVE ACCOUNT CONFIRMATION MODAL ═══ */}
+      {moveConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setMoveConfirm(null)}>
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-[#191C1E] mb-3">Move Account</h3>
+            <div className="space-y-3 text-sm text-[#434654]">
+              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                <div>
+                  <span className="text-[#8E9196] text-xs font-medium uppercase">Account</span>
+                  <p className="font-semibold text-[#191C1E]">{moveConfirm.account.account_code} — {moveConfirm.account.name}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#8E9196] text-xs font-medium uppercase w-12">From</span>
+                  <span className="font-medium">{moveConfirm.oldParent ? `${moveConfirm.oldParent.account_code} — ${moveConfirm.oldParent.name}` : 'Root level'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[#8E9196] text-xs font-medium uppercase w-12">To</span>
+                  <span className="font-medium">{moveConfirm.newParent ? `${moveConfirm.newParent.account_code} — ${moveConfirm.newParent.name}` : 'Root level'}</span>
+                </div>
+              </div>
+              {moveConfirm.crossType && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
+                  <strong>Cross-type move:</strong> You are moving a <span className={TYPE_BADGES[moveConfirm.account.account_type]}>{moveConfirm.account.account_type}</span> account under a <span className={TYPE_BADGES[moveConfirm.newParent!.account_type]}>{moveConfirm.newParent!.account_type}</span> group. The account type will not change — only its position in the tree. This may affect how your financial statements are structured.
+                </div>
+              )}
+              <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#8E9196]">
+                This will change how this account appears in the Chart of Accounts hierarchy and financial reports.
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={doMove} disabled={moveSaving} className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40">
+                {moveSaving ? 'Moving...' : 'Confirm Move'}
+              </button>
+              <button onClick={() => setMoveConfirm(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">Cancel</button>
             </div>
           </div>
         </div>

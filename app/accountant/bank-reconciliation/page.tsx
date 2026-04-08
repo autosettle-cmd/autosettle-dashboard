@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import GlAccountSelect from '@/components/GlAccountSelect';
 
 interface StatementRow {
   id: string;
@@ -326,22 +327,23 @@ export default function AccountantBankReconciliationPage() {
                         {(() => {
                           const glMapping = bankGlMap[key];
                           const isEditing = glEditKey === key;
-                          const bankAccounts = glAccounts.filter((a) => a.account_type === 'Asset' && a.account_code.startsWith('111'));
+                          const groupFirmId = statements.find((s) => s.bank_name === group.bank && (s.account_number ?? '') === (group.account === '-' ? '' : group.account))?.firm_id ?? '';
 
                           if (isEditing) {
                             return (
                               <div className="flex items-center gap-1.5">
-                                <select
-                                  value={glEditValue}
-                                  onChange={(e) => setGlEditValue(e.target.value)}
-                                  className="input-field text-xs py-1"
-                                  autoFocus
-                                >
-                                  <option value="">Select GL...</option>
-                                  {bankAccounts.map((a) => (
-                                    <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                                  ))}
-                                </select>
+                                <div className="min-w-[220px]">
+                                  <GlAccountSelect
+                                    value={glEditValue}
+                                    onChange={setGlEditValue}
+                                    accounts={glAccounts}
+                                    firmId={groupFirmId}
+                                    placeholder="Select GL..."
+                                    preferredType="Asset"
+                                    defaultType="Asset"
+                                    onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                                  />
+                                </div>
                                 <button
                                   onClick={() => { if (glEditValue) saveBankGl(group.bank, group.account === '-' ? '' : group.account, glEditValue); }}
                                   disabled={!glEditValue}

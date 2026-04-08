@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       include: {
         firm: { select: { name: true } },
         aliases: { select: { id: true, alias: true, is_confirmed: true } },
-        _count: { select: { invoices: true } },
+        _count: { select: { invoices: true, salesInvoices: true } },
       },
       orderBy: { name: 'asc' },
       take: takeParam || 100,
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
   const supplierIds = suppliers.map(s => s.id);
 
   // Batch aggregate queries instead of fetching all invoice/payment rows
-  const [outstandingBySupplier, overdueBySupplier, creditBySupplier] = supplierIds.length > 0
+  const [outstandingBySupplier, overdueBySupplier, creditBySupplier, receivableBySupplier] = supplierIds.length > 0
     ? await Promise.all([
         prisma.invoice.groupBy({
           by: ['supplier_id'],
@@ -65,8 +65,13 @@ export async function GET(request: NextRequest) {
           WHERE p.supplier_id = ANY(${supplierIds})
           GROUP BY p.supplier_id
         `,
+        prisma.salesInvoice.groupBy({
+          by: ['supplier_id'],
+          where: { supplier_id: { in: supplierIds }, payment_status: { not: 'paid' } },
+          _sum: { total_amount: true, amount_paid: true },
+        }),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
 
   const outstandingMap = new Map(outstandingBySupplier.map(r => [
     r.supplier_id!, Number(r._sum.total_amount ?? 0) - Number(r._sum.amount_paid ?? 0),
@@ -75,6 +80,9 @@ export async function GET(request: NextRequest) {
     r.supplier_id!, Number(r._sum.total_amount ?? 0) - Number(r._sum.amount_paid ?? 0),
   ]));
   const creditMap = new Map(creditBySupplier.map(r => [r.supplier_id, Number(r.credit_balance)]));
+  const receivableMap = new Map(receivableBySupplier.map(r => [
+    r.supplier_id!, Number(r._sum.total_amount ?? 0) - Number(r._sum.amount_paid ?? 0),
+  ]));
 
   const data = suppliers.map((s) => ({
     id: s.id,
@@ -87,9 +95,11 @@ export async function GET(request: NextRequest) {
     firm_id: s.firm_id,
     aliases: s.aliases,
     invoice_count: s._count.invoices,
+    sales_invoice_count: s._count.salesInvoices,
     total_outstanding: (outstandingMap.get(s.id) ?? 0).toFixed(2),
     overdue_amount: (overdueMap.get(s.id) ?? 0).toFixed(2),
     credit_balance: (creditMap.get(s.id) ?? 0).toFixed(2),
+    receivable_amount: (receivableMap.get(s.id) ?? 0).toFixed(2),
     // LHDN buyer fields
     tin: s.tin,
     brn: s.brn,

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { createJournalEntry, findOpenPeriod } from '@/lib/journal-entries';
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
       include: {
         buyer: { select: { id: true, name: true } },
         firm: { select: { name: true } },
+        category: { select: { name: true } },
         items: { orderBy: { sort_order: 'asc' } },
         paymentAllocations: {
           select: { id: true, amount: true },
@@ -72,6 +74,10 @@ export async function GET(request: NextRequest) {
     buyer_name: inv.buyer.name,
     firm_name: inv.firm.name,
     firm_id: inv.firm_id,
+    category_id: inv.category_id,
+    category_name: inv.category?.name ?? null,
+    gl_account_id: inv.gl_account_id,
+    approval: inv.approval,
     lhdn_status: inv.lhdn_status,
     items: inv.items.map((item) => ({
       id: item.id,
@@ -102,7 +108,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { firm_id, supplier_id, invoice_number, issue_date, due_date, currency, notes, items } = body;
+    const { firm_id, supplier_id, invoice_number, issue_date, due_date, currency, notes, items, category_id, gl_account_id, contra_gl_account_id } = body;
 
     if (!firm_id || !supplier_id || !invoice_number || !issue_date || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -154,6 +160,9 @@ export async function POST(request: NextRequest) {
         payment_status: 'unpaid',
         amount_paid: 0,
         notes: notes || null,
+        category_id: category_id || null,
+        gl_account_id: gl_account_id || null,
+        approval: 'approved',
         items: {
           create: items.map((item: { description: string; quantity: number; unit_price: number; discount?: number; tax_type?: string; tax_rate?: number; tax_amount?: number; line_total: number; sort_order?: number }, idx: number) => ({
             description: item.description,
@@ -215,6 +224,28 @@ export async function POST(request: NextRequest) {
       userId: session.user.id,
       userName: session.user.name,
     });
+
+    // Accountant-created = auto-approved → create JV if GL accounts provided
+    if (gl_account_id && contra_gl_account_id) {
+      try {
+        await findOpenPeriod(prisma, firm_id, new Date(issue_date));
+        await createJournalEntry({
+          firmId: firm_id,
+          postingDate: new Date(issue_date),
+          description: `Sales — ${salesInvoice.buyer.name} — ${invoice_number}`,
+          sourceType: 'sales_invoice_posting',
+          sourceId: salesInvoice.id,
+          lines: [
+            { glAccountId: contra_gl_account_id, debitAmount: totalAmount, creditAmount: 0, description: 'Trade Receivables' },
+            { glAccountId: gl_account_id, debitAmount: 0, creditAmount: totalAmount, description: salesInvoice.buyer.name },
+          ],
+          createdBy: session.user.id,
+        });
+      } catch (jvErr) {
+        console.error('JV creation warning for sales invoice:', jvErr);
+        // Don't fail the invoice creation, just log
+      }
+    }
 
     return NextResponse.json({ data, error: null }, { status: 201 });
   } catch (error) {

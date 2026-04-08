@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         buyer: { select: { id: true, name: true } },
+        category: { select: { name: true } },
         items: { orderBy: { sort_order: 'asc' } },
         paymentAllocations: {
           select: { id: true, amount: true },
@@ -66,6 +67,10 @@ export async function GET(request: NextRequest) {
     notes: inv.notes,
     supplier_id: inv.supplier_id,
     buyer_name: inv.buyer.name,
+    category_id: inv.category_id,
+    category_name: inv.category?.name ?? null,
+    gl_account_id: inv.gl_account_id,
+    approval: inv.approval,
     lhdn_status: inv.lhdn_status,
     items: inv.items.map((item) => ({
       id: item.id,
@@ -96,7 +101,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { supplier_id, invoice_number, issue_date, due_date, currency, notes, items } = body;
+    const { supplier_id, invoice_number, issue_date, due_date, currency, notes, items, category_id } = body;
 
     if (!supplier_id || !invoice_number || !issue_date || !items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
@@ -141,6 +146,8 @@ export async function POST(request: NextRequest) {
         payment_status: 'unpaid',
         amount_paid: 0,
         notes: notes || null,
+        category_id: category_id || null,
+        approval: 'pending_approval',
         items: {
           create: items.map((item: { description: string; quantity: number; unit_price: number; discount?: number; tax_type?: string; tax_rate?: number; tax_amount?: number; line_total: number; sort_order?: number }, idx: number) => ({
             description: item.description,

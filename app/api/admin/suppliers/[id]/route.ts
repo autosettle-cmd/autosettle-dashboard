@@ -33,6 +33,18 @@ export async function GET(
         },
         orderBy: { issue_date: 'desc' },
       },
+      salesInvoices: {
+        include: {
+          paymentAllocations: {
+            include: {
+              payment: {
+                select: { id: true, payment_date: true, reference: true, amount: true },
+              },
+            },
+          },
+        },
+        orderBy: { issue_date: 'desc' },
+      },
     },
   });
 
@@ -85,6 +97,23 @@ export async function GET(
     })),
   }));
 
+  const salesInvoices = supplier.salesInvoices.map((sinv) => ({
+    id: sinv.id,
+    invoice_number: sinv.invoice_number,
+    issue_date: sinv.issue_date,
+    due_date: sinv.due_date,
+    total_amount: sinv.total_amount.toString(),
+    amount_paid: sinv.amount_paid.toString(),
+    payment_status: sinv.payment_status,
+    notes: sinv.notes,
+    allocations: sinv.paymentAllocations.map((a) => ({
+      id: a.id,
+      amount: a.amount.toString(),
+      payment_date: a.payment.payment_date,
+      reference: a.payment.reference,
+    })),
+  }));
+
   // Find orphaned payments (no allocations = unallocated credit)
   const orphanedPayments = await prisma.payment.findMany({
     where: {
@@ -108,6 +137,7 @@ export async function GET(
       is_active: supplier.is_active,
       aliases: supplier.aliases,
       invoices,
+      salesInvoices,
       orphanedPayments: orphanedPayments.map((p) => ({
         id: p.id,
         amount: p.amount.toString(),

@@ -131,8 +131,8 @@ export function generateSOAPdf(data: StatementData) {
     { content: fmtDate(data.period.to), styles: { fontStyle: 'bold' as const } },
     { content: 'Closing Balance', styles: { fontStyle: 'bold' as const } },
     '',
-    { content: fmtRM(data.totals.total_debit), styles: { fontStyle: 'bold' as const, textColor: [220, 38, 38] as [number, number, number] } },
-    { content: fmtRM(data.totals.total_credit), styles: { fontStyle: 'bold' as const, textColor: [22, 163, 74] as [number, number, number] } },
+    { content: fmtRM(data.totals.total_debit), styles: { fontStyle: 'bold' as const, textColor: [22, 163, 74] as [number, number, number] } },
+    { content: fmtRM(data.totals.total_credit), styles: { fontStyle: 'bold' as const, textColor: [220, 38, 38] as [number, number, number] } },
     { content: fmtRM(data.closing_balance), styles: { fontStyle: 'bold' as const, textColor: (data.closing_balance > 0 ? [220, 38, 38] : data.closing_balance < 0 ? [22, 163, 74] : [107, 114, 128]) as [number, number, number] } },
   ]);
 
@@ -170,13 +170,13 @@ export function generateSOAPdf(data: StatementData) {
           if (entry.type === 'sales_invoice' || entry.type === 'incoming_payment') {
             hookData.cell.styles.fillColor = [240, 253, 244]; // light green
           }
-          // Color debit column (col 3) red
+          // Color debit column (col 3) green (payments reducing liability)
           if (hookData.column.index === 3 && entry.debit > 0) {
-            hookData.cell.styles.textColor = [220, 38, 38]; // red
-          }
-          // Color credit column (col 4) green
-          if (hookData.column.index === 4 && entry.credit > 0) {
             hookData.cell.styles.textColor = [22, 163, 74]; // green
+          }
+          // Color credit column (col 4) red (invoices increasing liability)
+          if (hookData.column.index === 4 && entry.credit > 0) {
+            hookData.cell.styles.textColor = [220, 38, 38]; // red
           }
           // Color balance column (col 5)
           if (hookData.column.index === 5) {

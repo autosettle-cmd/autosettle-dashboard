@@ -120,8 +120,9 @@ model Firm {
   lhdn_client_secret     String?
 
   // GL defaults
-  default_trade_payables_gl_id  String?
-  default_staff_claims_gl_id    String?
+  default_trade_payables_gl_id    String?
+  default_staff_claims_gl_id      String?
+  default_trade_receivables_gl_id String?
 
   users           User[]
   employees       Employee[]
@@ -142,8 +143,9 @@ model Firm {
   journalEntries         JournalEntry[]
   mileage_rate_per_km    Decimal?  @db.Decimal(4, 2)
 
-  defaultTradePayables   GLAccount? @relation("FirmTradePayables", fields: [default_trade_payables_gl_id], references: [id])
-  defaultStaffClaims     GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id])
+  defaultTradePayables    GLAccount? @relation("FirmTradePayables", fields: [default_trade_payables_gl_id], references: [id])
+  defaultStaffClaims      GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id])
+  defaultTradeReceivables GLAccount? @relation("FirmTradeReceivables", fields: [default_trade_receivables_gl_id], references: [id])
 }
 
 model Employee {
@@ -207,10 +209,11 @@ model Category {
   is_active  Boolean  @default(true)
   created_at DateTime @default(now())
 
-  firm      Firm?                @relation(fields: [firm_id], references: [id])
-  claims    Claim[]
-  invoices  Invoice[]
-  overrides CategoryFirmOverride[]
+  firm           Firm?                @relation(fields: [firm_id], references: [id])
+  claims         Claim[]
+  invoices       Invoice[]
+  salesInvoices  SalesInvoice[]
+  overrides      CategoryFirmOverride[]
 
   @@unique([firm_id, name])
   @@index([firm_id])
@@ -454,6 +457,9 @@ model SalesInvoice {
   payment_status       InvoicePaymentStatus @default(unpaid)
   amount_paid          Decimal              @default(0) @db.Decimal(10, 2)
   notes                String?
+  category_id          String?
+  gl_account_id        String?
+  approval             ApprovalStatus       @default(pending_approval)
 
   // LHDN MyInvois fields
   lhdn_submission_uid  String?
@@ -471,11 +477,14 @@ model SalesInvoice {
   firm                 Firm                 @relation(fields: [firm_id], references: [id])
   buyer                Supplier             @relation(fields: [supplier_id], references: [id])
   creator              Employee?            @relation(fields: [created_by], references: [id])
+  category             Category?            @relation(fields: [category_id], references: [id])
+  glAccount            GLAccount?           @relation(fields: [gl_account_id], references: [id])
   items                SalesInvoiceItem[]
   paymentAllocations   SalesPaymentAllocation[]
 
   @@index([firm_id, issue_date])
   @@index([firm_id, lhdn_status])
+  @@index([firm_id, approval])
   @@unique([firm_id, invoice_number])
 }
 
@@ -557,6 +566,7 @@ enum JournalEntryStatus {
 enum JournalSourceType {
   claim_approval
   invoice_posting
+  sales_invoice_posting
   bank_recon
   manual
 }
@@ -629,12 +639,14 @@ model GLAccount {
 
   claims                Claim[]
   invoices              Invoice[]
+  salesInvoices         SalesInvoice[]
   categoryFirmOverrides CategoryFirmOverride[]
   taxCodes              TaxCode[]
   journalLines          JournalLine[]
   bankAccounts          BankAccount[]
   firmsTradePayables    Firm[]  @relation("FirmTradePayables")
   firmsStaffClaims      Firm[]  @relation("FirmStaffClaims")
+  firmsTradeReceivables Firm[]  @relation("FirmTradeReceivables")
 
   @@unique([firm_id, account_code])
   @@index([firm_id, account_type])

@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
     select: {
       default_trade_payables_gl_id: true,
       default_staff_claims_gl_id: true,
+      default_trade_receivables_gl_id: true,
       defaultTradePayables: { select: { id: true, account_code: true, name: true } },
       defaultStaffClaims: { select: { id: true, account_code: true, name: true } },
+      defaultTradeReceivables: { select: { id: true, account_code: true, name: true } },
     },
   });
 
@@ -73,7 +75,12 @@ export async function GET(request: NextRequest) {
           id: firm.defaultStaffClaims.id,
           label: `${firm.defaultStaffClaims.account_code} — ${firm.defaultStaffClaims.name}`,
         } : null,
+        trade_receivables: firm?.defaultTradeReceivables ? {
+          id: firm.defaultTradeReceivables.id,
+          label: `${firm.defaultTradeReceivables.account_code} — ${firm.defaultTradeReceivables.name}`,
+        } : null,
       },
+      default_trade_receivables_gl_id: firm?.default_trade_receivables_gl_id ?? null,
       bank_mappings: bankMappings,
     },
     error: null,

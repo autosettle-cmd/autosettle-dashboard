@@ -106,8 +106,8 @@ export async function GET(
       type: 'purchase_invoice',
       reference: inv.invoice_number ?? '-',
       description: `Purchase — ${inv.vendor_name_raw}`,
-      debit: Number(inv.total_amount),
-      credit: 0,
+      debit: 0,
+      credit: Number(inv.total_amount),
       balance: 0,
     });
   }
@@ -123,8 +123,8 @@ export async function GET(
       type: 'outgoing_payment',
       reference: pmt.reference ?? '-',
       description,
-      debit: 0,
-      credit: Number(pmt.amount),
+      debit: Number(pmt.amount),
+      credit: 0,
       balance: 0,
     });
   }
@@ -135,8 +135,8 @@ export async function GET(
       type: 'sales_invoice',
       reference: sinv.invoice_number,
       description: `Sales Invoice — ${sinv.invoice_number}`,
-      debit: 0,
-      credit: Number(sinv.total_amount),
+      debit: Number(sinv.total_amount),
+      credit: 0,
       balance: 0,
     });
   }
@@ -152,8 +152,8 @@ export async function GET(
       type: 'incoming_payment',
       reference: pmt.reference ?? '-',
       description,
-      debit: Number(pmt.amount),
-      credit: 0,
+      debit: 0,
+      credit: Number(pmt.amount),
       balance: 0,
     });
   }
@@ -168,7 +168,7 @@ export async function GET(
 
   let balance = openingBalance;
   for (const entry of entries) {
-    balance += entry.debit - entry.credit;
+    balance += entry.credit - entry.debit;
     entry.balance = balance;
   }
 

@@ -7,6 +7,7 @@ import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useSearchParams } from 'next/navigation';
+import GlAccountSelect from '@/components/GlAccountSelect';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -166,6 +167,8 @@ function AccountantInvoicesPage() {
   const [previewInvoice, setPreviewInvoice] = useState<InvoiceRow | null>(null);
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
+  const [selectedContraGlId, setSelectedContraGlId] = useState<string>('');
+  const [defaultContraGlId, setDefaultContraGlId] = useState<string>('');
 
   // Selection for batch actions
   const [selectedRows, setSelectedRows] = useState<InvoiceRow[]>([]);
@@ -179,12 +182,12 @@ function AccountantInvoicesPage() {
     setSelectedRows(allOnPageSelected ? [] : pagedInvoices);
   };
 
-  const batchAction = async (invoiceIds: string[], action: 'approve' | 'reject' | 'revert', reason?: string) => {
+  const batchAction = async (invoiceIds: string[], action: 'approve' | 'reject' | 'revert', reason?: string, glAccountId?: string, contraGlId?: string) => {
     try {
       const res = await fetch('/api/invoices/batch', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceIds, action, ...(reason && { reason }) }),
+        body: JSON.stringify({ invoiceIds, action, ...(reason && { reason }), ...(glAccountId && { gl_account_id: glAccountId }), ...(contraGlId && { contra_gl_account_id: contraGlId }) }),
       });
       if (res.ok) {
         refresh();
@@ -246,15 +249,19 @@ function AccountantInvoicesPage() {
   });
   const [newInvFile, setNewInvFile] = useState<File | null>(null);
   const [ocrScanning, setOcrScanning] = useState(false);
+  const [newInvGlAccounts, setNewInvGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [newInvExpenseGlId, setNewInvExpenseGlId] = useState('');
+  const [newInvContraGlId, setNewInvContraGlId] = useState('');
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const vendorInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch categories when modal opens
+  // Fetch GL accounts when firm is selected in modal
   useEffect(() => {
-    if (showNewInvoice) {
-      fetch('/api/categories').then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
-    }
-  }, [showNewInvoice]);
+    if (!showNewInvoice || !newInv.firm_id) { setNewInvGlAccounts([]); return; }
+    fetch(`/api/gl-accounts?firmId=${newInv.firm_id}`).then((r) => r.json())
+      .then((j) => setNewInvGlAccounts(j.data ?? []))
+      .catch(console.error);
+  }, [showNewInvoice, newInv.firm_id]);
 
   const handleInvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -307,7 +314,7 @@ function AccountantInvoicesPage() {
   };
 
   const submitNewInvoice = async () => {
-    if (!newInv.firm_id || !newInv.vendor_name || !newInv.issue_date || !newInv.total_amount || !newInv.category_id) {
+    if (!newInv.firm_id || !newInv.vendor_name || !newInv.issue_date || !newInv.total_amount) {
       setNewInvError('Please fill in all required fields including Firm.');
       return;
     }
@@ -322,9 +329,11 @@ function AccountantInvoicesPage() {
       fd.append('issue_date', newInv.issue_date);
       if (newInv.due_date) fd.append('due_date', newInv.due_date);
       fd.append('total_amount', newInv.total_amount);
-      fd.append('category_id', newInv.category_id);
+      if (newInv.category_id) fd.append('category_id', newInv.category_id);
       if (newInv.payment_terms) fd.append('payment_terms', newInv.payment_terms);
       if (newInvFile) fd.append('file', newInvFile);
+      if (newInvExpenseGlId) fd.append('gl_account_id', newInvExpenseGlId);
+      if (newInvContraGlId) fd.append('contra_gl_account_id', newInvContraGlId);
 
       const res = await fetch('/api/invoices', { method: 'POST', body: fd });
       const j = await res.json();
@@ -333,6 +342,8 @@ function AccountantInvoicesPage() {
       setShowNewInvoice(false);
       setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '' });
       setNewInvFile(null);
+      setNewInvExpenseGlId('');
+      setNewInvContraGlId('');
       refresh();
     } catch (e) { console.error(e); setNewInvError('Network error'); }
     finally { setNewInvSubmitting(false); }
@@ -347,8 +358,9 @@ function AccountantInvoicesPage() {
       Promise.all([
         fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
         fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
       ])
-        .then(([glJson, catJson]) => {
+        .then(([glJson, catJson, settingsJson]) => {
           setGlAccounts(glJson.data ?? []);
           if (previewInvoice.gl_account_id) {
             setSelectedGlAccountId(previewInvoice.gl_account_id);
@@ -357,11 +369,16 @@ function AccountantInvoicesPage() {
             const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
             setSelectedGlAccountId(match?.gl_account_id ?? '');
           }
+          const contraId = settingsJson.data?.default_trade_payables_gl_id ?? '';
+          setDefaultContraGlId(contraId);
+          setSelectedContraGlId(contraId);
         })
         .catch(console.error);
     } else {
       setGlAccounts([]);
       setSelectedGlAccountId('');
+      setSelectedContraGlId('');
+      setDefaultContraGlId('');
     }
   }, [previewInvoice]);
 
@@ -586,7 +603,7 @@ function AccountantInvoicesPage() {
 
             <div className="ml-auto">
               <button
-                onClick={() => setShowNewInvoice(true)}
+                onClick={() => { setShowNewInvoice(true); if (firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: firms[0].id })); }}
                 className="btn-primary px-4 py-2 rounded-lg text-sm font-semibold"
               >
                 + Submit New Invoice
@@ -791,13 +808,38 @@ function AccountantInvoicesPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="input-label">Category *</label>
-                  <select value={newInv.category_id} onChange={(e) => setNewInv({ ...newInv, category_id: e.target.value })} className="input-field w-full">
-                    <option value="">Select category</option>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
+                {/* GL Account Selection */}
+                {newInvGlAccounts.length > 0 && (
+                  <>
+                    <div>
+                      <label className="input-label">Expense GL (Debit)</label>
+                      <GlAccountSelect
+                        value={newInvExpenseGlId}
+                        onChange={setNewInvExpenseGlId}
+                        accounts={newInvGlAccounts}
+                        firmId={newInv.firm_id}
+                        placeholder="Select Expense GL"
+                        preferredType="Expense"
+                        defaultType="Expense"
+                        onAccountCreated={(a) => setNewInvGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                      />
+                    </div>
+                    <div>
+                      <label className="input-label">Contra GL (Credit — Trade Payables)</label>
+                      <GlAccountSelect
+                        value={newInvContraGlId}
+                        onChange={setNewInvContraGlId}
+                        accounts={newInvGlAccounts}
+                        firmId={newInv.firm_id}
+                        placeholder="Select Trade Payables GL"
+                        preferredType="Liability"
+                        defaultType="Liability"
+                        defaultBalance="Credit"
+                        onAccountCreated={(a) => setNewInvGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <label className="input-label">Invoice Image</label>
@@ -1025,31 +1067,52 @@ function AccountantInvoicesPage() {
 
             {/* GL Account Assignment */}
             {!editMode && glAccounts.length > 0 && (
-              <div className="px-5 pb-2">
-                <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">GL Account</label>
-                {previewInvoice.status === 'reviewed' ? (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                    </svg>
-                    <span className="text-sm font-medium text-[#191C1E]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
-                  </div>
-                ) : (
-                  <select
-                    value={selectedGlAccountId}
-                    onChange={(e) => setSelectedGlAccountId(e.target.value)}
-                    className="input-field w-full text-sm"
-                  >
-                    <option value="">Select GL Account</option>
-                    {glAccounts.filter(a => a.account_type === 'Expense').map(a => (
-                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                    ))}
-                    <option disabled>──────────</option>
-                    {glAccounts.filter(a => a.account_type !== 'Expense').map(a => (
-                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                    ))}
-                  </select>
-                )}
+              <div className="px-5 pb-2 space-y-2">
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  {previewInvoice.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedGlAccountId}
+                      onChange={setSelectedGlAccountId}
+                      accounts={glAccounts}
+                      firmId={previewInvoice.firm_id}
+                      placeholder="Select GL Account"
+                      preferredType="Expense"
+                      defaultType="Expense"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  {previewInvoice.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedContraGlId}
+                      onChange={setSelectedContraGlId}
+                      accounts={glAccounts}
+                      firmId={previewInvoice.firm_id}
+                      placeholder="Select Contra GL Account"
+                      preferredType="Liability"
+                      defaultType="Liability"
+                      defaultBalance="Credit"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
               </div>
             )}
 
@@ -1076,7 +1139,7 @@ function AccountantInvoicesPage() {
                           Mark as Reviewed
                         </button>
                         <button
-                          onClick={() => batchAction([previewInvoice.id], 'approve')}
+                          onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
                           className="btn-approve flex-1 py-2 rounded-lg text-sm"
                         >
                           Approve
@@ -1092,7 +1155,7 @@ function AccountantInvoicesPage() {
                     {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
                       <>
                         <button
-                          onClick={() => batchAction([previewInvoice.id], 'approve')}
+                          onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
                           className="btn-approve flex-1 py-2 rounded-lg text-sm"
                         >
                           Approve

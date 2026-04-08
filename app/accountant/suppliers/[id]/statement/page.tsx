@@ -155,13 +155,13 @@ export default function AccountantSupplierStatementPage() {
                   <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Opening Balance</p>
                   <p className={`text-lg font-bold mt-1 tabular-nums ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</p>
                 </div>
-                <div className="bg-white rounded-lg p-4 border-l-4 border-l-red-400">
-                  <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Total Debit</p>
-                  <p className="text-lg font-bold text-red-600 mt-1 tabular-nums">{formatRM(data.totals.total_debit)}</p>
-                </div>
                 <div className="bg-white rounded-lg p-4 border-l-4 border-l-green-400">
+                  <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Total Debit</p>
+                  <p className="text-lg font-bold text-green-600 mt-1 tabular-nums">{formatRM(data.totals.total_debit)}</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border-l-4 border-l-red-400">
                   <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Total Credit</p>
-                  <p className="text-lg font-bold text-green-600 mt-1 tabular-nums">{formatRM(data.totals.total_credit)}</p>
+                  <p className="text-lg font-bold text-red-600 mt-1 tabular-nums">{formatRM(data.totals.total_credit)}</p>
                 </div>
                 <div className="bg-white rounded-lg p-4 border-l-4" style={{ borderLeftColor: data.closing_balance > 0 ? '#dc2626' : data.closing_balance < 0 ? '#16a34a' : '#9ca3af' }}>
                   <p className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Closing Balance</p>
@@ -201,8 +201,8 @@ export default function AccountantSupplierStatementPage() {
                           <td className="px-6 py-2.5 text-[#434654] tabular-nums">{formatDate(entry.date)}</td>
                           <td className="px-3 py-2.5 text-[#434654] font-medium">{entry.reference}</td>
                           <td className="px-3 py-2.5 text-[#434654]">{entry.description}</td>
-                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.debit > 0 ? 'text-red-600' : 'text-[#8E9196]'}`}>{entry.debit > 0 ? formatRM(entry.debit) : '\u2014'}</td>
-                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.credit > 0 ? 'text-green-600' : 'text-[#8E9196]'}`}>{entry.credit > 0 ? formatRM(entry.credit) : '\u2014'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.debit > 0 ? 'text-green-600' : 'text-[#8E9196]'}`}>{entry.debit > 0 ? formatRM(entry.debit) : '\u2014'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums ${entry.credit > 0 ? 'text-red-600' : 'text-[#8E9196]'}`}>{entry.credit > 0 ? formatRM(entry.credit) : '\u2014'}</td>
                           <td className={`px-6 py-2.5 text-right tabular-nums font-semibold ${balanceColor(entry.balance)}`}>{formatRM(entry.balance)}</td>
                         </tr>
                       );
@@ -212,8 +212,8 @@ export default function AccountantSupplierStatementPage() {
                     <tr className="bg-gray-50/50 border-t-2 border-gray-200 group">
                       <td className="px-6 py-3 text-body-sm font-semibold text-[#191C1E]">{formatDate(data.period.to)}</td>
                       <td className="px-3 py-3 text-body-sm font-semibold text-[#191C1E]" colSpan={2}>Closing Balance</td>
-                      <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-red-600">{formatRM(data.totals.total_debit)}</td>
-                      <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-green-600">{formatRM(data.totals.total_credit)}</td>
+                      <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-green-600">{formatRM(data.totals.total_debit)}</td>
+                      <td className="px-3 py-3 text-body-sm text-right tabular-nums font-semibold text-red-600">{formatRM(data.totals.total_credit)}</td>
                       <td className={`px-6 py-3 text-body-sm text-right tabular-nums font-bold ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</td>
                     </tr>
                   </tbody>

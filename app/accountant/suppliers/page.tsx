@@ -52,6 +52,18 @@ interface InvoiceRow {
   allocations?: AllocationRow[];
 }
 
+interface SalesInvoiceRow {
+  id: string;
+  invoice_number: string;
+  issue_date: string;
+  due_date: string | null;
+  total_amount: string;
+  amount_paid: string;
+  payment_status: 'unpaid' | 'partially_paid' | 'paid';
+  notes: string | null;
+  allocations?: { id: string; amount: string; payment_date: string; reference: string | null }[];
+}
+
 interface Supplier {
   id: string;
   name: string;
@@ -63,9 +75,11 @@ interface Supplier {
   is_active: boolean;
   aliases: Alias[];
   invoice_count: number;
+  sales_invoice_count: number;
   total_outstanding: string;
   overdue_amount: string;
   credit_balance: string;
+  receivable_amount: string;
 }
 
 interface FirmOption {
@@ -214,6 +228,7 @@ export default function AccountantSuppliersPage() {
   // Expanded supplier — shows invoices drill-down
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedInvoices, setExpandedInvoices] = useState<InvoiceRow[]>([]);
+  const [expandedSalesInvoices, setExpandedSalesInvoices] = useState<SalesInvoiceRow[]>([]);
   const [orphanedPayments, setOrphanedPayments] = useState<{ id: string; amount: string; payment_date: string; reference: string | null; receipts: { claim_id: string; merchant: string; receipt_number: string | null }[] }[]>([]);
   const [loadingInvoices, setLoadingInvoices] = useState(false);
 
@@ -269,6 +284,7 @@ export default function AccountantSuppliersPage() {
         const res = await fetch(`/api/suppliers/${expandedId}`);
         const j = await res.json();
         setExpandedInvoices(j.data?.invoices ?? []);
+        setExpandedSalesInvoices(j.data?.salesInvoices ?? []);
         setOrphanedPayments(j.data?.orphanedPayments ?? []);
       } catch (e) { console.error(e); }
     }
@@ -320,6 +336,7 @@ export default function AccountantSuppliersPage() {
     if (expandedId === supplierId) {
       setExpandedId(null);
       setExpandedInvoices([]);
+      setExpandedSalesInvoices([]);
       setOrphanedPayments([]);
       return;
     }
@@ -329,6 +346,7 @@ export default function AccountantSuppliersPage() {
       const res = await fetch(`/api/suppliers/${supplierId}`);
       const j = await res.json();
       setExpandedInvoices(j.data?.invoices ?? []);
+      setExpandedSalesInvoices(j.data?.salesInvoices ?? []);
       setOrphanedPayments(j.data?.orphanedPayments ?? []);
     } catch (e) { console.error(e); }
     finally { setLoadingInvoices(false); }
@@ -663,19 +681,42 @@ export default function AccountantSuppliersPage() {
                         )}
                       </div>
                       <p className="text-label-sm text-[#8E9196] truncate">
-                        {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''} · {s.invoice_count} invoice{s.invoice_count !== 1 ? 's' : ''}
+                        {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''}
+                        {s.invoice_count > 0 && <> · {s.invoice_count} purchase inv</>}
+                        {s.sales_invoice_count > 0 && <> · {s.sales_invoice_count} sales inv</>}
+                        {s.invoice_count === 0 && s.sales_invoice_count === 0 && ' · 0 invoices'}
                       </p>
                     </div>
 
-                    {/* Outstanding */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-body-md font-semibold text-[#191C1E] tabular-nums">{formatRM(s.total_outstanding)}</p>
-                      {Number(s.overdue_amount) > 0 && (
-                        <p className="text-label-sm text-red-500 font-medium tabular-nums">{formatRM(s.overdue_amount)} overdue</p>
-                      )}
-                      {Number(s.credit_balance) > 0 && (
-                        <p className="text-label-sm text-green-600 font-medium tabular-nums">Credit: {formatRM(s.credit_balance)}</p>
-                      )}
+                    {/* Outstanding — summary blocks */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {(() => {
+                        const payable = Number(s.total_outstanding);
+                        const receivable = Number(s.receivable_amount);
+                        const net = payable - receivable;
+                        return (
+                          <>
+                            {payable > 0 && (
+                              <div className="bg-red-50 border border-red-100 rounded-md px-2.5 py-1.5 text-right">
+                                <p className="text-[10px] font-medium text-red-400 uppercase tracking-wide leading-none">Payable</p>
+                                <p className="text-sm font-bold text-red-600 tabular-nums mt-0.5">{formatRM(payable)}</p>
+                              </div>
+                            )}
+                            {receivable > 0 && (
+                              <div className="bg-green-50 border border-green-100 rounded-md px-2.5 py-1.5 text-right">
+                                <p className="text-[10px] font-medium text-green-400 uppercase tracking-wide leading-none">Receivable</p>
+                                <p className="text-sm font-bold text-green-600 tabular-nums mt-0.5">{formatRM(receivable)}</p>
+                              </div>
+                            )}
+                            <div className={`rounded-md px-2.5 py-1.5 text-right ${net > 0 ? 'bg-red-50/60 border border-red-100' : net < 0 ? 'bg-green-50/60 border border-green-100' : 'bg-gray-50 border border-gray-200'}`}>
+                              <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide leading-none">Net</p>
+                              <p className={`text-sm font-bold tabular-nums mt-0.5 ${net > 0 ? 'text-red-600' : net < 0 ? 'text-green-600' : 'text-[#191C1E]'}`}>
+                                {formatRM(Math.abs(net))}{net > 0 ? ' owed' : net < 0 ? ' due' : ''}
+                              </p>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {/* Action buttons */}
@@ -705,10 +746,14 @@ export default function AccountantSuppliersPage() {
                   {expandedId === s.id && (
                     <div className="bg-gray-50/50">
                       {loadingInvoices ? (
-                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">Loading invoices...</div>
-                      ) : expandedInvoices.length === 0 ? (
-                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">No invoices for this supplier</div>
+                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">Loading...</div>
                       ) : (
+                        <>
+                      {/* ── Purchase Invoices (Payable) ── */}
+                      {expandedInvoices.length > 0 && (
+                        <>
+                        <div className="bg-red-50/40">
+                        <p className="px-5 pl-14 pt-3 pb-1 text-label-sm font-semibold text-red-600 uppercase tracking-wide">Purchase Invoices — Payable</p>
                         <table className="w-full">
                           <thead>
                             <tr className="ds-table-header text-left">
@@ -793,7 +838,75 @@ export default function AccountantSuppliersPage() {
                             })}
                           </tbody>
                         </table>
+                        </div>
+                        </>
                       )}
+
+                      {/* ── Sales Invoices (Receivable) ── */}
+                      {expandedSalesInvoices.length > 0 && (
+                        <>
+                        <div className="bg-green-50/40 border-t border-gray-100">
+                        <p className="px-5 pl-14 pt-3 pb-1 text-label-sm font-semibold text-green-600 uppercase tracking-wide">Sales Invoices — Receivable</p>
+                        <table className="w-full">
+                          <thead>
+                            <tr className="ds-table-header text-left">
+                              <th className="px-5 py-2 pl-14">Issue Date</th>
+                              <th className="px-3 py-2">Invoice #</th>
+                              <th className="px-3 py-2">Due Date</th>
+                              <th className="px-3 py-2 text-right">Amount</th>
+                              <th className="px-3 py-2 text-right">Paid</th>
+                              <th className="px-3 py-2">Payment</th>
+                              <th className="px-3 py-2">Aging</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {expandedSalesInvoices.map((sinv) => {
+                              const pmtCfg = PAYMENT_CFG[sinv.payment_status];
+                              return (
+                                <React.Fragment key={sinv.id}>
+                                  <tr className="text-body-sm hover:bg-white/60 transition-colors">
+                                    <td className="px-5 py-2.5 pl-14 text-[#434654] tabular-nums">{formatDate(sinv.issue_date)}</td>
+                                    <td className="px-3 py-2.5 text-[#434654] font-medium">{sinv.invoice_number}</td>
+                                    <td className="px-3 py-2.5 text-[#434654] tabular-nums">{sinv.due_date ? formatDate(sinv.due_date) : '-'}</td>
+                                    <td className="px-3 py-2.5 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(sinv.total_amount)}</td>
+                                    <td className="px-3 py-2.5 text-[#434654] text-right tabular-nums">{formatRM(sinv.amount_paid)}</td>
+                                    <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
+                                    <td className="px-3 py-2.5">
+                                      {sinv.payment_status !== 'paid' && (
+                                        <span className={`text-label-sm font-medium ${
+                                          agingBucket(sinv.due_date) === 'Current' ? 'text-green-600' :
+                                          agingBucket(sinv.due_date) === '90+' ? 'text-red-600' :
+                                          'text-amber-600'
+                                        }`}>
+                                          {agingBucket(sinv.due_date)}
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  {sinv.allocations && sinv.allocations.length > 0 && sinv.allocations.map((alloc) => (
+                                    <tr key={alloc.id} className="text-label-sm bg-gray-50/50">
+                                      <td className="px-5 py-1.5 pl-20 text-[#8E9196]" colSpan={2}>
+                                        <span>Payment: {formatDate(alloc.payment_date)}{alloc.reference ? ` · ${alloc.reference}` : ''}</span>
+                                      </td>
+                                      <td colSpan={3} className="px-3 py-1.5 text-right text-[#434654] tabular-nums">
+                                        {formatRM(alloc.amount)}
+                                      </td>
+                                      <td colSpan={2} />
+                                    </tr>
+                                  ))}
+                                </React.Fragment>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        </div>
+                        </>
+                      )}
+
+                      {expandedInvoices.length === 0 && expandedSalesInvoices.length === 0 && (
+                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">No invoices for this supplier</div>
+                      )}
+
                       {/* Orphaned credit payments */}
                       {orphanedPayments.length > 0 && (
                         <div className="px-5 py-3 border-t border-gray-100">
@@ -828,6 +941,8 @@ export default function AccountantSuppliersPage() {
                             </div>
                           ))}
                         </div>
+                      )}
+                        </>
                       )}
                     </div>
                   )}
