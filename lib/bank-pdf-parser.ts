@@ -218,9 +218,223 @@ function flushTransaction(
   });
 }
 
+// ─── OCBC Parser ────────────────────────────────────────────────────────────
+
+const MONTHS: Record<string, number> = {
+  JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+  JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+};
+
+function parseOcbcDate(dateStr: string): Date {
+  // "11 DEC 2023"
+  const parts = dateStr.trim().split(/\s+/);
+  const day = parseInt(parts[0]);
+  const month = MONTHS[parts[1].toUpperCase()] ?? 0;
+  const year = parseInt(parts[2]);
+  return new Date(year, month, day);
+}
+
+function parseOcbc(fullText: string): Omit<ParseResult, 'fileHash'> {
+  const errors: string[] = [];
+  const transactions: ParsedBankTransaction[] = [];
+
+  let accountNumber: string | null = null;
+  let statementDate: Date | null = null;
+  let openingBalance: number | null = null;
+  let closingBalance: number | null = null;
+  let totalCredit: number | null = null;
+  let totalDebit: number | null = null;
+
+  // Account number: 710-135443-3
+  const acctMatch = fullText.match(/Account\s*Number\s*\/\s*Nombor\s*Akaun\s*:?\s*([\d-]+)/i);
+  if (acctMatch) accountNumber = acctMatch[1].trim();
+
+  // Statement date: "09 DEC 2023 TO 31 DEC 2023" — use the end date
+  const stmtDateMatch = fullText.match(/(?:Statement\s*Date|Tarikh\s*Penyata)\s*:?\s*\d{2}\s+[A-Z]{3}\s+\d{4}\s+TO\s+(\d{2}\s+[A-Z]{3}\s+\d{4})/i);
+  if (stmtDateMatch) statementDate = parseOcbcDate(stmtDateMatch[1]);
+
+  // Balance B/F
+  const bfMatch = fullText.match(/Balance\s+B\/F\s+([\d,]+\.\d{2})/);
+  if (bfMatch) openingBalance = parseBalance(bfMatch[1]);
+
+  // Totals from TRANSACTION SUMMARY
+  const totalWithdrawalsMatch = fullText.match(/Total\s+Withdrawals\s+([\d,]+\.\d{2})/);
+  if (totalWithdrawalsMatch) totalDebit = parseBalance(totalWithdrawalsMatch[1]);
+  const totalDepositsMatch = fullText.match(/Total\s+Deposits\s+([\d,]+\.\d{2})/);
+  if (totalDepositsMatch) totalCredit = parseBalance(totalDepositsMatch[1]);
+
+  const lines = fullText.split('\n');
+
+  // OCBC transaction line: "DD MMM YYYY <description> [amounts...]"
+  // Amounts at end: could be 2 numbers (deposit/withdrawal + balance) or 3 (withdrawal, deposit, balance)
+  const txnDateRegex = /^(\d{2}\s+[A-Z]{3}\s+\d{4})\s+(.+)/;
+  // Amount pattern at end of line: one or more amounts separated by spaces
+  const amountsAtEnd = /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$/;
+  const threeAmountsAtEnd = /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$/;
+
+  let currentTxn: {
+    date: Date;
+    descriptionLines: string[];
+    withdrawal: number | null;
+    deposit: number | null;
+    balance: number | null;
+    chequeNo: string | null;
+  } | null = null;
+
+  let lastBalance = openingBalance ?? 0;
+  let inTransactions = false;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // Skip header/footer/noise
+    if (line.includes('OCBC Bank') || line.includes('OCBC Group') ||
+        line.includes('STATEMENT OF') || line.includes('PENYATA AKAUN') ||
+        line.includes('Protected by PIDM') || line.includes('Account Branch') ||
+        line.includes('Cawangan Akaun') || line.includes('Account Number') ||
+        line.includes('Nombor Akaun') || line.includes('Transaction Date') ||
+        line.includes('Tarikh Transaksi') || line.includes('Huraian Transaksi') ||
+        line.includes('Transaction Description') || line.includes('Cheque No') ||
+        line.includes('Withdrawal') || line.includes('Pengeluaran') ||
+        line.includes('Deposit') || line.includes('Balance') ||
+        line.includes('Baki') || line.includes('Page ') ||
+        line.includes('SDN BHD') || line.includes('SDN. BHD') ||
+        line.startsWith('NO ') || line.startsWith('JALAN') || line.startsWith('TAMAN') ||
+        line.match(/^\d{5}\s/) || line.includes('SELANGOR') ||
+        line.includes('SEMENYIH') || line.includes('BASE LENDING') ||
+        line.includes('KADAR PINJAMAN') || line.includes('INSURANCE') ||
+        line.includes('BERKUATKUASA') || line.includes('WITH EFFECT') ||
+        line.includes('Personal Banking') || line.includes('Business Banking') ||
+        line.includes('Transfer funds') || line.includes('Pindahan dana') ||
+        line.includes('www.ocbc') || line.includes('Terms and Conditions') ||
+        line.includes('Tertakluk kepada') || line.includes('Nikmati bayaran') ||
+        line.includes('applikasi OCBC') || line.includes('Enjoy a promotional') ||
+        line.includes('If the property') || line.includes('Management Corporation') ||
+        line.includes('Local cheques') || line.includes('Cek-cek tempatan') ||
+        line.includes('statement should be') || line.includes('ditunjukkan di dalam') ||
+        line.includes('receive any notification') || line.includes('muktamad') ||
+        line.includes('writing for any change') || line.includes('Sila maklumkan') ||
+        line.includes('insured the building') || line.includes('ensure that your') ||
+        line.match(/^\d{3}$/) // just a number like "710"
+    ) continue;
+
+    if (line.startsWith('Balance B/F')) { inTransactions = true; continue; }
+    if (line.includes('TRANSACTION') && line.includes('SUMMARY')) break;
+    if (line.startsWith('TRANSACTION')) break;
+    if (!inTransactions) continue;
+
+    const dateMatch = line.match(txnDateRegex);
+
+    if (dateMatch) {
+      // Flush previous
+      if (currentTxn) {
+        transactions.push({
+          transactionDate: currentTxn.date,
+          description: currentTxn.descriptionLines.join(' | '),
+          reference: null,
+          chequeNumber: currentTxn.chequeNo,
+          debit: currentTxn.withdrawal,
+          credit: currentTxn.deposit,
+          balance: currentTxn.balance,
+        });
+        if (currentTxn.balance !== null) lastBalance = currentTxn.balance;
+      }
+
+      const dateStr = dateMatch[1];
+      let rest = dateMatch[2];
+
+      // Extract amounts from end
+      let withdrawal: number | null = null;
+      let deposit: number | null = null;
+      let balance: number | null = null;
+
+      const threeMatch = rest.match(threeAmountsAtEnd);
+      const twoMatch = rest.match(amountsAtEnd);
+
+      if (threeMatch) {
+        const a1 = parseBalance(threeMatch[1])!;
+        const a2 = parseBalance(threeMatch[2])!;
+        balance = parseBalance(threeMatch[3])!;
+        // a1 = withdrawal, a2 = deposit (one is likely 0)
+        if (a1 > 0 && a2 === 0) { withdrawal = a1; }
+        else if (a2 > 0 && a1 === 0) { deposit = a2; }
+        else if (a1 > 0) { withdrawal = a1; deposit = a2; }
+        rest = rest.replace(threeAmountsAtEnd, '').trim();
+      } else if (twoMatch) {
+        const a1 = parseBalance(twoMatch[1])!;
+        balance = parseBalance(twoMatch[2])!;
+        // Determine if debit or credit by comparing with last balance
+        if (balance < lastBalance || balance === lastBalance - a1) {
+          withdrawal = a1;
+        } else {
+          deposit = a1;
+        }
+        rest = rest.replace(amountsAtEnd, '').trim();
+      }
+
+      // Check for cheque number (e.g., "/IB")
+      let chequeNo: string | null = null;
+      const chequeMatch = rest.match(/\s+(\/\w+)\s*$/);
+      if (chequeMatch) {
+        chequeNo = chequeMatch[1];
+        rest = rest.replace(/\s+\/\w+\s*$/, '').trim();
+      }
+
+      currentTxn = {
+        date: parseOcbcDate(dateStr),
+        descriptionLines: [rest],
+        withdrawal,
+        deposit,
+        balance,
+        chequeNo,
+      };
+    } else if (currentTxn) {
+      // Continuation line (DESC:, REF:, name, etc.)
+      // Extract reference from REF: lines
+      currentTxn.descriptionLines.push(line);
+    }
+  }
+
+  // Flush last transaction
+  if (currentTxn) {
+    transactions.push({
+      transactionDate: currentTxn.date,
+      description: currentTxn.descriptionLines.join(' | '),
+      reference: null,
+      chequeNumber: currentTxn.chequeNo,
+      debit: currentTxn.withdrawal,
+      credit: currentTxn.deposit,
+      balance: currentTxn.balance,
+    });
+  }
+
+  // Closing balance = last transaction's balance
+  if (transactions.length > 0) {
+    closingBalance = transactions[transactions.length - 1].balance;
+  }
+
+  if (transactions.length === 0) {
+    errors.push('No transactions found in PDF text');
+  }
+
+  return {
+    transactions,
+    bankName: 'OCBC',
+    accountNumber,
+    statementDate,
+    openingBalance,
+    closingBalance,
+    totalCredit,
+    totalDebit,
+    errors,
+  };
+}
+
 // ─── Bank Detection ──────────────────────────────────────────────────────────
 
 function detectBank(text: string): string {
+  if (text.includes('OCBC Bank') || text.includes('OCBC Group') || text.includes('ocbc.com.my')) return 'OCBC';
   if (text.includes('Maybank') || text.includes('MAYBANK') || text.includes('MBB CT')) return 'Maybank';
   if (text.includes('CIMB') || text.includes('CIMB BANK')) return 'CIMB';
   if (text.includes('PUBLIC BANK') || text.includes('Public Bank')) return 'Public Bank';
@@ -353,12 +567,15 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     const bank = detectBank(fullText);
 
     // Try regex parser first (fast, free)
+    let regexResult: Omit<ParseResult, 'fileHash'> | null = null;
     if (bank === 'Maybank') {
-      const parsed = parseMaybank(fullText);
-      if (parsed.transactions.length > 0) {
-        return { ...parsed, fileHash };
-      }
-      // Regex found 0 transactions — fall through to Gemini
+      regexResult = parseMaybank(fullText);
+    } else if (bank === 'OCBC') {
+      regexResult = parseOcbc(fullText);
+    }
+
+    if (regexResult && regexResult.transactions.length > 0) {
+      return { ...regexResult, fileHash };
     }
 
     // Fallback: use Gemini to extract transactions
