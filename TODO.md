@@ -5,6 +5,13 @@
 - [ ] Invoices: same
 - [ ] Claims: same
 
+## Multi-receipt detection: extract multiple receipts from one photo
+- [ ] Update Gemini OCR prompt to detect and return an array of receipts when multiple are in one image
+- [ ] Update `extractWithGemini` in `lib/whatsapp/gemini.ts` to return array instead of single result
+- [ ] Dashboard batch upload: if OCR returns multiple receipts from one image, create a claim for each
+- [ ] WhatsApp flow: if multiple receipts detected, create multiple claims and confirm count to user
+- Common scenario: 3 receipts photographed side by side (TNG reload, toll, etc.)
+
 ## Fix: Upload modal should auto-select firm from sidebar filter
 - [ ] Bank Recon upload modal: pre-fill firm from `firmFilter` (sidebar selector) so accountant doesn't have to select again
 - [ ] Invoice upload modal: same — use sidebar firm as default
