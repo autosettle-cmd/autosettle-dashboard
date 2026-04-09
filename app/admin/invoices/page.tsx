@@ -786,17 +786,19 @@ function AdminInvoicesPage() {
 
                 <div>
                   <label className="input-label">Invoice Image</label>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleInvFileChange}
-                    className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#434654] hover:file:bg-gray-200"
-                  />
-                  {newInvFile && (
-                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      {newInvFile.name}
-                    </p>
+                  {newInvFile ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                      <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="text-sm text-blue-700 truncate flex-1">{newInvFile.name}</span>
+                      <button type="button" onClick={() => setNewInvFile(null)} className="text-xs text-blue-500 hover:text-blue-700">Remove</button>
+                    </div>
+                  ) : (
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleInvFileChange}
+                      className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#434654] hover:file:bg-gray-200"
+                    />
                   )}
                   {ocrScanning && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
