@@ -199,18 +199,22 @@ export async function uploadToDrive(
   const data = (await res.json()) as { id: string };
   const fileId = data.id;
 
-  // Make file publicly viewable
-  await fetch(
-    `${DRIVE_FILES_URL}/${fileId}/permissions?supportsAllDrives=true`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-    }
-  );
+  // Make file publicly viewable (best-effort — Shared Drives may block this)
+  try {
+    await fetch(
+      `${DRIVE_FILES_URL}/${fileId}/permissions?supportsAllDrives=true`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+      }
+    );
+  } catch (e) {
+    console.warn('Could not set public permission (Shared Drive may restrict this):', e);
+  }
 
   return { fileId, thumbnailUrl: getThumbnailUrl(fileId) };
 }
