@@ -696,6 +696,18 @@ function AccountantInvoicesPage() {
     } catch (e) { console.error(e); }
   };
 
+  const deleteInvoice = async (id: string) => {
+    if (!confirm('Delete this invoice? This cannot be undone.')) return;
+    try {
+      const res = await fetch('/api/invoices/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: id }),
+      });
+      if (res.ok) { setPreviewInvoice(null); refresh(); }
+    } catch (e) { console.error(e); }
+  };
+
   const createAndAssignSupplier = async () => {
     if (!previewInvoice || !newSupplierName.trim()) return;
     try {
@@ -1521,6 +1533,14 @@ function AccountantInvoicesPage() {
                   </div>
                 </>
               )}
+            </div>
+            <div className="px-5 py-3 border-t flex-shrink-0">
+              <button
+                onClick={() => deleteInvoice(previewInvoice.id)}
+                className="w-full py-2 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+              >
+                Delete Invoice
+              </button>
             </div>
           </div>
           </div>
