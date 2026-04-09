@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -18,11 +19,6 @@ interface AuditEntry {
   user_id: string | null;
   user_name: string | null;
   timestamp: string;
-}
-
-interface Firm {
-  id: string;
-  name: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -60,9 +56,8 @@ function formatValue(val: unknown): string {
 
 export default function AuditLogPage() {
   usePageTitle('Audit Log');
+  const { firmId, firmsLoaded } = useFirm();
   const [logs, setLogs] = useState<AuditEntry[]>([]);
-  const [firms, setFirms] = useState<Firm[]>([]);
-  const [firmId, setFirmId] = useState('');
   const [tableFilter, setTableFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -72,21 +67,9 @@ export default function AuditLogPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Load firms
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Load audit logs
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmId) { setLogs([]); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
@@ -109,7 +92,7 @@ export default function AuditLogPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmId, tableFilter, dateFrom, dateTo, page]);
+  }, [firmId, tableFilter, dateFrom, dateTo, page, firmsLoaded]);
 
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [firmId, tableFilter, dateFrom, dateTo]);
@@ -128,13 +111,6 @@ export default function AuditLogPage() {
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
           {/* Filter bar */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <select value={firmId} onChange={(e) => setFirmId(e.target.value)} className="input-field">
-                <option value="">Select Firm</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            )}
-
             <select value={tableFilter} onChange={(e) => setTableFilter(e.target.value)} className="input-field">
               <option value="">All Tables</option>
               {TABLE_OPTIONS.map((t) => <option key={t} value={t}>{TABLE_LABELS[t] ?? t}</option>)}

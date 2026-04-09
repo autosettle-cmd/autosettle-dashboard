@@ -7,6 +7,7 @@ import ReceiptSelector from '@/components/ReceiptSelector';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -82,10 +83,6 @@ interface Supplier {
   receivable_amount: string;
 }
 
-interface FirmOption {
-  id: string;
-  name: string;
-}
 
 interface AgingSupplier {
   supplier_id: string;
@@ -176,7 +173,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
-function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
+function _Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">
       {children}
@@ -222,8 +219,7 @@ export default function AccountantSuppliersPage() {
   const [showAging, setShowAging] = useState(false);
 
   // Firms
-  const [firms, setFirms] = useState<FirmOption[]>([]);
-  const [firmFilter, setFirmFilter] = useState('');
+  const { firmId: firmFilter, firmsLoaded } = useFirm();
 
   // Expanded supplier — shows invoices drill-down
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -290,20 +286,9 @@ export default function AccountantSuppliersPage() {
     }
   };
 
-  // Load firms for filter
-  useEffect(() => {
-    fetch('/api/firms/details')
-      .then((r) => r.json())
-      .then((j) => {
-        const list = (j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }));
-        setFirms(list);
-        if (list.length === 1) setFirmFilter(list[0].id);
-      })
-      .catch(console.error);
-  }, []);
-
   // Load suppliers
   useEffect(() => {
+    if (!firmsLoaded) return;
     setLoading(true);
     const p = new URLSearchParams();
     if (search)     p.set('search', search);
@@ -314,10 +299,11 @@ export default function AccountantSuppliersPage() {
       .then((r) => r.json())
       .then((j) => { setSuppliers(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
       .catch((e) => { console.error(e); setLoading(false); });
-  }, [search, firmFilter, refreshKey, takeLimit]);
+  }, [firmsLoaded, search, firmFilter, refreshKey, takeLimit]);
 
   // Load aging report
   useEffect(() => {
+    if (!firmsLoaded) return;
     const p = new URLSearchParams();
     if (firmFilter) p.set('firmId', firmFilter);
     fetch(`/api/invoices/aging?${p}`)
@@ -329,7 +315,7 @@ export default function AccountantSuppliersPage() {
         }
       })
       .catch(console.error);
-  }, [firmFilter, refreshKey]);
+  }, [firmsLoaded, firmFilter, refreshKey]);
 
   // Load invoices when expanding a supplier
   const toggleExpand = async (supplierId: string) => {
@@ -529,13 +515,6 @@ export default function AccountantSuppliersPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex items-center gap-2.5 pb-3">
-            {firms.length > 1 && (
-              <Select value={firmFilter} onChange={setFirmFilter}>
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
-
             <input
               type="text"
               placeholder="Search supplier..."

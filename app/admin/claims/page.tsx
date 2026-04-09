@@ -334,7 +334,7 @@ function AdminClaimsPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
-  const openModal = useCallback(() => {
+  const _openModal = useCallback(() => {
     setModalType(claimTab);
     setModalDate(todayStr());
     setModalMerchant('');

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -14,10 +15,6 @@ interface AdminRow {
   created_at: string;
 }
 
-interface Firm {
-  id: string;
-  name: string;
-}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -31,14 +28,12 @@ function formatDate(val: string) {
 
 export default function AdminsPage() {
   usePageTitle('Admins');
+  const { firms, firmId, firmsLoaded } = useFirm();
+
   // Data
   const [admins, setAdmins]         = useState<AdminRow[]>([]);
-  const [firms, setFirms]           = useState<Firm[]>([]);
   const [loading, setLoading]       = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // Filters
-  const [firmId, setFirmId] = useState('');
 
   // Modal
   const [showModal, setShowModal]         = useState(false);
@@ -49,21 +44,9 @@ export default function AdminsPage() {
   const [modalError, setModalError]       = useState('');
   const [modalSaving, setModalSaving]     = useState(false);
 
-  // Load firms (once)
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Load admins (when firmId changes)
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmId) {
       setAdmins([]);
       return;
@@ -78,7 +61,7 @@ export default function AdminsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmId, refreshKey]);
+  }, [firmId, refreshKey, firmsLoaded]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
@@ -172,13 +155,6 @@ export default function AdminsPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <Select value={firmId} onChange={setFirmId}>
-                <option value="">Select a Firm</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
-
             {firmId && (
               <button
                 onClick={openAddModal}
@@ -329,11 +305,3 @@ export default function AdminsPage() {
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
 const inputCls = 'input-field';
-
-function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
-      {children}
-    </select>
-  );
-}

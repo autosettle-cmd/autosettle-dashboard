@@ -64,17 +64,17 @@ function buildSection(accounts: GLAccountRow[], type: string): { nodes: AccountN
   const nodes: AccountNode[] = [];
   let sectionTotal = 0;
 
-  for (const [parentId, parent] of parentMap) {
+  Array.from(parentMap.entries()).forEach(([parentId, parent]) => {
     const children = childrenMap.get(parentId) ?? [];
     const allAccounts = [parent, ...children];
     const totalAmount = allAccounts.reduce((s, a) => s + a.balance, 0);
 
-    if (allAccounts.every(a => a.total_debit === 0 && a.total_credit === 0)) continue;
+    if (allAccounts.every(a => a.total_debit === 0 && a.total_credit === 0)) return;
 
     const filteredChildren = children.filter(c => c.total_debit !== 0 || c.total_credit !== 0);
     nodes.push({ account: parent, children: filteredChildren, totalAmount });
     sectionTotal += totalAmount;
-  }
+  });
 
   nodes.sort((a, b) => a.account.account_code.localeCompare(b.account.account_code));
   return { nodes, sectionTotal };

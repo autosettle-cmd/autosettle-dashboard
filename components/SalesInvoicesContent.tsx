@@ -146,7 +146,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [selectedGlAccountId, setSelectedGlAccountId] = useState('');
   const [selectedContraGlId, setSelectedContraGlId] = useState('');
-  const [categories, setCategories] = useState<{ id: string; name: string; gl_account_id?: string }[]>([]);
+  const [_categories, setCategories] = useState<{ id: string; name: string; gl_account_id?: string }[]>([]);
 
   // Create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -183,7 +183,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       fetch(`/api/gl-accounts?firmId=${preview.firm_id}`).then(r => r.json()),
       fetch(`/api/categories?firmId=${preview.firm_id}`).then(r => r.json()),
       fetch(`/api/accounting-settings?firmId=${preview.firm_id}`).then(r => r.json()),
-    ]).then(([glJson, catJson, settingsJson]) => {
+    ]).then(([glJson, catJson, _settingsJson]) => {
       const accounts = glJson.data ?? [];
       setGlAccounts(accounts);
       setCategories(catJson.data ?? []);

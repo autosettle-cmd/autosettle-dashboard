@@ -136,7 +136,7 @@ export default function AdminInvoicesPageWrapper() {
 function AdminInvoicesPage() {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'received' | 'issued'>(pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received');
+  const [activeTab, _setActiveTab] = useState<'received' | 'issued'>(pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received');
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);

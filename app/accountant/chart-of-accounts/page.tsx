@@ -185,7 +185,7 @@ export default function ChartOfAccountsPage() {
     finally { setSettingsSaving(false); }
   };
 
-  const saveBankMapping = (bankName: string, accountNumber: string) => {
+  const _saveBankMapping = (bankName: string, accountNumber: string) => {
     const key = `${bankName}|${accountNumber}`;
     const glId = bankGlEdits[key];
     if (!glId) return;
@@ -364,7 +364,7 @@ export default function ChartOfAccountsPage() {
     setDragId(null);
   };
 
-  const handleDropRoot = (e: React.DragEvent) => {
+  const _handleDropRoot = (e: React.DragEvent) => {
     e.preventDefault();
     setDropTargetId(null);
     if (!dragId) return;

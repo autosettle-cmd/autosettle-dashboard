@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
+import { useFirm } from '@/contexts/FirmContext';
 
 interface StatementRow {
   id: string;
@@ -23,8 +24,6 @@ interface StatementRow {
   unmatched: number;
   excluded: number;
 }
-
-interface FirmOption { id: string; name: string; }
 
 function formatDate(val: string) {
   const d = new Date(val);
@@ -50,8 +49,7 @@ export default function AccountantBankReconciliationPage() {
   const [pdfPassword, setPdfPassword] = useState('');
   const reuploadRef = useRef<HTMLInputElement>(null);
   const [reuploadId, setReuploadId] = useState<string | null>(null);
-  const [firms, setFirms] = useState<FirmOption[]>([]);
-  const [firmFilter, setFirmFilter] = useState('');
+  const { firms, firmId: firmFilter, firmsLoaded } = useFirm();
   const [uploadFirmId, setUploadFirmId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -61,17 +59,10 @@ export default function AccountantBankReconciliationPage() {
   const [glEditKey, setGlEditKey] = useState<string | null>(null);
   const [glEditValue, setGlEditValue] = useState('');
 
+  // Auto-set upload firm when single firm
   useEffect(() => {
-    fetch('/api/firms').then((r) => r.json()).then((j) => {
-      const list = j.data ?? [];
-      setFirms(list);
-      // Auto-select if single firm (in-house accountant)
-      if (list.length === 1) {
-        setFirmFilter(list[0].id);
-        setUploadFirmId(list[0].id);
-      }
-    }).catch(console.error);
-  }, []);
+    if (firmsLoaded && firms.length === 1) setUploadFirmId(firms[0].id);
+  }, [firmsLoaded, firms]);
 
   const isSingleFirm = firms.length === 1;
 
@@ -84,7 +75,7 @@ export default function AccountantBankReconciliationPage() {
       .catch(() => setLoading(false));
   };
 
-  useEffect(() => { setLoading(true); loadStatements(); }, [firmFilter]);
+  useEffect(() => { if (!firmsLoaded) return; setLoading(true); loadStatements(); }, [firmsLoaded, firmFilter]);
 
   // Load GL accounts + bank mappings when statements change
   useEffect(() => {
@@ -178,7 +169,11 @@ export default function AccountantBankReconciliationPage() {
       setShowUpload(false);
       setNeedsPassword(false);
       setPdfPassword('');
-      router.push(`/accountant/bank-reconciliation/${json.data.statementId}`);
+      const d = json.data;
+      if (d.skippedDuplicates > 0) {
+        alert(`Parsed ${d.totalParsed} transactions — ${d.skippedDuplicates} duplicates skipped (already exist from a previous statement), ${d.transactionCount} new transactions added.`);
+      }
+      router.push(`/accountant/bank-reconciliation/${d.statementId}`);
     } catch (e) {
       setUploadError(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
       setUploading(false);
@@ -226,12 +221,6 @@ export default function AccountantBankReconciliationPage() {
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
-            {!isSingleFirm && (
-              <select value={firmFilter} onChange={(e) => setFirmFilter(e.target.value)} className="input-field text-body-md">
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            )}
             <button onClick={() => setShowUpload(true)} className="px-3 py-1.5 btn-primary text-body-md font-medium rounded-lg">
               Upload Statement
             </button>

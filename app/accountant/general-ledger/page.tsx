@@ -101,7 +101,7 @@ function buildTree(accounts: GLAccountRow[], hideZero: boolean): AccountNode[] {
   }
 
   const nodes: AccountNode[] = [];
-  for (const [parentId, parent] of parentMap) {
+  for (const [parentId, parent] of Array.from(parentMap.entries())) {
     const children = childrenMap.get(parentId) ?? [];
     const allAccounts = [parent, ...children];
     const totalDebit = allAccounts.reduce((s, a) => s + a.total_debit, 0);

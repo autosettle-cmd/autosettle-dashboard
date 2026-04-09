@@ -8,6 +8,7 @@ import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useSearchParams } from 'next/navigation';
 import GlAccountSelect from '@/components/GlAccountSelect';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,11 +40,6 @@ interface InvoiceRow {
   gl_account_label: string | null;
   approval: 'pending_approval' | 'approved' | 'not_approved';
   rejection_reason: string | null;
-}
-
-interface FirmOption {
-  id: string;
-  name: string;
 }
 
 interface SupplierOption {
@@ -153,7 +149,7 @@ export default function AccountantInvoicesPageWrapper() {
 function AccountantInvoicesPage() {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'received' | 'issued'>(pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received');
+  const [activeTab, _setActiveTab] = useState<'received' | 'issued'>(pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received');
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -168,7 +164,7 @@ function AccountantInvoicesPage() {
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
   const [selectedContraGlId, setSelectedContraGlId] = useState<string>('');
-  const [defaultContraGlId, setDefaultContraGlId] = useState<string>('');
+  const [_defaultContraGlId, setDefaultContraGlId] = useState<string>('');
 
   // Selection for batch actions
   const [selectedRows, setSelectedRows] = useState<InvoiceRow[]>([]);
@@ -459,8 +455,7 @@ function AccountantInvoicesPage() {
   };
 
   // Firms
-  const [firms, setFirms] = useState<FirmOption[]>([]);
-  const [firmFilter, setFirmFilter] = useState('');
+  const { firms, firmId: firmFilter, firmsLoaded } = useFirm();
 
   // Filters
   const initialStatus = pageSearchParams.get('status') ?? '';
@@ -477,20 +472,9 @@ function AccountantInvoicesPage() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
 
-  // Load firms for filter
-  useEffect(() => {
-    fetch('/api/firms/details')
-      .then((r) => r.json())
-      .then((j) => {
-        const list = (j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }));
-        setFirms(list);
-        if (list.length === 1) setFirmFilter(list[0].id);
-      })
-      .catch(console.error);
-  }, []);
-
   // Load invoices
   useEffect(() => {
+    if (!firmsLoaded) return;
     let cancelled = false;
     setLoading(true);
 
@@ -510,7 +494,7 @@ function AccountantInvoicesPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmFilter, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey, takeLimit]);
+  }, [firmsLoaded, firmFilter, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey, takeLimit]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
   const filteredInvoices = approvalFilter
@@ -550,13 +534,6 @@ function AccountantInvoicesPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <Select value={firmFilter} onChange={setFirmFilter}>
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
-
             <Select value={dateRange} onChange={setDateRange}>
               <option value="">All Time</option>
               <option value="this_week">This Week</option>

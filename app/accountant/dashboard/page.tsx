@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import GlAccountSelect from '@/components/GlAccountSelect';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,7 @@ interface ClaimRow {
   claim_date: string;
   employee_name: string;
   firm_name: string;
+  firm_id: string;
   merchant: string;
   category_name: string;
   category_id: string;
@@ -59,6 +62,8 @@ interface ClaimRow {
   thumbnail_url: string | null;
   file_url: string | null;
   rejection_reason: string | null;
+  gl_account_id: string | null;
+  gl_account_label: string | null;
   linked_payment_count: number;
 }
 
@@ -71,13 +76,17 @@ interface InvoiceRow {
   total_amount: string;
   amount_paid: string;
   category_name: string;
+  category_id: string;
+  firm_id: string;
   status: string;
+  approval: string;
   payment_status: string;
   supplier_name: string | null;
   supplier_link_status: string;
   confidence: string;
   thumbnail_url: string | null;
   file_url: string | null;
+  gl_account_id: string | null;
 }
 
 interface EditData {
@@ -140,6 +149,7 @@ function getGreeting() {
 export default function AccountantDashboard() {
   usePageTitle('Dashboard');
   const { data: session } = useSession();
+  const { firmId: globalFirmId, firmsLoaded } = useFirm();
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [bankReconStats, setBankReconStats] = useState<{ totalStatements: number; unmatched: number; suggestedMatch: number } | null>(null);
@@ -160,12 +170,70 @@ export default function AccountantDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const PAGE_SIZE = 20;
 
+  // GL account state for preview modals
+  const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [selectedGlAccountId, setSelectedGlAccountId] = useState('');
+  const [selectedContraGlId, setSelectedContraGlId] = useState('');
+  const [_defaultContraGlId, setDefaultContraGlId] = useState('');
+
   const refresh = () => setRefreshKey((k) => k + 1);
 
   const firstName = session?.user?.name?.split(' ')[0] ?? '';
 
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim, previewInvoice]);
+
+  // Fetch GL accounts when claim preview opens
+  useEffect(() => {
+    if (previewClaim) {
+      Promise.all([
+        fetch(`/api/gl-accounts?firmId=${previewClaim.firm_id}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${previewClaim.firm_id}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${previewClaim.firm_id}`).then(r => r.json()),
+      ]).then(([glJson, catJson, settingsJson]) => {
+        const accounts = glJson.data ?? [];
+        setGlAccounts(accounts);
+        if (previewClaim.gl_account_id) {
+          setSelectedGlAccountId(previewClaim.gl_account_id);
+        } else {
+          const catData = catJson.data ?? [];
+          const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewClaim.category_id);
+          setSelectedGlAccountId(match?.gl_account_id ?? '');
+        }
+        const contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
+        setDefaultContraGlId(contraId);
+        setSelectedContraGlId(contraId);
+      }).catch(console.error);
+    } else {
+      setGlAccounts([]); setSelectedGlAccountId(''); setSelectedContraGlId(''); setDefaultContraGlId('');
+    }
+  }, [previewClaim]);
+
+  // Fetch GL accounts when invoice preview opens
+  useEffect(() => {
+    if (previewInvoice) {
+      Promise.all([
+        fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+      ]).then(([glJson, catJson, settingsJson]) => {
+        const accounts = glJson.data ?? [];
+        setGlAccounts(accounts);
+        if (previewInvoice.gl_account_id) {
+          setSelectedGlAccountId(previewInvoice.gl_account_id);
+        } else {
+          const catData = catJson.data ?? [];
+          const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
+          setSelectedGlAccountId(match?.gl_account_id ?? '');
+        }
+        const contraId = settingsJson.data?.default_trade_payables_gl_id ?? '';
+        setDefaultContraGlId(contraId);
+        setSelectedContraGlId(contraId);
+      }).catch(console.error);
+    } else if (!previewClaim) {
+      setGlAccounts([]); setSelectedGlAccountId(''); setSelectedContraGlId(''); setDefaultContraGlId('');
+    }
+  }, [previewInvoice]);
 
   // Fetch categories when entering edit mode
   useEffect(() => {
@@ -179,7 +247,9 @@ export default function AccountantDashboard() {
 
   // Single consolidated dashboard fetch
   useEffect(() => {
-    fetch('/api/dashboard')
+    if (!firmsLoaded) return;
+    const params = globalFirmId ? `?firmId=${globalFirmId}` : '';
+    fetch(`/api/dashboard${params}`)
       .then((r) => r.json())
       .then((j) => {
         if (j.data) {
@@ -199,7 +269,7 @@ export default function AccountantDashboard() {
         setLoadingReceipts(false);
         setLoadingInvoices(false);
       });
-  }, [refreshKey]);
+  }, [refreshKey, firmsLoaded, globalFirmId]);
 
   // ─── Actions ─────────────────────────────────────────────────────────────────
 
@@ -222,12 +292,17 @@ export default function AccountantDashboard() {
     finally { setEditSaving(false); }
   };
 
-  const approveClaim = async (id: string) => {
+  const approveClaim = async (id: string, glAccountId?: string, contraGlId?: string) => {
     try {
       const res = await fetch('/api/claims/batch', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ claimIds: [id], action: 'approve' }),
+        body: JSON.stringify({
+          claimIds: [id],
+          action: 'approve',
+          ...(glAccountId && { gl_account_id: glAccountId }),
+          ...(contraGlId && { contra_gl_account_id: contraGlId }),
+        }),
       });
       if (res.ok) { setPreviewClaim(null); refresh(); }
     } catch (e) { console.error(e); }
@@ -245,12 +320,12 @@ export default function AccountantDashboard() {
     } catch (e) { console.error(e); }
   };
 
-  const markInvoiceReviewed = async (id: string) => {
+  const markInvoiceReviewed = async (id: string, glAccountId?: string) => {
     try {
       const res = await fetch(`/api/invoices/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'reviewed' }),
+        body: JSON.stringify({ status: 'reviewed', ...(glAccountId && { gl_account_id: glAccountId }) }),
       });
       if (res.ok) { setPreviewInvoice(null); refresh(); }
     } catch (e) { console.error(e); }
@@ -584,6 +659,58 @@ export default function AccountantDashboard() {
                 </>
               )}
             </div>
+
+            {/* GL Account Assignment */}
+            {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
+              <div className="px-5 pb-2 space-y-2">
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  {previewClaim.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{previewClaim.gl_account_label ?? 'Not assigned'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedGlAccountId}
+                      onChange={setSelectedGlAccountId}
+                      accounts={glAccounts}
+                      firmId={previewClaim.firm_id}
+                      placeholder="Select GL Account"
+                      preferredType="Expense"
+                      defaultType="Expense"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  {previewClaim.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedContraGlId}
+                      onChange={setSelectedContraGlId}
+                      accounts={glAccounts}
+                      firmId={previewClaim.firm_id}
+                      placeholder="Select Contra GL Account"
+                      preferredType="Liability"
+                      defaultType="Liability"
+                      defaultBalance="Credit"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="p-4 flex-shrink-0 flex gap-3">
               {editMode ? (
                 <>
@@ -614,7 +741,7 @@ export default function AccountantDashboard() {
                     Edit
                   </button>
                   <button
-                    onClick={() => approveClaim(previewClaim.id)}
+                    onClick={() => approveClaim(previewClaim.id, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
                     disabled={previewClaim.approval === 'approved'}
                     className="btn-approve flex-1 py-2 rounded-lg text-sm"
                   >
@@ -688,12 +815,64 @@ export default function AccountantDashboard() {
                 </a>
               )}
             </div>
+
+            {/* GL Account Assignment */}
+            {glAccounts.length > 0 && previewInvoice.approval !== 'not_approved' && (
+              <div className="px-5 pb-2 space-y-2">
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  {previewInvoice.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedGlAccountId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedGlAccountId)?.name ?? 'Not assigned'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedGlAccountId}
+                      onChange={setSelectedGlAccountId}
+                      accounts={glAccounts}
+                      firmId={previewInvoice.firm_id}
+                      placeholder="Select GL Account"
+                      preferredType="Expense"
+                      defaultType="Expense"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  {previewInvoice.approval === 'approved' ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                      </svg>
+                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                    </div>
+                  ) : (
+                    <GlAccountSelect
+                      value={selectedContraGlId}
+                      onChange={setSelectedContraGlId}
+                      accounts={glAccounts}
+                      firmId={previewInvoice.firm_id}
+                      placeholder="Select Contra GL Account"
+                      preferredType="Liability"
+                      defaultType="Liability"
+                      defaultBalance="Credit"
+                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="p-4 flex-shrink-0 space-y-2">
               {/* ── Primary action based on status ── */}
               <div className="flex gap-3">
                 {previewInvoice.status === 'pending_review' ? (
                   <button
-                    onClick={() => markInvoiceReviewed(previewInvoice.id)}
+                    onClick={() => markInvoiceReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
                     className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
                   >
                     Mark as Reviewed

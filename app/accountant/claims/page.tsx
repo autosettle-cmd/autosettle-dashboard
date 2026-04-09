@@ -7,6 +7,7 @@ import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,11 +39,6 @@ interface ClaimRow {
   gl_account_label: string | null;
   linked_payment_count: number;
   linked_payments: { payment_id: string; amount: string; payment_date: string; reference: string | null; supplier_name: string }[];
-}
-
-interface Firm {
-  id: string;
-  name: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,13 +159,14 @@ export default function ClaimsPageWrapper() {
 
 function ClaimsPage() {
   usePageTitle('Claims');
+  const { firms, firmId, firmsLoaded } = useFirm();
+
   // Tab
   const [claimTab, setClaimTab] = useState<'claim' | 'receipt' | 'mileage'>('claim');
 
 
   // Data
   const [claims, setClaims]   = useState<ClaimRow[]>([]);
-  const [firms, setFirms]     = useState<Firm[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -196,7 +193,7 @@ function ClaimsPage() {
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
   const [selectedContraGlId, setSelectedContraGlId] = useState<string>('');
-  const [defaultContraGlId, setDefaultContraGlId] = useState<string>('');
+  const [_defaultContraGlId, setDefaultContraGlId] = useState<string>('');
 
   // Submit modal
   const [showModal, setShowModal]               = useState(false);
@@ -244,7 +241,6 @@ function ClaimsPage() {
   }, [initialType]);
 
   // Filters
-  const [firmId,         setFirmId]        = useState('');
   const [dateRange,      setDateRange]     = useState('this_month');
   const [customFrom,     setCustomFrom]    = useState('');
   const [customTo,       setCustomTo]      = useState('');
@@ -255,21 +251,9 @@ function ClaimsPage() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
 
-  // Load firms (once)
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Load claims
   useEffect(() => {
+    if (!firmsLoaded) return;
     let cancelled = false;
     setLoading(true);
 
@@ -289,7 +273,7 @@ function ClaimsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [claimTab, firmId, dateRange, customFrom, customTo, approvalFilter, search, refreshKey, takeLimit]);
+  }, [claimTab, firmId, dateRange, customFrom, customTo, approvalFilter, search, refreshKey, takeLimit, firmsLoaded]);
 
 
 
@@ -411,7 +395,7 @@ function ClaimsPage() {
     setRejectModal({ open: false, claimIds: [], reason: '' });
   };
 
-  const exportCSV = () => {
+  const _exportCSV = () => {
     if (!claims.length) return;
     const headers = claimTab === 'claim'
       ? ['Date', 'Employee', 'Firm', 'Merchant', 'Category', 'Amount', 'Status', 'Approval']
@@ -454,7 +438,7 @@ function ClaimsPage() {
     }
   };
 
-  const openModal = useCallback(() => {
+  const _openModal = useCallback(() => {
     setModalType(claimTab);
     setModalFirmId(firmId || (firms.length === 1 ? firms[0].id : ''));
     setModalDate(todayStr());
@@ -604,12 +588,6 @@ function ClaimsPage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <Select value={firmId} onChange={setFirmId}>
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
 
             <Select value={dateRange} onChange={setDateRange}>
               <option value="this_week">This Week</option>

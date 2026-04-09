@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,23 +18,16 @@ interface CategoryRow {
   is_global: boolean;
 }
 
-interface Firm {
-  id: string;
-  name: string;
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function CategoriesPage() {
   usePageTitle('Categories');
+  const { firms, firmId, firmsLoaded } = useFirm();
+
   // Data
   const [categories, setCategories] = useState<CategoryRow[]>([]);
-  const [firms, setFirms]           = useState<Firm[]>([]);
   const [loading, setLoading]       = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // Filters
-  const [firmId, setFirmId] = useState('');
 
   // Modal
   const [showModal, setShowModal]       = useState(false);
@@ -52,21 +46,9 @@ export default function CategoriesPage() {
   const [deleteId, setDeleteId]         = useState<string | null>(null);
   const [deleting, setDeleting]         = useState(false);
 
-  // Load firms (once)
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Load categories
   useEffect(() => {
+    if (!firmsLoaded) return;
     let cancelled = false;
     setLoading(true);
 
@@ -79,7 +61,7 @@ export default function CategoriesPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmId, refreshKey]);
+  }, [firmId, refreshKey, firmsLoaded]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
@@ -232,13 +214,6 @@ export default function CategoriesPage() {
 
           {/* ── Filter bar ── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <select value={firmId} onChange={(e) => setFirmId(e.target.value)} className="input-field">
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            )}
-
             {hasFirmSelected && (
               <button
                 onClick={openAddModal}

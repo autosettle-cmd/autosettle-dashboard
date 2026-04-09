@@ -5,6 +5,7 @@ import LoadMoreBanner from '@/components/LoadMoreBanner';
 import { useState, useEffect } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -35,8 +36,6 @@ interface JournalEntryRow {
   total_credit: number;
   lines: JournalLine[];
 }
-
-interface FirmOption { id: string; name: string; }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -106,8 +105,7 @@ export default function JournalEntriesPage() {
   const [reversing, setReversing] = useState(false);
 
   // Firms
-  const [firms, setFirms] = useState<FirmOption[]>([]);
-  const [firmFilter, setFirmFilter] = useState('');
+  const { firmId: firmFilter, firmsLoaded } = useFirm();
 
   // Filters
   const [dateRange,     setDateRange]     = useState('this_month');
@@ -116,22 +114,13 @@ export default function JournalEntriesPage() {
   const [sourceFilter,  setSourceFilter]  = useState('');
   const [statusFilter,  setStatusFilter]  = useState('');
   const [search,        setSearch]        = useState('');
+  const [hideReversals, setHideReversals] = useState(false);
 
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
 
   useEffect(() => {
-    fetch('/api/firms/details')
-      .then((r) => r.json())
-      .then((j) => {
-        const list = (j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }));
-        setFirms(list);
-        if (list.length === 1) setFirmFilter(list[0].id);
-      })
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
+    if (!firmsLoaded) return;
     let cancelled = false;
     setLoading(true);
 
@@ -151,13 +140,14 @@ export default function JournalEntriesPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmFilter, dateRange, customFrom, customTo, sourceFilter, statusFilter, search, refreshKey, takeLimit]);
+  }, [firmsLoaded, firmFilter, dateRange, customFrom, customTo, sourceFilter, statusFilter, search, refreshKey, takeLimit]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
   const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(entries, 'posting_date', 'desc');
-  useEffect(() => { setPage(0); }, [sortField, sortDir]);
-  const paged = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const filtered = hideReversals ? sorted.filter((e) => e.status !== 'reversed' && !e.reversal_of_id) : sorted;
+  useEffect(() => { setPage(0); }, [sortField, sortDir, hideReversals]);
+  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 
   const reverseEntry = async (id: string) => {
     setReversing(true);
@@ -197,13 +187,6 @@ export default function JournalEntriesPage() {
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
           {/* ── Filter bar ────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <Select value={firmFilter} onChange={setFirmFilter}>
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
-
             <Select value={dateRange} onChange={setDateRange}>
               <option value="">All Time</option>
               <option value="this_week">This Week</option>
@@ -241,6 +224,13 @@ export default function JournalEntriesPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="input-field min-w-[210px]"
             />
+
+            <button
+              onClick={() => setHideReversals((v) => !v)}
+              className={`px-3 py-1.5 text-body-sm font-medium rounded-lg border transition-colors ${hideReversals ? 'bg-[#191C1E] text-white border-[#191C1E]' : 'bg-white text-[#434654] border-gray-200 hover:bg-gray-50'}`}
+            >
+              {hideReversals ? 'Show Reversals' : 'Hide Reversals'}
+            </button>
           </div>
 
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={entries.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
@@ -293,7 +283,7 @@ export default function JournalEntriesPage() {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
                     <p className="text-body-sm text-[#8E9196]">
-                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of {sorted.length}
+                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
                     </p>
                     <div className="flex gap-1.5">
                       <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>

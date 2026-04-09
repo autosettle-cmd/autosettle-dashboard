@@ -13,7 +13,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { salesInvoiceIds, action, reason, gl_account_id, contra_gl_account_id } = body as {
+  const { salesInvoiceIds, action, reason: _reason, gl_account_id, contra_gl_account_id } = body as {
     salesInvoiceIds: string[];
     action: 'approve' | 'reject' | 'revert';
     reason?: string;

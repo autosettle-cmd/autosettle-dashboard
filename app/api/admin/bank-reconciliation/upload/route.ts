@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { parseBankStatementPDF } from '@/lib/bank-pdf-parser';
 import { autoMatchTransactions } from '@/lib/bank-reconciliation';
+import { deduplicateTransactions, findOverlappingStatements, computePeriodRange } from '@/lib/bank-dedup';
 import { uploadToDrive, getDriveViewUrl } from '@/lib/whatsapp/drive';
 
 export async function POST(request: NextRequest) {
@@ -66,7 +67,14 @@ export async function POST(request: NextRequest) {
     }, { status: 409 });
   }
 
-  // Create statement and transactions
+  // Deduplicate transactions against existing ones for the same bank account
+  const period = computePeriodRange(result.transactions);
+  const dedup = await deduplicateTransactions(firmId, result.accountNumber, result.transactions);
+  const overlappingStmts = period
+    ? await findOverlappingStatements(firmId, result.accountNumber, period.periodStart, period.periodEnd)
+    : [];
+
+  // Create statement and transactions (only non-duplicates)
   const statement = await prisma.bankStatement.create({
     data: {
       firm_id: firmId,
@@ -79,8 +87,10 @@ export async function POST(request: NextRequest) {
       file_hash: result.fileHash,
       file_url: fileUrl,
       uploaded_by: session.user.id,
+      period_start: period?.periodStart,
+      period_end: period?.periodEnd,
       transactions: {
-        create: result.transactions.map((t) => ({
+        create: dedup.unique.map((t) => ({
           transaction_date: t.transactionDate,
           description: t.description,
           reference: t.reference,
@@ -93,8 +103,10 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Run auto-matching
-  const matchResult = await autoMatchTransactions(firmId, statement.id);
+  // Run auto-matching only if there are new transactions
+  const matchResult = dedup.unique.length > 0
+    ? await autoMatchTransactions(firmId, statement.id)
+    : { matched: 0, unmatched: 0 };
 
   return NextResponse.json({
     data: {
@@ -104,7 +116,10 @@ export async function POST(request: NextRequest) {
       statementDate: result.statementDate,
       openingBalance: result.openingBalance,
       closingBalance: result.closingBalance,
-      transactionCount: result.transactions.length,
+      transactionCount: dedup.unique.length,
+      skippedDuplicates: dedup.duplicates.length,
+      totalParsed: result.transactions.length,
+      overlappingStatements: overlappingStmts.map((s) => ({ id: s.id, fileName: s.file_name })),
       matched: matchResult.matched,
       unmatched: matchResult.unmatched,
       errors: result.errors,

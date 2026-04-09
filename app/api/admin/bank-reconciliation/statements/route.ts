@@ -21,6 +21,8 @@ export async function GET() {
       closing_balance: true,
       file_name: true,
       file_url: true,
+      period_start: true,
+      period_end: true,
       created_at: true,
       _count: {
         select: {
@@ -60,6 +62,8 @@ export async function GET() {
       closing_balance: s.closing_balance?.toString() ?? null,
       file_name: s.file_name,
       file_url: s.file_url,
+      period_start: s.period_start,
+      period_end: s.period_end,
       created_at: s.created_at,
       total: counts.total,
       matched: counts.matched,

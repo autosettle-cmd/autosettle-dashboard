@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -23,11 +24,6 @@ interface FiscalYear {
   end_date: string;
   status: 'open' | 'closed';
   periods: Period[];
-}
-
-interface Firm {
-  id: string;
-  name: string;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -55,9 +51,8 @@ const STATUS_BADGE: Record<string, { class: string; label: string }> = {
 
 export default function FiscalPeriodsPage() {
   usePageTitle('Fiscal Periods');
+  const { firmId, firmsLoaded } = useFirm();
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
-  const [firms, setFirms] = useState<Firm[]>([]);
-  const [firmId, setFirmId] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedFY, setExpandedFY] = useState<Set<string>>(new Set());
@@ -70,21 +65,9 @@ export default function FiscalPeriodsPage() {
   const [modalError, setModalError] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
 
-  // Load firms
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Load fiscal years
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmId) { setFiscalYears([]); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
@@ -103,7 +86,7 @@ export default function FiscalPeriodsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmId, refreshKey]);
+  }, [firmId, refreshKey, firmsLoaded]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -214,13 +197,6 @@ export default function FiscalPeriodsPage() {
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
           {/* Filter bar */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <select value={firmId} onChange={(e) => setFirmId(e.target.value)} className="input-field">
-                <option value="">Select Firm</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            )}
-
             {firmId && (
               <button onClick={openCreateModal} className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-semibold">
                 Create Fiscal Year

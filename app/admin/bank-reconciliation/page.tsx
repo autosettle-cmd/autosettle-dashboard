@@ -92,7 +92,11 @@ export default function BankReconciliationPage() {
       setShowUpload(false);
       setNeedsPassword(false);
       setPdfPassword('');
-      router.push(`/admin/bank-reconciliation/${json.data.statementId}`);
+      const d = json.data;
+      if (d.skippedDuplicates > 0) {
+        alert(`Parsed ${d.totalParsed} transactions — ${d.skippedDuplicates} duplicates skipped (already exist from a previous statement), ${d.transactionCount} new transactions added.`);
+      }
+      router.push(`/admin/bank-reconciliation/${d.statementId}`);
     } catch (e) {
       setUploadError(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
       setUploading(false);

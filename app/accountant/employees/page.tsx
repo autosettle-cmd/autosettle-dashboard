@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,11 +38,6 @@ interface AdminRow {
   created_at: string;
 }
 
-interface Firm {
-  id: string;
-  name: string;
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDate(val: string) {
@@ -54,9 +50,7 @@ function formatDate(val: string) {
 
 export default function PeoplePage() {
   usePageTitle('Employees');
-  // ── Firms ──
-  const [firms, setFirms] = useState<Firm[]>([]);
-  const [firmId, setFirmId] = useState('');
+  const { firms, firmId, firmsLoaded } = useFirm();
 
   // ── Pending Approval data ──
   const [pending, setPending]               = useState<PendingRow[]>([]);
@@ -110,21 +104,9 @@ export default function PeoplePage() {
   const [editAdminError, setEditAdminError] = useState('');
   const [editAdminSaving, setEditAdminSaving] = useState(false);
 
-  // ── Load firms (once) ──
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // ── Fetch pending ──
   useEffect(() => {
+    if (!firmsLoaded) return;
     let cancelled = false;
     setPendingLoading(true);
     const p = new URLSearchParams();
@@ -134,10 +116,11 @@ export default function PeoplePage() {
       .then((j) => { if (!cancelled) { setPending(j.data ?? []); setPendingLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setPendingLoading(false); });
     return () => { cancelled = true; };
-  }, [firmId, pendingKey]);
+  }, [firmId, pendingKey, firmsLoaded]);
 
   // ── Fetch admins ──
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmId) {
       setAdmins([]);
       setAdminsLoading(false);
@@ -151,10 +134,11 @@ export default function PeoplePage() {
       .then((j) => { if (!cancelled) { setAdmins(j.data ?? []); setAdminsLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setAdminsLoading(false); });
     return () => { cancelled = true; };
-  }, [firmId, adminsKey]);
+  }, [firmId, adminsKey, firmsLoaded]);
 
   // ── Fetch employees ──
   useEffect(() => {
+    if (!firmsLoaded) return;
     let cancelled = false;
     setEmpLoading(true);
 
@@ -167,7 +151,7 @@ export default function PeoplePage() {
       .then((j) => { if (!cancelled) { setEmployees(j.data ?? []); setEmpLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setEmpLoading(false); });
     return () => { cancelled = true; };
-  }, [firmId, search, empKey]);
+  }, [firmId, search, empKey, firmsLoaded]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
@@ -414,12 +398,6 @@ export default function PeoplePage() {
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <Select value={firmId} onChange={setFirmId}>
-                <option value="">All Firms</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
 
             <input
               type="text"
@@ -808,12 +786,3 @@ export default function PeoplePage() {
   );
 }
 
-// ─── Small reusable sub-components ────────────────────────────────────────────
-
-function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">
-      {children}
-    </select>
-  );
-}

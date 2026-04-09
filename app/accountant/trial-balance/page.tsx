@@ -74,7 +74,7 @@ function buildSection(accounts: GLAccountRow[], type: string): { nodes: AccountN
   let sectionDebit = 0;
   let sectionCredit = 0;
 
-  for (const [parentId, parent] of parentMap) {
+  for (const [parentId, parent] of Array.from(parentMap.entries())) {
     const children = childrenMap.get(parentId) ?? [];
     const allAccounts = [parent, ...children];
 

@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== 'accountant') {
@@ -12,8 +12,10 @@ export async function GET() {
     }
 
     const firmIds = await getAccountantFirmIds(session.user.id);
-    const scope = firmScope(firmIds);
-    const firmFilter = firmIds ? { firm_id: { in: firmIds } } : {};
+    const { searchParams } = new URL(request.url);
+    const selectedFirmId = searchParams.get('firmId');
+    const scope = firmScope(firmIds, selectedFirmId);
+    const firmFilter = scope;
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -68,11 +70,12 @@ export async function GET() {
           id: true, claim_date: true, merchant: true, description: true, amount: true,
           status: true, approval: true, payment_status: true, confidence: true,
           receipt_number: true, thumbnail_url: true, file_url: true,
-          rejection_reason: true, category_id: true,
+          rejection_reason: true, category_id: true, gl_account_id: true,
           type: true, from_location: true, to_location: true, distance_km: true, trip_purpose: true,
           firm: { select: { name: true } }, firm_id: true,
           employee: { select: { name: true } },
           category: { select: { name: true } },
+          glAccount: { select: { account_code: true, name: true } },
         },
         orderBy: { claim_date: 'desc' },
         take: 50,
@@ -83,11 +86,12 @@ export async function GET() {
           id: true, claim_date: true, merchant: true, description: true, amount: true,
           status: true, approval: true, payment_status: true, confidence: true,
           receipt_number: true, thumbnail_url: true, file_url: true,
-          rejection_reason: true, category_id: true,
+          rejection_reason: true, category_id: true, gl_account_id: true,
           type: true, from_location: true, to_location: true, distance_km: true, trip_purpose: true,
           firm: { select: { name: true } }, firm_id: true,
           employee: { select: { name: true } },
           category: { select: { name: true } },
+          glAccount: { select: { account_code: true, name: true } },
         },
         orderBy: { claim_date: 'desc' },
         take: 50,
@@ -96,9 +100,9 @@ export async function GET() {
         where: { ...scope, status: 'pending_review' },
         select: {
           id: true, vendor_name_raw: true, invoice_number: true, issue_date: true,
-          due_date: true, total_amount: true, amount_paid: true, status: true,
+          due_date: true, total_amount: true, amount_paid: true, status: true, approval: true,
           payment_status: true, supplier_link_status: true, confidence: true,
-          thumbnail_url: true, file_url: true, category_id: true,
+          thumbnail_url: true, file_url: true, category_id: true, gl_account_id: true,
           firm: { select: { name: true } }, firm_id: true,
           supplier: { select: { id: true, name: true } },
           category: { select: { name: true } },
@@ -156,6 +160,8 @@ export async function GET() {
           thumbnail_url: c.thumbnail_url,
           file_url: c.file_url,
           rejection_reason: c.rejection_reason,
+          gl_account_id: c.gl_account_id,
+          gl_account_label: c.glAccount ? `${c.glAccount.account_code} — ${c.glAccount.name}` : null,
           type: c.type,
           from_location: c.from_location,
           to_location: c.to_location,
@@ -181,6 +187,8 @@ export async function GET() {
           thumbnail_url: c.thumbnail_url,
           file_url: c.file_url,
           rejection_reason: c.rejection_reason,
+          gl_account_id: c.gl_account_id,
+          gl_account_label: c.glAccount ? `${c.glAccount.account_code} — ${c.glAccount.name}` : null,
           type: c.type,
           from_location: c.from_location,
           to_location: c.to_location,
@@ -196,7 +204,9 @@ export async function GET() {
           total_amount: inv.total_amount.toString(),
           amount_paid: inv.amount_paid.toString(),
           category_name: inv.category.name,
+          category_id: inv.category_id,
           status: inv.status,
+          approval: inv.approval,
           payment_status: inv.payment_status,
           supplier_name: inv.supplier?.name ?? null,
           supplier_link_status: inv.supplier_link_status,
@@ -205,6 +215,7 @@ export async function GET() {
           file_url: inv.file_url,
           firm_name: inv.firm.name,
           firm_id: inv.firm_id,
+          gl_account_id: inv.gl_account_id,
         })),
       },
       error: null,
