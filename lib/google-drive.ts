@@ -16,7 +16,12 @@ function getAuthClient(): GoogleAuth {
       const credentials = JSON.parse(readFileSync(keyPath, 'utf-8'));
       authClient = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
     } else {
-      const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
+      let rawJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}').trim();
+      // Strip outer quotes if Vercel wrapped the value
+      if (rawJson.startsWith('"') && rawJson.endsWith('"')) {
+        rawJson = rawJson.slice(1, -1).replace(/\\n/g, '\n').replace(/\\"/g, '"');
+      }
+      const credentials = JSON.parse(rawJson);
       authClient = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
     }
   }
