@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -91,7 +91,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 // ─── Sidebar Component ───────────────────────────────────────────────────────
 
-export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
+function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
   const { data: session } = useSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -324,5 +324,13 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
         </button>
       </div>
     </aside>
+  );
+}
+
+export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
+  return (
+    <Suspense>
+      <SidebarInner role={role} />
+    </Suspense>
   );
 }
