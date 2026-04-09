@@ -70,6 +70,7 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
     taxAmount: 0,
     totalAmount: 0,
     category: "",
+    notes: "",
     confidence: "LOW",
   };
 
@@ -102,6 +103,7 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
       taxAmount: Number(parsed.taxAmount || 0),
       totalAmount: Number(parsed.totalAmount),
       category: String(parsed.category || ""),
+      notes: String(parsed.notes || ""),
       confidence: ["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence)
         ? parsed.confidence
         : "LOW",

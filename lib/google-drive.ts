@@ -176,11 +176,30 @@ export async function getOrCreateDocTypeFolder(
   return newFolderId;
 }
 
+// ─── Deduplication ─────────────────────────────────────────────────────────
+
+/**
+ * Check if a file with the same name already exists in the target folder.
+ * Returns the existing file ID if found, null otherwise.
+ */
+async function findExistingFile(filename: string, folderId: string): Promise<string | null> {
+  const accessToken = await getAccessToken();
+  const query = `name='${filename.replace(/'/g, "\\'")}' and '${folderId}' in parents and trashed=false`;
+  const res = await fetch(
+    `${DRIVE_FILES_URL}?q=${encodeURIComponent(query)}&fields=files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as { files?: { id: string }[] };
+  return data.files?.[0]?.id ?? null;
+}
+
 // ─── Upload Functions ──────────────────────────────────────────────────────
 
 /**
  * Core upload — uploads a buffer to Google Drive.
  * If folderId is not provided, falls back to GOOGLE_DRIVE_FOLDER_ID (backward compat).
+ * Deduplicates: if a file with the same name exists in the folder, returns the existing file.
  */
 export async function uploadToDrive(
   imageBuffer: Buffer,
@@ -190,6 +209,12 @@ export async function uploadToDrive(
 ): Promise<{ fileId: string; thumbnailUrl: string }> {
   const targetFolder = folderId ?? process.env.GOOGLE_DRIVE_FOLDER_ID;
   if (!targetFolder) throw new Error('GOOGLE_DRIVE_FOLDER_ID not set');
+
+  // Check for existing file with same name in folder
+  const existingId = await findExistingFile(filename, targetFolder);
+  if (existingId) {
+    return { fileId: existingId, thumbnailUrl: getThumbnailUrl(existingId) };
+  }
 
   const accessToken = await getAccessToken();
 

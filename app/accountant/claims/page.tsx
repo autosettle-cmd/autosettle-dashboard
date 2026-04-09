@@ -404,6 +404,12 @@ function ClaimsPage() {
     }
 
     setModalSaving(false);
+    setShowModal(false);
+    setBatchProgress(null);
+
+    const ok = results.filter(r => r.ok).length;
+    const fail = results.filter(r => !r.ok).length;
+    alert(`Batch upload complete: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ''}`);
     refresh();
   };
 

@@ -1,5 +1,17 @@
 # TODO
 
+## Batch upload via WhatsApp
+- [ ] Allow users to send multiple images/PDFs in one WhatsApp session and have them all processed
+- [ ] Consider: zip file upload via WhatsApp, or multi-image message handling
+- [ ] Each file goes through normal OCR → pending_review flow
+
+## Multi-select invoices for bulk actions
+- [ ] Admin invoices: add checkboxes on each row for multi-select
+- [ ] Accountant invoices: same
+- [ ] Bulk actions bar: delete selected, approve selected, reject selected
+- [ ] Select all / deselect all toggle
+- Affects: `app/admin/invoices/page.tsx`, `app/accountant/invoices/page.tsx`
+
 ## Fix: Show error when uploading without selecting a firm
 - [ ] Bank Recon: show "Please select a firm" error if user clicks Upload & Parse without choosing a firm
 - [ ] Invoices: same

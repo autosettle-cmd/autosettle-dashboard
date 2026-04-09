@@ -36,6 +36,7 @@ interface InvoiceRow {
   confidence: string;
   file_url: string | null;
   thumbnail_url: string | null;
+  notes: string | null;
   gl_account_id: string | null;
   gl_account_label: string | null;
   approval: 'pending_approval' | 'approved' | 'not_approved';
@@ -149,7 +150,7 @@ export default function AccountantInvoicesPageWrapper() {
 function AccountantInvoicesPage() {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
-  const [activeTab, _setActiveTab] = useState<'received' | 'issued'>(pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received');
+  const activeTab: 'received' | 'issued' = pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received';
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -242,6 +243,7 @@ function AccountantInvoicesPage() {
     total_amount: '',
     category_id: '',
     payment_terms: '',
+    notes: '',
   });
   const [newInvFile, setNewInvFile] = useState<File | null>(null);
   const [ocrScanning, setOcrScanning] = useState(false);
@@ -313,6 +315,7 @@ function AccountantInvoicesPage() {
               if (f.dueDate) updates.due_date = f.dueDate;
               if (f.totalAmount) updates.total_amount = String(f.totalAmount);
               if (f.paymentTerms) updates.payment_terms = f.paymentTerms;
+              if (f.notes) updates.notes = f.notes;
             } else {
               if (f.merchant) updates.vendor_name = f.merchant;
               if (f.date) updates.issue_date = f.date;
@@ -565,6 +568,12 @@ function AccountantInvoicesPage() {
     }
 
     setNewInvSubmitting(false);
+    setShowNewInvoice(false);
+    setBatchProgress(null);
+
+    const ok = results.filter(r => r.ok).length;
+    const fail = results.filter(r => !r.ok).length;
+    alert(`Batch upload complete: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ''}`);
     refresh();
   };
 
@@ -586,6 +595,7 @@ function AccountantInvoicesPage() {
       fd.append('total_amount', newInv.total_amount);
       if (newInv.category_id) fd.append('category_id', newInv.category_id);
       if (newInv.payment_terms) fd.append('payment_terms', newInv.payment_terms);
+      if (newInv.notes) fd.append('notes', newInv.notes);
       if (newInvFile) fd.append('file', newInvFile);
       if (newInvExpenseGlId) fd.append('gl_account_id', newInvExpenseGlId);
       if (newInvContraGlId) fd.append('contra_gl_account_id', newInvContraGlId);
@@ -595,7 +605,7 @@ function AccountantInvoicesPage() {
       if (!res.ok) { setNewInvError(j.error || 'Failed to create invoice'); return; }
 
       setShowNewInvoice(false);
-      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '' });
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
       setNewInvContraGlId('');
@@ -1108,6 +1118,17 @@ function AccountantInvoicesPage() {
                 )}
 
                 <div>
+                  <label className="input-label">Notes</label>
+                  <textarea
+                    value={newInv.notes}
+                    onChange={(e) => setNewInv({ ...newInv, notes: e.target.value })}
+                    className="input-field w-full text-sm"
+                    rows={2}
+                    placeholder="Phone number, account details, service period, etc."
+                  />
+                </div>
+
+                <div>
                   <label className="input-label">Invoice Image(s)</label>
                   {newInvFile ? (
                     <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1194,16 +1215,24 @@ function AccountantInvoicesPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {previewInvoice.thumbnail_url ? (
-                previewInvoice.file_url ? (
-                  <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
+              {previewInvoice.file_url ? (
+                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block">
+                  {previewInvoice.thumbnail_url && !previewInvoice.file_url.includes('.pdf') ? (
                     <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
-                  </a>
-                ) : (
-                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200" />
-                )
+                  ) : (
+                    <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-100 transition-colors">
+                      <div className="w-10 h-12 rounded bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0">
+                        <span className="text-red-500 font-bold text-xs">PDF</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-blue-600 truncate">View document</p>
+                        <p className="text-xs text-[#8E9196]">Opens in Google Drive</p>
+                      </div>
+                    </div>
+                  )}
+                </a>
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
+                <div className="w-full h-20 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No document attached</div>
               )}
 
               {editMode && editData ? (
@@ -1278,6 +1307,13 @@ function AccountantInvoicesPage() {
                     <Field label="Uploaded By"   value={previewInvoice.uploader_name} />
                     <Field label="Firm"          value={previewInvoice.firm_name} />
                   </dl>
+
+                  {previewInvoice.notes && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                      <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Notes</p>
+                      <p className="text-sm text-amber-900 whitespace-pre-line">{previewInvoice.notes}</p>
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (

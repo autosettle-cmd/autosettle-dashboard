@@ -20,6 +20,7 @@ export interface GeminiInvoiceResult {
   taxAmount: number;
   totalAmount: number;
   category: string;
+  notes: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
 }
 
@@ -195,6 +196,7 @@ Fields to extract:
 - taxAmount: tax/GST/SST amount as a number (0 if not found)
 - totalAmount: total amount payable as a number (RM, no currency symbol)
 - category: pick the BEST match from this list only: [${categories.join(", ")}]
+- notes: important extra details the accountant should know — e.g. phone/account numbers, service period, line item summary, account holder name, reference numbers. Keep it concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Confidence rules:
@@ -203,7 +205,7 @@ Confidence rules:
 - LOW: one or more key fields missing or unclear
 
 Return format:
-{"vendor": "", "invoiceNumber": "", "issueDate": "", "dueDate": "", "paymentTerms": "", "subtotal": 0, "taxAmount": 0, "totalAmount": 0, "category": "", "confidence": "HIGH"}`;
+{"vendor": "", "invoiceNumber": "", "issueDate": "", "dueDate": "", "paymentTerms": "", "subtotal": 0, "taxAmount": 0, "totalAmount": 0, "category": "", "notes": "", "confidence": "HIGH"}`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -268,6 +270,7 @@ If it is an INVOICE, extract:
 - taxAmount: tax/GST/SST amount (0 if not found)
 - totalAmount: total payable as number
 - category: pick BEST match from: [${categories.join(", ")}]
+- notes: important extra details the accountant should know — e.g. phone/account numbers, service period, line item summary, account holder name, reference numbers. Keep it concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 If it is a RECEIPT, extract:
@@ -276,13 +279,14 @@ If it is a RECEIPT, extract:
 - amount: total amount as number
 - receiptNumber: receipt number (empty string if not found)
 - category: pick BEST match from: [${categories.join(", ")}]
+- notes: important extra details — e.g. what was purchased, reference numbers, location. Keep concise. Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Return ONLY valid JSON with a "documentType" field ("receipt" or "invoice") plus the extracted fields.
 
-Invoice format: {"documentType": "invoice", "vendor": "", "invoiceNumber": "", "issueDate": "", "dueDate": "", "paymentTerms": "", "subtotal": 0, "taxAmount": 0, "totalAmount": 0, "category": "", "confidence": "HIGH"}
+Invoice format: {"documentType": "invoice", "vendor": "", "invoiceNumber": "", "issueDate": "", "dueDate": "", "paymentTerms": "", "subtotal": 0, "taxAmount": 0, "totalAmount": 0, "category": "", "notes": "", "confidence": "HIGH"}
 
-Receipt format: {"documentType": "receipt", "date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "confidence": "HIGH"}`;
+Receipt format: {"documentType": "receipt", "date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}`;
 
   const res = await fetch(url, {
     method: "POST",

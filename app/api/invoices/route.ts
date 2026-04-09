@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
     confidence: inv.confidence,
     file_url: inv.file_url,
     thumbnail_url: inv.thumbnail_url,
+    notes: inv.notes,
     submitted_via: inv.submitted_via,
     gl_account_id: inv.gl_account_id,
     gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
     const totalAmountStr = formData.get('total_amount') as string | null;
     const categoryId = formData.get('category_id') as string | null;
     const paymentTerms = formData.get('payment_terms') as string | null;
+    const notes = formData.get('notes') as string | null;
     const file = formData.get('file') as File | null;
 
     if (!firmId || !vendorName || !issueDate || !totalAmountStr || !categoryId) {
@@ -233,6 +235,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Duplicate check ──
+    if (invoiceNumber) {
+      const existing = await prisma.invoice.findFirst({
+        where: { firm_id: firmId!, invoice_number: invoiceNumber },
+        select: { id: true, vendor_name_raw: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { data: null, error: `Duplicate: invoice #${invoiceNumber} already exists (${existing.vendor_name_raw})` },
+          { status: 409 }
+        );
+      }
+    }
+
     // ── Create the invoice ──
     const invoice = await prisma.invoice.create({
       data: {
@@ -245,6 +261,7 @@ export async function POST(request: NextRequest) {
         issue_date: new Date(issueDate),
         due_date: computedDueDate ? new Date(computedDueDate) : null,
         payment_terms: paymentTerms || null,
+        notes: notes || null,
         total_amount: totalAmount,
         category_id: categoryId!,
         confidence: 'HIGH',

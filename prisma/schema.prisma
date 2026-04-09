@@ -358,6 +358,7 @@ model Invoice {
   gl_account_id       String?
   approval            ApprovalStatus       @default(pending_approval)
   rejection_reason    String?
+  notes               String?
   created_at          DateTime             @default(now())
   updated_at          DateTime             @updatedAt
 
