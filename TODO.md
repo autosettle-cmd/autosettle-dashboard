@@ -5,6 +5,12 @@
 - [ ] Invoices: same
 - [ ] Claims: same
 
+## Fix: OCR auto-fill not working on Vercel (Gemini billing required)
+- [ ] Enable billing on Google Cloud project `drive-uploader-485013`: https://console.developers.google.com/billing/enable?project=drive-uploader-485013
+- [ ] After billing enabled, verify invoice/claim OCR auto-fill works on deployed app
+- [ ] Consider: add Google Vision API fallback for OCR when Gemini is unavailable (Vision uses API key, no billing needed)
+- Root cause: Invoice/claim OCR always uses Gemini (Vertex AI), which requires billing. Bank recon works because regex parser handles it without Gemini.
+
 ## Multi-receipt detection: extract multiple receipts from one photo
 - [ ] Update Gemini OCR prompt to detect and return an array of receipts when multiple are in one image
 - [ ] Update `extractWithGemini` in `lib/whatsapp/gemini.ts` to return array instead of single result
