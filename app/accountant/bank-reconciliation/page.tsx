@@ -47,6 +47,7 @@ export default function AccountantBankReconciliationPage() {
   const [uploadError, setUploadError] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
   const [pdfPassword, setPdfPassword] = useState('');
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
   const reuploadRef = useRef<HTMLInputElement>(null);
   const [reuploadId, setReuploadId] = useState<string | null>(null);
   const { firms, firmId: firmFilter, firmsLoaded } = useFirm();
@@ -137,50 +138,91 @@ export default function AccountantBankReconciliationPage() {
   };
 
   const handleUpload = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file || !uploadFirmId) return;
+    const files = fileRef.current?.files;
+    if (!files || files.length === 0 || !uploadFirmId) return;
 
     setUploading(true);
     setUploadError('');
 
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('firm_id', uploadFirmId);
-    if (pdfPassword) fd.append('password', pdfPassword);
+    // Single file — original flow (supports password prompt)
+    if (files.length === 1) {
+      const fd = new FormData();
+      fd.append('file', files[0]);
+      fd.append('firm_id', uploadFirmId);
+      if (pdfPassword) fd.append('password', pdfPassword);
 
-    try {
-      const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
-      if (!res.ok && !res.headers.get('content-type')?.includes('json')) {
-        setUploadError(`Server error (${res.status}).`);
+      try {
+        const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
+        if (!res.ok && !res.headers.get('content-type')?.includes('json')) {
+          setUploadError(`Server error (${res.status}).`);
+          setUploading(false);
+          return;
+        }
+        const json = await res.json();
+
+        if (json.error === 'PASSWORD_REQUIRED') {
+          setNeedsPassword(true);
+          setUploadError('This PDF is password-protected. Please enter the password.');
+          setUploading(false);
+          return;
+        }
+
+        if (json.error) { setUploadError(json.error); setUploading(false); return; }
         setUploading(false);
-        return;
-      }
-      const json = await res.json();
-
-      if (json.error === 'PASSWORD_REQUIRED') {
-        setNeedsPassword(true);
-        setUploadError('This PDF is password-protected. Please enter the password.');
+        setShowUpload(false);
+        setNeedsPassword(false);
+        setPdfPassword('');
+        const d = json.data;
+        if (d.warning) {
+          alert(`⚠️ ${d.warning}`);
+        }
+        if (d.skippedDuplicates > 0) {
+          alert(`Parsed ${d.totalParsed} transactions — ${d.skippedDuplicates} duplicates skipped, ${d.transactionCount} new.`);
+        }
+        router.push(`/accountant/bank-reconciliation/${d.statementId}`);
+      } catch (e) {
+        setUploadError(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
         setUploading(false);
-        return;
       }
-
-      if (json.error) { setUploadError(json.error); setUploading(false); return; }
-      setUploading(false);
-      setShowUpload(false);
-      setNeedsPassword(false);
-      setPdfPassword('');
-      const d = json.data;
-      if (d.warning) {
-        alert(`⚠️ ${d.warning}`);
-      }
-      if (d.skippedDuplicates > 0) {
-        alert(`Parsed ${d.totalParsed} transactions — ${d.skippedDuplicates} duplicates skipped (already exist from a previous statement), ${d.transactionCount} new transactions added.`);
-      }
-      router.push(`/accountant/bank-reconciliation/${d.statementId}`);
-    } catch (e) {
-      setUploadError(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
-      setUploading(false);
+      return;
     }
+
+    // Multiple files — batch upload with progress
+    const fileList = Array.from(files);
+    const results: { name: string; ok: boolean; msg: string }[] = [];
+    setBatchProgress({ current: 0, total: fileList.length, results });
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('firm_id', uploadFirmId);
+
+        const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        if (json.error) {
+          results.push({ name: file.name, ok: false, msg: json.error });
+        } else {
+          const d = json.data;
+          const warnings = [];
+          if (d.warning) warnings.push('Gemini fallback');
+          if (d.skippedDuplicates > 0) warnings.push(`${d.skippedDuplicates} dupes skipped`);
+          results.push({ name: file.name, ok: true, msg: `${d.transactionCount} transactions${warnings.length ? ' (' + warnings.join(', ') + ')' : ''}` });
+        }
+      } catch (e) {
+        results.push({ name: file.name, ok: false, msg: e instanceof Error ? e.message : 'Failed' });
+      }
+
+      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+    }
+
+    setUploading(false);
+    // Refresh statements list after batch
+    loadStatements();
   };
 
   const handleDeleteStatement = async (statementId: string) => {
@@ -247,7 +289,7 @@ export default function AccountantBankReconciliationPage() {
                   )}
                   <div>
                     <label className="text-body-sm font-medium text-[#434654] mb-1 block">PDF File</label>
-                    <input ref={fileRef} type="file" accept=".pdf" className="input-field w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); }} />
+                    <input ref={fileRef} type="file" accept=".pdf" multiple className="input-field w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); setBatchProgress(null); }} />
                   </div>
                   {needsPassword && (
                     <div>
@@ -256,11 +298,38 @@ export default function AccountantBankReconciliationPage() {
                     </div>
                   )}
                   {uploadError && <p className="text-body-sm text-red-600">{uploadError}</p>}
+
+                  {/* Batch progress */}
+                  {batchProgress && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs text-[#8E9196]">
+                        <span>Processing {batchProgress.current} of {batchProgress.total}</span>
+                        <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                      </div>
+                      {batchProgress.results.length > 0 && (
+                        <div className="max-h-[200px] overflow-y-auto space-y-1">
+                          {batchProgress.results.map((r, i) => (
+                            <div key={i} className={`text-xs px-2 py-1 rounded ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                              <span className="font-medium">{r.name}</span>: {r.msg}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => setShowUpload(false)} className="flex-1 px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                    <button onClick={handleUpload} disabled={uploading || !uploadFirmId} className="flex-1 px-3 py-2 text-body-md btn-primary rounded-lg disabled:opacity-50">
-                      {uploading ? 'Processing...' : 'Upload & Parse'}
+                    <button onClick={() => { setShowUpload(false); setBatchProgress(null); }} className="flex-1 px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
+                      {batchProgress && !uploading ? 'Done' : 'Cancel'}
                     </button>
+                    {!batchProgress && (
+                      <button onClick={handleUpload} disabled={uploading || !uploadFirmId} className="flex-1 px-3 py-2 text-body-md btn-primary rounded-lg disabled:opacity-50">
+                        {uploading ? 'Processing...' : 'Upload & Parse'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
