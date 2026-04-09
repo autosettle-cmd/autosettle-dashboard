@@ -1,5 +1,11 @@
 # TODO
 
+## Fix: Upload modal should auto-select firm from sidebar filter
+- [ ] Bank Recon upload modal: pre-fill firm from `firmFilter` (sidebar selector) so accountant doesn't have to select again
+- [ ] Invoice upload modal: same — use sidebar firm as default
+- [ ] Claims upload modal: same
+- Affects: `app/accountant/bank-reconciliation/page.tsx`, `app/accountant/invoices/page.tsx`, `app/accountant/claims/page.tsx`
+
 ## Bank Statement Parser: Add regex for more bank formats
 - [ ] OCBC — upload sample statement, build regex parser in `lib/bank-pdf-parser.ts`
 - [ ] CIMB — upload sample statement, build regex parser
