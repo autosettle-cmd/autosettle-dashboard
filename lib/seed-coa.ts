@@ -116,7 +116,7 @@ export async function seedCoAForFirm(firmId: string) {
   // Auto-set default contra accounts if not already configured
   const firm = await prisma.firm.findUnique({
     where: { id: firmId },
-    select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true },
+    select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true, default_retained_earnings_gl_id: true },
   });
 
   const updates: Record<string, string> = {};
@@ -125,6 +125,9 @@ export async function seedCoAForFirm(firmId: string) {
   }
   if (!firm?.default_staff_claims_gl_id && codeToId["214-000"]) {
     updates.default_staff_claims_gl_id = codeToId["214-000"];
+  }
+  if (!firm?.default_retained_earnings_gl_id && codeToId["320-000"]) {
+    updates.default_retained_earnings_gl_id = codeToId["320-000"];
   }
 
   if (Object.keys(updates).length > 0) {

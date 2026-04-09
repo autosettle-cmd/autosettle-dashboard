@@ -35,7 +35,7 @@ export async function PATCH(
     tin, brn, msic_code, sst_registration_number,
     address_line1, address_line2, city, postal_code, state, country,
     lhdn_client_id, lhdn_client_secret,
-    default_trade_payables_gl_id, default_staff_claims_gl_id, default_trade_receivables_gl_id } = body;
+    default_trade_payables_gl_id, default_staff_claims_gl_id, default_trade_receivables_gl_id, default_retained_earnings_gl_id } = body;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any = {};
@@ -64,6 +64,7 @@ export async function PATCH(
   if (default_trade_payables_gl_id !== undefined) data.default_trade_payables_gl_id = default_trade_payables_gl_id || null;
   if (default_staff_claims_gl_id !== undefined) data.default_staff_claims_gl_id = default_staff_claims_gl_id || null;
   if (default_trade_receivables_gl_id !== undefined) data.default_trade_receivables_gl_id = default_trade_receivables_gl_id || null;
+  if (default_retained_earnings_gl_id !== undefined) data.default_retained_earnings_gl_id = default_retained_earnings_gl_id || null;
 
   try {
     const updated = await prisma.firm.update({

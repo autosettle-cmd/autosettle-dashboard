@@ -28,9 +28,11 @@ export async function GET(request: NextRequest) {
       default_trade_payables_gl_id: true,
       default_staff_claims_gl_id: true,
       default_trade_receivables_gl_id: true,
+      default_retained_earnings_gl_id: true,
       defaultTradePayables: { select: { id: true, account_code: true, name: true } },
       defaultStaffClaims: { select: { id: true, account_code: true, name: true } },
       defaultTradeReceivables: { select: { id: true, account_code: true, name: true } },
+      defaultRetainedEarnings: { select: { id: true, account_code: true, name: true } },
     },
   });
 
@@ -78,6 +80,10 @@ export async function GET(request: NextRequest) {
         trade_receivables: firm?.defaultTradeReceivables ? {
           id: firm.defaultTradeReceivables.id,
           label: `${firm.defaultTradeReceivables.account_code} — ${firm.defaultTradeReceivables.name}`,
+        } : null,
+        retained_earnings: firm?.defaultRetainedEarnings ? {
+          id: firm.defaultRetainedEarnings.id,
+          label: `${firm.defaultRetainedEarnings.account_code} — ${firm.defaultRetainedEarnings.name}`,
         } : null,
       },
       default_trade_receivables_gl_id: firm?.default_trade_receivables_gl_id ?? null,

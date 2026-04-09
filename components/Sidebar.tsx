@@ -6,6 +6,7 @@ import { useLogout } from '@/lib/use-logout';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { brand } from '@/config/branding';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Nav configs per role ────────────────────────────────────────────────────
 
@@ -58,6 +59,9 @@ const ACCOUNTANT_NAV = [
     children: [
       { label: 'Journal Entries', href: '/accountant/journal-entries' },
       { label: 'General Ledger',  href: '/accountant/general-ledger' },
+      { label: 'Trial Balance',   href: '/accountant/trial-balance' },
+      { label: 'Profit & Loss',   href: '/accountant/profit-loss' },
+      { label: 'Balance Sheet',   href: '/accountant/balance-sheet' },
       { label: 'Fiscal Periods',  href: '/accountant/fiscal-periods' },
       { label: 'Audit Log',       href: '/accountant/audit-log' },
       { label: 'Chart of Accounts', href: '/accountant/chart-of-accounts' },
@@ -93,6 +97,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
   const searchParams = useSearchParams();
   const handleLogout = useLogout();
   const nav = NAV_MAP[role] ?? [];
+  const { firms, firmId, setFirmId } = useFirm();
   const [firmName, setFirmName] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -125,30 +130,28 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
     }
   }, [pathname]);
 
-  // Fetch firm name for subtitle (admin always, accountant only if single firm)
+  // Derive firm name from context for accountants, fetch for admin
   useEffect(() => {
     if (role === 'accountant') {
-      fetch('/api/firms')
-        .then((r) => r.json())
-        .then((j) => {
-          if (j.data?.length === 1) setFirmName(j.data[0].name);
-        })
-        .catch(() => {});
+      if (firms.length === 1) setFirmName(firms[0].name);
+      else if (firmId) setFirmName(firms.find(f => f.id === firmId)?.name ?? null);
+      else setFirmName(null);
     } else if (role === 'admin') {
       fetch('/api/admin/firm')
         .then((r) => r.json())
         .then((j) => { if (j.data?.name) setFirmName(j.data.name); })
         .catch(() => {});
     }
-  }, [role]);
+  }, [role, firms, firmId]);
 
-  // Fetch pending counts for sidebar badges
+  // Fetch pending counts for sidebar badges (filtered by selected firm for accountants)
   useEffect(() => {
     if (role === 'employee') return;
     const prefix = role === 'admin' ? '/api/admin' : '/api';
+    const firmParam = role === 'accountant' && firmId ? `?firmId=${firmId}` : '';
     Promise.all([
-      fetch(`${prefix}/claims/counts`).then((r) => r.json()),
-      fetch(`${prefix}/invoices/counts`).then((r) => r.json()),
+      fetch(`${prefix}/claims/counts${firmParam}`).then((r) => r.json()),
+      fetch(`${prefix}/invoices/counts${firmParam}`).then((r) => r.json()),
       fetch(`/api/admin/employees/pending`).then((r) => r.json()),
     ]).then(([claimsRes, invoicesRes, employeesRes]) => {
       setCounts({
@@ -160,7 +163,7 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
         employeesPending: employeesRes.meta?.count ?? 0,
       });
     }).catch(() => {});
-  }, [role]);
+  }, [role, firmId]);
 
   return (
     <aside className="w-[232px] flex-shrink-0 flex flex-col backdrop-blur-[12px]" style={{ backgroundColor: 'rgba(21, 28, 40, 0.85)' }}>
@@ -181,6 +184,22 @@ export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'empl
           <span className="text-white/25 text-[10px] font-medium tracking-wider uppercase block truncate">{firmName ?? ROLE_LABELS[role]}</span>
         </div>
       </div>
+
+      {/* Firm selector for multi-firm accountants */}
+      {role === 'accountant' && firms.length > 1 && (
+        <div className="px-3 pt-3">
+          <select
+            value={firmId}
+            onChange={(e) => setFirmId(e.target.value)}
+            className="w-full text-[12px] px-2.5 py-1.5 rounded-lg bg-white/10 text-white border border-white/10 focus:border-white/30 focus:outline-none appearance-none cursor-pointer"
+          >
+            <option value="" className="text-[#191C1E]">All Firms</option>
+            {firms.map((f) => (
+              <option key={f.id} value={f.id} className="text-[#191C1E]">{f.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

@@ -1,8 +1,9 @@
 'use client';
 
 import Sidebar from '@/components/Sidebar';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ interface DrilldownLine {
   voucher_number: string;
   posting_date: string;
   source_type: string;
+  status: string;
+  reversal_of_id: string | null;
   entry_description: string | null;
   line_description: string | null;
   debit_amount: number;
@@ -34,30 +37,27 @@ interface DrilldownLine {
 interface DrilldownData {
   account: { id: string; account_code: string; name: string; account_type: string; normal_balance: string };
   lines: DrilldownLine[];
+  opening_balance: number;
   total_debit: number;
   total_credit: number;
   balance: number;
 }
 
-interface FirmOption { id: string; name: string; }
 interface PeriodOption { id: string; label: string; }
-interface FiscalYear { id: string; year_label: string; periods: { id: string; period_number: number }[]; }
+interface FiscalYear { id: string; year_label: string; periods: { id: string; period_number: number; start_date: string; end_date: string }[]; }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const TYPE_ORDER = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
-const TYPE_BADGES: Record<string, string> = {
-  Asset: 'badge-blue', Liability: 'badge-amber', Equity: 'badge-purple',
-  Revenue: 'badge-green', Expense: 'badge-red',
-};
 
 const SOURCE_LABELS: Record<string, string> = {
   claim_approval: 'Claim', invoice_posting: 'Invoice',
   sales_invoice_posting: 'Sales Inv', bank_recon: 'Bank Recon', manual: 'Manual',
+  year_end_close: 'Year-End Close',
 };
 
 function formatRM(val: string | number) {
-  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const num = Number(val);
+  const abs = Math.abs(num).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return num < 0 ? `(RM ${abs})` : `RM ${abs}`;
 }
 
 function formatDate(val: string) {
@@ -70,13 +70,64 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
   return <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">{children}</select>;
 }
 
+// Build hierarchical tree: parent accounts contain children
+interface AccountNode {
+  account: GLAccountRow;
+  children: GLAccountRow[];
+  totalDebit: number;
+  totalCredit: number;
+  totalBalance: number;
+}
+
+function buildTree(accounts: GLAccountRow[], hideZero: boolean): AccountNode[] {
+  const parentMap = new Map<string, GLAccountRow>();
+  const childrenMap = new Map<string, GLAccountRow[]>();
+
+  // Separate parents and children
+  for (const a of accounts) {
+    if (!a.parent_id) {
+      parentMap.set(a.id, a);
+      if (!childrenMap.has(a.id)) childrenMap.set(a.id, []);
+    }
+  }
+  for (const a of accounts) {
+    if (a.parent_id && parentMap.has(a.parent_id)) {
+      childrenMap.get(a.parent_id)!.push(a);
+    } else if (a.parent_id && !parentMap.has(a.parent_id)) {
+      // Orphan child - treat as top-level
+      parentMap.set(a.id, a);
+      if (!childrenMap.has(a.id)) childrenMap.set(a.id, []);
+    }
+  }
+
+  const nodes: AccountNode[] = [];
+  for (const [parentId, parent] of parentMap) {
+    const children = childrenMap.get(parentId) ?? [];
+    const allAccounts = [parent, ...children];
+    const totalDebit = allAccounts.reduce((s, a) => s + a.total_debit, 0);
+    const totalCredit = allAccounts.reduce((s, a) => s + a.total_credit, 0);
+    const totalBalance = allAccounts.reduce((s, a) => s + a.balance, 0);
+
+    if (hideZero && totalDebit === 0 && totalCredit === 0) continue;
+
+    const filteredChildren = hideZero
+      ? children.filter(c => c.total_debit !== 0 || c.total_credit !== 0)
+      : children;
+
+    nodes.push({ account: parent, children: filteredChildren, totalDebit, totalCredit, totalBalance });
+  }
+
+  // Sort by account_code
+  nodes.sort((a, b) => a.account.account_code.localeCompare(b.account.account_code));
+  return nodes;
+}
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function GeneralLedgerPage() {
   usePageTitle('General Ledger');
 
-  const [firms, setFirms] = useState<FirmOption[]>([]);
-  const [firmFilter, setFirmFilter] = useState('');
+  const { firmId: firmFilter, firmsLoaded } = useFirm();
   const [fiscalYears, setFiscalYears] = useState<FiscalYear[]>([]);
   const [periodFilter, setPeriodFilter] = useState('');
   const [dateRange, setDateRange] = useState('');
@@ -90,27 +141,20 @@ export default function GeneralLedgerPage() {
 
   const [drilldown, setDrilldown] = useState<DrilldownData | null>(null);
   const [drilldownLoading, setDrilldownLoading] = useState(false);
-
-  // Load firms
-  useEffect(() => {
-    fetch('/api/firms/details').then(r => r.json())
-      .then(j => {
-        const list = (j.data ?? []).map((f: FirmOption) => ({ id: f.id, name: f.name }));
-        setFirms(list);
-        if (list.length === 1) setFirmFilter(list[0].id);
-      }).catch(console.error);
-  }, []);
+  const [hideReversals, setHideReversals] = useState(false);
 
   // Load fiscal years when firm changes
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmFilter) { setFiscalYears([]); return; }
     fetch(`/api/fiscal-years?firmId=${firmFilter}`).then(r => r.json())
       .then(j => setFiscalYears(j.data ?? []))
       .catch(console.error);
-  }, [firmFilter]);
+  }, [firmsLoaded, firmFilter]);
 
   // Load general ledger data
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmFilter) { setAccounts([]); setSummary(null); return; }
     setLoading(true);
     const p = new URLSearchParams({ firmId: firmFilter });
@@ -138,7 +182,7 @@ export default function GeneralLedgerPage() {
         setSummary(j.data?.summary ?? null);
         setLoading(false);
       }).catch(() => setLoading(false));
-  }, [firmFilter, periodFilter, dateRange, customFrom, customTo]);
+  }, [firmsLoaded, firmFilter, periodFilter, dateRange, customFrom, customTo]);
 
   // Open drill-down
   const openDrilldown = async (accountId: string) => {
@@ -167,17 +211,16 @@ export default function GeneralLedgerPage() {
     finally { setDrilldownLoading(false); }
   };
 
-  // Group accounts by type, filtering zero-balance if needed
-  const displayAccounts = hideZero
-    ? accounts.filter(a => a.total_debit !== 0 || a.total_credit !== 0)
-    : accounts;
-
-  const grouped = TYPE_ORDER.map(type => ({
-    type,
-    accounts: displayAccounts.filter(a => a.account_type === type),
-    totalDebit: displayAccounts.filter(a => a.account_type === type).reduce((s, a) => s + a.total_debit, 0),
-    totalCredit: displayAccounts.filter(a => a.account_type === type).reduce((s, a) => s + a.total_credit, 0),
-  })).filter(g => g.accounts.length > 0);
+  // Build hierarchical tree
+  const tree = buildTree(accounts, hideZero);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleCollapse = (id: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // Period options
   const periodOptions: PeriodOption[] = fiscalYears.flatMap(fy =>
@@ -198,13 +241,6 @@ export default function GeneralLedgerPage() {
 
           {/* ── Filters ── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <Select value={firmFilter} onChange={setFirmFilter}>
-                <option value="">Select Firm</option>
-                {firms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </Select>
-            )}
-
             {periodOptions.length > 0 && (
               <Select value={periodFilter} onChange={(v) => { setPeriodFilter(v); if (v) setDateRange(''); }}>
                 <option value="">All Periods</option>
@@ -261,67 +297,122 @@ export default function GeneralLedgerPage() {
           )}
 
           {/* ── Content ── */}
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
             {!firmFilter ? (
               <div className="text-center py-12 text-sm text-[#8E9196]">Select a firm to view the General Ledger.</div>
             ) : loading ? (
               <div className="text-center py-12 text-sm text-[#8E9196]">Loading...</div>
-            ) : grouped.length === 0 ? (
+            ) : tree.length === 0 ? (
               <div className="text-center py-12 text-sm text-[#8E9196]">No accounts with activity found.</div>
             ) : (
-              <div className="space-y-6">
-                {grouped.map((group) => (
-                  <section key={group.type}>
-                    {/* Section header */}
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-bold text-[#191C1E]">{group.type}</h2>
-                        <span className={TYPE_BADGES[group.type]}>{group.accounts.length}</span>
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-[#8E9196] tabular-nums">
-                        <span>DR: <strong className="text-[#191C1E]">{formatRM(group.totalDebit)}</strong></span>
-                        <span>CR: <strong className="text-[#191C1E]">{formatRM(group.totalCredit)}</strong></span>
-                      </div>
-                    </div>
-
-                    {/* T-account cards grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {group.accounts.map((a) => (
-                        <div
-                          key={a.id}
-                          onClick={() => openDrilldown(a.id)}
-                          className="bg-white rounded-lg border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all cursor-pointer overflow-hidden"
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="ds-table-header text-left">
+                    <th className="px-5 py-2.5">Account</th>
+                    <th className="px-3 py-2.5 text-right w-[140px]">Debit</th>
+                    <th className="px-3 py-2.5 text-right w-[140px]">Credit</th>
+                    <th className="px-3 py-2.5 text-right w-[160px]">Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tree.map((node) => {
+                    const isCollapsed = collapsed.has(node.account.id);
+                    const hasChildren = node.children.length > 0;
+                    return (
+                      <React.Fragment key={node.account.id}>
+                        {/* ── Parent row ── */}
+                        <tr
+                          className={`border-b border-gray-100 ${hasChildren ? 'cursor-pointer hover:bg-[#F2F4F6]' : 'cursor-pointer hover:bg-[#F2F4F6]'} transition-colors`}
+                          onClick={() => hasChildren ? toggleCollapse(node.account.id) : openDrilldown(node.account.id)}
                         >
-                          {/* Account header */}
-                          <div className="px-3 py-2 border-b border-gray-50 flex items-center justify-between">
-                            <div className="min-w-0">
-                              <span className="font-mono text-xs text-[#8E9196]">{a.account_code}</span>
-                              <p className="text-sm font-medium text-[#191C1E] truncate">{a.name}</p>
+                          <td className="px-5 py-2.5 font-semibold text-[#191C1E]">
+                            <div className="flex items-center gap-2">
+                              {hasChildren ? (
+                                <span className="w-4 h-4 flex items-center justify-center text-[#8E9196] text-xs flex-shrink-0">
+                                  {isCollapsed ? '▶' : '▼'}
+                                </span>
+                              ) : (
+                                <span className="w-4 flex-shrink-0" />
+                              )}
+                              {node.account.account_code} - {node.account.name}
                             </div>
-                          </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                            {!hasChildren && node.account.total_debit > 0 ? formatRM(node.account.total_debit) : ''}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                            {!hasChildren && node.account.total_credit > 0 ? formatRM(node.account.total_credit) : ''}
+                          </td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${hasChildren ? '' : node.totalBalance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                            {!hasChildren ? formatRM(node.totalBalance) : ''}
+                          </td>
+                        </tr>
 
-                          {/* T-account body */}
-                          <div className="grid grid-cols-2 divide-x divide-gray-100">
-                            <div className="px-3 py-2 text-center">
-                              <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide">Debit</p>
-                              <p className="text-sm font-semibold text-[#191C1E] tabular-nums mt-0.5">{formatRM(a.total_debit)}</p>
-                            </div>
-                            <div className="px-3 py-2 text-center">
-                              <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide">Credit</p>
-                              <p className="text-sm font-semibold text-[#191C1E] tabular-nums mt-0.5">{formatRM(a.total_credit)}</p>
-                            </div>
-                          </div>
+                        {/* ── Child rows ── */}
+                        {hasChildren && !isCollapsed && node.children.map((child) => (
+                          <tr
+                            key={child.id}
+                            className="border-b border-gray-50 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                            onClick={() => openDrilldown(child.id)}
+                          >
+                            <td className="py-2.5 text-[#434654]">
+                              <div className="flex items-center gap-2 pl-11">
+                                <span className="w-3 h-3 flex items-center justify-center text-[#C4C7CC] text-[10px] flex-shrink-0">◻</span>
+                                {child.account_code} - {child.name}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                              {child.total_debit > 0 ? formatRM(child.total_debit) : ''}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                              {child.total_credit > 0 ? formatRM(child.total_credit) : ''}
+                            </td>
+                            <td className={`px-3 py-2.5 text-right tabular-nums ${child.balance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                              {formatRM(child.balance)}
+                            </td>
+                          </tr>
+                        ))}
 
-                          {/* Balance footer */}
-                          <div className={`px-3 py-1.5 text-center text-sm font-bold tabular-nums ${a.balance >= 0 ? 'bg-green-50/60 text-green-700' : 'bg-red-50/60 text-red-700'}`}>
-                            {formatRM(Math.abs(a.balance))} {a.balance >= 0 ? (a.normal_balance === 'Debit' ? 'Dr' : 'Cr') : (a.normal_balance === 'Debit' ? 'Cr' : 'Dr')}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
+                        {/* ── Total row ── */}
+                        {hasChildren && !isCollapsed && (
+                          <tr className="border-b border-gray-200 bg-[#F7F9FB]">
+                            <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+                              <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                              {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                              {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
+                            </td>
+                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                              {formatRM(node.totalBalance)}
+                            </td>
+                          </tr>
+                        )}
+
+                        {/* ── Collapsed total row ── */}
+                        {hasChildren && isCollapsed && (
+                          <tr className="border-b border-gray-200 bg-[#F7F9FB]">
+                            <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+                              <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                              {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                              {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
+                            </td>
+                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                              {formatRM(node.totalBalance)}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         </main>
@@ -346,8 +437,16 @@ export default function GeneralLedgerPage() {
                 <div className="flex-1 flex items-center justify-center py-12 text-sm text-[#8E9196]">Loading...</div>
               ) : drilldown && (
                 <>
-                  {/* Mini T-account summary */}
-                  <div className="px-5 pt-4 pb-2">
+                  {/* Toggle + Mini T-account summary */}
+                  <div className="px-5 pt-3 flex justify-end">
+                    <button
+                      onClick={() => setHideReversals((v) => !v)}
+                      className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors ${hideReversals ? 'bg-[#191C1E] text-white border-[#191C1E]' : 'bg-white text-[#434654] border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      {hideReversals ? 'Show Reversals' : 'Hide Reversals'}
+                    </button>
+                  </div>
+                  <div className="px-5 pt-2 pb-2">
                     <div className="grid grid-cols-3 gap-3">
                       <div className="bg-gray-50 rounded-lg p-3 text-center">
                         <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide">Total Debit</p>
@@ -368,48 +467,80 @@ export default function GeneralLedgerPage() {
 
                   {/* Lines table */}
                   <div className="flex-1 overflow-y-auto px-5 pb-2">
-                    {drilldown.lines.length === 0 ? (
-                      <div className="text-center py-8 text-sm text-[#8E9196]">No journal lines for this account in the selected period.</div>
-                    ) : (
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="ds-table-header text-left">
-                            <th className="px-3 py-2">Date</th>
-                            <th className="px-3 py-2">Voucher #</th>
-                            <th className="px-3 py-2">Description</th>
-                            <th className="px-3 py-2">Source</th>
-                            <th className="px-3 py-2 text-right">Debit</th>
-                            <th className="px-3 py-2 text-right">Credit</th>
-                            <th className="px-3 py-2 text-right">Balance</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {drilldown.lines.map((line) => (
-                            <tr key={line.id} className="hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
-                              <td className="px-3 py-2 text-[#434654] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
-                              <td className="px-3 py-2 text-[#434654] font-mono text-xs">{line.voucher_number}</td>
-                              <td className="px-3 py-2 text-[#434654] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
-                              <td className="px-3 py-2 text-[#8E9196] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
-                              <td className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                {formatRM(Math.abs(line.running_balance))}
+                    {(() => {
+                      const visibleLines = hideReversals
+                        ? drilldown.lines.filter((l) => l.status !== 'reversed' && !l.reversal_of_id)
+                        : drilldown.lines;
+
+                      // Recompute running balance for filtered lines (seeded from opening balance)
+                      const isDebitNormal = drilldown.account.normal_balance === 'Debit';
+                      let runBal = drilldown.opening_balance ?? 0;
+                      const linesWithBalance = visibleLines.map((l) => {
+                        runBal += isDebitNormal ? (l.debit_amount - l.credit_amount) : (l.credit_amount - l.debit_amount);
+                        return { ...l, running_balance: runBal };
+                      });
+                      const filteredDebit = visibleLines.reduce((s, l) => s + l.debit_amount, 0);
+                      const filteredCredit = visibleLines.reduce((s, l) => s + l.credit_amount, 0);
+                      const filteredBalance = isDebitNormal ? filteredDebit - filteredCredit : filteredCredit - filteredDebit;
+
+                      if (linesWithBalance.length === 0) {
+                        return <div className="text-center py-8 text-sm text-[#8E9196]">No journal lines for this account in the selected period.</div>;
+                      }
+
+                      return (
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="ds-table-header text-left">
+                              <th className="px-3 py-2">Date</th>
+                              <th className="px-3 py-2">Voucher #</th>
+                              <th className="px-3 py-2">Description</th>
+                              <th className="px-3 py-2">Source</th>
+                              <th className="px-3 py-2 text-right">Debit</th>
+                              <th className="px-3 py-2 text-right">Credit</th>
+                              <th className="px-3 py-2 text-right">Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(drilldown.opening_balance ?? 0) !== 0 && (
+                              <tr className="bg-[#F7F9FB] border-b border-gray-200">
+                                <td className="px-3 py-2 text-[#8E9196] italic" colSpan={1}></td>
+                                <td className="px-3 py-2 text-[#8E9196] italic" colSpan={1}></td>
+                                <td className="px-3 py-2 text-[#434654] font-medium italic">Balance B/F</td>
+                                <td className="px-3 py-2 text-[#8E9196] italic text-xs">----</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]"></td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]"></td>
+                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${(drilldown.opening_balance ?? 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                  {formatRM(Math.abs(drilldown.opening_balance))}
+                                </td>
+                              </tr>
+                            )}
+                            {linesWithBalance.map((line) => (
+                              <tr key={line.id} className={`hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 ${line.reversal_of_id ? 'opacity-50' : ''}`}>
+                                <td className="px-3 py-2 text-[#434654] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
+                                <td className="px-3 py-2 text-[#434654] font-mono text-xs">{line.voucher_number}</td>
+                                <td className="px-3 py-2 text-[#434654] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
+                                <td className="px-3 py-2 text-[#8E9196] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
+                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                  {formatRM(Math.abs(line.running_balance))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t-2 border-gray-200 font-semibold">
+                              <td colSpan={4} className="px-3 py-2 text-[#191C1E]">Total</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{formatRM(filteredDebit)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{formatRM(filteredCredit)}</td>
+                              <td className={`px-3 py-2 text-right tabular-nums font-bold ${filteredBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                {formatRM(Math.abs(filteredBalance))}
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr className="border-t-2 border-gray-200 font-semibold">
-                            <td colSpan={4} className="px-3 py-2 text-[#191C1E]">Total</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{formatRM(drilldown.total_debit)}</td>
-                            <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{formatRM(drilldown.total_credit)}</td>
-                            <td className={`px-3 py-2 text-right tabular-nums font-bold ${drilldown.balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                              {formatRM(Math.abs(drilldown.balance))}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    )}
+                          </tfoot>
+                        </table>
+                      );
+                    })()}
                   </div>
 
                   {/* Footer */}

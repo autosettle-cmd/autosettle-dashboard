@@ -123,6 +123,7 @@ model Firm {
   default_trade_payables_gl_id    String?
   default_staff_claims_gl_id      String?
   default_trade_receivables_gl_id String?
+  default_retained_earnings_gl_id String?
 
   users           User[]
   employees       Employee[]
@@ -146,6 +147,7 @@ model Firm {
   defaultTradePayables    GLAccount? @relation("FirmTradePayables", fields: [default_trade_payables_gl_id], references: [id])
   defaultStaffClaims      GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id])
   defaultTradeReceivables GLAccount? @relation("FirmTradeReceivables", fields: [default_trade_receivables_gl_id], references: [id])
+  defaultRetainedEarnings GLAccount? @relation("FirmRetainedEarnings", fields: [default_retained_earnings_gl_id], references: [id])
 }
 
 model Employee {
@@ -569,6 +571,7 @@ enum JournalSourceType {
   sales_invoice_posting
   bank_recon
   manual
+  year_end_close
 }
 
 model BankStatement {
@@ -583,6 +586,8 @@ model BankStatement {
   file_hash       String    @unique
   file_url        String?
   uploaded_by     String
+  period_start    DateTime? @db.Date
+  period_end      DateTime? @db.Date
   created_at      DateTime  @default(now())
 
   firm         Firm              @relation(fields: [firm_id], references: [id])
@@ -590,6 +595,7 @@ model BankStatement {
   transactions BankTransaction[]
 
   @@index([firm_id, statement_date])
+  @@index([firm_id, account_number])
 }
 
 model BankTransaction {
@@ -647,6 +653,7 @@ model GLAccount {
   firmsTradePayables    Firm[]  @relation("FirmTradePayables")
   firmsStaffClaims      Firm[]  @relation("FirmStaffClaims")
   firmsTradeReceivables Firm[]  @relation("FirmTradeReceivables")
+  firmsRetainedEarnings Firm[]  @relation("FirmRetainedEarnings")
 
   @@unique([firm_id, account_code])
   @@index([firm_id, account_type])

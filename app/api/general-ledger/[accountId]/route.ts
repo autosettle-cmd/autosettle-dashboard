@@ -54,6 +54,36 @@ export async function GET(
     }
   }
 
+  // ── Calculate opening balance (Balance B/F) ──
+  // Sum all posted transactions BEFORE the effective start date
+  let openingBalance = 0;
+  let effectiveStartDate: Date | null = null;
+
+  if (periodId) {
+    const period = await prisma.period.findUnique({ where: { id: periodId }, select: { start_date: true } });
+    if (period) effectiveStartDate = period.start_date;
+  } else if (dateFrom) {
+    effectiveStartDate = new Date(dateFrom);
+  }
+
+  if (effectiveStartDate) {
+    const priorAgg = await prisma.journalLine.aggregate({
+      where: {
+        gl_account_id: accountId,
+        journalEntry: {
+          firm_id: firmId,
+          status: 'posted',
+          posting_date: { lt: effectiveStartDate },
+        },
+      },
+      _sum: { debit_amount: true, credit_amount: true },
+    });
+    const priorDebit = Number(priorAgg._sum.debit_amount ?? 0);
+    const priorCredit = Number(priorAgg._sum.credit_amount ?? 0);
+    const isDebitNormalBF = account.normal_balance === 'Debit';
+    openingBalance = isDebitNormalBF ? (priorDebit - priorCredit) : (priorCredit - priorDebit);
+  }
+
   const lines = await prisma.journalLine.findMany({
     where: {
       gl_account_id: accountId,
@@ -66,14 +96,16 @@ export async function GET(
           posting_date: true,
           description: true,
           source_type: true,
+          status: true,
+          reversal_of_id: true,
         },
       },
     },
     orderBy: { journalEntry: { posting_date: 'asc' } },
   });
 
-  // Compute running balance
-  let runningBalance = 0;
+  // Compute running balance (seeded from opening balance)
+  let runningBalance = openingBalance;
   const isDebitNormal = account.normal_balance === 'Debit';
   const mappedLines = lines.map((line) => {
     const debit = Number(line.debit_amount);
@@ -84,6 +116,8 @@ export async function GET(
       voucher_number: line.journalEntry.voucher_number,
       posting_date: line.journalEntry.posting_date,
       source_type: line.journalEntry.source_type,
+      status: line.journalEntry.status,
+      reversal_of_id: line.journalEntry.reversal_of_id,
       entry_description: line.journalEntry.description,
       line_description: line.description,
       debit_amount: debit,
@@ -106,6 +140,7 @@ export async function GET(
         normal_balance: account.normal_balance,
       },
       lines: mappedLines,
+      opening_balance: openingBalance,
       total_debit: totalDebit,
       total_credit: totalCredit,
       balance,

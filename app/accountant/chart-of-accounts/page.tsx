@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -18,11 +19,6 @@ interface GLAccount {
   is_system: boolean;
   sort_order: number;
   description: string | null;
-}
-
-interface Firm {
-  id: string;
-  name: string;
 }
 
 interface TreeNode extends GLAccount {
@@ -81,9 +77,8 @@ function flattenTree(nodes: TreeNode[], expandedSet: Set<string>): TreeNode[] {
 
 export default function ChartOfAccountsPage() {
   usePageTitle('Chart of Accounts');
+  const { firmId, firmsLoaded } = useFirm();
   const [accounts, setAccounts] = useState<GLAccount[]>([]);
-  const [firms, setFirms] = useState<Firm[]>([]);
-  const [firmId, setFirmId] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [expandedSet, setExpandedSet] = useState<Set<string>>(new Set());
@@ -99,9 +94,11 @@ export default function ChartOfAccountsPage() {
   const [tradePayablesId, setTradePayablesId] = useState('');
   const [staffClaimsId, setStaffClaimsId] = useState('');
   const [tradeReceivablesId, setTradeReceivablesId] = useState('');
+  const [retainedEarningsId, setRetainedEarningsId] = useState('');
   const [origTradePayables, setOrigTradePayables] = useState<{ id: string; label: string } | null>(null);
   const [origStaffClaims, setOrigStaffClaims] = useState<{ id: string; label: string } | null>(null);
   const [origTradeReceivables, setOrigTradeReceivables] = useState<{ id: string; label: string } | null>(null);
+  const [origRetainedEarnings, setOrigRetainedEarnings] = useState<{ id: string; label: string } | null>(null);
   const [bankMappings, setBankMappings] = useState<{ bank_name: string; account_number: string; gl_account_id: string | null; gl_account_label: string | null }[]>([]);
   const [bankGlEdits, setBankGlEdits] = useState<Record<string, string>>({});
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -110,6 +107,7 @@ export default function ChartOfAccountsPage() {
 
   // Load accounting settings when firm changes
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmId) return;
     fetch(`/api/accounting-settings?firmId=${firmId}`)
       .then((r) => r.json())
@@ -118,23 +116,27 @@ export default function ChartOfAccountsPage() {
         setOrigTradePayables(d.gl_defaults.trade_payables);
         setOrigStaffClaims(d.gl_defaults.staff_claims);
         setOrigTradeReceivables(d.gl_defaults.trade_receivables);
+        setOrigRetainedEarnings(d.gl_defaults.retained_earnings);
         setTradePayablesId(d.gl_defaults.trade_payables?.id ?? '');
         setStaffClaimsId(d.gl_defaults.staff_claims?.id ?? '');
         setTradeReceivablesId(d.gl_defaults.trade_receivables?.id ?? '');
+        setRetainedEarningsId(d.gl_defaults.retained_earnings?.id ?? '');
         setBankMappings(d.bank_mappings ?? []);
         setBankGlEdits({});
       })
       .catch(console.error);
-  }, [firmId, refreshKey]);
+  }, [firmId, refreshKey, firmsLoaded]);
 
   const liabilityAccounts = accounts.filter((a) => a.account_type === 'Liability');
   const assetAccounts = accounts.filter((a) => a.account_type === 'Asset');
+  const equityAccounts = accounts.filter((a) => a.account_type === 'Equity');
 
   const saveGlDefaults = () => {
     const tpChanged = origTradePayables && tradePayablesId !== origTradePayables.id;
     const scChanged = origStaffClaims && staffClaimsId !== origStaffClaims.id;
     const trChanged = origTradeReceivables && tradeReceivablesId !== origTradeReceivables.id;
-    if (tpChanged || scChanged || trChanged) {
+    const reChanged = origRetainedEarnings && retainedEarningsId !== origRetainedEarnings.id;
+    if (tpChanged || scChanged || trChanged || reChanged) {
       const changes: { from: string; to: string }[] = [];
       if (tpChanged) {
         const newTp = accounts.find((a) => a.id === tradePayablesId);
@@ -147,6 +149,10 @@ export default function ChartOfAccountsPage() {
       if (trChanged) {
         const newTr = accounts.find((a) => a.id === tradeReceivablesId);
         changes.push({ from: `Trade Receivables: ${origTradeReceivables.label}`, to: `Trade Receivables: ${newTr ? `${newTr.account_code} — ${newTr.name}` : 'Not configured'}` });
+      }
+      if (reChanged) {
+        const newRe = accounts.find((a) => a.id === retainedEarningsId);
+        changes.push({ from: `Retained Earnings: ${origRetainedEarnings.label}`, to: `Retained Earnings: ${newRe ? `${newRe.account_code} — ${newRe.name}` : 'Not configured'}` });
       }
       setConfirmModal({ label: 'GL Defaults', changes, onConfirm: doSaveGlDefaults });
       return;
@@ -162,15 +168,17 @@ export default function ChartOfAccountsPage() {
       const res = await fetch(`/api/firms/${firmId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ default_trade_payables_gl_id: tradePayablesId || null, default_staff_claims_gl_id: staffClaimsId || null, default_trade_receivables_gl_id: tradeReceivablesId || null }),
+        body: JSON.stringify({ default_trade_payables_gl_id: tradePayablesId || null, default_staff_claims_gl_id: staffClaimsId || null, default_trade_receivables_gl_id: tradeReceivablesId || null, default_retained_earnings_gl_id: retainedEarningsId || null }),
       });
       if (res.ok) {
         const tp = accounts.find((a) => a.id === tradePayablesId);
         const sc = accounts.find((a) => a.id === staffClaimsId);
         const tr = accounts.find((a) => a.id === tradeReceivablesId);
+        const re = accounts.find((a) => a.id === retainedEarningsId);
         setOrigTradePayables(tp ? { id: tp.id, label: `${tp.account_code} — ${tp.name}` } : null);
         setOrigStaffClaims(sc ? { id: sc.id, label: `${sc.account_code} — ${sc.name}` } : null);
         setOrigTradeReceivables(tr ? { id: tr.id, label: `${tr.account_code} — ${tr.name}` } : null);
+        setOrigRetainedEarnings(re ? { id: re.id, label: `${re.account_code} — ${re.name}` } : null);
         setSettingsMsg('GL defaults saved');
       }
     } catch (e) { console.error(e); }
@@ -283,21 +291,9 @@ export default function ChartOfAccountsPage() {
   const [modalError, setModalError] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
 
-  // Load firms
-  useEffect(() => {
-    fetch('/api/firms')
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setFirms(j.data);
-          if (j.data.length === 1) setFirmId(j.data[0].id);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // Load accounts
   useEffect(() => {
+    if (!firmsLoaded) return;
     if (!firmId) { setAccounts([]); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
@@ -316,7 +312,7 @@ export default function ChartOfAccountsPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmId, refreshKey]);
+  }, [firmId, refreshKey, firmsLoaded]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -536,12 +532,6 @@ export default function ChartOfAccountsPage() {
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
           {/* Filter bar */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            {firms.length > 1 && (
-              <select value={firmId} onChange={(e) => setFirmId(e.target.value)} className="input-field">
-                <option value="">Select Firm</option>
-                {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            )}
 
             {hasFirmSelected && hasAccounts && (
               <div className="ml-auto flex items-center gap-2">
@@ -612,11 +602,18 @@ export default function ChartOfAccountsPage() {
                     {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
-                <div className="lg:col-span-2">
+                <div>
                   <label className="input-label">Trade Receivables (sales invoices)</label>
                   <select value={tradeReceivablesId} onChange={(e) => setTradeReceivablesId(e.target.value)} className="input-field w-full text-sm">
                     <option value="">Not configured</option>
                     {assetAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Retained Earnings (year-end close)</label>
+                  <select value={retainedEarningsId} onChange={(e) => setRetainedEarningsId(e.target.value)} className="input-field w-full text-sm">
+                    <option value="">Not configured</option>
+                    {equityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
               </div>

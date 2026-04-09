@@ -258,6 +258,158 @@ export async function reverseJournalEntry(
   return reversal;
 }
 
+// ─── Year-End Closing Entries ───────────────────────────────────────────────
+
+/**
+ * Creates year-end closing journal entries for a fiscal year.
+ * - Zeroes out all Revenue and Expense accounts
+ * - Posts the net income/loss to Retained Earnings (account code 320-000)
+ * - Uses source_type: year_end_close, source_id: fiscalYearId for idempotency
+ *
+ * MUST be called while the FY and its last period are still OPEN.
+ */
+export async function createYearEndClosingEntries(
+  firmId: string,
+  fiscalYearId: string,
+  createdBy?: string,
+) {
+  return prisma.$transaction(async (tx) => {
+    // 1. Get fiscal year details
+    const fy = await tx.fiscalYear.findUnique({
+      where: { id: fiscalYearId },
+      include: { periods: { orderBy: { period_number: 'desc' }, take: 1 } },
+    });
+    if (!fy) throw new Error('Fiscal year not found');
+    if (fy.firm_id !== firmId) throw new Error('Fiscal year does not belong to this firm');
+    if (fy.periods.length === 0) throw new Error('Fiscal year has no periods');
+
+    // 2. Find the retained earnings account from firm's GL defaults
+    const firm = await tx.firm.findUnique({
+      where: { id: firmId },
+      select: { default_retained_earnings_gl_id: true },
+    });
+    if (!firm?.default_retained_earnings_gl_id) {
+      throw new Error(
+        'Retained Earnings account not configured. Go to Chart of Accounts → GL Defaults and set the Retained Earnings account before closing the fiscal year.'
+      );
+    }
+    const retainedEarningsAccount = await tx.gLAccount.findUnique({
+      where: { id: firm.default_retained_earnings_gl_id },
+      select: { id: true, account_code: true, name: true },
+    });
+    if (!retainedEarningsAccount) {
+      throw new Error(
+        'Configured Retained Earnings GL account not found. Check your GL Defaults in Chart of Accounts.'
+      );
+    }
+
+    // 3. Aggregate all Revenue and Expense account balances within this FY
+    const fyStartDate = fy.start_date;
+    const fyEndDate = fy.end_date;
+
+    const accountBalances = await tx.journalLine.groupBy({
+      by: ['gl_account_id'],
+      where: {
+        journalEntry: {
+          firm_id: firmId,
+          status: 'posted',
+          posting_date: { gte: fyStartDate, lte: fyEndDate },
+        },
+      },
+      _sum: { debit_amount: true, credit_amount: true },
+    });
+
+    // 4. Get account details for Revenue/Expense accounts only
+    const accountIds = accountBalances.map(a => a.gl_account_id);
+    const glAccounts = await tx.gLAccount.findMany({
+      where: {
+        id: { in: accountIds },
+        account_type: { in: ['Revenue', 'Expense'] },
+      },
+      select: { id: true, account_type: true, normal_balance: true },
+    });
+    const glAccountMap = new Map(glAccounts.map(a => [a.id, a]));
+
+    // 5. Build closing journal lines
+    const lines: JournalLineInput[] = [];
+    let netIncomeCredit = 0; // positive = profit (credit to RE), negative = loss (debit to RE)
+
+    for (const agg of accountBalances) {
+      const account = glAccountMap.get(agg.gl_account_id);
+      if (!account) continue; // skip non-Revenue/Expense accounts
+
+      const debit = Number(agg._sum.debit_amount ?? 0);
+      const credit = Number(agg._sum.credit_amount ?? 0);
+
+      if (debit === 0 && credit === 0) continue;
+
+      if (account.account_type === 'Revenue') {
+        // Revenue is credit-normal. To zero it: DR Revenue, net goes to RE
+        // Balance = credit - debit (positive = has revenue)
+        const balance = credit - debit;
+        if (Math.abs(balance) < 0.005) continue;
+        if (balance > 0) {
+          lines.push({ glAccountId: agg.gl_account_id, debitAmount: balance, creditAmount: 0, description: 'Year-end close: zero revenue' });
+          netIncomeCredit += balance;
+        } else {
+          lines.push({ glAccountId: agg.gl_account_id, debitAmount: 0, creditAmount: Math.abs(balance), description: 'Year-end close: zero revenue' });
+          netIncomeCredit -= Math.abs(balance);
+        }
+      } else if (account.account_type === 'Expense') {
+        // Expense is debit-normal. To zero it: CR Expense, net comes from RE
+        // Balance = debit - credit (positive = has expense)
+        const balance = debit - credit;
+        if (Math.abs(balance) < 0.005) continue;
+        if (balance > 0) {
+          lines.push({ glAccountId: agg.gl_account_id, debitAmount: 0, creditAmount: balance, description: 'Year-end close: zero expense' });
+          netIncomeCredit -= balance;
+        } else {
+          lines.push({ glAccountId: agg.gl_account_id, debitAmount: Math.abs(balance), creditAmount: 0, description: 'Year-end close: zero expense' });
+          netIncomeCredit += Math.abs(balance);
+        }
+      }
+    }
+
+    if (lines.length === 0) {
+      throw new Error('No revenue or expense balances to close for this fiscal year.');
+    }
+
+    // 6. Add the Retained Earnings line (balancing entry)
+    if (netIncomeCredit > 0) {
+      // Profit: CR Retained Earnings
+      lines.push({
+        glAccountId: retainedEarningsAccount.id,
+        debitAmount: 0,
+        creditAmount: netIncomeCredit,
+        description: 'Year-end close: net income to retained earnings',
+      });
+    } else if (netIncomeCredit < 0) {
+      // Loss: DR Retained Earnings
+      lines.push({
+        glAccountId: retainedEarningsAccount.id,
+        debitAmount: Math.abs(netIncomeCredit),
+        creditAmount: 0,
+        description: 'Year-end close: net loss to retained earnings',
+      });
+    }
+
+    // 7. Create the closing journal entry
+    const postingDate = fyEndDate;
+    const entry = await createJournalEntry({
+      firmId,
+      postingDate,
+      description: `Year-end closing entries for ${fy.year_label}`,
+      sourceType: 'year_end_close',
+      sourceId: fiscalYearId,
+      lines,
+      createdBy,
+      tx,
+    });
+
+    return entry;
+  });
+}
+
 // ─── Find by Source ─────────────────────────────────────────────────────────
 
 /**
