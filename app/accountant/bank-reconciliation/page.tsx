@@ -170,6 +170,9 @@ export default function AccountantBankReconciliationPage() {
       setNeedsPassword(false);
       setPdfPassword('');
       const d = json.data;
+      if (d.warning) {
+        alert(`⚠️ ${d.warning}`);
+      }
       if (d.skippedDuplicates > 0) {
         alert(`Parsed ${d.totalParsed} transactions — ${d.skippedDuplicates} duplicates skipped (already exist from a previous statement), ${d.transactionCount} new transactions added.`);
       }

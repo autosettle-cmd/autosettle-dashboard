@@ -27,6 +27,7 @@ export interface ParseResult {
   totalDebit: number | null;
   fileHash: string;
   errors: string[];
+  usedGeminiFallback?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -365,7 +366,7 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     try {
       const geminiResult = await extractWithGeminiBankStatement(fullText);
       if (geminiResult.transactions.length > 0) {
-        return { ...geminiResult, fileHash };
+        return { ...geminiResult, fileHash, usedGeminiFallback: true };
       }
       return {
         ...geminiResult,

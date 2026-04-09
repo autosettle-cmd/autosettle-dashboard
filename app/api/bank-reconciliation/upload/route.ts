@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
         matched: matchResult.matched,
         unmatched: matchResult.unmatched,
         errors: result.errors,
+        warning: result.usedGeminiFallback ? 'Regex parser failed — transactions extracted via Gemini AI. Please verify accuracy and send the PDF to dev for a fixed regex parser.' : undefined,
       },
       error: null,
     });
