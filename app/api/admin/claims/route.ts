@@ -2,62 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { google } from 'googleapis';
-import { Readable } from 'stream';
+import { uploadFileForFirm } from '@/lib/google-drive';
 import { getFirmMileageRate, calculateMileageAmount } from '@/lib/mileage';
-
-async function uploadToGoogleDrive(
-  file: File
-): Promise<{ fileUrl: string; downloadUrl: string; thumbnailUrl: string }> {
-  const credentials = JSON.parse(
-    process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '{}'
-  );
-  const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
-
-  if (!credentials.client_email || !folderId) {
-    throw new Error('Google Drive credentials not configured');
-  }
-
-  const auth = new google.auth.GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/drive.file'],
-  });
-
-  const drive = google.drive({ version: 'v3', auth });
-
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const stream = Readable.from(buffer);
-
-  const response = await drive.files.create({
-    requestBody: {
-      name: file.name,
-      parents: [folderId],
-    },
-    media: {
-      mimeType: file.type,
-      body: stream,
-    },
-    fields: 'id, webViewLink, webContentLink, thumbnailLink',
-  });
-
-  const fileId = response.data.id!;
-
-  // Make file publicly accessible
-  await drive.permissions.create({
-    fileId,
-    requestBody: { role: 'reader', type: 'anyone' },
-  });
-
-  return {
-    fileUrl:
-      response.data.webViewLink ||
-      `https://drive.google.com/file/d/${fileId}/view`,
-    downloadUrl:
-      response.data.webContentLink ||
-      `https://drive.google.com/uc?export=download&id=${fileId}`,
-    thumbnailUrl: `https://drive.google.com/thumbnail?id=${fileId}&sz=w400`,
-  };
-}
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -290,7 +236,8 @@ export async function POST(request: NextRequest) {
 
     if (file) {
       try {
-        const uploaded = await uploadToGoogleDrive(file);
+        const firm = await prisma.firm.findUniqueOrThrow({ where: { id: firmId }, select: { name: true } });
+        const uploaded = await uploadFileForFirm(file, firmId, firm.name, 'claims');
         fileUrl = uploaded.fileUrl;
         fileDownloadUrl = uploaded.downloadUrl;
         thumbnailUrl = uploaded.thumbnailUrl;

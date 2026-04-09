@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { uploadToDrive, getDriveViewUrl } from '@/lib/whatsapp/drive';
+import { uploadToDriveForFirm, getDriveViewUrl } from '@/lib/google-drive';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,9 +29,11 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+    const firmId = session.user.firm_id;
+    const firm = await prisma.firm.findUniqueOrThrow({ where: { id: firmId }, select: { name: true } });
     const dateStr = statement.statement_date ? statement.statement_date.toISOString().split('T')[0] : 'unknown';
     const driveFilename = `BANK_${statement.bank_name}_${statement.account_number ?? 'NA'}_${dateStr}.pdf`;
-    const { fileId } = await uploadToDrive(buffer, driveFilename, 'application/pdf');
+    const { fileId } = await uploadToDriveForFirm(buffer, driveFilename, 'application/pdf', firmId, firm.name, 'bank_statements');
     const fileUrl = getDriveViewUrl(fileId);
 
     await prisma.bankStatement.update({

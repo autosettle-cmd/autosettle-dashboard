@@ -126,6 +126,12 @@ model Firm {
   default_trade_receivables_gl_id String?
   default_retained_earnings_gl_id String?
 
+  // Google Drive folder IDs (auto-created on first upload)
+  drive_root_folder_id            String?
+  drive_claims_folder_id          String?
+  drive_invoices_folder_id        String?
+  drive_bank_statements_folder_id String?
+
   users           User[]
   employees       Employee[]
   claims          Claim[]

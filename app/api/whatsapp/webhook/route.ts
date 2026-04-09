@@ -4,7 +4,7 @@ import { sendTextMessage, sendReaction, sendConfirmationMessage, sendInvoiceConf
 import { downloadWhatsAppImage, downloadWhatsAppMedia, runOCR, normaliseOCRText } from "@/lib/whatsapp/ocr";
 import { extractWithGemini, extractWithGeminiInvoice, classifyDocument, extractInvoiceFromPDF } from "@/lib/whatsapp/gemini";
 import { parseGeminiOutput, parseGeminiInvoiceOutput } from "@/lib/whatsapp/parser";
-import { uploadToDrive } from "@/lib/whatsapp/drive";
+import { uploadToDriveForFirm } from "@/lib/google-drive";
 import { saveClaim, logMessage, getClaimsForPhone } from "@/lib/whatsapp/claims";
 import { saveInvoice } from "@/lib/whatsapp/invoices";
 import { getSession, addPendingReceipt, removePendingReceipt, generateReceiptKey, updateSession } from "@/lib/whatsapp/session";
@@ -191,7 +191,7 @@ async function handleImageMessage(
         if (messageId) await sendReaction(phone, messageId, "\ud83d\udc4d");
 
         const filename = `INV_${employee.name}_${extracted.issueDate}_${extracted.vendor}.jpg`.replace(/\s+/g, "_");
-        const { fileId, thumbnailUrl } = await uploadToDrive(imageBuffer, filename);
+        const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", employee.firmId, employee.firmName, "invoices");
         console.log(`[WhatsApp] Uploaded invoice to Drive: ${fileId}`);
 
         await saveInvoice({
@@ -283,7 +283,7 @@ async function handleImageMessage(
         }
 
         const filename = `${employee.name}_${extracted.date}_${extracted.merchant}.jpg`.replace(/\s+/g, "_");
-        const { fileId, thumbnailUrl } = await uploadToDrive(imageBuffer, filename);
+        const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", employee.firmId, employee.firmName, "claims");
         console.log(`[WhatsApp] Uploaded to Drive: ${fileId}`);
 
         await saveClaim({
@@ -481,7 +481,7 @@ async function handleDocumentMessage(
       try {
         const dateStr = result.statementDate ? result.statementDate.toISOString().split("T")[0] : "unknown";
         const driveFilename = `BANK_${result.bankName}_${result.accountNumber ?? "NA"}_${dateStr}.pdf`;
-        const { fileId } = await uploadToDrive(pdfBuffer, driveFilename, "application/pdf");
+        const { fileId } = await uploadToDriveForFirm(pdfBuffer, driveFilename, "application/pdf", employee.firmId, employee.firmName, "bank_statements");
         fileUrl = getDriveViewUrl(fileId);
       } catch (e) {
         console.error("[WhatsApp] Bank statement Drive upload failed:", e);
@@ -543,7 +543,7 @@ async function handleDocumentMessage(
         if (messageId) await sendReaction(phone, messageId, "\ud83d\udc4d");
 
         const filename = `INV_${employee.name}_${extracted.issueDate}_${extracted.vendor}.pdf`.replace(/\s+/g, "_");
-        const { fileId, thumbnailUrl } = await uploadToDrive(pdfBuffer, filename);
+        const { fileId, thumbnailUrl } = await uploadToDriveForFirm(pdfBuffer, filename, "application/pdf", employee.firmId, employee.firmName, "invoices");
 
         await saveInvoice({
           employeeId: employee.id,
@@ -625,7 +625,7 @@ async function handleDocumentMessage(
         if (messageId) await sendReaction(phone, messageId, "\ud83d\udc4d");
 
         const filename = `${employee.name}_${extracted.date}_${extracted.merchant}.pdf`.replace(/\s+/g, "_");
-        const { fileId, thumbnailUrl } = await uploadToDrive(pdfBuffer, filename);
+        const { fileId, thumbnailUrl } = await uploadToDriveForFirm(pdfBuffer, filename, "application/pdf", employee.firmId, employee.firmName, "claims");
 
         await saveClaim({
           employeeId: employee.id,
@@ -744,7 +744,7 @@ async function handleBankStatementPassword(
     try {
       const dateStr = result.statementDate ? result.statementDate.toISOString().split("T")[0] : "unknown";
       const driveFilename = `BANK_${result.bankName}_${result.accountNumber ?? "NA"}_${dateStr}.pdf`;
-      const { fileId } = await uploadToDrive(pdfBuffer, driveFilename, "application/pdf");
+      const { fileId } = await uploadToDriveForFirm(pdfBuffer, driveFilename, "application/pdf", employee.firmId, employee.firmName, "bank_statements");
       fileUrl = getDriveViewUrl(fileId);
     } catch (e) {
       console.error("[WhatsApp] Bank statement Drive upload failed:", e);
@@ -831,11 +831,13 @@ async function handleInteractiveMessage(
 
     try {
       const imageBuffer = Buffer.from(pending.imageBuffer as string, "base64");
+      const pendingFirmId = pending.firmId as string;
+      const pendingFirmName = (pending.firmName as string) || (await prisma.firm.findUniqueOrThrow({ where: { id: pendingFirmId }, select: { name: true } })).name;
 
       if (pending.type === "invoice") {
         // Invoice confirmation
         const filename = `INV_${pending.employeeName}_${pending.issueDate}_${pending.vendor}.jpg`.replace(/\s+/g, "_");
-        const { fileId, thumbnailUrl } = await uploadToDrive(imageBuffer, filename);
+        const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", pendingFirmId, pendingFirmName, "invoices");
         console.log(`[WhatsApp] Uploaded invoice to Drive: ${fileId}`);
 
         await saveInvoice({
@@ -869,7 +871,7 @@ async function handleInteractiveMessage(
       } else {
         // Receipt/Claim → Claim table
         const filename = `${pending.employeeName}_${pending.date}_${pending.merchant}.jpg`.replace(/\s+/g, "_");
-        const { fileId, thumbnailUrl } = await uploadToDrive(imageBuffer, filename);
+        const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", pendingFirmId, pendingFirmName, "claims");
         console.log(`[WhatsApp] Uploaded to Drive: ${fileId}`);
 
         await saveClaim({

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { parseBankStatementPDF } from '@/lib/bank-pdf-parser';
 import { autoMatchTransactions } from '@/lib/bank-reconciliation';
 import { deduplicateTransactions, findOverlappingStatements, computePeriodRange } from '@/lib/bank-dedup';
-import { uploadToDrive, getDriveViewUrl } from '@/lib/whatsapp/drive';
+import { uploadToDriveForFirm, getDriveViewUrl } from '@/lib/google-drive';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,9 +48,10 @@ export async function POST(request: NextRequest) {
   // Upload to Google Drive
   let fileUrl: string | null = null;
   try {
+    const firm = await prisma.firm.findUniqueOrThrow({ where: { id: firmId }, select: { name: true } });
     const dateStr = result.statementDate ? result.statementDate.toISOString().split('T')[0] : 'unknown';
     const driveFilename = `BANK_${result.bankName}_${result.accountNumber ?? 'NA'}_${dateStr}.pdf`;
-    const { fileId } = await uploadToDrive(buffer, driveFilename, 'application/pdf');
+    const { fileId } = await uploadToDriveForFirm(buffer, driveFilename, 'application/pdf', firmId, firm.name, 'bank_statements');
     fileUrl = getDriveViewUrl(fileId);
   } catch (e) {
     console.error('Drive upload failed (non-blocking):', e);

@@ -4,7 +4,7 @@ import { sendTextMessage, sendInteractiveMenu, sendConfirmationMessage } from "@
 import { saveClaim, getClaimsForPhone } from "@/lib/whatsapp/claims";
 import { startMileageFlow } from "@/lib/whatsapp/mileage";
 import { deleteSession, updateSession, removePendingReceipt } from "@/lib/whatsapp/session";
-import { uploadToDrive } from "@/lib/whatsapp/drive";
+import { uploadToDriveForFirm } from "@/lib/google-drive";
 import type { EmployeeInfo } from "@/lib/whatsapp/employees";
 import { sendTelegramAlert } from "@/lib/whatsapp/errorNotify";
 import { brand } from "@/config/branding";
@@ -287,11 +287,13 @@ async function executeToolCall(
       const merchant = (args.merchant as string) || (pending.merchant as string);
       const date = (args.date as string) || (pending.date as string);
       const filename = `${pending.employeeName}_${date}_${merchant}.jpg`.replace(/\s+/g, "_");
-      const { fileId, thumbnailUrl } = await uploadToDrive(imageBuffer, filename);
+      const lisaFirmId = pending.firmId as string;
+      const lisaFirmName = (pending.firmName as string) || (await (await import("@/lib/prisma")).prisma.firm.findUniqueOrThrow({ where: { id: lisaFirmId }, select: { name: true } })).name;
+      const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", lisaFirmId, lisaFirmName, "claims");
 
       await saveClaim({
         employeeId: pending.employeeId as string,
-        firmId: pending.firmId as string,
+        firmId: lisaFirmId,
         claimDate: date,
         merchant,
         amount: (args.amount as number) ?? (pending.amount as number),
