@@ -1,5 +1,13 @@
 # TODO
 
+## Questions for accountant (DS Plus)
+- [ ] Get COA from accountant — what GL codes does he use in SQL Accounting?
+- [ ] How to map categories to GL accounts for DS Plus?
+- [ ] Director (Lee Chia Wen) personal purchases — treat as claims or director's account/loan?
+- [ ] Which GL account for director's loan/advances?
+- [ ] Stationery folder: mix of Shopee invoices + receipt photos — should these be invoices or claims?
+- [ ] Does he want separate fiscal years (FY2023, FY2024, FY2025) or just one?
+
 ## Batch upload via WhatsApp
 - [ ] Allow users to send multiple images/PDFs in one WhatsApp session and have them all processed
 - [ ] Consider: zip file upload via WhatsApp, or multi-image message handling
