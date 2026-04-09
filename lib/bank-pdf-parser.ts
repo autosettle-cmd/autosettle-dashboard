@@ -229,6 +229,115 @@ function detectBank(text: string): string {
   return 'Unknown';
 }
 
+// ─── Gemini Fallback ────────────────────────────────────────────────────────
+
+async function extractWithGeminiBankStatement(fullText: string): Promise<Omit<ParseResult, 'fileHash'>> {
+  const { GoogleAuth } = await import('google-auth-library');
+
+  const projectId = process.env.VERTEX_PROJECT_ID!;
+  const location = process.env.VERTEX_LOCATION || 'asia-southeast1';
+  const model = process.env.VERTEX_MODEL || 'gemini-1.5-flash';
+
+  const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
+  let credentials;
+  if (keyPath) {
+    const { readFileSync } = await import('fs');
+    credentials = JSON.parse(readFileSync(keyPath, 'utf-8'));
+  } else {
+    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
+  }
+
+  const auth = new GoogleAuth({
+    credentials,
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  const systemPrompt = `You are an expert bank statement parser for Malaysian banks.
+Extract ALL transactions and metadata from this bank statement text.
+Return ONLY valid JSON, no explanation, no markdown.
+
+Return format:
+{
+  "bankName": "Maybank",
+  "accountNumber": "562526546065",
+  "statementDate": "2023-11-30",
+  "openingBalance": 110.00,
+  "closingBalance": 55.00,
+  "totalDebit": 55.00,
+  "totalCredit": 0.00,
+  "transactions": [
+    {
+      "date": "2023-11-29",
+      "description": "TRANSFER FR A/C WONG BAO YING Sachet design MBB CT",
+      "debit": 55.00,
+      "credit": null,
+      "balance": 55.00,
+      "reference": null
+    }
+  ]
+}
+
+Rules:
+- date must be YYYY-MM-DD format
+- debit/credit: use null if not applicable, number if applicable
+- balance: the running balance after this transaction
+- reference: transaction reference number if visible, null otherwise
+- description: combine all description lines for each transaction
+- Negative amounts or amounts with "-" suffix are DEBITS
+- Positive amounts or amounts with "+" suffix are CREDITS
+- BEGINNING BALANCE, ENDING BALANCE, TOTAL DEBIT, TOTAL CREDIT are metadata, NOT transactions`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token.token}`,
+    },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: fullText }] }],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini API error (${res.status}): ${errText}`);
+  }
+
+  const result = await res.json();
+  const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const jsonStr = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+  const parsed = JSON.parse(jsonStr);
+
+  const transactions: ParsedBankTransaction[] = (parsed.transactions || []).map((t: { date: string; description: string; debit: number | null; credit: number | null; balance: number | null; reference: string | null }) => ({
+    transactionDate: new Date(t.date),
+    description: t.description || '',
+    reference: t.reference || null,
+    chequeNumber: null,
+    debit: t.debit ?? null,
+    credit: t.credit ?? null,
+    balance: t.balance ?? null,
+  }));
+
+  return {
+    transactions,
+    bankName: parsed.bankName || 'Unknown',
+    accountNumber: parsed.accountNumber || null,
+    statementDate: parsed.statementDate ? new Date(parsed.statementDate) : null,
+    openingBalance: parsed.openingBalance ?? null,
+    closingBalance: parsed.closingBalance ?? null,
+    totalCredit: parsed.totalCredit ?? null,
+    totalDebit: parsed.totalDebit ?? null,
+    errors: [],
+  };
+}
+
 // ─── Main Export ─────────────────────────────────────────────────────────────
 
 export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string): Promise<ParseResult> {
@@ -242,23 +351,42 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     const fullText = data.text;
     const bank = detectBank(fullText);
 
+    // Try regex parser first (fast, free)
     if (bank === 'Maybank') {
       const parsed = parseMaybank(fullText);
-      return { ...parsed, fileHash };
+      if (parsed.transactions.length > 0) {
+        return { ...parsed, fileHash };
+      }
+      // Regex found 0 transactions — fall through to Gemini
     }
 
-    return {
-      transactions: [],
-      bankName: bank,
-      accountNumber: null,
-      statementDate: null,
-      openingBalance: null,
-      closingBalance: null,
-      totalCredit: null,
-      totalDebit: null,
-      fileHash,
-      errors: [`Bank format "${bank}" is not yet supported. Please contact support.`],
-    };
+    // Fallback: use Gemini to extract transactions
+    console.log(`[BankParser] Regex found 0 transactions for ${bank} — falling back to Gemini`);
+    try {
+      const geminiResult = await extractWithGeminiBankStatement(fullText);
+      if (geminiResult.transactions.length > 0) {
+        return { ...geminiResult, fileHash };
+      }
+      return {
+        ...geminiResult,
+        fileHash,
+        errors: ['No transactions found by regex or Gemini extraction'],
+      };
+    } catch (geminiErr) {
+      console.error('[BankParser] Gemini fallback failed:', geminiErr);
+      return {
+        transactions: [],
+        bankName: bank,
+        accountNumber: null,
+        statementDate: null,
+        openingBalance: null,
+        closingBalance: null,
+        totalCredit: null,
+        totalDebit: null,
+        fileHash,
+        errors: [`Regex parser found 0 transactions and Gemini fallback failed: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`],
+      };
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const isPasswordError = /password|encrypted|decrypt/i.test(msg);

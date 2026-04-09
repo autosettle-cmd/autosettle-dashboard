@@ -1,5 +1,13 @@
 # TODO
 
+## Bank Statement Parser: Add regex for more bank formats
+- [ ] OCBC — upload sample statement, build regex parser in `lib/bank-pdf-parser.ts`
+- [ ] CIMB — upload sample statement, build regex parser
+- [ ] Public Bank — upload sample statement, build regex parser
+- [ ] Hong Leong — upload sample statement, build regex parser
+- [ ] RHB — upload sample statement, build regex parser
+- Note: Gemini fallback handles edge cases automatically, but regex is faster and free
+
 ## Bank Recon: Test overlapping statement deduplication
 - [ ] Upload a partial statement (e.g. Apr 1–8) → verify transactions created
 - [ ] Upload full month statement (e.g. Apr 1–30) for same account → verify Apr 1–8 transactions skipped, Apr 9–30 created
