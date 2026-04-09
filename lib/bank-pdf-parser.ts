@@ -250,27 +250,26 @@ function parseOcbc(fullText: string): Omit<ParseResult, 'fileHash'> {
   if (acctMatch) accountNumber = acctMatch[1].trim();
 
   // Statement date: "09 DEC 2023 TO 31 DEC 2023" — use the end date
-  const stmtDateMatch = fullText.match(/(?:Statement\s*Date|Tarikh\s*Penyata)\s*:?\s*\d{2}\s+[A-Z]{3}\s+\d{4}\s+TO\s+(\d{2}\s+[A-Z]{3}\s+\d{4})/i);
-  if (stmtDateMatch) statementDate = parseOcbcDate(stmtDateMatch[1]);
+  const stmtDateMatch = fullText.match(/(\d{2}\s+[A-Z]{3}\s+\d{4})\s*TO\s*(\d{2}\s+[A-Z]{3}\s+\d{4})/i);
+  if (stmtDateMatch) statementDate = parseOcbcDate(stmtDateMatch[2]);
 
-  // Balance B/F
-  const bfMatch = fullText.match(/Balance\s+B\/F\s+([\d,]+\.\d{2})/);
+  // Balance B/F — may be concatenated like "Balance B/F0.00"
+  const bfMatch = fullText.match(/Balance\s*B\/F\s*([\d,]+\.\d{2})/);
   if (bfMatch) openingBalance = parseBalance(bfMatch[1]);
 
   // Totals from TRANSACTION SUMMARY
-  const totalWithdrawalsMatch = fullText.match(/Total\s+Withdrawals\s+([\d,]+\.\d{2})/);
+  const totalWithdrawalsMatch = fullText.match(/Total\s+Withdrawals\s*([\d,]+\.\d{2})/);
   if (totalWithdrawalsMatch) totalDebit = parseBalance(totalWithdrawalsMatch[1]);
-  const totalDepositsMatch = fullText.match(/Total\s+Deposits\s+([\d,]+\.\d{2})/);
+  const totalDepositsMatch = fullText.match(/Total\s+Deposits\s*([\d,]+\.\d{2})/);
   if (totalDepositsMatch) totalCredit = parseBalance(totalDepositsMatch[1]);
 
   const lines = fullText.split('\n');
 
-  // OCBC transaction line: "DD MMM YYYY <description> [amounts...]"
-  // Amounts at end: could be 2 numbers (deposit/withdrawal + balance) or 3 (withdrawal, deposit, balance)
-  const txnDateRegex = /^(\d{2}\s+[A-Z]{3}\s+\d{4})\s+(.+)/;
-  // Amount pattern at end of line: one or more amounts separated by spaces
-  const amountsAtEnd = /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$/;
-  const threeAmountsAtEnd = /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$/;
+  // OCBC pdf-parse concatenates columns WITHOUT spaces:
+  // "DUITNOW(INST TRF) CR11 DEC 2023500.00500.00/IB"
+  // Pattern: <description><DD MMM YYYY><amount(s)><chequeNo?>
+  // The date is embedded in the middle of the line
+  const embeddedDateRegex = /(\d{2}\s+[A-Z]{3}\s+\d{4})/;
 
   let currentTxn: {
     date: Date;
@@ -288,46 +287,19 @@ function parseOcbc(fullText: string): Omit<ParseResult, 'fileHash'> {
     const line = rawLine.trim();
     if (!line) continue;
 
-    // Skip header/footer/noise
-    if (line.includes('OCBC Bank') || line.includes('OCBC Group') ||
-        line.includes('STATEMENT OF') || line.includes('PENYATA AKAUN') ||
-        line.includes('Protected by PIDM') || line.includes('Account Branch') ||
-        line.includes('Cawangan Akaun') || line.includes('Account Number') ||
-        line.includes('Nombor Akaun') || line.includes('Transaction Date') ||
-        line.includes('Tarikh Transaksi') || line.includes('Huraian Transaksi') ||
-        line.includes('Transaction Description') || line.includes('Cheque No') ||
-        line.includes('Withdrawal') || line.includes('Pengeluaran') ||
-        line.includes('Deposit') || line.includes('Balance') ||
-        line.includes('Baki') || line.includes('Page ') ||
-        line.includes('SDN BHD') || line.includes('SDN. BHD') ||
-        line.startsWith('NO ') || line.startsWith('JALAN') || line.startsWith('TAMAN') ||
-        line.match(/^\d{5}\s/) || line.includes('SELANGOR') ||
-        line.includes('SEMENYIH') || line.includes('BASE LENDING') ||
-        line.includes('KADAR PINJAMAN') || line.includes('INSURANCE') ||
-        line.includes('BERKUATKUASA') || line.includes('WITH EFFECT') ||
-        line.includes('Personal Banking') || line.includes('Business Banking') ||
-        line.includes('Transfer funds') || line.includes('Pindahan dana') ||
-        line.includes('www.ocbc') || line.includes('Terms and Conditions') ||
-        line.includes('Tertakluk kepada') || line.includes('Nikmati bayaran') ||
-        line.includes('applikasi OCBC') || line.includes('Enjoy a promotional') ||
-        line.includes('If the property') || line.includes('Management Corporation') ||
-        line.includes('Local cheques') || line.includes('Cek-cek tempatan') ||
-        line.includes('statement should be') || line.includes('ditunjukkan di dalam') ||
-        line.includes('receive any notification') || line.includes('muktamad') ||
-        line.includes('writing for any change') || line.includes('Sila maklumkan') ||
-        line.includes('insured the building') || line.includes('ensure that your') ||
-        line.match(/^\d{3}$/) // just a number like "710"
-    ) continue;
-
-    if (line.startsWith('Balance B/F')) { inTransactions = true; continue; }
-    if (line.includes('TRANSACTION') && line.includes('SUMMARY')) break;
-    if (line.startsWith('TRANSACTION')) break;
+    // Start after Balance B/F
+    if (line.match(/^Balance\s*B\/F/)) { inTransactions = true; continue; }
+    if (line.includes('TRANSACTION')) break;
     if (!inTransactions) continue;
 
-    const dateMatch = line.match(txnDateRegex);
+    // Skip noise lines
+    if (line.includes('Page ') || line.includes('OCBC') || line.includes('Member of')) continue;
+
+    // Check for embedded date (transaction line)
+    const dateMatch = line.match(embeddedDateRegex);
 
     if (dateMatch) {
-      // Flush previous
+      // Flush previous transaction
       if (currentTxn) {
         transactions.push({
           transactionDate: currentTxn.date,
@@ -342,48 +314,55 @@ function parseOcbc(fullText: string): Omit<ParseResult, 'fileHash'> {
       }
 
       const dateStr = dateMatch[1];
-      let rest = dateMatch[2];
+      const dateIdx = line.indexOf(dateStr);
+      const description = line.slice(0, dateIdx).trim();
+      const afterDate = line.slice(dateIdx + dateStr.length);
 
-      // Extract amounts from end
+      // Extract amounts and optional cheque number from afterDate
+      // e.g. "500.00500.00/IB" or "1,200.00300.00" or "50.001,150.00"
       let withdrawal: number | null = null;
       let deposit: number | null = null;
       let balance: number | null = null;
-
-      const threeMatch = rest.match(threeAmountsAtEnd);
-      const twoMatch = rest.match(amountsAtEnd);
-
-      if (threeMatch) {
-        const a1 = parseBalance(threeMatch[1])!;
-        const a2 = parseBalance(threeMatch[2])!;
-        balance = parseBalance(threeMatch[3])!;
-        // a1 = withdrawal, a2 = deposit (one is likely 0)
-        if (a1 > 0 && a2 === 0) { withdrawal = a1; }
-        else if (a2 > 0 && a1 === 0) { deposit = a2; }
-        else if (a1 > 0) { withdrawal = a1; deposit = a2; }
-        rest = rest.replace(threeAmountsAtEnd, '').trim();
-      } else if (twoMatch) {
-        const a1 = parseBalance(twoMatch[1])!;
-        balance = parseBalance(twoMatch[2])!;
-        // Determine if debit or credit by comparing with last balance
-        if (balance < lastBalance || balance === lastBalance - a1) {
-          withdrawal = a1;
-        } else {
-          deposit = a1;
-        }
-        rest = rest.replace(amountsAtEnd, '').trim();
-      }
-
-      // Check for cheque number (e.g., "/IB")
       let chequeNo: string | null = null;
-      const chequeMatch = rest.match(/\s+(\/\w+)\s*$/);
+
+      // Check for cheque number at end (e.g., "/IB", "/CHQ")
+      let amountPart = afterDate;
+      const chequeMatch = amountPart.match(/(\/\w+)\s*$/);
       if (chequeMatch) {
         chequeNo = chequeMatch[1];
-        rest = rest.replace(/\s+\/\w+\s*$/, '').trim();
+        amountPart = amountPart.slice(0, amountPart.lastIndexOf(chequeMatch[1]));
+      }
+
+      // Extract amounts — they're concatenated like "500.00500.00" or "1,200.003,500.00"
+      const amountMatches = amountPart.match(/[\d,]+\.\d{2}/g);
+
+      if (amountMatches && amountMatches.length >= 2) {
+        // Last amount is always balance
+        balance = parseBalance(amountMatches[amountMatches.length - 1]);
+
+        if (amountMatches.length === 2) {
+          // One amount + balance — determine debit or credit
+          const amt = parseBalance(amountMatches[0])!;
+          if (balance !== null && balance < lastBalance) {
+            withdrawal = amt;
+          } else {
+            deposit = amt;
+          }
+        } else if (amountMatches.length === 3) {
+          // withdrawal + deposit + balance
+          const a1 = parseBalance(amountMatches[0])!;
+          const a2 = parseBalance(amountMatches[1])!;
+          if (a1 > 0 && a2 === 0) { withdrawal = a1; }
+          else if (a2 > 0 && a1 === 0) { deposit = a2; }
+          else { withdrawal = a1; deposit = a2; }
+        }
+      } else if (amountMatches && amountMatches.length === 1) {
+        balance = parseBalance(amountMatches[0]);
       }
 
       currentTxn = {
         date: parseOcbcDate(dateStr),
-        descriptionLines: [rest],
+        descriptionLines: description ? [description] : [],
         withdrawal,
         deposit,
         balance,
@@ -391,7 +370,6 @@ function parseOcbc(fullText: string): Omit<ParseResult, 'fileHash'> {
       };
     } else if (currentTxn) {
       // Continuation line (DESC:, REF:, name, etc.)
-      // Extract reference from REF: lines
       currentTxn.descriptionLines.push(line);
     }
   }
