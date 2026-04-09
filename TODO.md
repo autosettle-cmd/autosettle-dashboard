@@ -1,5 +1,10 @@
 # TODO
 
+## Fix: Show error when uploading without selecting a firm
+- [ ] Bank Recon: show "Please select a firm" error if user clicks Upload & Parse without choosing a firm
+- [ ] Invoices: same
+- [ ] Claims: same
+
 ## Fix: Upload modal should auto-select firm from sidebar filter
 - [ ] Bank Recon upload modal: pre-fill firm from `firmFilter` (sidebar selector) so accountant doesn't have to select again
 - [ ] Invoice upload modal: same — use sidebar firm as default
