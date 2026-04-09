@@ -48,9 +48,17 @@ function parseBalance(raw: string): number | null {
   return isNaN(value) ? null : value;
 }
 
-function parseMaybankDate(dateStr: string): Date {
-  const [dd, mm, yy] = dateStr.split('/').map(Number);
-  const year = yy < 50 ? 2000 + yy : 1900 + yy;
+function parseMaybankDate(dateStr: string, fallbackYear?: number): Date {
+  const parts = dateStr.split('/').map(Number);
+  if (parts.length === 3) {
+    // DD/MM/YY
+    const [dd, mm, yy] = parts;
+    const year = yy < 50 ? 2000 + yy : 1900 + yy;
+    return new Date(year, mm - 1, dd);
+  }
+  // DD/MM (no year) — use fallback year from statement date
+  const [dd, mm] = parts;
+  const year = fallbackYear ?? new Date().getFullYear();
   return new Date(year, mm - 1, dd);
 }
 
@@ -67,11 +75,20 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
   let totalCredit: number | null = null;
   let totalDebit: number | null = null;
 
-  const acctMatch = fullText.match(/ACCOUNT\s*NUMBER\s*:\s*([\d-]+)/);
+  const acctMatch = fullText.match(/ACCOUNT\s*NUMBER\s*:?\s*([\d-]+)/);
   if (acctMatch) accountNumber = acctMatch[1];
 
-  const dateMatch = fullText.match(/STATEMENT\s*DATE\s*:\s*(\d{2}\/\d{2}\/\d{2})/);
-  if (dateMatch) statementDate = parseMaybankDate(dateMatch[1]);
+  // Statement date: DD/MM/YY or DD/MM/YYYY
+  const dateMatch = fullText.match(/STATEMENT\s*DATE\s*:?\s*(\d{2}\/\d{2}\/\d{2,4})/);
+  if (dateMatch) {
+    const parts = dateMatch[1].split('/');
+    if (parts[2].length === 4) {
+      // DD/MM/YYYY format
+      statementDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+    } else {
+      statementDate = parseMaybankDate(dateMatch[1]);
+    }
+  }
 
   const openMatch = fullText.match(/BEGINNING\s+BALANCE\s*([\d,]+\.\d{2})/);
   if (openMatch) openingBalance = parseBalance(openMatch[1]);
@@ -87,10 +104,10 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
   const lines = fullText.split('\n');
 
   // pdf-parse v1 concatenates columns without spaces in Maybank PDFs
-  // Transaction line: DD/MM/YY<description><amount+/-><balance>
-  // e.g. "01/11/25IBK FUND TFR FR A/C50.00-1,190.99"
-  // or   "01/11/25CASH DEPOSIT5,000.00+5,709.99"
-  const txnLineRegex = /^(\d{2}\/\d{2}\/\d{2})(.+?)([\d,]+\.\d{2}[+-])([\d,]+\.\d{2})\s*$/;
+  // Transaction line formats:
+  // DD/MM/YY<description><amount+/-><balance>  (e.g. "01/11/25IBK FUND TFR FR A/C50.00-1,190.99")
+  // DD/MM<description><amount+/-><balance>     (e.g. "29/11TRANSFER FR A/C55.00-55.00")
+  const txnLineRegex = /^(\d{2}\/\d{2}(?:\/\d{2})?)(.+?)([\d,]+\.\d{2}[+-])([\d,]+\.\d{2})\s*$/;
 
   let currentTxn: {
     date: string;
@@ -110,7 +127,7 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
         line.includes('Perhation') || line.includes('Semua maklumat') ||
         line.includes('若银行') || line.includes('All items and balances') ||
         line.includes('Sila beritahu') || line.includes('請通知') ||
-        line.includes('Please notify') || line.includes('IBS TANJONG') ||
+        line.includes('Please notify') || line.startsWith('IBS ') ||
         line.includes('MUKA/') || line.includes('NOMBOR AKAUN') ||
         line.includes('STATEMENT DATE') || line.includes('ACCOUNT') ||
         line.includes('TARIKH PENYATA') || line.includes('結單日期') ||
@@ -118,9 +135,14 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
         line.includes('戶口進支項') || line.includes('進支項說明') ||
         line.includes('银碼') || line.includes('結單存餘') ||
         line.match(/^\d{6}\s/) ||
-        line.includes('SELANGOR ,MYS') || line.includes('47500')) continue;
+        line.includes('SELANGOR ,MYS') || line.includes('47500') ||
+        line.includes('CURRENT ACCOUNT') || line.includes('SDN BHD') ||
+        line.includes('SDN. BHD') || line.match(/^NO\s+\d/) ||
+        line.match(/^JALAN\s/) || line.match(/^TAMAN\s/) ||
+        line.match(/^\d{5}\s/)) continue;
     if (line.startsWith('BEGINNING BALANCE') || line.startsWith('ENDING BALANCE') ||
-        line.startsWith('TOTAL CREDIT') || line.startsWith('TOTAL DEBIT')) continue;
+        line.startsWith('TOTAL CREDIT') || line.startsWith('TOTAL DEBIT') ||
+        line.startsWith('LEDGER BALANCE') || line.startsWith('PROFIT OUTSTANDING')) continue;
 
     // Check for address/name lines that appear in page headers
     // These typically contain the account holder info repeated on every page
@@ -130,7 +152,7 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
 
     if (txnMatch) {
       if (currentTxn) {
-        flushTransaction(currentTxn, transactions);
+        flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
       }
       currentTxn = {
         date: txnMatch[1],
@@ -147,7 +169,7 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
   }
 
   if (currentTxn) {
-    flushTransaction(currentTxn, transactions);
+    flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
   }
 
   if (transactions.length === 0) {
@@ -169,7 +191,8 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
 
 function flushTransaction(
   txn: { date: string; descriptionLines: string[]; amount: string; balance: string },
-  transactions: ParsedBankTransaction[]
+  transactions: ParsedBankTransaction[],
+  fallbackYear?: number
 ) {
   const parsed = parseAmount(txn.amount);
   if (!parsed) return;
@@ -184,7 +207,7 @@ function flushTransaction(
   }
 
   transactions.push({
-    transactionDate: parseMaybankDate(txn.date),
+    transactionDate: parseMaybankDate(txn.date, fallbackYear),
     description,
     reference,
     chequeNumber: null,
