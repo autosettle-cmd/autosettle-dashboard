@@ -430,17 +430,15 @@ export default function AccountantReconciliationWorkspacePage() {
                       const mp = txn.matched_payment;
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`group transition-colors ${mp ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-[#F2F4F6]'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : ''}`}
-                          onClick={() => mp ? setPreviewTxn(isExpanded ? null : txn) : null}
+                        <tr className={`group transition-colors cursor-pointer hover:bg-blue-50/40 ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : ''}`}
+                          onClick={() => setPreviewTxn(isExpanded ? null : txn)}
                         >
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-1.5">
-                              {mp && (
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                  className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
-                                  <path d="M9 18l6-6-6-6" />
-                                </svg>
-                              )}
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                                <path d="M9 18l6-6-6-6" />
+                              </svg>
                               <span className={cfg.cls}>{cfg.label}</span>
                             </div>
                           </td>
@@ -478,29 +476,40 @@ export default function AccountantReconciliationWorkspacePage() {
                             )}
                           </td>
                         </tr>
-                        {isExpanded && mp && (
+                        {isExpanded && (
                           <tr className="bg-blue-50/30">
                             <td colSpan={8} className="px-6 py-4">
-                              <div className="grid grid-cols-3 gap-4 mb-3">
+                              <div className={`grid ${mp ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-3`}>
                                 <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Payment To</p>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Bank Description</p>
+                                  {txn.description.split(' | ').map((line, i) => (
+                                    <p key={i} className="text-body-sm text-[#434654]">{line}</p>
+                                  ))}
+                                  {txn.reference && <p className="text-label-sm text-[#8E9196] mt-1">Ref: {txn.reference}</p>}
+                                  {txn.cheque_number && <p className="text-label-sm text-[#8E9196]">Cheque: {txn.cheque_number}</p>}
+                                  {txn.notes && <p className="text-label-sm text-[#8E9196] italic mt-1">{txn.notes}</p>}
+                                </div>
+                                <div>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Transaction Details</p>
+                                  <p className="text-body-sm text-[#434654]">Date: {formatDate(txn.transaction_date)}</p>
+                                  {txn.debit ? <p className="text-body-sm text-red-600">Debit: {formatRM(txn.debit)}</p> : null}
+                                  {txn.credit ? <p className="text-body-sm text-green-600">Credit: {formatRM(txn.credit)}</p> : null}
+                                  <p className="text-body-sm text-[#434654]">Balance: {txn.balance ? formatRM(txn.balance) : '-'}</p>
+                                  <p className="text-label-sm text-[#8E9196] mt-1">Status: <span className={cfg.cls}>{cfg.label}</span></p>
+                                  {txn.matched_at && <p className="text-label-sm text-[#8E9196]">Matched: {formatDate(txn.matched_at)}</p>}
+                                </div>
+                                {mp && (
+                                <div>
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Payment</p>
                                   <p className="text-body-md font-medium text-[#191C1E]">{mp.supplier_name}</p>
                                   <p className="text-body-sm text-[#434654]">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
                                   {mp.reference && <p className="text-label-sm text-[#8E9196]">Ref: {mp.reference}</p>}
                                   {mp.notes && <p className="text-label-sm text-[#8E9196] italic">{mp.notes}</p>}
                                 </div>
-                                <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Match Info</p>
-                                  <span className={cfg.cls}>{cfg.label}</span>
-                                  {txn.matched_at && <p className="text-label-sm text-[#8E9196] mt-1">{formatDate(txn.matched_at)}</p>}
-                                </div>
-                                <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Bank Description</p>
-                                  <p className="text-body-sm text-[#434654]">{txn.description.replace(/ \| /g, '\n')}</p>
-                                </div>
+                                )}
                               </div>
 
-                              {mp.allocations.length > 0 && (
+                              {mp && mp.allocations.length > 0 && (
                                 <div className="mb-3">
                                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1.5">Linked Invoices ({mp.allocations.length})</p>
                                   <div className="space-y-1">
@@ -522,7 +531,7 @@ export default function AccountantReconciliationWorkspacePage() {
                                 </div>
                               )}
 
-                              {mp.receipts.length > 0 && (
+                              {mp && mp.receipts.length > 0 && (
                                 <div>
                                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1.5">Linked Receipts ({mp.receipts.length})</p>
                                   <div className="grid grid-cols-2 gap-2">
@@ -541,7 +550,7 @@ export default function AccountantReconciliationWorkspacePage() {
                                 </div>
                               )}
 
-                              {mp.allocations.length === 0 && mp.receipts.length === 0 && (
+                              {mp && mp.allocations.length === 0 && mp.receipts.length === 0 && (
                                 <p className="text-body-sm text-[#8E9196] italic">No invoices or receipts linked to this payment yet.</p>
                               )}
                             </td>
