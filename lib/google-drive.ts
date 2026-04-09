@@ -30,6 +30,11 @@ function getAuthClient(): GoogleAuth {
       if (rawJson.startsWith('"') && rawJson.endsWith('"')) {
         rawJson = rawJson.slice(1, -1).replace(/\\n/g, '\n').replace(/\\"/g, '"');
       }
+      // Extract just the JSON object — ignore anything after the closing brace
+      const lastBrace = rawJson.lastIndexOf('}');
+      if (lastBrace !== -1) {
+        rawJson = rawJson.slice(0, lastBrace + 1);
+      }
       try {
         credentials = JSON.parse(rawJson);
       } catch (parseErr) {
