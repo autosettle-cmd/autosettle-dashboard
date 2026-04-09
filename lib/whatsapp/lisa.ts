@@ -1,5 +1,5 @@
 import { GoogleAuth } from "google-auth-library";
-import { readFileSync } from "fs";
+import { parseServiceAccountCredentials } from "@/lib/google-drive";
 import { sendTextMessage, sendInteractiveMenu, sendConfirmationMessage } from "@/lib/whatsapp/send";
 import { saveClaim, getClaimsForPhone } from "@/lib/whatsapp/claims";
 import { startMileageFlow } from "@/lib/whatsapp/mileage";
@@ -14,20 +14,11 @@ let authClient: GoogleAuth | null = null;
 
 function getAuthClient(): GoogleAuth {
   if (!authClient) {
-    const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
-    if (keyPath) {
-      const credentials = JSON.parse(readFileSync(keyPath, "utf-8"));
-      authClient = new GoogleAuth({
-        credentials,
-        scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-      });
-    } else {
-      const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON!);
-      authClient = new GoogleAuth({
-        credentials,
-        scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-      });
-    }
+    const credentials = parseServiceAccountCredentials();
+    authClient = new GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+    });
   }
   return authClient;
 }

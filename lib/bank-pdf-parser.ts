@@ -448,20 +448,13 @@ function detectBank(text: string): string {
 
 async function extractWithGeminiBankStatement(fullText: string): Promise<Omit<ParseResult, 'fileHash'>> {
   const { GoogleAuth } = await import('google-auth-library');
+  const { parseServiceAccountCredentials } = await import('@/lib/google-drive');
 
   const projectId = process.env.VERTEX_PROJECT_ID!;
   const location = process.env.VERTEX_LOCATION || 'asia-southeast1';
   const model = process.env.VERTEX_MODEL || 'gemini-1.5-flash';
 
-  const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
-  let credentials;
-  if (keyPath) {
-    const { readFileSync } = await import('fs');
-    credentials = JSON.parse(readFileSync(keyPath, 'utf-8'));
-  } else {
-    credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}');
-  }
-
+  const credentials = parseServiceAccountCredentials();
   const auth = new GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
