@@ -117,8 +117,9 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
 
     if (!firmId || !vendorName || !issueDate || !totalAmountStr || !categoryId) {
+      const missing = [!firmId && 'firm', !vendorName && 'vendor name', !issueDate && 'issue date', !totalAmountStr && 'total amount', !categoryId && 'category'].filter(Boolean);
       return NextResponse.json(
-        { data: null, error: 'Missing required fields: firm_id, vendor_name, issue_date, total_amount, category_id' },
+        { data: null, error: `Missing required fields: ${missing.join(', ')}` },
         { status: 400 }
       );
     }
@@ -245,7 +246,7 @@ export async function POST(request: NextRequest) {
         due_date: computedDueDate ? new Date(computedDueDate) : null,
         payment_terms: paymentTerms || null,
         total_amount: totalAmount,
-        category_id: categoryId,
+        category_id: categoryId!,
         confidence: 'HIGH',
         status: 'pending_review',
         payment_status: 'unpaid',

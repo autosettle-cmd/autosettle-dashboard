@@ -1104,7 +1104,13 @@ function AccountantInvoicesPage() {
                     onChange={handleInvFileChange}
                     className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#434654] hover:file:bg-gray-200"
                   />
-                  <p className="text-xs text-[#8E9196] mt-1">Select multiple files to batch upload with auto OCR</p>
+                  {newInvFile && (
+                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      {newInvFile.name}
+                    </p>
+                  )}
+                  {!newInvFile && <p className="text-xs text-[#8E9196] mt-1">Select multiple files to batch upload with auto OCR</p>}
                   {ocrScanning && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
