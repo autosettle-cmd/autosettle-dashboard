@@ -6,6 +6,10 @@
 - [ ] Claims upload modal: same
 - Affects: `app/accountant/bank-reconciliation/page.tsx`, `app/accountant/invoices/page.tsx`, `app/accountant/claims/page.tsx`
 
+## Fix: Audit log not recording bank statement deletion
+- [ ] Add `auditLog()` call in bank statement delete endpoint when a statement is deleted
+- Affects: `app/api/bank-reconciliation/statements/delete/route.ts` (or similar)
+
 ## Bank Statement Parser: Add regex for more bank formats
 - [ ] OCBC — upload sample statement, build regex parser in `lib/bank-pdf-parser.ts`
 - [ ] CIMB — upload sample statement, build regex parser
