@@ -250,6 +250,7 @@ function AccountantInvoicesPage() {
   const [newInvContraGlId, setNewInvContraGlId] = useState('');
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const vendorInputRef = useRef<HTMLInputElement>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
 
   // Fetch GL accounts when firm is selected in modal
   useEffect(() => {
@@ -260,53 +261,144 @@ function AccountantInvoicesPage() {
   }, [showNewInvoice, newInv.firm_id]);
 
   const handleInvFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setNewInvFile(file);
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    setOcrScanning(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+    // Single file — keep original OCR auto-fill flow
+    if (files.length === 1) {
+      const file = files[0];
+      setNewInvFile(file);
+      setOcrScanning(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
 
-      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
-      const json = await res.json();
+        const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        const json = await res.json();
 
-      if (res.ok && json.fields) {
-        const f = json.fields;
-        const updates: typeof newInv = { ...newInv };
-        if (json.documentType === 'invoice') {
-          if (f.vendor) updates.vendor_name = f.vendor;
-          if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
-          if (f.issueDate) updates.issue_date = f.issueDate;
-          if (f.dueDate) updates.due_date = f.dueDate;
-          if (f.totalAmount) updates.total_amount = String(f.totalAmount);
-          if (f.paymentTerms) updates.payment_terms = f.paymentTerms;
-        } else {
-          if (f.merchant) updates.vendor_name = f.merchant;
-          if (f.date) updates.issue_date = f.date;
-          if (f.amount) updates.total_amount = String(f.amount);
-          if (f.receiptNumber) updates.invoice_number = f.receiptNumber;
+        if (res.ok && json.fields) {
+          const f = json.fields;
+          const updates: typeof newInv = { ...newInv };
+          if (json.documentType === 'invoice') {
+            if (f.vendor) updates.vendor_name = f.vendor;
+            if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
+            if (f.issueDate) updates.issue_date = f.issueDate;
+            if (f.dueDate) updates.due_date = f.dueDate;
+            if (f.totalAmount) updates.total_amount = String(f.totalAmount);
+            if (f.paymentTerms) updates.payment_terms = f.paymentTerms;
+          } else {
+            if (f.merchant) updates.vendor_name = f.merchant;
+            if (f.date) updates.issue_date = f.date;
+            if (f.amount) updates.total_amount = String(f.amount);
+            if (f.receiptNumber) updates.invoice_number = f.receiptNumber;
+          }
+          if (f.category) {
+            const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) updates.category_id = match.id;
+          }
+          if (updates.vendor_name) {
+            const vLower = updates.vendor_name.toLowerCase();
+            const firmSuppliers = newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
+            const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+            if (supplierMatch) updates.supplier_id = supplierMatch.id;
+          }
+          setNewInv(updates);
         }
-        if (f.category) {
-          const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-          if (match) updates.category_id = match.id;
-        }
-        // Try to match vendor to existing supplier
-        if (updates.vendor_name) {
-          const vLower = updates.vendor_name.toLowerCase();
-          const firmSuppliers = newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
-          const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
-          if (supplierMatch) updates.supplier_id = supplierMatch.id;
-        }
-        setNewInv(updates);
+      } catch (err) {
+        console.error('OCR extraction failed:', err);
+      } finally {
+        setOcrScanning(false);
       }
-    } catch (err) {
-      console.error('OCR extraction failed:', err);
-    } finally {
-      setOcrScanning(false);
+      return;
     }
+
+    // Multiple files — batch upload with progress
+    if (!newInv.firm_id) {
+      setNewInvError('Please select a firm before batch uploading.');
+      return;
+    }
+
+    const fileList = Array.from(files);
+    const results: { name: string; ok: boolean; msg: string }[] = [];
+    setBatchProgress({ current: 0, total: fileList.length, results });
+    setNewInvSubmitting(true);
+    setNewInvError('');
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+
+      try {
+        // Step 1: OCR extract
+        const ocrFd = new FormData();
+        ocrFd.append('file', file);
+        ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        const ocrJson = await ocrRes.json();
+
+        // Build form data from OCR results
+        const fd = new FormData();
+        fd.append('firm_id', newInv.firm_id);
+        fd.append('file', file);
+
+        if (ocrRes.ok && ocrJson.fields) {
+          const f = ocrJson.fields;
+          if (ocrJson.documentType === 'invoice') {
+            if (f.vendor) fd.append('vendor_name', f.vendor);
+            if (f.invoiceNumber) fd.append('invoice_number', f.invoiceNumber);
+            if (f.issueDate) fd.append('issue_date', f.issueDate);
+            if (f.dueDate) fd.append('due_date', f.dueDate);
+            if (f.totalAmount) fd.append('total_amount', String(f.totalAmount));
+            if (f.paymentTerms) fd.append('payment_terms', f.paymentTerms);
+          } else {
+            if (f.merchant) fd.append('vendor_name', f.merchant);
+            if (f.date) fd.append('issue_date', f.date);
+            if (f.amount) fd.append('total_amount', String(f.amount));
+            if (f.receiptNumber) fd.append('invoice_number', f.receiptNumber);
+          }
+          if (f.category) {
+            const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) fd.append('category_id', match.id);
+          }
+          // Try to match vendor to existing supplier
+          const vendorName = f.vendor || f.merchant;
+          if (vendorName) {
+            const vLower = vendorName.toLowerCase();
+            const firmSuppliers = suppliers.filter((s) => s.firm_id === newInv.firm_id);
+            const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+            if (supplierMatch) fd.append('supplier_id', supplierMatch.id);
+          }
+        }
+
+        // Ensure required fields
+        if (!fd.get('vendor_name')) fd.append('vendor_name', file.name.replace(/\.[^/.]+$/, ''));
+        if (!fd.get('issue_date')) fd.append('issue_date', new Date().toISOString().split('T')[0]);
+        if (!fd.get('total_amount')) fd.append('total_amount', '0');
+
+        if (newInvExpenseGlId) fd.append('gl_account_id', newInvExpenseGlId);
+        if (newInvContraGlId) fd.append('contra_gl_account_id', newInvContraGlId);
+
+        // Step 2: Submit invoice
+        const res = await fetch('/api/invoices', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        if (!res.ok) {
+          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
+        } else {
+          const vendor = fd.get('vendor_name') as string;
+          const amount = fd.get('total_amount') as string;
+          results.push({ name: file.name, ok: true, msg: `${vendor} — RM ${Number(amount).toFixed(2)}` });
+        }
+      } catch (e) {
+        results.push({ name: file.name, ok: false, msg: e instanceof Error ? e.message : 'Failed' });
+      }
+
+      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+    }
+
+    setNewInvSubmitting(false);
+    refresh();
   };
 
   const submitNewInvoice = async () => {
@@ -580,7 +672,7 @@ function AccountantInvoicesPage() {
 
             <div className="ml-auto">
               <button
-                onClick={() => { setShowNewInvoice(true); if (firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: firms[0].id })); }}
+                onClick={() => { setShowNewInvoice(true); setBatchProgress(null); if (firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: firms[0].id })); }}
                 className="btn-primary px-4 py-2 rounded-lg text-sm font-semibold"
               >
                 + Submit New Invoice
@@ -819,13 +911,15 @@ function AccountantInvoicesPage() {
                 )}
 
                 <div>
-                  <label className="input-label">Invoice Image</label>
+                  <label className="input-label">Invoice Image(s)</label>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
+                    multiple
                     onChange={handleInvFileChange}
                     className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#434654] hover:file:bg-gray-200"
                   />
+                  <p className="text-xs text-[#8E9196] mt-1">Select multiple files to batch upload with auto OCR</p>
                   {ocrScanning && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -836,21 +930,44 @@ function AccountantInvoicesPage() {
                     </div>
                   )}
                 </div>
+
+                {batchProgress && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-[#8E9196]">
+                      <span>Processing {batchProgress.current} of {batchProgress.total}</span>
+                      <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                    </div>
+                    {batchProgress.results.length > 0 && (
+                      <div className="max-h-[200px] overflow-y-auto space-y-1">
+                        {batchProgress.results.map((r, i) => (
+                          <div key={i} className={`text-xs px-2 py-1 rounded ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            <span className="font-medium">{r.name}</span>: {r.msg}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3 px-5 py-4 border-t">
+                {!batchProgress && (
+                  <button
+                    onClick={submitNewInvoice}
+                    disabled={newInvSubmitting || ocrScanning}
+                    className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
+                  </button>
+                )}
                 <button
-                  onClick={submitNewInvoice}
-                  disabled={newInvSubmitting || ocrScanning}
-                  className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
-                </button>
-                <button
-                  onClick={() => setShowNewInvoice(false)}
+                  onClick={() => { setShowNewInvoice(false); setBatchProgress(null); }}
                   className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
                 >
-                  Cancel
+                  {batchProgress && !newInvSubmitting ? 'Done' : 'Cancel'}
                 </button>
               </div>
             </div>

@@ -213,6 +213,7 @@ function ClaimsPage() {
   const [successMsg, setSuccessMsg]             = useState('');
   const [ocrScanning, setOcrScanning]           = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
 
   // Mileage fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -455,49 +456,132 @@ function ClaimsPage() {
     setMileagePurpose('');
     setModalError('');
     setModalSaving(false);
+    setBatchProgress(null);
     setShowModal(true);
   }, [claimTab, firmId, firms]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(file ? URL.createObjectURL(file) : null);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (!file) return;
+    // Single file — keep original OCR auto-fill flow
+    if (files.length === 1) {
+      const file = files[0];
+      setSelectedFile(file);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(file ? URL.createObjectURL(file) : null);
 
-    setOcrScanning(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+      setOcrScanning(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
 
-      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
-      const json = await res.json();
+        const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        const json = await res.json();
 
-      if (res.ok && json.fields) {
-        const f = json.fields;
-        if (json.documentType === 'invoice') {
-          if (f.issueDate) setModalDate(f.issueDate);
-          if (f.vendor) setModalMerchant(f.vendor);
-          if (f.totalAmount) setModalAmount(String(f.totalAmount));
-          if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
-        } else {
-          if (f.date) setModalDate(f.date);
-          if (f.merchant) setModalMerchant(f.merchant);
-          if (f.amount) setModalAmount(String(f.amount));
-          if (f.receiptNumber) setModalReceipt(f.receiptNumber);
+        if (res.ok && json.fields) {
+          const f = json.fields;
+          if (json.documentType === 'invoice') {
+            if (f.issueDate) setModalDate(f.issueDate);
+            if (f.vendor) setModalMerchant(f.vendor);
+            if (f.totalAmount) setModalAmount(String(f.totalAmount));
+            if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
+          } else {
+            if (f.date) setModalDate(f.date);
+            if (f.merchant) setModalMerchant(f.merchant);
+            if (f.amount) setModalAmount(String(f.amount));
+            if (f.receiptNumber) setModalReceipt(f.receiptNumber);
+          }
+          if (f.category) {
+            const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) setModalCategory(match.id);
+          }
         }
-        if (f.category) {
-          const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-          if (match) setModalCategory(match.id);
-        }
+      } catch (err) {
+        console.error('OCR extraction failed:', err);
+      } finally {
+        setOcrScanning(false);
       }
-    } catch (err) {
-      console.error('OCR extraction failed:', err);
-    } finally {
-      setOcrScanning(false);
+      return;
     }
+
+    // Multiple files — batch upload with progress
+    if (!modalFirmId) {
+      setModalError('Please select a firm before batch uploading.');
+      return;
+    }
+
+    const fileList = Array.from(files);
+    const results: { name: string; ok: boolean; msg: string }[] = [];
+    setBatchProgress({ current: 0, total: fileList.length, results });
+    setModalSaving(true);
+    setModalError('');
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+
+      try {
+        // Step 1: OCR extract
+        const ocrFd = new FormData();
+        ocrFd.append('file', file);
+        ocrFd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        const ocrJson = await ocrRes.json();
+
+        // Build form data from OCR results
+        const fd = new FormData();
+        fd.append('firm_id', modalFirmId);
+        fd.append('type', modalType);
+        fd.append('file', file);
+
+        let merchant = '';
+        let amount = '';
+
+        if (ocrRes.ok && ocrJson.fields) {
+          const f = ocrJson.fields;
+          if (ocrJson.documentType === 'invoice') {
+            if (f.issueDate) fd.append('claim_date', f.issueDate);
+            if (f.vendor) { merchant = f.vendor; fd.append('merchant', f.vendor); }
+            if (f.totalAmount) { amount = String(f.totalAmount); fd.append('amount', String(f.totalAmount)); }
+            if (f.invoiceNumber) fd.append('receipt_number', f.invoiceNumber);
+          } else {
+            if (f.date) fd.append('claim_date', f.date);
+            if (f.merchant) { merchant = f.merchant; fd.append('merchant', f.merchant); }
+            if (f.amount) { amount = String(f.amount); fd.append('amount', String(f.amount)); }
+            if (f.receiptNumber) fd.append('receipt_number', f.receiptNumber);
+          }
+          if (f.category) {
+            const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) fd.append('category_id', match.id);
+          }
+        }
+
+        // Ensure required fields
+        if (!fd.get('claim_date')) fd.append('claim_date', todayStr());
+        if (!fd.get('merchant')) { merchant = file.name.replace(/\.[^/.]+$/, ''); fd.append('merchant', merchant); }
+        if (!fd.get('amount')) { amount = '0'; fd.append('amount', '0'); }
+        if (!fd.get('category_id') && modalCategories.length > 0) fd.append('category_id', modalCategories[0].id);
+
+        // Step 2: Submit claim
+        const res = await fetch('/api/claims', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        if (!res.ok) {
+          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
+        } else {
+          results.push({ name: file.name, ok: true, msg: `${merchant} — RM ${Number(amount).toFixed(2)}` });
+        }
+      } catch (e) {
+        results.push({ name: file.name, ok: false, msg: e instanceof Error ? e.message : 'Failed' });
+      }
+
+      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+    }
+
+    setModalSaving(false);
+    refresh();
   };
 
   const clearFile = () => {
@@ -891,8 +975,9 @@ function ClaimsPage() {
                           <p className="text-xs text-[#8E9196] mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
-                      <input type="file" accept="image/*,application/pdf" onChange={handleFileChange} className="hidden" ref={fileInputRef} />
+                      <input type="file" accept="image/*,application/pdf" multiple onChange={handleFileChange} className="hidden" ref={fileInputRef} />
                     </div>
+                    <p className="text-xs text-[#8E9196] mt-1">Select multiple files to batch upload with auto OCR</p>
                     {ocrScanning && (
                       <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
                         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
@@ -905,23 +990,46 @@ function ClaimsPage() {
                   </div>
                 </>
               )}
+
+              {batchProgress && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-[#8E9196]">
+                    <span>Processing {batchProgress.current} of {batchProgress.total}</span>
+                    <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                  </div>
+                  {batchProgress.results.length > 0 && (
+                    <div className="max-h-[200px] overflow-y-auto space-y-1">
+                      {batchProgress.results.map((r, i) => (
+                        <div key={i} className={`text-xs px-2 py-1 rounded ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          <span className="font-medium">{r.name}</span>: {r.msg}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 mt-5">
+              {!batchProgress && (
+                <button
+                  onClick={submitClaim}
+                  disabled={modalSaving || ocrScanning}
+                  className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                  style={{ backgroundColor: 'var(--accent)' }}
+                >
+                  {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
+                </button>
+              )}
               <button
-                onClick={submitClaim}
-                disabled={modalSaving || ocrScanning}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); setBatchProgress(null); }}
                 disabled={modalSaving}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
-                Cancel
+                {batchProgress && !modalSaving ? 'Done' : 'Cancel'}
               </button>
             </div>
           </div>
