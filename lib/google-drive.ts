@@ -12,18 +12,34 @@ let authClient: GoogleAuth | null = null;
 function getAuthClient(): GoogleAuth {
   if (!authClient) {
     const keyPath = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH;
+    let credentials;
+
+    // Try file-based credentials first (local dev)
     if (keyPath) {
-      const credentials = JSON.parse(readFileSync(keyPath, 'utf-8'));
-      authClient = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
-    } else {
+      try {
+        credentials = JSON.parse(readFileSync(keyPath, 'utf-8'));
+      } catch {
+        // File doesn't exist (e.g., on Vercel) — fall through to JSON env var
+      }
+    }
+
+    // Fall back to JSON env var (Vercel)
+    if (!credentials) {
       let rawJson = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '{}').trim();
       // Strip outer quotes if Vercel wrapped the value
       if (rawJson.startsWith('"') && rawJson.endsWith('"')) {
         rawJson = rawJson.slice(1, -1).replace(/\\n/g, '\n').replace(/\\"/g, '"');
       }
-      const credentials = JSON.parse(rawJson);
-      authClient = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+      try {
+        credentials = JSON.parse(rawJson);
+      } catch (parseErr) {
+        // Log first 100 chars to debug what Vercel is passing
+        console.error(`[google-drive] JSON parse failed. First 100 chars: ${rawJson.slice(0, 100)}`);
+        throw parseErr;
+      }
     }
+
+    authClient = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
   }
   return authClient;
 }
