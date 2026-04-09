@@ -198,6 +198,146 @@ function AdminClaimsPage() {
   const [successMsg, setSuccessMsg]         = useState('');
   const [ocrScanning, setOcrScanning]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [_batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
+
+  // Drag-and-drop
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const accepted = ['.pdf', '.jpg', '.jpeg', '.png', '.heif'];
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+      return accepted.includes(ext) || f.type.startsWith('image/') || f.type === 'application/pdf';
+    });
+    if (droppedFiles.length === 0) return;
+
+    if (droppedFiles.length === 1) {
+      // Single file — open modal and trigger OCR
+      const file = droppedFiles[0];
+      setModalType(claimTab);
+      setShowModal(true);
+      setSelectedFile(file);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(file));
+      setBatchProgress(null);
+      setModalError('');
+
+      // Trigger OCR scan
+      setOcrScanning(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        const json = await res.json();
+        if (res.ok && json.fields) {
+          const f = json.fields;
+          if (json.documentType === 'invoice') {
+            if (f.issueDate) setModalDate(f.issueDate);
+            if (f.vendor) setModalMerchant(f.vendor);
+            if (f.totalAmount) setModalAmount(String(f.totalAmount));
+            if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
+          } else {
+            if (f.date) setModalDate(f.date);
+            if (f.merchant) setModalMerchant(f.merchant);
+            if (f.amount) setModalAmount(String(f.amount));
+            if (f.receiptNumber) setModalReceipt(f.receiptNumber);
+          }
+          if (f.category) {
+            const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) setModalCategory(match.id);
+          }
+        }
+      } catch (err) {
+        console.error('OCR extraction failed:', err);
+      } finally {
+        setOcrScanning(false);
+      }
+      return;
+    }
+
+    // Multiple files — batch upload with progress
+    setShowModal(true);
+    setModalType(claimTab);
+    const results: { name: string; ok: boolean; msg: string }[] = [];
+    setBatchProgress({ current: 0, total: droppedFiles.length, results });
+    setModalSaving(true);
+    setModalError('');
+
+    for (let i = 0; i < droppedFiles.length; i++) {
+      const file = droppedFiles[i];
+      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+
+      try {
+        const ocrFd = new FormData();
+        ocrFd.append('file', file);
+        ocrFd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        const ocrJson = await ocrRes.json();
+
+        const fd = new FormData();
+        fd.append('type', claimTab);
+        fd.append('file', file);
+
+        if (ocrRes.ok && ocrJson.fields) {
+          const f = ocrJson.fields;
+          if (ocrJson.documentType === 'invoice') {
+            if (f.issueDate) fd.append('claim_date', f.issueDate);
+            if (f.vendor) fd.append('merchant', f.vendor);
+            if (f.totalAmount) fd.append('amount', String(f.totalAmount));
+            if (f.invoiceNumber) fd.append('receipt_number', f.invoiceNumber);
+          } else {
+            if (f.date) fd.append('claim_date', f.date);
+            if (f.merchant) fd.append('merchant', f.merchant);
+            if (f.amount) fd.append('amount', String(f.amount));
+            if (f.receiptNumber) fd.append('receipt_number', f.receiptNumber);
+          }
+          if (f.category) {
+            const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) fd.append('category_id', match.id);
+          }
+        }
+
+        if (!fd.get('claim_date')) fd.append('claim_date', todayStr());
+        if (!fd.get('merchant')) fd.append('merchant', file.name.replace(/\.[^/.]+$/, ''));
+        if (!fd.get('amount')) fd.append('amount', '0');
+
+        const res = await fetch('/api/admin/claims', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        if (!res.ok) {
+          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
+        } else {
+          const merchant = fd.get('merchant') as string;
+          const amount = fd.get('amount') as string;
+          results.push({ name: file.name, ok: true, msg: `${merchant} — RM ${Number(amount).toFixed(2)}` });
+        }
+      } catch (err) {
+        results.push({ name: file.name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
+      }
+
+      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+    }
+
+    setModalSaving(false);
+    refresh();
+  };
 
   // Mileage fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -489,7 +629,19 @@ function AdminClaimsPage() {
       <Sidebar role="admin" />
 
       {/* ═══ MAIN ═══ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative" onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onDragOver={handleDragOver} onDrop={handleDrop}>
+
+        {isDragging && (
+          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-xl shadow-lg px-8 py-6 text-center">
+              <svg className="w-10 h-10 text-blue-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              <p className="text-sm font-semibold text-[#191C1E]">Drop files to upload</p>
+              <p className="text-xs text-[#8E9196] mt-1">Files will be processed with OCR automatically</p>
+            </div>
+          </div>
+        )}
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Claims</h1>
