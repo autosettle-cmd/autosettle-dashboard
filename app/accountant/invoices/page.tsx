@@ -252,6 +252,173 @@ function AccountantInvoicesPage() {
   const vendorInputRef = useRef<HTMLInputElement>(null);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
 
+  // Drag-and-drop
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const accepted = ['.pdf', '.jpg', '.jpeg', '.png', '.heif'];
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+      return accepted.includes(ext) || f.type.startsWith('image/') || f.type === 'application/pdf';
+    });
+    if (droppedFiles.length === 0) return;
+
+    const targetFirmId = firmFilter || (firms.length === 1 ? firms[0].id : '');
+    if (!targetFirmId) {
+      alert('Please select a firm before uploading.');
+      return;
+    }
+
+    if (droppedFiles.length === 1) {
+      // Single file — open modal and trigger OCR
+      const file = droppedFiles[0];
+      setNewInv((prev) => ({ ...prev, firm_id: targetFirmId }));
+      setShowNewInvoice(true);
+      setNewInvFile(file);
+      setBatchProgress(null);
+      setNewInvError('');
+
+      // Trigger OCR scan
+      setOcrScanning(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        const json = await res.json();
+        if (res.ok && json.fields) {
+          const f = json.fields;
+          setNewInv((prev) => {
+            const updates = { ...prev, firm_id: targetFirmId };
+            if (json.documentType === 'invoice') {
+              if (f.vendor) updates.vendor_name = f.vendor;
+              if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
+              if (f.issueDate) updates.issue_date = f.issueDate;
+              if (f.dueDate) updates.due_date = f.dueDate;
+              if (f.totalAmount) updates.total_amount = String(f.totalAmount);
+              if (f.paymentTerms) updates.payment_terms = f.paymentTerms;
+            } else {
+              if (f.merchant) updates.vendor_name = f.merchant;
+              if (f.date) updates.issue_date = f.date;
+              if (f.amount) updates.total_amount = String(f.amount);
+              if (f.receiptNumber) updates.invoice_number = f.receiptNumber;
+            }
+            if (f.category) {
+              const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+              if (match) updates.category_id = match.id;
+            }
+            if (updates.vendor_name) {
+              const vLower = updates.vendor_name.toLowerCase();
+              const firmSuppliers = suppliers.filter((s) => s.firm_id === targetFirmId);
+              const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+              if (supplierMatch) updates.supplier_id = supplierMatch.id;
+            }
+            return updates;
+          });
+        }
+      } catch (err) {
+        console.error('OCR extraction failed:', err);
+      } finally {
+        setOcrScanning(false);
+      }
+      return;
+    }
+
+    // Multiple files — batch upload with progress
+    setShowNewInvoice(true);
+    setNewInv((prev) => ({ ...prev, firm_id: targetFirmId }));
+    const results: { name: string; ok: boolean; msg: string }[] = [];
+    setBatchProgress({ current: 0, total: droppedFiles.length, results });
+    setNewInvSubmitting(true);
+    setNewInvError('');
+
+    for (let i = 0; i < droppedFiles.length; i++) {
+      const file = droppedFiles[i];
+      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+
+      try {
+        const ocrFd = new FormData();
+        ocrFd.append('file', file);
+        ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        const ocrJson = await ocrRes.json();
+
+        const fd = new FormData();
+        fd.append('firm_id', targetFirmId);
+        fd.append('file', file);
+
+        if (ocrRes.ok && ocrJson.fields) {
+          const f = ocrJson.fields;
+          if (ocrJson.documentType === 'invoice') {
+            if (f.vendor) fd.append('vendor_name', f.vendor);
+            if (f.invoiceNumber) fd.append('invoice_number', f.invoiceNumber);
+            if (f.issueDate) fd.append('issue_date', f.issueDate);
+            if (f.dueDate) fd.append('due_date', f.dueDate);
+            if (f.totalAmount) fd.append('total_amount', String(f.totalAmount));
+            if (f.paymentTerms) fd.append('payment_terms', f.paymentTerms);
+          } else {
+            if (f.merchant) fd.append('vendor_name', f.merchant);
+            if (f.date) fd.append('issue_date', f.date);
+            if (f.amount) fd.append('total_amount', String(f.amount));
+            if (f.receiptNumber) fd.append('invoice_number', f.receiptNumber);
+          }
+          if (f.category) {
+            const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) fd.append('category_id', match.id);
+          }
+          const vendorName = f.vendor || f.merchant;
+          if (vendorName) {
+            const vLower = vendorName.toLowerCase();
+            const firmSuppliers = suppliers.filter((s) => s.firm_id === targetFirmId);
+            const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+            if (supplierMatch) fd.append('supplier_id', supplierMatch.id);
+          }
+        }
+
+        if (!fd.get('vendor_name')) fd.append('vendor_name', file.name.replace(/\.[^/.]+$/, ''));
+        if (!fd.get('issue_date')) fd.append('issue_date', new Date().toISOString().split('T')[0]);
+        if (!fd.get('total_amount')) fd.append('total_amount', '0');
+
+        if (newInvExpenseGlId) fd.append('gl_account_id', newInvExpenseGlId);
+        if (newInvContraGlId) fd.append('contra_gl_account_id', newInvContraGlId);
+
+        const res = await fetch('/api/invoices', { method: 'POST', body: fd });
+        const json = await res.json();
+
+        if (!res.ok) {
+          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
+        } else {
+          const vendor = fd.get('vendor_name') as string;
+          const amount = fd.get('total_amount') as string;
+          results.push({ name: file.name, ok: true, msg: `${vendor} — RM ${Number(amount).toFixed(2)}` });
+        }
+      } catch (err) {
+        results.push({ name: file.name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
+      }
+
+      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+    }
+
+    setNewInvSubmitting(false);
+    refresh();
+  };
+
   // Fetch GL accounts when firm is selected in modal
   useEffect(() => {
     if (!showNewInvoice || !newInv.firm_id) { setNewInvGlAccounts([]); return; }
@@ -606,7 +773,25 @@ function AccountantInvoicesPage() {
       <Sidebar role="accountant" />
 
       {/* ═══ MAIN ═══ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div
+        className="flex-1 flex flex-col overflow-hidden relative"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+
+        {isDragging && (
+          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-xl shadow-lg px-8 py-6 text-center">
+              <svg className="w-10 h-10 text-blue-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              <p className="text-sm font-semibold text-[#191C1E]">Drop files to upload</p>
+              <p className="text-xs text-[#8E9196] mt-1">Files will be processed with OCR automatically</p>
+            </div>
+          </div>
+        )}
 
         <header className="flex-shrink-0 bg-white">
           <div className="h-16 flex items-center justify-between px-6">
