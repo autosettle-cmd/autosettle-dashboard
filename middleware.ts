@@ -11,6 +11,7 @@ export default withAuth(
       accountant: "/accountant/dashboard",
       admin: "/admin/dashboard",
       employee: "/employee/dashboard",
+      platform_owner: "/platform/dashboard",
     };
 
     // Redirect authenticated users away from /login
@@ -35,6 +36,11 @@ export default withAuth(
       return NextResponse.redirect(new URL(destination, req.url));
     }
 
+    if (pathname.startsWith("/platform") && role !== "platform_owner") {
+      const destination = roleRedirects[role] ?? "/login";
+      return NextResponse.redirect(new URL(destination, req.url));
+    }
+
     return NextResponse.next();
   },
   {
@@ -50,5 +56,5 @@ export default withAuth(
 );
 
 export const config = {
-  matcher: ["/accountant/:path*", "/admin/:path*", "/employee/:path*", "/login"],
+  matcher: ["/accountant/:path*", "/admin/:path*", "/employee/:path*", "/platform/:path*", "/login"],
 };
