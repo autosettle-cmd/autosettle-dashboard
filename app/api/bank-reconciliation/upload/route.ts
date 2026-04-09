@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to Google Drive
     let fileUrl: string | null = null;
+    let driveWarning: string | null = null;
     try {
       const firm = await prisma.firm.findUniqueOrThrow({ where: { id: firmId }, select: { name: true } });
       const dateStr = result.statementDate ? result.statementDate.toISOString().split('T')[0] : 'unknown';
@@ -63,7 +64,9 @@ export async function POST(request: NextRequest) {
       const { fileId } = await uploadToDriveForFirm(buffer, driveFilename, 'application/pdf', firmId, firm.name, 'bank_statements');
       fileUrl = getDriveViewUrl(fileId);
     } catch (e) {
-      console.error('Drive upload failed (non-blocking):', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('Drive upload failed:', msg);
+      driveWarning = `PDF not saved to Drive: ${msg}`;
     }
 
     const existing = await prisma.bankStatement.findUnique({ where: { file_hash: result.fileHash } });
@@ -125,7 +128,10 @@ export async function POST(request: NextRequest) {
         matched: matchResult.matched,
         unmatched: matchResult.unmatched,
         errors: result.errors,
-        warning: result.usedGeminiFallback ? 'Regex parser failed — transactions extracted via Gemini AI. Please verify accuracy and send the PDF to dev for a fixed regex parser.' : undefined,
+        warning: [
+          result.usedGeminiFallback ? 'Regex parser failed — transactions extracted via Gemini AI. Please verify accuracy and send the PDF to dev for a fixed regex parser.' : '',
+          driveWarning ?? '',
+        ].filter(Boolean).join('\n') || undefined,
       },
       error: null,
     });
