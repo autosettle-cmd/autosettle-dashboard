@@ -59,6 +59,8 @@ export default function AccountantBankReconciliationPage() {
   const [bankGlMap, setBankGlMap] = useState<Record<string, { gl_account_id: string | null; gl_account_label: string | null }>>({});
   const [glEditKey, setGlEditKey] = useState<string | null>(null);
   const [glEditValue, setGlEditValue] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
 
   // Auto-set upload firm when single firm
   useEffect(() => {
@@ -241,6 +243,69 @@ export default function AccountantBankReconciliationPage() {
     }
   };
 
+  // ─── Drag & Drop ────────────────────────────────────────────────────────
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setIsDragging(false);
+  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+    if (files.length === 0) return;
+
+    // Need a firm selected — use firmFilter or single firm
+    const targetFirmId = firmFilter || (firms.length === 1 ? firms[0].id : '');
+    if (!targetFirmId) {
+      setShowUpload(true);
+      alert('Please select a firm first, then drag files again.');
+      return;
+    }
+
+    // Start batch upload directly
+    setUploading(true);
+    setUploadError('');
+    const results: { name: string; ok: boolean; msg: string }[] = [];
+    setBatchProgress({ current: 0, total: files.length, results });
+    setShowUpload(true);
+    setUploadFirmId(targetFirmId);
+
+    for (let i = 0; i < files.length; i++) {
+      setBatchProgress({ current: i + 1, total: files.length, results: [...results] });
+      try {
+        const fd = new FormData();
+        fd.append('file', files[i]);
+        fd.append('firm_id', targetFirmId);
+        const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
+        const json = await res.json();
+        if (json.error) {
+          results.push({ name: files[i].name, ok: false, msg: json.error });
+        } else {
+          const d = json.data;
+          const warnings = [];
+          if (d.warning) warnings.push('Gemini fallback');
+          if (d.skippedDuplicates > 0) warnings.push(`${d.skippedDuplicates} dupes skipped`);
+          results.push({ name: files[i].name, ok: true, msg: `${d.transactionCount} transactions${warnings.length ? ' (' + warnings.join(', ') + ')' : ''}` });
+        }
+      } catch (err) {
+        results.push({ name: files[i].name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
+      }
+      setBatchProgress({ current: i + 1, total: files.length, results: [...results] });
+    }
+
+    setUploading(false);
+    loadStatements();
+  };
+
   const handleReuploadPdf = async (file: File) => {
     if (!reuploadId) return;
     const fd = new FormData();
@@ -262,7 +327,26 @@ export default function AccountantBankReconciliationPage() {
     <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
       <Sidebar role="accountant" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div
+        className="flex-1 flex flex-col overflow-hidden relative"
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      >
+        {/* Drop overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
+            <div className="bg-white rounded-xl shadow-lg px-8 py-6 text-center">
+              <svg className="w-10 h-10 text-blue-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              <p className="text-sm font-semibold text-[#191C1E]">Drop PDF files to upload</p>
+              <p className="text-xs text-[#8E9196] mt-1">Bank statements will be parsed automatically</p>
+            </div>
+          </div>
+        )}
+
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
