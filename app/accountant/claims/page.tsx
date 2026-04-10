@@ -14,6 +14,7 @@ import { useFirm } from '@/contexts/FirmContext';
 interface ClaimRow {
   id: string;
   claim_date: string;
+  employee_id: string;
   employee_name: string;
   firm_name: string;
   firm_id: string;
@@ -187,6 +188,7 @@ function ClaimsPage() {
     category_id: string;
     receipt_number: string;
     description: string;
+    employee_id: string;
   } | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -200,6 +202,8 @@ function ClaimsPage() {
   const [modalCategories, setModalCategories]   = useState<Category[]>([]);
   const [modalType, setModalType]               = useState<'claim' | 'receipt' | 'mileage'>('claim');
   const [modalFirmId, setModalFirmId]           = useState('');
+  const [modalEmployeeId, setModalEmployeeId]   = useState('');
+  const [modalEmployees, setModalEmployees]     = useState<{ id: string; name: string }[]>([]);
   const [modalDate, setModalDate]               = useState(todayStr());
   const [modalMerchant, setModalMerchant]       = useState('');
   const [modalAmount, setModalAmount]           = useState('');
@@ -213,7 +217,24 @@ function ClaimsPage() {
   const [successMsg, setSuccessMsg]             = useState('');
   const [ocrScanning, setOcrScanning]           = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
+  // Batch review
+  interface BatchClaimItem {
+    file: File;
+    merchant: string;
+    amount: string;
+    claim_date: string;
+    receipt_number: string;
+    category_id: string;
+    description: string;
+    ocrDone: boolean;
+    ocrError: string;
+  }
+  const [showBatchReview, setShowBatchReview] = useState(false);
+  const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
+  const [batchScanning, setBatchScanning] = useState(false);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
+  const [batchFirmId, setBatchFirmId] = useState('');
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -268,7 +289,6 @@ function ClaimsPage() {
       setMileagePurpose('');
       setModalError('');
       setModalSaving(false);
-      setBatchProgress(null);
       setShowModal(true);
 
       // Trigger OCR scan
@@ -304,10 +324,17 @@ function ClaimsPage() {
             if (f.amount) setModalAmount(String(f.amount));
             if (f.receiptNumber) setModalReceipt(f.receiptNumber);
           }
+          if (f.notes) setModalDesc(f.notes);
           if (f.category) {
-            // Try loaded categories first, fall back to fetched names
             const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) setModalCategory(match.id);
+          }
+
+          // Auto-match employee from notes/merchant
+          if (f.notes || f.merchant || f.vendor) {
+            const text = `${f.notes || ''} ${f.merchant || ''} ${f.vendor || ''}`.toLowerCase();
+            const empMatch = modalEmployees.find(e => text.includes(e.name.toLowerCase()));
+            if (empMatch) setModalEmployeeId(empMatch.id);
           }
         }
       } catch (err) {
@@ -318,98 +345,89 @@ function ClaimsPage() {
       return;
     }
 
-    // Multiple files — batch upload with progress
-    setShowModal(true);
-    setModalType(claimTab);
-    setModalFirmId(targetFirmId);
-    setModalDate(todayStr());
-    setModalMerchant('');
-    setModalAmount('');
-    setModalCategory('');
-    setModalReceipt('');
-    setModalDesc('');
-    setSelectedFile(null);
-    setModalError('');
-
-    // Fetch categories for OCR matching
+    // Multiple files — OCR all first, then show batch review
     let batchCategories = modalCategories;
     if (batchCategories.length === 0) {
       try {
         const catRes = await fetch(`/api/categories?firmId=${targetFirmId}`);
         const catJson = await catRes.json();
         batchCategories = catJson.data ?? [];
+        setModalCategories(batchCategories);
       } catch { /* ignore */ }
     }
 
-    const results: { name: string; ok: boolean; msg: string }[] = [];
-    setBatchProgress({ current: 0, total: droppedFiles.length, results });
-    setModalSaving(true);
+    const items: BatchClaimItem[] = droppedFiles.map(file => ({
+      file, merchant: '', amount: '', claim_date: todayStr(), receipt_number: '', category_id: '', description: '', ocrDone: false, ocrError: '',
+    }));
+    setBatchItems(items);
+    setBatchFirmId(targetFirmId);
+    setModalEmployeeId('');
+    fetch(`/api/employees?firmId=${targetFirmId}`).then(r => r.json()).then(j => {
+      const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
+      setModalEmployees(emps);
+      if (emps.length === 1) setModalEmployeeId(emps[0].id);
+    }).catch(console.error);
+    setShowBatchReview(true);
+    setBatchScanning(true);
+    setBatchScanProgress({ current: 0, total: droppedFiles.length });
 
     for (let i = 0; i < droppedFiles.length; i++) {
-      const file = droppedFiles[i];
-      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
-
+      setBatchScanProgress({ current: i + 1, total: droppedFiles.length });
       try {
         const ocrFd = new FormData();
-        ocrFd.append('file', file);
+        ocrFd.append('file', droppedFiles[i]);
         ocrFd.append('categories', JSON.stringify(batchCategories.map((c) => c.name)));
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
-
-        const fd = new FormData();
-        fd.append('firm_id', targetFirmId);
-        fd.append('type', claimTab);
-        fd.append('file', file);
-
-        let merchant = '';
-        let amount = '';
-
         if (ocrRes.ok && ocrJson.fields) {
           const f = ocrJson.fields;
-          if (ocrJson.documentType === 'invoice') {
-            if (f.issueDate) fd.append('claim_date', f.issueDate);
-            if (f.vendor) { merchant = f.vendor; fd.append('merchant', f.vendor); }
-            if (f.totalAmount) { amount = String(f.totalAmount); fd.append('amount', String(f.totalAmount)); }
-            if (f.invoiceNumber) fd.append('receipt_number', f.invoiceNumber);
-          } else {
-            if (f.date) fd.append('claim_date', f.date);
-            if (f.merchant) { merchant = f.merchant; fd.append('merchant', f.merchant); }
-            if (f.amount) { amount = String(f.amount); fd.append('amount', String(f.amount)); }
-            if (f.receiptNumber) fd.append('receipt_number', f.receiptNumber);
-          }
+          const isInvoice = ocrJson.documentType === 'invoice';
+          items[i].merchant = (isInvoice ? f.vendor : f.merchant) || '';
+          items[i].receipt_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
+          items[i].claim_date = (isInvoice ? f.issueDate : f.date) || items[i].claim_date;
+          items[i].amount = String(isInvoice ? f.totalAmount : f.amount) || '';
+          items[i].description = f.notes || '';
           if (f.category) {
             const match = batchCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-            if (match) fd.append('category_id', match.id);
+            if (match) items[i].category_id = match.id;
           }
         }
-
-        if (!fd.get('claim_date')) fd.append('claim_date', todayStr());
-        if (!fd.get('merchant')) { merchant = file.name.replace(/\.[^/.]+$/, ''); fd.append('merchant', merchant); }
-        if (!fd.get('amount')) { amount = '0'; fd.append('amount', '0'); }
-        if (!fd.get('category_id') && batchCategories.length > 0) fd.append('category_id', batchCategories[0].id);
-
-        const res = await fetch('/api/claims', { method: 'POST', body: fd });
-        const json = await res.json();
-
-        if (!res.ok) {
-          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
-        } else {
-          results.push({ name: file.name, ok: true, msg: `${merchant} — RM ${Number(amount).toFixed(2)}` });
-        }
+        items[i].ocrDone = true;
       } catch (err) {
-        results.push({ name: file.name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
+        items[i].ocrDone = true;
+        items[i].ocrError = err instanceof Error ? err.message : 'OCR failed';
       }
-
-      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+      setBatchItems([...items]);
     }
+    setBatchScanning(false);
+  };
 
-    setModalSaving(false);
-    setShowModal(false);
-    setBatchProgress(null);
-
-    const ok = results.filter(r => r.ok).length;
-    const fail = results.filter(r => !r.ok).length;
-    alert(`Batch upload complete: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ''}`);
+  const submitBatchClaims = async () => {
+    setBatchSubmitting(true);
+    const firmId = batchFirmId;
+    let ok = 0;
+    let fail = 0;
+    for (const item of batchItems) {
+      try {
+        const fd = new FormData();
+        fd.append('firm_id', firmId);
+        if (modalEmployeeId) fd.append('employee_id', modalEmployeeId);
+        fd.append('type', claimTab);
+        fd.append('file', item.file);
+        fd.append('claim_date', item.claim_date || todayStr());
+        fd.append('merchant', item.merchant || item.file.name.replace(/\.[^/.]+$/, ''));
+        fd.append('amount', item.amount || '0');
+        if (item.receipt_number) fd.append('receipt_number', item.receipt_number);
+        if (item.category_id) fd.append('category_id', item.category_id);
+        if (item.description) fd.append('description', item.description);
+        const res = await fetch('/api/claims', { method: 'POST', body: fd });
+        if (res.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    setBatchSubmitting(false);
+    setShowBatchReview(false);
+    setBatchItems([]);
+    alert(`Batch upload: ${ok} submitted${fail > 0 ? `, ${fail} failed` : ''}`);
     refresh();
   };
 
@@ -420,15 +438,25 @@ function ClaimsPage() {
   const [mileagePurpose, setMileagePurpose] = useState('');
   const mileageRate = 0.55;
 
-  // Load categories when modal firm changes
+  // Load categories + employees when modal firm changes
   useEffect(() => {
     if (showModal && modalFirmId) {
       fetch(`/api/categories?firmId=${modalFirmId}`)
         .then((r) => r.json())
         .then((j) => { setModalCategories(j.data ?? []); setModalCategory(''); })
         .catch(console.error);
+      fetch(`/api/employees?firmId=${modalFirmId}`)
+        .then((r) => r.json())
+        .then((j) => {
+          const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
+          setModalEmployees(emps);
+          setModalEmployeeId(emps.length === 1 ? emps[0].id : '');
+        })
+        .catch(console.error);
     } else {
       setModalCategories([]);
+      setModalEmployees([]);
+      setModalEmployeeId('');
     }
   }, [showModal, modalFirmId]);
 
@@ -479,42 +507,84 @@ function ClaimsPage() {
   // When previewClaim changes, exit edit mode
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
 
-  // Fetch categories for the claim's firm when entering edit mode
+  // Fetch categories + employees for the claim's firm when entering edit mode
   useEffect(() => {
     if (editMode && previewClaim) {
       fetch(`/api/categories?firmId=${previewClaim.firm_id}`)
         .then(r => r.json())
         .then(j => setCategories(j.data ?? []))
         .catch(console.error);
+      fetch(`/api/employees?firmId=${previewClaim.firm_id}`)
+        .then(r => r.json())
+        .then(j => setModalEmployees((j.data ?? []).filter((e: { is_active: boolean }) => e.is_active)))
+        .catch(console.error);
     }
   }, [editMode, previewClaim]);
 
-  // Fetch GL accounts for the claim's firm + pre-fill GL suggestion from category mapping + contra default
+  // Fetch GL accounts for the claim's firm + pre-fill GL suggestion from category mapping / history + contra default
   useEffect(() => {
     if (previewClaim) {
+      let cancelled = false;
       Promise.all([
         fetch(`/api/gl-accounts?firmId=${previewClaim.firm_id}`).then(r => r.json()),
         fetch(`/api/categories?firmId=${previewClaim.firm_id}`).then(r => r.json()),
         fetch(`/api/accounting-settings?firmId=${previewClaim.firm_id}`).then(r => r.json()),
       ])
-        .then(([glJson, catJson, settingsJson]) => {
+        .then(async ([glJson, catJson, settingsJson]) => {
+          if (cancelled) return;
           const accounts = glJson.data ?? [];
           setGlAccounts(accounts);
 
+          let glId = '';
           if (previewClaim.gl_account_id) {
-            setSelectedGlAccountId(previewClaim.gl_account_id);
-          } else {
-            const catData = catJson.data ?? [];
-            const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewClaim.category_id);
-            setSelectedGlAccountId(match?.gl_account_id ?? '');
+            glId = previewClaim.gl_account_id;
+            console.log('[GL] Using claim explicit GL:', glId);
           }
 
-          // Pre-fill contra GL from firm defaults
-          const contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
-          setDefaultContraGlId(contraId);
-          setSelectedContraGlId(contraId);
+          // Priority: history suggestion first (more specific), then category override as fallback
+          if (!glId && previewClaim.category_id) {
+            console.log('[GL] Calling suggest API...', { merchant: previewClaim.merchant, desc: previewClaim.description?.slice(0, 40) });
+            try {
+              const params = new URLSearchParams({ firmId: previewClaim.firm_id, categoryId: previewClaim.category_id });
+              if (previewClaim.merchant) params.set('merchant', previewClaim.merchant);
+              if (previewClaim.description) params.set('description', previewClaim.description);
+              const suggestRes = await fetch(`/api/gl-accounts/suggest?${params}`);
+              const suggestJson = await suggestRes.json();
+              console.log('[GL] Suggest response:', suggestJson.data);
+              if (!cancelled && suggestJson.data?.gl_account_id) {
+                glId = suggestJson.data.gl_account_id;
+              }
+            } catch (err) { console.error('[GL Suggest] Failed:', err); }
+          }
+
+          // Fallback: category override mapping
+          if (!glId) {
+            const catData = catJson.data ?? [];
+            const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewClaim.category_id);
+            glId = match?.gl_account_id ?? '';
+            console.log('[GL] Fallback to category override:', glId ? 'found' : 'none');
+          }
+
+          if (!cancelled) setSelectedGlAccountId(glId);
+
+          // Pre-fill contra GL from firm defaults, fall back to name-based search
+          let contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
+
+          // If no firm default, try to find a "staff claims payable" account by name
+          if (!contraId) {
+            const claimsPayable = accounts.find((a: { name: string; account_type: string }) =>
+              a.account_type === 'Liability' && /staff.?claims|claims.?payable/i.test(a.name)
+            );
+            if (claimsPayable) contraId = claimsPayable.id;
+          }
+
+          if (!cancelled) {
+            setDefaultContraGlId(contraId);
+            setSelectedContraGlId(contraId);
+          }
         })
         .catch(console.error);
+      return () => { cancelled = true; };
     } else {
       setGlAccounts([]);
       setSelectedGlAccountId('');
@@ -588,6 +658,25 @@ function ClaimsPage() {
     }
   };
 
+  const deleteClaims = async (claimIds: string[]) => {
+    const count = claimIds.length;
+    if (!confirm(`Delete ${count} claim${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/claims/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimIds }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error || 'Failed to delete'); return; }
+      refresh();
+      setSelectedRows([]);
+      if (previewClaim && claimIds.includes(previewClaim.id)) setPreviewClaim(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const confirmReject = async () => {
     if (!rejectModal.reason.trim()) return;
     await batchAction(rejectModal.claimIds, 'reject', rejectModal.reason);
@@ -654,7 +743,6 @@ function ClaimsPage() {
     setMileagePurpose('');
     setModalError('');
     setModalSaving(false);
-    setBatchProgress(null);
     setShowModal(true);
   }, [claimTab, firmId, firms]);
 
@@ -691,9 +779,17 @@ function ClaimsPage() {
             if (f.amount) setModalAmount(String(f.amount));
             if (f.receiptNumber) setModalReceipt(f.receiptNumber);
           }
+          if (f.notes) setModalDesc(f.notes);
           if (f.category) {
             const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) setModalCategory(match.id);
+          }
+
+          // Auto-match employee from notes/merchant
+          if (f.notes || f.merchant) {
+            const text = `${f.notes || ''} ${f.merchant || ''}`.toLowerCase();
+            const empMatch = modalEmployees.find(e => text.includes(e.name.toLowerCase()));
+            if (empMatch) setModalEmployeeId(empMatch.id);
           }
         }
       } catch (err) {
@@ -704,82 +800,52 @@ function ClaimsPage() {
       return;
     }
 
-    // Multiple files — batch upload with progress
+    // Multiple files — switch to batch review
     if (!modalFirmId) {
       setModalError('Please select a firm before batch uploading.');
       return;
     }
+    setShowModal(false);
 
     const fileList = Array.from(files);
-    const results: { name: string; ok: boolean; msg: string }[] = [];
-    setBatchProgress({ current: 0, total: fileList.length, results });
-    setModalSaving(true);
-    setModalError('');
+    const items: BatchClaimItem[] = fileList.map(file => ({
+      file, merchant: '', amount: '', claim_date: todayStr(), receipt_number: '', category_id: '', description: '', ocrDone: false, ocrError: '',
+    }));
+    setBatchItems(items);
+    setBatchFirmId(modalFirmId);
+    setShowBatchReview(true);
+    setBatchScanning(true);
+    setBatchScanProgress({ current: 0, total: fileList.length });
 
     for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
-
+      setBatchScanProgress({ current: i + 1, total: fileList.length });
       try {
-        // Step 1: OCR extract
         const ocrFd = new FormData();
-        ocrFd.append('file', file);
+        ocrFd.append('file', fileList[i]);
         ocrFd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
-
-        // Build form data from OCR results
-        const fd = new FormData();
-        fd.append('firm_id', modalFirmId);
-        fd.append('type', modalType);
-        fd.append('file', file);
-
-        let merchant = '';
-        let amount = '';
-
         if (ocrRes.ok && ocrJson.fields) {
           const f = ocrJson.fields;
-          if (ocrJson.documentType === 'invoice') {
-            if (f.issueDate) fd.append('claim_date', f.issueDate);
-            if (f.vendor) { merchant = f.vendor; fd.append('merchant', f.vendor); }
-            if (f.totalAmount) { amount = String(f.totalAmount); fd.append('amount', String(f.totalAmount)); }
-            if (f.invoiceNumber) fd.append('receipt_number', f.invoiceNumber);
-          } else {
-            if (f.date) fd.append('claim_date', f.date);
-            if (f.merchant) { merchant = f.merchant; fd.append('merchant', f.merchant); }
-            if (f.amount) { amount = String(f.amount); fd.append('amount', String(f.amount)); }
-            if (f.receiptNumber) fd.append('receipt_number', f.receiptNumber);
-          }
+          const isInvoice = ocrJson.documentType === 'invoice';
+          items[i].merchant = (isInvoice ? f.vendor : f.merchant) || '';
+          items[i].receipt_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
+          items[i].claim_date = (isInvoice ? f.issueDate : f.date) || items[i].claim_date;
+          items[i].amount = String(isInvoice ? f.totalAmount : f.amount) || '';
+          items[i].description = f.notes || '';
           if (f.category) {
             const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-            if (match) fd.append('category_id', match.id);
+            if (match) items[i].category_id = match.id;
           }
         }
-
-        // Ensure required fields
-        if (!fd.get('claim_date')) fd.append('claim_date', todayStr());
-        if (!fd.get('merchant')) { merchant = file.name.replace(/\.[^/.]+$/, ''); fd.append('merchant', merchant); }
-        if (!fd.get('amount')) { amount = '0'; fd.append('amount', '0'); }
-        if (!fd.get('category_id') && modalCategories.length > 0) fd.append('category_id', modalCategories[0].id);
-
-        // Step 2: Submit claim
-        const res = await fetch('/api/claims', { method: 'POST', body: fd });
-        const json = await res.json();
-
-        if (!res.ok) {
-          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
-        } else {
-          results.push({ name: file.name, ok: true, msg: `${merchant} — RM ${Number(amount).toFixed(2)}` });
-        }
-      } catch (e) {
-        results.push({ name: file.name, ok: false, msg: e instanceof Error ? e.message : 'Failed' });
+        items[i].ocrDone = true;
+      } catch (err) {
+        items[i].ocrDone = true;
+        items[i].ocrError = err instanceof Error ? err.message : 'OCR failed';
       }
-
-      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+      setBatchItems([...items]);
     }
-
-    setModalSaving(false);
-    refresh();
+    setBatchScanning(false);
   };
 
   const clearFile = () => {
@@ -808,6 +874,7 @@ function ClaimsPage() {
     try {
       const fd = new FormData();
       fd.append('firm_id', modalFirmId);
+      if (modalEmployeeId) fd.append('employee_id', modalEmployeeId);
       fd.append('type', modalType);
       fd.append('claim_date', modalDate);
 
@@ -1110,6 +1177,19 @@ function ClaimsPage() {
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
+              {modalEmployees.length > 0 && (
+                <div>
+                  <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Employee *</label>
+                  <select
+                    value={modalEmployeeId}
+                    onChange={(e) => setModalEmployeeId(e.target.value)}
+                    className={`${inputCls} w-full`}
+                  >
+                    <option value="">Select employee</option>
+                    {modalEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className={`${inputCls} w-full`} required />
@@ -1207,49 +1287,118 @@ function ClaimsPage() {
                 </>
               )}
 
-              {batchProgress && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-[#8E9196]">
-                    <span>Processing {batchProgress.current} of {batchProgress.total}</span>
-                    <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
-                  </div>
-                  {batchProgress.results.length > 0 && (
-                    <div className="max-h-[200px] overflow-y-auto space-y-1">
-                      {batchProgress.results.map((r, i) => (
-                        <div key={i} className={`text-xs px-2 py-1 rounded ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                          <span className="font-medium">{r.name}</span>: {r.msg}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
 
             <div className="flex gap-3 mt-5">
-              {!batchProgress && (
-                <button
-                  onClick={submitClaim}
-                  disabled={modalSaving || ocrScanning}
-                  className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: 'var(--accent)' }}
-                >
-                  {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
-                </button>
-              )}
               <button
-                onClick={() => { setShowModal(false); setBatchProgress(null); }}
+                onClick={submitClaim}
+                disabled={modalSaving || ocrScanning}
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
+              </button>
+              <button
+                onClick={() => setShowModal(false)}
                 disabled={modalSaving}
                 className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
               >
-                {batchProgress && !modalSaving ? 'Done' : 'Cancel'}
+                Cancel
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ BATCH REVIEW MODAL ═══ */}
+      {showBatchReview && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <h2 className="text-white font-semibold text-sm">
+                Batch Review — {batchItems.length} claims
+                {batchScanning && ` (Scanning ${batchScanProgress.current}/${batchScanProgress.total}...)`}
+              </h2>
+              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            {batchScanning && (
+              <div className="px-5 pt-3">
+                <div className="flex items-center justify-between text-xs text-[#8E9196] mb-1">
+                  <span>Scanning files with OCR...</span>
+                  <span>{Math.round((batchScanProgress.current / batchScanProgress.total) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchScanProgress.current / batchScanProgress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
+            {modalEmployees.length > 0 && (
+              <div className="px-5 pt-3">
+                <label className="text-[10px] text-[#8E9196] uppercase font-semibold">Employee for all claims</label>
+                <select value={modalEmployeeId} onChange={(e) => setModalEmployeeId(e.target.value)} className="input-field w-full text-xs mt-1">
+                  <option value="">Select employee</option>
+                  {modalEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {batchItems.map((item, idx) => (
+                <div key={idx} className={`border rounded-lg p-4 ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-gray-200') : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-[#191C1E] truncate flex-1">{item.file.name}</p>
+                    {!item.ocrDone && <span className="text-xs text-[#8E9196] ml-2">Scanning...</span>}
+                    {item.ocrError && <span className="text-xs text-red-600 ml-2">{item.ocrError}</span>}
+                    <button onClick={() => setBatchItems(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:text-red-700 ml-2">Remove</button>
+                  </div>
+                  {item.ocrDone && (
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Merchant</label>
+                        <input value={item.merchant} onChange={(e) => { const next = [...batchItems]; next[idx].merchant = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Amount (RM)</label>
+                        <input value={item.amount} onChange={(e) => { const next = [...batchItems]; next[idx].amount = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Date</label>
+                        <input type="date" value={item.claim_date} onChange={(e) => { const next = [...batchItems]; next[idx].claim_date = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Receipt #</label>
+                        <input value={item.receipt_number} onChange={(e) => { const next = [...batchItems]; next[idx].receipt_number = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Category</label>
+                        <select value={item.category_id} onChange={(e) => { const next = [...batchItems]; next[idx].category_id = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs">
+                          <option value="">Select...</option>
+                          {modalCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-[10px] text-[#8E9196] uppercase">Description / Notes</label>
+                        <input value={item.description} onChange={(e) => { const next = [...batchItems]; next[idx].description = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" placeholder="Phone number, account details, etc." />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="px-5 py-3 border-t flex gap-2 flex-shrink-0">
+              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); }} disabled={batchScanning || batchSubmitting}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40">
+                Cancel
+              </button>
+              <button onClick={submitBatchClaims} disabled={batchScanning || batchSubmitting || batchItems.length === 0}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40">
+                {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
+              </button>
+            </div>
+          </div>
+          </div>
+        </>
       )}
 
       {/* ═══════════════════════ BATCH BAR ═══════════════════════ */}
@@ -1270,6 +1419,12 @@ function ClaimsPage() {
             className="btn-reject text-sm px-4 py-1.5 rounded-full"
           >
             Reject
+          </button>
+          <button
+            onClick={() => deleteClaims(selectedRows.map((r) => r.id))}
+            className="text-sm px-4 py-1.5 rounded-full font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
+          >
+            Delete
           </button>
           <button
             onClick={() => setSelectedRows([])}
@@ -1305,6 +1460,7 @@ function ClaimsPage() {
                         category_id: previewClaim.category_id,
                         receipt_number: previewClaim.receipt_number ?? '',
                         description: previewClaim.description ?? '',
+                        employee_id: previewClaim.employee_id ?? '',
                       });
                     }
                   }}
@@ -1341,7 +1497,12 @@ function ClaimsPage() {
                     <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Merchant</dt>
                     <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
-                  <Field label="Employee" value={previewClaim.employee_name} />
+                  <div>
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Employee</dt>
+                    <select value={editData.employee_id} onChange={(e) => setEditData({ ...editData, employee_id: e.target.value })} className={`${inputCls} w-full mt-0.5`}>
+                      {modalEmployees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                    </select>
+                  </div>
                   <Field label="Firm" value={previewClaim.firm_name} />
                   <div>
                     <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Category</dt>
@@ -1503,18 +1664,21 @@ function ClaimsPage() {
                 <>
                   {previewClaim.approval === 'approved' || previewClaim.approval === 'not_approved' ? (
                     <button
-                      onClick={async () => {
-                        try {
-                          const res = await fetch('/api/claims/batch', {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ claimIds: [previewClaim.id], action: 'revert' }),
-                          });
+                      onClick={() => {
+                        if (!confirm('Revert this claim to pending?\n\nThis will reverse the journal entry created during approval.')) return;
+                        fetch('/api/claims/batch', {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ claimIds: [previewClaim.id], action: 'revert' }),
+                        }).then(async (res) => {
                           if (res.ok) {
                             refresh();
-                            setPreviewClaim({ ...previewClaim, approval: 'pending_approval', rejection_reason: null });
+                            setPreviewClaim({ ...previewClaim, approval: 'pending_approval', rejection_reason: null, gl_account_id: null });
+                          } else {
+                            const json = await res.json().catch(() => ({ error: 'Failed' }));
+                            alert(json.error || 'Failed to revert');
                           }
-                        } catch (e) { console.error(e); }
+                        }).catch(() => alert('Network error'));
                       }}
                       className="btn-reject flex-1 py-2 rounded-lg text-sm"
                     >
@@ -1538,6 +1702,12 @@ function ClaimsPage() {
                   )}
                 </>
               )}
+              <button
+                onClick={() => deleteClaims([previewClaim.id])}
+                className="w-full py-2 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+              >
+                Delete Claim
+              </button>
             </div>
           </div>
           </div>

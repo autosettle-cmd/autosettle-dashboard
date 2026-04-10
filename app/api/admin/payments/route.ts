@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { recalcInvoicePayment } from '@/lib/payment-utils';
+import { recalcInvoicePayment, recalcClaimPayment } from '@/lib/payment-utils';
 import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
 import { auditLog } from '@/lib/audit';
 
@@ -15,17 +15,85 @@ export async function POST(request: NextRequest) {
   const firmId = session.user.firm_id;
   const body = await request.json();
 
-  const { supplier_id, amount, payment_date, reference, notes, allocations, sales_allocations, claim_ids, direction } = body as {
-    supplier_id: string;
+  const { supplier_id, employee_id, amount, payment_date, reference, notes, allocations, sales_allocations, claim_allocations, claim_ids, direction } = body as {
+    supplier_id?: string;
+    employee_id?: string;
     amount: number;
     payment_date: string;
     reference?: string;
     notes?: string;
     allocations?: { invoice_id: string; amount: number }[];
     sales_allocations?: { sales_invoice_id: string; amount: number }[];
+    claim_allocations?: { claim_id: string; amount: number }[];
     claim_ids?: string[];
     direction?: 'outgoing' | 'incoming';
   };
+
+  // ── Employee claim payment ──
+  if (employee_id && claim_allocations?.length) {
+    if (!amount || !payment_date) {
+      return NextResponse.json({ data: null, error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const employee = await prisma.employee.findUnique({ where: { id: employee_id }, select: { firm_id: true, name: true } });
+    if (!employee || employee.firm_id !== firmId) {
+      return NextResponse.json({ data: null, error: 'Employee not found' }, { status: 404 });
+    }
+
+    const allocTotal = claim_allocations.reduce((s, a) => s + a.amount, 0);
+    if (allocTotal > amount + 0.01) {
+      return NextResponse.json({ data: null, error: 'Allocations exceed payment amount' }, { status: 400 });
+    }
+
+    for (const alloc of claim_allocations) {
+      const claim = await prisma.claim.findUnique({
+        where: { id: alloc.claim_id },
+        select: { amount: true, amount_paid: true, approval: true, firm_id: true, type: true },
+      });
+      if (!claim || claim.firm_id !== firmId || claim.type !== 'claim') {
+        return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
+      }
+      if (claim.approval !== 'approved') {
+        return NextResponse.json({ data: null, error: 'Claim not approved' }, { status: 400 });
+      }
+      const outstanding = Number(claim.amount) - Number(claim.amount_paid);
+      if (alloc.amount > outstanding + 0.01) {
+        return NextResponse.json({ data: null, error: `Allocation exceeds outstanding for claim` }, { status: 400 });
+      }
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        firm_id: firmId,
+        employee_id,
+        amount,
+        payment_date: new Date(payment_date),
+        reference: reference || null,
+        notes: notes || null,
+        direction: 'outgoing',
+        receipts: {
+          create: claim_allocations.map(a => ({ claim_id: a.claim_id, amount: a.amount })),
+        },
+      },
+      include: { receipts: true },
+    });
+
+    for (const alloc of claim_allocations) {
+      await recalcClaimPayment(alloc.claim_id);
+    }
+
+    await auditLog({
+      firmId,
+      tableName: 'Payment',
+      recordId: payment.id,
+      action: 'create',
+      newValues: { direction: 'outgoing', amount: String(amount), employee_id, reference: reference || null, claims: claim_allocations.map(a => a.claim_id) },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
+
+    return NextResponse.json({ data: payment, error: null });
+  }
 
   const dir = direction ?? 'outgoing';
   const hasAllocations = dir === 'outgoing' ? allocations?.length : sales_allocations?.length;
@@ -242,6 +310,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       supplier: { select: { name: true } },
+      employee: { select: { name: true } },
       receipts: { select: { payment_id: true, claim_id: true } },
       allocations: {
         include: { invoice: { select: { invoice_number: true, vendor_name_raw: true } } },
@@ -267,7 +336,7 @@ export async function GET(request: NextRequest) {
   const data = payments.map((p) => ({
     id: p.id,
     direction: p.direction,
-    supplier_name: p.supplier.name,
+    supplier_name: p.supplier?.name ?? p.employee?.name ?? 'Unknown',
     amount: p.amount.toString(),
     payment_date: p.payment_date,
     reference: p.reference,

@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     where,
     include: {
       supplier: { select: { name: true } },
+      employee: { select: { name: true } },
     },
     orderBy: { payment_date: 'desc' },
     take: 50,
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
 
   const data = payments.map((p) => ({
     id: p.id,
-    supplier_name: p.supplier.name,
+    supplier_name: p.supplier?.name ?? p.employee?.name ?? 'Unknown',
     amount: p.amount.toString(),
     payment_date: p.payment_date,
     reference: p.reference,

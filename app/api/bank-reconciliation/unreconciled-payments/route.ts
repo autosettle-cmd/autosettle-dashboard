@@ -22,12 +22,12 @@ export async function GET(request: NextRequest) {
   if (dateFrom || dateTo) { where.payment_date = {}; if (dateFrom) where.payment_date.gte = new Date(dateFrom); if (dateTo) where.payment_date.lte = new Date(dateTo); }
 
   const payments = await prisma.payment.findMany({
-    where, include: { supplier: { select: { name: true } } }, orderBy: { payment_date: 'desc' }, take: 50,
+    where, include: { supplier: { select: { name: true } }, employee: { select: { name: true } } }, orderBy: { payment_date: 'desc' }, take: 50,
   });
 
   return NextResponse.json({
     data: payments.map((p) => ({
-      id: p.id, supplier_name: p.supplier.name, amount: p.amount.toString(),
+      id: p.id, supplier_name: p.supplier?.name ?? p.employee?.name ?? 'Unknown', amount: p.amount.toString(),
       payment_date: p.payment_date, reference: p.reference, direction: p.direction, notes: p.notes,
     })),
     error: null,

@@ -436,6 +436,27 @@ export default function ChartOfAccountsPage() {
     }
   };
 
+  const [importing, setImporting] = useState(false);
+  const importSqlAccounting = async () => {
+    if (!firmId) return;
+    if (!confirm('Replace ALL current GL accounts with SQL Accounting COA for this firm?\n\nThis will delete existing accounts and import 97 accounts from the PDF. Cannot undo if journal entries exist.')) return;
+    setImporting(true);
+    try {
+      const res = await fetch('/api/gl-accounts/import-sql-accounting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'REPLACE_COA', firmId }),
+      });
+      const json = await res.json();
+      if (!res.ok) alert(json.error || 'Import failed');
+      else { alert(json.data.message); refresh(); }
+    } catch {
+      alert('Network error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // ─── Modal ────────────────────────────────────────────────────────────────
 
   const openAddModal = (parentId?: string) => {
@@ -527,6 +548,15 @@ export default function ChartOfAccountsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
           <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Chart of Accounts</h1>
+          {firmId && (
+            <button
+              onClick={importSqlAccounting}
+              disabled={importing}
+              className="text-xs px-4 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+            >
+              {importing ? 'Importing...' : 'Import SQL Accounting COA'}
+            </button>
+          )}
         </header>
 
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">

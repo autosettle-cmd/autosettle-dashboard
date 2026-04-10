@@ -12,6 +12,7 @@ import { usePageTitle } from '@/lib/use-page-title';
 interface ClaimRow {
   id: string;
   claim_date: string;
+  employee_id: string;
   employee_name: string;
   merchant: string;
   description: string | null;
@@ -177,6 +178,7 @@ function AdminClaimsPage() {
     category_id: string;
     receipt_number: string;
     description: string;
+    employee_id: string;
   } | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editCategories, setEditCategories] = useState<{ id: string; name: string }[]>([]);
@@ -197,8 +199,26 @@ function AdminClaimsPage() {
   const [modalSaving, setModalSaving]       = useState(false);
   const [successMsg, setSuccessMsg]         = useState('');
   const [ocrScanning, setOcrScanning]       = useState(false);
+  const [modalEmployeeId, setModalEmployeeId] = useState('');
+  const [modalEmployees, setModalEmployees]   = useState<{ id: string; name: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [_batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
+  // Batch review
+  interface BatchClaimItem {
+    file: File;
+    merchant: string;
+    amount: string;
+    claim_date: string;
+    receipt_number: string;
+    category_id: string;
+    description: string;
+    ocrDone: boolean;
+    ocrError: string;
+  }
+  const [showBatchReview, setShowBatchReview] = useState(false);
+  const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
+  const [batchScanning, setBatchScanning] = useState(false);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -231,11 +251,17 @@ function AdminClaimsPage() {
       // Single file — open modal and trigger OCR
       const file = droppedFiles[0];
       setModalType(claimTab);
+      setModalDate(todayStr());
+      setModalMerchant('');
+      setModalAmount('');
+      setModalCategory(modalCategories.length === 1 ? modalCategories[0].id : '');
+      setModalReceipt('');
+      setModalDesc('');
+      setModalSaving(false);
       setShowModal(true);
       setSelectedFile(file);
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(URL.createObjectURL(file));
-      setBatchProgress(null);
       setModalError('');
 
       // Trigger OCR scan
@@ -259,9 +285,17 @@ function AdminClaimsPage() {
             if (f.amount) setModalAmount(String(f.amount));
             if (f.receiptNumber) setModalReceipt(f.receiptNumber);
           }
+          if (f.notes) setModalDesc(f.notes);
           if (f.category) {
             const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) setModalCategory(match.id);
+          }
+
+          // Auto-match employee from notes/merchant
+          if (f.notes || f.merchant || f.vendor) {
+            const text = `${f.notes || ''} ${f.merchant || ''} ${f.vendor || ''}`.toLowerCase();
+            const empMatch = modalEmployees.find(e => text.includes(e.name.toLowerCase()));
+            if (empMatch) setModalEmployeeId(empMatch.id);
           }
         }
       } catch (err) {
@@ -272,76 +306,84 @@ function AdminClaimsPage() {
       return;
     }
 
-    // Multiple files — batch upload with progress
-    setShowModal(true);
-    setModalType(claimTab);
-    const results: { name: string; ok: boolean; msg: string }[] = [];
-    setBatchProgress({ current: 0, total: droppedFiles.length, results });
-    setModalSaving(true);
-    setModalError('');
+    // Multiple files — OCR all first, then show batch review
+    const items: BatchClaimItem[] = droppedFiles.map(file => ({
+      file,
+      merchant: '',
+      amount: '',
+      claim_date: todayStr(),
+      receipt_number: '',
+      category_id: '',
+      description: '',
+      ocrDone: false,
+      ocrError: '',
+    }));
+    setBatchItems(items);
+    setShowBatchReview(true);
+    setBatchScanning(true);
+    setBatchScanProgress({ current: 0, total: droppedFiles.length });
 
     for (let i = 0; i < droppedFiles.length; i++) {
-      const file = droppedFiles[i];
-      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
-
+      setBatchScanProgress({ current: i + 1, total: droppedFiles.length });
       try {
         const ocrFd = new FormData();
-        ocrFd.append('file', file);
+        ocrFd.append('file', droppedFiles[i]);
         ocrFd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
 
-        const fd = new FormData();
-        fd.append('type', claimTab);
-        fd.append('file', file);
-
         if (ocrRes.ok && ocrJson.fields) {
           const f = ocrJson.fields;
-          if (ocrJson.documentType === 'invoice') {
-            if (f.issueDate) fd.append('claim_date', f.issueDate);
-            if (f.vendor) fd.append('merchant', f.vendor);
-            if (f.totalAmount) fd.append('amount', String(f.totalAmount));
-            if (f.invoiceNumber) fd.append('receipt_number', f.invoiceNumber);
-          } else {
-            if (f.date) fd.append('claim_date', f.date);
-            if (f.merchant) fd.append('merchant', f.merchant);
-            if (f.amount) fd.append('amount', String(f.amount));
-            if (f.receiptNumber) fd.append('receipt_number', f.receiptNumber);
-          }
+          const isInvoice = ocrJson.documentType === 'invoice';
+          items[i].merchant = (isInvoice ? f.vendor : f.merchant) || '';
+          items[i].receipt_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
+          items[i].claim_date = (isInvoice ? f.issueDate : f.date) || items[i].claim_date;
+          items[i].amount = String(isInvoice ? f.totalAmount : f.amount) || '';
+          items[i].description = f.notes || '';
           if (f.category) {
             const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-            if (match) fd.append('category_id', match.id);
+            if (match) items[i].category_id = match.id;
           }
         }
-
-        if (!fd.get('claim_date')) fd.append('claim_date', todayStr());
-        if (!fd.get('merchant')) fd.append('merchant', file.name.replace(/\.[^/.]+$/, ''));
-        if (!fd.get('amount')) fd.append('amount', '0');
-
-        const res = await fetch('/api/admin/claims', { method: 'POST', body: fd });
-        const json = await res.json();
-
-        if (!res.ok) {
-          results.push({ name: file.name, ok: false, msg: json.error || 'Failed' });
-        } else {
-          const merchant = fd.get('merchant') as string;
-          const amount = fd.get('amount') as string;
-          results.push({ name: file.name, ok: true, msg: `${merchant} — RM ${Number(amount).toFixed(2)}` });
-        }
+        items[i].ocrDone = true;
       } catch (err) {
-        results.push({ name: file.name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
+        items[i].ocrDone = true;
+        items[i].ocrError = err instanceof Error ? err.message : 'OCR failed';
       }
-
-      setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+      setBatchItems([...items]);
     }
 
-    setModalSaving(false);
-    setShowModal(false);
-    setBatchProgress(null);
+    setBatchScanning(false);
+  };
 
-    const ok = results.filter(r => r.ok).length;
-    const fail = results.filter(r => !r.ok).length;
-    alert(`Batch upload complete: ${ok} succeeded${fail > 0 ? `, ${fail} failed` : ''}`);
+  const submitBatchClaims = async () => {
+    setBatchSubmitting(true);
+    let ok = 0;
+    let fail = 0;
+    for (const item of batchItems) {
+      try {
+        const fd = new FormData();
+        if (modalEmployeeId) fd.append('employee_id', modalEmployeeId);
+        fd.append('type', claimTab);
+        fd.append('file', item.file);
+        fd.append('claim_date', item.claim_date || todayStr());
+        fd.append('merchant', item.merchant || item.file.name.replace(/\.[^/.]+$/, ''));
+        fd.append('amount', item.amount || '0');
+        if (item.receipt_number) fd.append('receipt_number', item.receipt_number);
+        if (item.category_id) fd.append('category_id', item.category_id);
+        if (item.description) fd.append('description', item.description);
+
+        const res = await fetch('/api/admin/claims', { method: 'POST', body: fd });
+        if (res.ok) ok++;
+        else fail++;
+      } catch {
+        fail++;
+      }
+    }
+    setBatchSubmitting(false);
+    setShowBatchReview(false);
+    setBatchItems([]);
+    alert(`Batch upload: ${ok} submitted${fail > 0 ? `, ${fail} failed` : ''}`);
     refresh();
   };
 
@@ -355,11 +397,18 @@ function AdminClaimsPage() {
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
 
-  // Load categories for modal + edit
+  // Load categories + employees for modal + edit
   useEffect(() => {
     fetch('/api/admin/categories')
       .then((r) => r.json())
       .then((j) => { setModalCategories(j.data ?? []); setEditCategories(j.data ?? []); })
+      .catch(console.error);
+    fetch('/api/admin/employees')
+      .then((r) => r.json())
+      .then((j) => {
+        const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
+        setModalEmployees(emps);
+      })
       .catch(console.error);
   }, []);
 
@@ -558,6 +607,7 @@ function AdminClaimsPage() {
       }
     } else {
       if (!modalDate || !modalMerchant.trim() || !modalAmount || !modalCategory) {
+        console.log('[Submit] Validation failed:', { modalDate, modalMerchant, modalAmount, modalCategory });
         setModalError('Date, merchant, amount, and category are required.');
         return;
       }
@@ -568,6 +618,7 @@ function AdminClaimsPage() {
 
     try {
       const fd = new FormData();
+      if (modalEmployeeId) fd.append('employee_id', modalEmployeeId);
       fd.append('type', modalType);
       fd.append('claim_date', modalDate);
 
@@ -621,6 +672,25 @@ function AdminClaimsPage() {
         setSelectedIds(new Set());
         if (previewClaim && claimIds.includes(previewClaim.id)) setPreviewClaim(null);
       }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const deleteClaims = async (claimIds: string[]) => {
+    const count = claimIds.length;
+    if (!confirm(`Delete ${count} claim${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/admin/claims/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimIds }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error || 'Failed to delete'); return; }
+      refresh();
+      setSelectedIds(new Set());
+      if (previewClaim && claimIds.includes(previewClaim.id)) setPreviewClaim(null);
     } catch (e) {
       console.error(e);
     }
@@ -814,6 +884,15 @@ function AdminClaimsPage() {
             )}
 
             <div className="space-y-3">
+              {modalEmployees.length > 0 && (
+                <div>
+                  <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Employee *</label>
+                  <select value={modalEmployeeId} onChange={(e) => setModalEmployeeId(e.target.value)} className="input-field w-full">
+                    <option value="">Select employee</option>
+                    {modalEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-field w-full" required />
@@ -945,12 +1024,120 @@ function AdminClaimsPage() {
             Mark as Reviewed
           </button>
           <button
+            onClick={() => deleteClaims(selectedRows.map((r) => r.id))}
+            className="text-sm px-4 py-1.5 rounded-lg font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
+          >
+            Delete
+          </button>
+          <button
             onClick={() => setSelectedIds(new Set())}
             className="text-sm text-white/55 hover:text-white transition-colors"
           >
             Clear
           </button>
         </div>
+      )}
+
+      {/* ═══ BATCH REVIEW MODAL ═══ */}
+      {showBatchReview && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <h2 className="text-white font-semibold text-sm">
+                Batch Review — {batchItems.length} claims
+                {batchScanning && ` (Scanning ${batchScanProgress.current}/${batchScanProgress.total}...)`}
+              </h2>
+              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            {batchScanning && (
+              <div className="px-5 pt-3">
+                <div className="flex items-center justify-between text-xs text-[#8E9196] mb-1">
+                  <span>Scanning files with OCR...</span>
+                  <span>{Math.round((batchScanProgress.current / batchScanProgress.total) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchScanProgress.current / batchScanProgress.total) * 100}%` }} />
+                </div>
+              </div>
+            )}
+
+            {modalEmployees.length > 0 && (
+              <div className="px-5 pt-3">
+                <label className="text-[10px] text-[#8E9196] uppercase font-semibold">Employee for all claims</label>
+                <select value={modalEmployeeId} onChange={(e) => setModalEmployeeId(e.target.value)} className="input-field w-full text-xs mt-1">
+                  <option value="">Select employee</option>
+                  {modalEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              {batchItems.map((item, idx) => (
+                <div key={idx} className={`border rounded-lg p-4 ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-gray-200') : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-[#191C1E] truncate flex-1">{item.file.name}</p>
+                    {!item.ocrDone && <span className="text-xs text-[#8E9196] ml-2">Scanning...</span>}
+                    {item.ocrError && <span className="text-xs text-red-600 ml-2">{item.ocrError}</span>}
+                    <button onClick={() => setBatchItems(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:text-red-700 ml-2">Remove</button>
+                  </div>
+                  {item.ocrDone && (
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Merchant</label>
+                        <input value={item.merchant} onChange={(e) => { const next = [...batchItems]; next[idx].merchant = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Amount (RM)</label>
+                        <input value={item.amount} onChange={(e) => { const next = [...batchItems]; next[idx].amount = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Date</label>
+                        <input type="date" value={item.claim_date} onChange={(e) => { const next = [...batchItems]; next[idx].claim_date = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Receipt #</label>
+                        <input value={item.receipt_number} onChange={(e) => { const next = [...batchItems]; next[idx].receipt_number = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-[#8E9196] uppercase">Category</label>
+                        <select value={item.category_id} onChange={(e) => { const next = [...batchItems]; next[idx].category_id = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs">
+                          <option value="">Select...</option>
+                          {modalCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      </div>
+                      <div className="col-span-3">
+                        <label className="text-[10px] text-[#8E9196] uppercase">Description / Notes</label>
+                        <input value={item.description} onChange={(e) => { const next = [...batchItems]; next[idx].description = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" placeholder="Phone number, account details, etc." />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="px-5 py-3 border-t flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => { setShowBatchReview(false); setBatchItems([]); }}
+                disabled={batchScanning || batchSubmitting}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitBatchClaims}
+                disabled={batchScanning || batchSubmitting || batchItems.length === 0}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40"
+              >
+                {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
+              </button>
+            </div>
+          </div>
+          </div>
+        </>
       )}
 
       {/* ═══ RECEIPT PREVIEW ═══ */}
@@ -1012,7 +1199,12 @@ function AdminClaimsPage() {
                     <label className="input-label">Description</label>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
-                  <Field label="Employee" value={previewClaim.employee_name} />
+                  <div>
+                    <label className="input-label">Employee</label>
+                    <select value={editData.employee_id} onChange={(e) => setEditData({ ...editData, employee_id: e.target.value })} className="input-field w-full">
+                      {modalEmployees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                    </select>
+                  </div>
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
@@ -1115,6 +1307,7 @@ function AdminClaimsPage() {
                         category_id: previewClaim.category_id,
                         receipt_number: previewClaim.receipt_number ?? '',
                         description: previewClaim.description ?? '',
+                        employee_id: previewClaim.employee_id ?? '',
                       });
                     }}
                     className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
@@ -1130,6 +1323,12 @@ function AdminClaimsPage() {
                   </button>
                 </>
               )}
+              <button
+                onClick={() => deleteClaims([previewClaim.id])}
+                className="w-full py-2 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+              >
+                Delete Claim
+              </button>
             </div>
           </div>
           </div>

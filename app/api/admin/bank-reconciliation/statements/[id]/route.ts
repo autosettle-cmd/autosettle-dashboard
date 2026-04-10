@@ -29,6 +29,7 @@ export async function GET(
               direction: true,
               notes: true,
               supplier: { select: { name: true } },
+              employee: { select: { name: true } },
               allocations: {
                 include: { invoice: { select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, issue_date: true } } },
               },
@@ -94,7 +95,7 @@ export async function GET(
           amount: t.matchedPayment.amount.toString(),
           direction: t.matchedPayment.direction,
           notes: t.matchedPayment.notes,
-          supplier_name: t.matchedPayment.supplier.name,
+          supplier_name: t.matchedPayment.supplier?.name ?? t.matchedPayment.employee?.name ?? 'Unknown',
           allocations: t.matchedPayment.allocations.map((a) => ({
             invoice_id: a.invoice_id,
             invoice_number: a.invoice.invoice_number,

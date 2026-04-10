@@ -7,6 +7,7 @@ export interface GeminiExtractionResult {
   amount: number;
   receiptNumber: string;
   category: string;
+  notes: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
 }
 
@@ -66,6 +67,7 @@ Fields to extract:
 - amount: total amount as a number (RM, no currency symbol)
 - receiptNumber: invoice or receipt number (empty string if not found)
 - category: pick the BEST match from this list only: [${categories.join(", ")}]
+- notes: important extra details the accountant should know — e.g. phone/account numbers, service period, account holder name, what was purchased. Keep concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Confidence rules:
@@ -74,7 +76,7 @@ Confidence rules:
 - LOW: one or more key fields missing or unclear
 
 Return format:
-{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "confidence": "HIGH"}`;
+{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}`;
 
   const res = await fetch(url, {
     method: "POST",

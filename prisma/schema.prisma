@@ -45,6 +45,7 @@ enum ApprovalStatus {
 
 enum PaymentStatus {
   unpaid
+  partially_paid
   paid
 }
 
@@ -173,6 +174,7 @@ model Employee {
   invoices      Invoice[]
   salesInvoices SalesInvoice[]
   messageLogs   MessageLog[]
+  payments      Payment[]
 
   @@index([firm_id])
 }
@@ -257,6 +259,7 @@ model Claim {
   status           ClaimStatus    @default(pending_review)
   approval         ApprovalStatus @default(pending_approval)
   payment_status   PaymentStatus  @default(unpaid)
+  amount_paid      Decimal        @default(0) @db.Decimal(10, 2)
   rejection_reason String?
   file_url         String?
   file_download_url String?
@@ -379,7 +382,8 @@ model Invoice {
 model Payment {
   id           String   @id @default(uuid())
   firm_id      String
-  supplier_id  String
+  supplier_id  String?
+  employee_id  String?
   amount       Decimal  @db.Decimal(10, 2)
   payment_date DateTime @db.Date
   reference    String?
@@ -389,13 +393,15 @@ model Payment {
   direction   PaymentDirection    @default(outgoing)
 
   firm             Firm                     @relation(fields: [firm_id], references: [id])
-  supplier         Supplier                 @relation(fields: [supplier_id], references: [id])
+  supplier         Supplier?                @relation(fields: [supplier_id], references: [id])
+  employee         Employee?                @relation(fields: [employee_id], references: [id])
   allocations      PaymentAllocation[]
   salesAllocations SalesPaymentAllocation[]
   receipts         PaymentReceipt[]
   bankTransactions BankTransaction[]
 
   @@index([supplier_id, direction, payment_date])
+  @@index([employee_id, payment_date])
   @@index([firm_id, payment_date])
 }
 
@@ -413,9 +419,10 @@ model PaymentAllocation {
 }
 
 model PaymentReceipt {
-  id         String @id @default(uuid())
+  id         String  @id @default(uuid())
   payment_id String
   claim_id   String
+  amount     Decimal @default(0) @db.Decimal(10, 2)
 
   payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
   claim   Claim   @relation(fields: [claim_id], references: [id], onDelete: Cascade)

@@ -125,6 +125,26 @@ export default function AdminChartOfAccountsPage() {
     }
   };
 
+  const [importing, setImporting] = useState(false);
+  const importSqlAccounting = async () => {
+    if (!confirm('Replace ALL current GL accounts with SQL Accounting COA?\n\nThis will delete existing accounts and import 97 accounts from the PDF. Cannot be undone if journal entries exist.')) return;
+    setImporting(true);
+    try {
+      const res = await fetch('/api/admin/gl-accounts/import-sql-accounting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: 'REPLACE_COA' }),
+      });
+      const json = await res.json();
+      if (!res.ok) alert(json.error || 'Import failed');
+      else { alert(json.data.message); refresh(); }
+    } catch {
+      alert('Network error');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-[#F5F6F8]">
       <Sidebar role="admin" />
@@ -132,6 +152,13 @@ export default function AdminChartOfAccountsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
           <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Chart of Accounts</h1>
+          <button
+            onClick={importSqlAccounting}
+            disabled={importing}
+            className="text-xs px-4 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+          >
+            {importing ? 'Importing...' : 'Import SQL Accounting COA'}
+          </button>
         </header>
 
         <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">

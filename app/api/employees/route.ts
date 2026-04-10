@@ -36,17 +36,51 @@ export async function GET(request: NextRequest) {
     orderBy: { name: 'asc' },
   });
 
-  const data = employees.map((e) => ({
-    id: e.id,
-    name: e.name,
-    phone: e.phone,
-    email: e.email,
-    firm_name: e.firm.name,
-    firm_id: e.firm_id,
-    claims_count: e._count.claims,
-    is_active: e.is_active,
-    user_status: e.users[0]?.status ?? null,
-  }));
+  // Aggregate outstanding claims per employee
+  const employeeIds = employees.map(e => e.id);
+  const [claimsByEmployee, paymentsByEmployee] = employeeIds.length > 0
+    ? await Promise.all([
+        prisma.claim.groupBy({
+          by: ['employee_id'],
+          where: { employee_id: { in: employeeIds }, approval: 'approved', type: 'claim' },
+          _sum: { amount: true, amount_paid: true },
+          _count: { _all: true },
+        }),
+        prisma.payment.groupBy({
+          by: ['employee_id'],
+          where: { employee_id: { in: employeeIds }, direction: 'outgoing' },
+          _sum: { amount: true },
+        }),
+      ])
+    : [[], []];
+
+  const claimsMap = new Map(claimsByEmployee.map(r => [r.employee_id, {
+    total: Number(r._sum.amount ?? 0),
+    paid: Number(r._sum.amount_paid ?? 0),
+    count: r._count._all,
+  }]));
+  const paymentsMap = new Map(paymentsByEmployee.map(r => [r.employee_id!, Number(r._sum.amount ?? 0)]));
+
+  const data = employees.map((e) => {
+    const claims = claimsMap.get(e.id);
+    const totalClaims = claims?.total ?? 0;
+    const totalPayments = paymentsMap.get(e.id) ?? 0;
+    return {
+      id: e.id,
+      name: e.name,
+      phone: e.phone,
+      email: e.email,
+      firm_name: e.firm.name,
+      firm_id: e.firm_id,
+      claims_count: e._count.claims,
+      approved_claims_count: claims?.count ?? 0,
+      total_claims: totalClaims.toFixed(2),
+      total_payments: totalPayments.toFixed(2),
+      outstanding: (totalClaims - totalPayments).toFixed(2),
+      is_active: e.is_active,
+      user_status: e.users[0]?.status ?? null,
+    };
+  });
 
   return NextResponse.json({ data, error: null, meta: { count: data.length } });
 }

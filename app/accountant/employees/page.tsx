@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
@@ -16,6 +17,10 @@ interface EmployeeRow {
   firm_name: string;
   firm_id: string;
   claims_count: number;
+  approved_claims_count: number;
+  total_claims: string;
+  total_payments: string;
+  outstanding: string;
   is_active: boolean;
   user_status: string | null;
 }
@@ -556,6 +561,7 @@ export default function PeoplePage() {
                       <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
                       <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('firm_name')}>Firm{empSortIndicator('firm_name')}</th>
                       <th className="px-6 py-2.5 text-right cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
+                      <th className="px-6 py-2.5 text-right cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
                       <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
                       <th className="px-6 py-2.5">Actions</th>
                     </tr>
@@ -568,6 +574,15 @@ export default function PeoplePage() {
                         <td className="px-6 py-3 text-[#434654]">{emp.email ?? '—'}</td>
                         <td className="px-6 py-3 text-[#434654]">{emp.firm_name}</td>
                         <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{emp.claims_count}</td>
+                        <td className="px-6 py-3 text-right tabular-nums">
+                          {Number(emp.outstanding) > 0 ? (
+                            <Link href={`/accountant/employees/${emp.id}/claims-account`} className="text-red-600 font-semibold hover:underline">
+                              RM {Number(emp.outstanding).toLocaleString('en-MY', { minimumFractionDigits: 2 })}
+                            </Link>
+                          ) : (
+                            <span className="text-[#8E9196]">—</span>
+                          )}
+                        </td>
                         <td className="px-6 py-3">
                           {emp.user_status === 'pending_onboarding' ? (
                             <span className="badge-amber">Pending</span>

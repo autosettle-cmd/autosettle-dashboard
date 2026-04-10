@@ -136,6 +136,7 @@ export async function autoMatchTransactions(
       if (Math.abs(Number(p.amount) - txnAmount) > 0.01) return false;
 
       // Check supplier name and aliases
+      if (!p.supplier) return false; // Skip employee payments for name matching
       const names = [p.supplier.name, ...p.supplier.aliases.map((a) => a.alias)];
       return names.some((name) => {
         const n = name.toLowerCase();

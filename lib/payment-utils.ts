@@ -1,5 +1,28 @@
 import { prisma } from './prisma';
 
+export async function recalcClaimPayment(claimId: string) {
+  const result = await prisma.paymentReceipt.aggregate({
+    where: { claim_id: claimId },
+    _sum: { amount: true },
+  });
+  const totalPaid = Number(result._sum.amount ?? 0);
+  const claim = await prisma.claim.findUnique({
+    where: { id: claimId },
+    select: { amount: true },
+  });
+  if (!claim) return;
+
+  const total = Number(claim.amount);
+  let paymentStatus: 'unpaid' | 'partially_paid' | 'paid' = 'unpaid';
+  if (totalPaid >= total) paymentStatus = 'paid';
+  else if (totalPaid > 0) paymentStatus = 'partially_paid';
+
+  await prisma.claim.update({
+    where: { id: claimId },
+    data: { amount_paid: totalPaid, payment_status: paymentStatus },
+  });
+}
+
 export async function recalcInvoicePayment(invoiceId: string) {
   const result = await prisma.paymentAllocation.aggregate({
     where: { invoice_id: invoiceId },

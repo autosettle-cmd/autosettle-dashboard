@@ -178,9 +178,35 @@ export default function JournalEntriesPage() {
         <header className="flex-shrink-0 bg-white">
           <div className="h-16 flex items-center justify-between px-6">
             <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Journal Entries</h1>
-            <p className="text-[#8E9196] text-xs">
-              {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
+            <div className="flex items-center gap-3">
+              {firmFilter && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/journal-entries/cleanup-orphans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firmId: firmFilter, dryRun: true }) });
+                      if (!res.ok) { alert('Failed: ' + res.status); return; }
+                      const json = await res.json();
+                      const count = json.data?.orphans?.length ?? 0;
+                      if (count === 0) { alert('No orphaned JVs found.'); return; }
+                      const list = json.data.orphans.map((o: { voucher: string; reason: string }) => `${o.voucher}: ${o.reason}`).join('\n');
+                      if (confirm(`Found ${count} orphaned JVs:\n\n${list}\n\nReverse them all?`)) {
+                        const res2 = await fetch('/api/journal-entries/cleanup-orphans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firmId: firmFilter, dryRun: false }) });
+                        if (!res2.ok) { alert('Reversal failed: ' + res2.status); return; }
+                        const json2 = await res2.json();
+                        alert(json2.data?.message || 'Done');
+                        setRefreshKey(k => k + 1);
+                      }
+                    } catch (err) { alert('Error: ' + (err instanceof Error ? err.message : 'Unknown')); }
+                  }}
+                  className="text-xs px-4 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                >
+                  Cleanup Orphaned JVs
+                </button>
+              )}
+              <p className="text-[#8E9196] text-xs">
+                {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            </div>
           </div>
         </header>
 

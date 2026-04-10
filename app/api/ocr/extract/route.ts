@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const heicConvert = require("heic-convert");
 import { runOCR, normaliseOCRText } from "@/lib/whatsapp/ocr";
 import {
   extractWithGemini,
@@ -27,8 +29,24 @@ export async function POST(req: NextRequest) {
       ? JSON.parse(categoriesRaw) as string[]
       : [];
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let buffer: Buffer = Buffer.from(await file.arrayBuffer()) as any;
+    const fileName = file.name.toLowerCase();
+    const isPDF = file.type === "application/pdf" || fileName.endsWith(".pdf");
+
+    // Convert HEIC/HEIF to JPEG for OCR compatibility
+    const isHEIC = fileName.endsWith(".heic") || fileName.endsWith(".heif") || file.type === "image/heic" || file.type === "image/heif";
+    if (isHEIC) {
+      console.log('[OCR] Converting HEIC:', { fileName, type: file.type, size: buffer.length });
+      try {
+        const result = await heicConvert({ buffer, format: 'JPEG', quality: 0.9 });
+        buffer = Buffer.from(result);
+        console.log('[OCR] HEIC converted to JPEG, new size:', buffer.length);
+      } catch (err) {
+        console.error('[OCR] HEIC conversion failed:', err);
+        return NextResponse.json({ error: 'Failed to convert HEIC image. Try converting to JPEG first.' }, { status: 400 });
+      }
+    }
 
     if (isPDF) {
       // PDF → send directly to Gemini (native PDF reading)

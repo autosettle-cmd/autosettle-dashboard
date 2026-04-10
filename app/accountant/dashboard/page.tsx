@@ -183,27 +183,55 @@ export default function AccountantDashboard() {
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim, previewInvoice]);
 
-  // Fetch GL accounts when claim preview opens
+  // Fetch GL accounts when claim preview opens + smart suggestion from history
   useEffect(() => {
     if (previewClaim) {
+      let cancelled = false;
       Promise.all([
         fetch(`/api/gl-accounts?firmId=${previewClaim.firm_id}`).then(r => r.json()),
         fetch(`/api/categories?firmId=${previewClaim.firm_id}`).then(r => r.json()),
         fetch(`/api/accounting-settings?firmId=${previewClaim.firm_id}`).then(r => r.json()),
-      ]).then(([glJson, catJson, settingsJson]) => {
+      ]).then(async ([glJson, catJson, settingsJson]) => {
+        if (cancelled) return;
         const accounts = glJson.data ?? [];
         setGlAccounts(accounts);
+
+        let glId = '';
         if (previewClaim.gl_account_id) {
-          setSelectedGlAccountId(previewClaim.gl_account_id);
-        } else {
+          glId = previewClaim.gl_account_id;
+        }
+
+        // Priority: history suggestion first, then category override as fallback
+        if (!glId && previewClaim.category_id) {
+          try {
+            const params = new URLSearchParams({ firmId: previewClaim.firm_id, categoryId: previewClaim.category_id });
+            if (previewClaim.merchant) params.set('merchant', previewClaim.merchant);
+            if (previewClaim.description) params.set('description', previewClaim.description);
+            const suggestRes = await fetch(`/api/gl-accounts/suggest?${params}`);
+            const suggestJson = await suggestRes.json();
+            if (!cancelled && suggestJson.data?.gl_account_id) {
+              glId = suggestJson.data.gl_account_id;
+            }
+          } catch { /* fail silently */ }
+        }
+
+        if (!glId) {
           const catData = catJson.data ?? [];
           const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewClaim.category_id);
-          setSelectedGlAccountId(match?.gl_account_id ?? '');
+          glId = match?.gl_account_id ?? '';
         }
-        const contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
-        setDefaultContraGlId(contraId);
-        setSelectedContraGlId(contraId);
+
+        if (!cancelled) setSelectedGlAccountId(glId);
+        let contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
+        if (!contraId) {
+          const claimsPayable = accounts.find((a: { name: string; account_type: string }) =>
+            a.account_type === 'Liability' && /staff.?claims|claims.?payable/i.test(a.name)
+          );
+          if (claimsPayable) contraId = claimsPayable.id;
+        }
+        if (!cancelled) { setDefaultContraGlId(contraId); setSelectedContraGlId(contraId); }
       }).catch(console.error);
+      return () => { cancelled = true; };
     } else {
       setGlAccounts([]); setSelectedGlAccountId(''); setSelectedContraGlId(''); setDefaultContraGlId('');
     }

@@ -95,9 +95,9 @@ export async function PATCH(request: NextRequest) {
   // ─── Proceed with update ───────────────────────────────────────────────
   const updateData =
     action === 'approve'
-      ? { approval: 'approved' as const, rejection_reason: null as string | null, ...(gl_account_id && { gl_account_id }) }
+      ? { approval: 'approved' as const, status: 'reviewed' as const, rejection_reason: null as string | null, ...(gl_account_id && { gl_account_id }) }
       : action === 'revert'
-      ? { approval: 'pending_approval' as const, rejection_reason: null as string | null }
+      ? { approval: 'pending_approval' as const, rejection_reason: null as string | null, gl_account_id: null as string | null }
       : { approval: 'not_approved' as const, rejection_reason: (reason ?? null) as string | null };
 
   const CHUNK = 20;

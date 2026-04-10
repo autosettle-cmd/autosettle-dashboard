@@ -21,6 +21,7 @@
     "ag-grid-react": "^35.2.0",
     "bcryptjs": "^3.0.3",
     "googleapis": "^171.4.0",
+    "heic-convert": "^2.1.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "next": "14.2.35",

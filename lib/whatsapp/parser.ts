@@ -11,6 +11,7 @@ export function parseGeminiOutput(raw: string): GeminiExtractionResult {
     amount: 0,
     receiptNumber: "",
     category: "",
+    notes: "",
     confidence: "LOW",
   };
 
@@ -47,6 +48,7 @@ export function parseGeminiOutput(raw: string): GeminiExtractionResult {
       amount: Number(parsed.amount),
       receiptNumber: String(parsed.receiptNumber || ""),
       category: String(parsed.category),
+      notes: String(parsed.notes || ""),
       confidence: ["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence)
         ? parsed.confidence
         : "LOW",

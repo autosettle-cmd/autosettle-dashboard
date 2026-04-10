@@ -19,11 +19,16 @@ export async function GET(request: NextRequest) {
   const approval = searchParams.get('approval');
   const search = searchParams.get('search');
   const type = searchParams.get('type');
+  const employeeId = searchParams.get('employeeId');
+  const paymentStatus = searchParams.getAll('paymentStatus');
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { firm_id: firmId };
   if (type && (type === 'claim' || type === 'receipt' || type === 'mileage')) where.type = type;
+  if (employeeId) where.employee_id = employeeId;
+  if (paymentStatus.length === 1) where.payment_status = paymentStatus[0];
+  else if (paymentStatus.length > 1) where.payment_status = { in: paymentStatus };
 
   if (dateFrom || dateTo) {
     where.claim_date = {};
@@ -50,7 +55,7 @@ export async function GET(request: NextRequest) {
         paymentReceipts: {
           include: {
             payment: {
-              select: { id: true, amount: true, payment_date: true, reference: true, supplier: { select: { name: true } } },
+              select: { id: true, amount: true, payment_date: true, reference: true, supplier: { select: { name: true } }, employee: { select: { name: true } } },
             },
           },
         },
@@ -64,6 +69,7 @@ export async function GET(request: NextRequest) {
   const data = claims.map((c) => ({
     id: c.id,
     claim_date: c.claim_date,
+    employee_id: c.employee_id,
     employee_name: c.employee.name,
     merchant: c.merchant,
     description: c.description,
@@ -73,6 +79,7 @@ export async function GET(request: NextRequest) {
     status: c.status,
     approval: c.approval,
     payment_status: c.payment_status,
+    amount_paid: c.amount_paid.toString(),
     rejection_reason: c.rejection_reason,
     receipt_number: c.receipt_number,
     file_url: c.file_url,
@@ -90,7 +97,7 @@ export async function GET(request: NextRequest) {
       amount: pr.payment.amount.toString(),
       payment_date: pr.payment.payment_date,
       reference: pr.payment.reference,
-      supplier_name: pr.payment.supplier.name,
+      supplier_name: pr.payment.supplier?.name ?? pr.payment.employee?.name ?? 'Unknown',
     })),
   }));
 
@@ -105,23 +112,30 @@ export async function POST(request: NextRequest) {
   const firmId = session.user.firm_id;
 
   try {
-    // Find the admin's linked employee record via User.employee_id
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { employee_id: true },
-    });
-    const employee = user?.employee_id
-      ? await prisma.employee.findUnique({ where: { id: user.employee_id } })
-      : await prisma.employee.findFirst({ where: { firm_id: firmId } });
+    const formData = await request.formData();
+    const employeeIdParam = formData.get('employee_id') as string | null;
+
+    // Use provided employee_id, or admin's linked employee, or first employee in firm
+    let employee;
+    if (employeeIdParam) {
+      employee = await prisma.employee.findUnique({ where: { id: employeeIdParam } });
+      if (employee && employee.firm_id !== firmId) employee = null;
+    } else {
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { employee_id: true },
+      });
+      employee = user?.employee_id
+        ? await prisma.employee.findUnique({ where: { id: user.employee_id } })
+        : await prisma.employee.findFirst({ where: { firm_id: firmId } });
+    }
 
     if (!employee) {
       return NextResponse.json(
-        { data: null, error: 'No employee record found for this admin' },
+        { data: null, error: 'No employee record found' },
         { status: 400 }
       );
     }
-
-    const formData = await request.formData();
     const claimType = (formData.get('type') as string | null) || 'claim';
 
     if (claimType === 'mileage') {
@@ -229,15 +243,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload file to Google Drive if present
+    // Upload file to Google Drive if present (convert HEIC to JPEG first)
     let fileUrl: string | null = null;
     let fileDownloadUrl: string | null = null;
     let thumbnailUrl: string | null = null;
 
+    let uploadFile: File = file!;
     if (file) {
+      const fn = file.name.toLowerCase();
+      if (fn.endsWith('.heic') || fn.endsWith('.heif')) {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const heicConvert = require('heic-convert');
+        const buf = Buffer.from(await file.arrayBuffer());
+        const jpegBuf = await heicConvert({ buffer: buf, format: 'JPEG', quality: 0.85 });
+        const jpegName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg');
+        uploadFile = new File([jpegBuf], jpegName, { type: 'image/jpeg' });
+      }
+
       try {
         const firm = await prisma.firm.findUniqueOrThrow({ where: { id: firmId }, select: { name: true } });
-        const uploaded = await uploadFileForFirm(file, firmId, firm.name, 'claims');
+        const uploaded = await uploadFileForFirm(uploadFile, firmId, firm.name, 'claims');
         fileUrl = uploaded.fileUrl;
         fileDownloadUrl = uploaded.downloadUrl;
         thumbnailUrl = uploaded.thumbnailUrl;

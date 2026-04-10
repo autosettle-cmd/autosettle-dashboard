@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { auditLog } from '@/lib/audit';
+import { reverseJVsForSource } from '@/lib/journal-entries';
 
 export async function PATCH(
   request: NextRequest,
@@ -29,10 +30,16 @@ export async function PATCH(
   }
 
   const body = await request.json();
+  // Reverse JV if claim was approved (editing resets approval)
+  if (claim.approval === 'approved') {
+    await reverseJVsForSource('claim_approval', claim.id, session.user.id);
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any = {
     status: 'pending_review',
     approval: 'pending_approval',
+    gl_account_id: null,
   };
   if (body.claim_date !== undefined) data.claim_date = new Date(body.claim_date);
   if (body.merchant !== undefined) data.merchant = body.merchant;
@@ -40,6 +47,7 @@ export async function PATCH(
   if (body.category_id !== undefined) data.category_id = body.category_id;
   if (body.receipt_number !== undefined) data.receipt_number = body.receipt_number || null;
   if (body.description !== undefined) data.description = body.description || null;
+  if (body.employee_id !== undefined) data.employee_id = body.employee_id;
 
   const updated = await prisma.claim.update({
     where: { id },
