@@ -28,6 +28,18 @@ export async function POST(request: NextRequest) {
   // Reverse bank recon JV before unmatching
   const jvResult = await reverseBankReconJV(bankTransactionId, session.user.id);
 
+  // Clean up auto-created Payment if it was created by bank recon matching
+  if (txn.matched_payment_id) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: txn.matched_payment_id },
+      select: { id: true, notes: true },
+    });
+    if (payment?.notes?.startsWith('Auto-matched from receipt')) {
+      await prisma.paymentReceipt.deleteMany({ where: { payment_id: payment.id } });
+      await prisma.payment.delete({ where: { id: payment.id } });
+    }
+  }
+
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
     data: {
