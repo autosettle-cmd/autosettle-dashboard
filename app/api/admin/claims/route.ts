@@ -33,18 +33,22 @@ export async function GET(request: NextRequest) {
   else if (paymentStatus.length > 1) where.payment_status = { in: paymentStatus };
 
   if (dateFrom || dateTo) {
-    where.claim_date = {};
-    if (dateFrom) where.claim_date.gte = new Date(dateFrom);
-    if (dateTo) where.claim_date.lte = new Date(dateTo);
+    // Always include pending_review claims regardless of date range
+    const dateFilter: any = {};
+    if (dateFrom) dateFilter.gte = new Date(dateFrom);
+    if (dateTo) dateFilter.lte = new Date(dateTo);
+    if (!where.AND) where.AND = [];
+    where.AND.push({ OR: [{ claim_date: dateFilter }, { status: 'pending_review' }] });
   }
   if (status && status !== 'all') where.status = status;
   if (approval && approval !== 'all') where.approval = approval;
   if (search) {
-    where.OR = [
+    if (!where.AND) where.AND = [];
+    where.AND.push({ OR: [
       { merchant: { contains: search, mode: 'insensitive' } },
       { employee: { name: { contains: search, mode: 'insensitive' } } },
       { receipt_number: { contains: search, mode: 'insensitive' } },
-    ];
+    ]});
   }
 
   const [claims, totalCount] = await Promise.all([
