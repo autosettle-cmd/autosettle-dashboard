@@ -85,18 +85,27 @@ export default function AccountantBankReconciliationPage() {
     if (statements.length === 0) return;
     // Get unique firm IDs from statements
     const firmIdArr = Array.from(new Set(statements.map((s) => s.firm_id)));
-    const firmId = firmIdArr.length === 1 ? firmIdArr[0] : firmFilter;
-    if (!firmId) return;
+    const targetFirmIds = firmFilter ? [firmFilter] : firmIdArr;
 
-    Promise.all([
-      fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()),
-      fetch(`/api/accounting-settings?firmId=${firmId}`).then((r) => r.json()),
-    ]).then(([glJson, settingsJson]) => {
-      setGlAccounts(glJson.data ?? []);
+    // Load GL accounts + bank mappings for all relevant firms
+    Promise.all(
+      targetFirmIds.map((fid) =>
+        Promise.all([
+          fetch(`/api/gl-accounts?firmId=${fid}`).then((r) => r.json()),
+          fetch(`/api/accounting-settings?firmId=${fid}`).then((r) => r.json()),
+        ])
+      )
+    ).then((results) => {
+      const allGl: typeof glAccounts = [];
       const mappings: Record<string, { gl_account_id: string | null; gl_account_label: string | null }> = {};
-      for (const m of settingsJson.data?.bank_mappings ?? []) {
-        mappings[`${m.bank_name}|${m.account_number}`] = { gl_account_id: m.gl_account_id, gl_account_label: m.gl_account_label };
+      for (const [glJson, settingsJson] of results) {
+        allGl.push(...(glJson.data ?? []));
+        for (const m of settingsJson.data?.bank_mappings ?? []) {
+          mappings[`${m.bank_name}|${m.account_number}`] = { gl_account_id: m.gl_account_id, gl_account_label: m.gl_account_label };
+        }
       }
+      // Deduplicate by id
+      setGlAccounts(Array.from(new Map(allGl.map(a => [a.id, a])).values()).sort((a, b) => a.account_code.localeCompare(b.account_code)));
       setBankGlMap(mappings);
     }).catch(console.error);
   }, [statements.length, firmFilter]);
