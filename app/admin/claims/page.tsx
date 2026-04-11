@@ -1098,7 +1098,7 @@ function AdminClaimsPage() {
           <span className="w-px h-5 bg-white/20" />
           <button
             onClick={() => batchReview(selectedRows.map((r) => r.id))}
-            className="btn-primary text-sm px-4 py-1.5 rounded-lg font-medium"
+            className="btn-approve text-sm px-4 py-1.5 rounded-lg font-medium"
           >
             Mark as Reviewed
           </button>
@@ -1396,7 +1396,7 @@ function AdminClaimsPage() {
                   <button
                     onClick={() => batchReview([previewClaim.id])}
                     disabled={previewClaim.status === 'reviewed'}
-                    className="btn-dark flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="btn-approve flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Mark as Reviewed
                   </button>
