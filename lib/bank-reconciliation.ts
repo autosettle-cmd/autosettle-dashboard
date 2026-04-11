@@ -157,6 +157,12 @@ export async function autoMatchTransactions(
   // ── Pass 4: Match against approved receipts (Claims with type='receipt') ──
   // Receipts don't have Payment records yet — create one when matched
   if (unmatchedBankTxnIds.size > 0) {
+    // Find receipts not already linked to a Payment (check both PaymentReceipt AND Payment notes)
+    const existingPaymentClaimIds = (await prisma.payment.findMany({
+      where: { firm_id: firmId, notes: { contains: '[claim:' } },
+      select: { notes: true },
+    })).map(p => p.notes?.match(/\[claim:([^\]]+)\]/)?.[1]).filter(Boolean) as string[];
+
     const receipts = await prisma.claim.findMany({
       where: {
         firm_id: firmId,
@@ -164,6 +170,7 @@ export async function autoMatchTransactions(
         approval: 'approved',
         payment_status: 'unpaid',
         paymentReceipts: { none: {} },
+        ...(existingPaymentClaimIds.length > 0 && { id: { notIn: existingPaymentClaimIds } }),
       },
       select: {
         id: true, amount: true, claim_date: true, merchant: true, receipt_number: true, employee_id: true,
@@ -189,15 +196,17 @@ export async function autoMatchTransactions(
 
       const txnDate = txn.transaction_date.getTime();
 
-      // Filter: date within ±5 days, not already matched in this run
-      const viable = candidates.filter((r) => {
-        const rDate = r.claim_date.getTime();
-        const daysDiff = Math.abs(txnDate - rDate) / (1000 * 60 * 60 * 24);
-        return daysDiff <= 5;
-      });
+      // Filter: date within ±5 days, pick closest date match
+      const viable = candidates
+        .map((r) => {
+          const daysDiff = Math.abs(txnDate - r.claim_date.getTime()) / (1000 * 60 * 60 * 24);
+          return { receipt: r, daysDiff };
+        })
+        .filter((v) => v.daysDiff <= 5)
+        .sort((a, b) => a.daysDiff - b.daysDiff);
 
-      if (viable.length === 1) {
-        const receipt = viable[0];
+      if (viable.length === 1 || (viable.length > 1 && viable[0].daysDiff < viable[1].daysDiff)) {
+        const receipt = viable[0].receipt;
         // Determine direction from bank transaction
         const direction = txn.credit !== null ? 'incoming' : 'outgoing';
 
