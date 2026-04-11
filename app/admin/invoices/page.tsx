@@ -1279,9 +1279,9 @@ function AdminInvoicesPage() {
             <div className="px-5 py-3 border-t flex-shrink-0">
               <button
                 onClick={() => deleteInvoice(previewInvoice.id)}
-                className="w-full py-2 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+                className="text-xs text-red-400 hover:text-red-600 transition-colors"
               >
-                Delete Invoice
+                Delete
               </button>
             </div>
           </div>

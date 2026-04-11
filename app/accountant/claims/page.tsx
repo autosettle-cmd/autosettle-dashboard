@@ -1811,9 +1811,9 @@ function ClaimsPage() {
               )}
               <button
                 onClick={() => deleteClaims([previewClaim.id])}
-                className="w-full py-2 rounded-lg text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+                className="text-xs text-red-400 hover:text-red-600 transition-colors"
               >
-                Delete Claim
+                Delete
               </button>
             </div>
           </div>
