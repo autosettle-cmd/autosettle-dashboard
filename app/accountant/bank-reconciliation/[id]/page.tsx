@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import HelpTooltip from '@/components/HelpTooltip';
 import { usePageTitle } from '@/lib/use-page-title';
+import { useFirm } from '@/contexts/FirmContext';
 
 interface PaymentAllocation {
   invoice_id: string;
@@ -96,6 +97,7 @@ const STATUS_CFG: Record<string, { label: string; cls: string }> = {
 export default function AccountantReconciliationWorkspacePage() {
   usePageTitle('Bank Reconciliation');
   const { id } = useParams<{ id: string }>();
+  const { firmId: selectedFirmId } = useFirm();
 
   const [statement, setStatement] = useState<StatementDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -175,12 +177,18 @@ export default function AccountantReconciliationWorkspacePage() {
   };
 
   const openMatchModal = async (txn: BankTxn) => {
+    // Require firm selection
+    if (!selectedFirmId) {
+      window.dispatchEvent(new Event('highlight-firm-selector'));
+      return;
+    }
     setMatchingTxn(txn);
     setShowVoucherForm(false);
     setVoucherError('');
     setLoadingCandidates(true);
     const amount = txn.debit ?? txn.credit ?? '';
     const params = new URLSearchParams();
+    params.set('firmId', selectedFirmId);
     if (amount) params.set('amount', amount);
     const res = await fetch(`/api/bank-reconciliation/unreconciled-payments?${params}`);
     const json = await res.json();

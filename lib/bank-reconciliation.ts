@@ -6,11 +6,13 @@ interface MatchResult {
 }
 
 /**
- * Auto-match bank transactions to existing Payment records.
- * Runs 3 passes with decreasing confidence:
+ * Auto-match bank transactions to existing Payment records and approved Receipts.
+ * All matches are firm-scoped — only matches within the same firm.
+ * Runs 4 passes with decreasing confidence:
  *   Pass 1: Reference match (exact ref + amount within ±0.01 + date within ±5 days)
  *   Pass 2: Amount + Date match (exact amount + date within ±3 days, only if 1 candidate)
  *   Pass 3: Supplier name match (description contains supplier name + amount match)
+ *   Pass 4: Receipt match (approved receipts by amount + date, auto-creates Payment bridge)
  */
 export async function autoMatchTransactions(
   firmId: string,
@@ -149,6 +151,80 @@ export async function autoMatchTransactions(
       matched.push({ bankTxnId: txn.id, paymentId: nameMatches[0].id });
       matchedPaymentIds.add(nameMatches[0].id);
       unmatchedBankTxnIds.delete(txn.id);
+    }
+  }
+
+  // ── Pass 4: Match against approved receipts (Claims with type='receipt') ──
+  // Receipts don't have Payment records yet — create one when matched
+  if (unmatchedBankTxnIds.size > 0) {
+    const receipts = await prisma.claim.findMany({
+      where: {
+        firm_id: firmId,
+        type: 'receipt',
+        approval: 'approved',
+        payment_status: 'unpaid',
+        paymentReceipts: { none: {} },
+      },
+      select: {
+        id: true, amount: true, claim_date: true, merchant: true, receipt_number: true, employee_id: true,
+      },
+    });
+
+    // Build receipt lookup by amount
+    const receiptsByAmount = new Map<string, typeof receipts>();
+    for (const r of receipts) {
+      const amtKey = Number(r.amount).toFixed(2);
+      const list = receiptsByAmount.get(amtKey) ?? [];
+      list.push(r);
+      receiptsByAmount.set(amtKey, list);
+    }
+
+    for (const txn of bankTxns) {
+      if (!unmatchedBankTxnIds.has(txn.id)) continue;
+
+      const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
+      const amtKey = txnAmount.toFixed(2);
+      const candidates = receiptsByAmount.get(amtKey);
+      if (!candidates) continue;
+
+      const txnDate = txn.transaction_date.getTime();
+
+      // Filter: date within ±5 days, not already matched in this run
+      const viable = candidates.filter((r) => {
+        const rDate = r.claim_date.getTime();
+        const daysDiff = Math.abs(txnDate - rDate) / (1000 * 60 * 60 * 24);
+        return daysDiff <= 5;
+      });
+
+      if (viable.length === 1) {
+        const receipt = viable[0];
+        // Determine direction from bank transaction
+        const direction = txn.credit !== null ? 'incoming' : 'outgoing';
+
+        // Create Payment record as bridge
+        const payment = await prisma.payment.create({
+          data: {
+            firm_id: firmId,
+            employee_id: receipt.employee_id,
+            amount: receipt.amount,
+            payment_date: txn.transaction_date,
+            reference: receipt.receipt_number,
+            notes: `Auto-matched from receipt: ${receipt.merchant}`,
+            direction: direction as 'incoming' | 'outgoing',
+          },
+        });
+
+        // Link receipt to payment
+        await prisma.paymentReceipt.create({
+          data: { payment_id: payment.id, claim_id: receipt.id, amount: receipt.amount },
+        });
+
+        matched.push({ bankTxnId: txn.id, paymentId: payment.id });
+        unmatchedBankTxnIds.delete(txn.id);
+        // Remove from candidates so it doesn't match again
+        const idx = candidates.indexOf(receipt);
+        if (idx >= 0) candidates.splice(idx, 1);
+      }
     }
   }
 
