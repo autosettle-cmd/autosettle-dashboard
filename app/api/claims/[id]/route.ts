@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
 import { reverseJVsForSource } from '@/lib/journal-entries';
+import { reverseBankReconJV } from '@/lib/bank-recon-jv';
+import { recalcClaimPayment } from '@/lib/payment-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,11 +31,43 @@ export async function PATCH(
   // Reverse JV if claim was approved (editing resets approval)
   if (claim.approval === 'approved') {
     await reverseJVsForSource('claim_approval', claim.id, session.user.id);
+
+    // For receipts: cascade through bank recon → unmatch → unlink
+    if (claim.type === 'receipt') {
+      const paymentReceipts = await prisma.paymentReceipt.findMany({
+        where: { claim_id: id },
+        select: { payment_id: true },
+      });
+      for (const pr of paymentReceipts) {
+        const bankTxn = await prisma.bankTransaction.findFirst({
+          where: { matched_payment_id: pr.payment_id },
+        });
+        if (bankTxn) {
+          if (bankTxn.recon_status === 'manually_matched') {
+            await reverseBankReconJV(bankTxn.id, session.user.id);
+          }
+          await prisma.bankTransaction.update({
+            where: { id: bankTxn.id },
+            data: { matched_payment_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null },
+          });
+        }
+        const payment = await prisma.payment.findUnique({
+          where: { id: pr.payment_id },
+          select: { notes: true },
+        });
+        if (payment?.notes?.startsWith('Auto-matched from receipt')) {
+          await prisma.paymentReceipt.deleteMany({ where: { payment_id: pr.payment_id } });
+          await prisma.payment.delete({ where: { id: pr.payment_id } });
+        }
+      }
+      await prisma.paymentReceipt.deleteMany({ where: { claim_id: id } });
+      await recalcClaimPayment(id);
+    }
   }
 
   const body = await request.json();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = { status: 'reviewed', approval: 'pending_approval', gl_account_id: null };
+  const data: any = { status: 'reviewed', approval: 'pending_approval' };
   if (body.claim_date !== undefined) data.claim_date = new Date(body.claim_date);
   if (body.merchant !== undefined) data.merchant = body.merchant;
   if (body.amount !== undefined) data.amount = body.amount;

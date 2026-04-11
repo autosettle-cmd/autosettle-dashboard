@@ -274,8 +274,7 @@ export default function AccountantBankReconciliationPage() {
     // Need a firm selected — use firmFilter or single firm
     const targetFirmId = firmFilter || (firms.length === 1 ? firms[0].id : '');
     if (!targetFirmId) {
-      setShowUpload(true);
-      alert('Please select a firm first, then drag files again.');
+      window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
       return;
     }
 

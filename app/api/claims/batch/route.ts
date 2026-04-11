@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
 import { createJournalEntry, reverseJVsForSource, findOpenPeriod } from '@/lib/journal-entries';
+import { reverseBankReconJV } from '@/lib/bank-recon-jv';
+import { recalcClaimPayment } from '@/lib/payment-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -159,7 +161,47 @@ export async function PATCH(request: NextRequest) {
   if (action === 'revert') {
     for (const claim of oldClaims) {
       if (claim.approval !== 'approved') continue;
+
+      // Reverse claim approval JVs (for claims/mileage)
       await reverseJVsForSource('claim_approval', claim.id, session.user.id);
+
+      // For receipts: cascade through bank recon → unmatch → unlink
+      if (claim.type === 'receipt') {
+        const paymentReceipts = await prisma.paymentReceipt.findMany({
+          where: { claim_id: claim.id },
+          select: { payment_id: true },
+        });
+
+        for (const pr of paymentReceipts) {
+          // Find and unmatch bank transaction
+          const bankTxn = await prisma.bankTransaction.findFirst({
+            where: { matched_payment_id: pr.payment_id },
+          });
+          if (bankTxn) {
+            if (bankTxn.recon_status === 'manually_matched') {
+              await reverseBankReconJV(bankTxn.id, session.user.id);
+            }
+            await prisma.bankTransaction.update({
+              where: { id: bankTxn.id },
+              data: { matched_payment_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null },
+            });
+          }
+
+          // Delete auto-created payment
+          const payment = await prisma.payment.findUnique({
+            where: { id: pr.payment_id },
+            select: { notes: true },
+          });
+          if (payment?.notes?.startsWith('Auto-matched from receipt')) {
+            await prisma.paymentReceipt.deleteMany({ where: { payment_id: pr.payment_id } });
+            await prisma.payment.delete({ where: { id: pr.payment_id } });
+          }
+        }
+
+        // Delete remaining PaymentReceipt links and recalc
+        await prisma.paymentReceipt.deleteMany({ where: { claim_id: claim.id } });
+        await recalcClaimPayment(claim.id);
+      }
     }
   }
 

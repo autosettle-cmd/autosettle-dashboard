@@ -477,7 +477,7 @@ Return format:
   "transactions": [
     {
       "date": "2023-11-29",
-      "description": "TRANSFER FR A/C WONG BAO YING Sachet design MBB CT",
+      "description": "TRANSFER FR A/C | WONG BAO YING | Sachet design | MBB CT",
       "debit": 55.00,
       "credit": null,
       "balance": 55.00,
@@ -491,10 +491,11 @@ Rules:
 - debit/credit: use null if not applicable, number if applicable
 - balance: the running balance after this transaction
 - reference: transaction reference number if visible, null otherwise
-- description: combine all description lines for each transaction
+- description: ONLY include the actual transaction description lines (payee name, transfer details, payment method). Join multiple lines with " | ". NEVER include page headers, footers, bank disclaimers, addresses, marketing text, page numbers, or boilerplate text.
 - Negative amounts or amounts with "-" suffix are DEBITS
 - Positive amounts or amounts with "+" suffix are CREDITS
-- BEGINNING BALANCE, ENDING BALANCE, TOTAL DEBIT, TOTAL CREDIT are metadata, NOT transactions`;
+- BEGINNING BALANCE, ENDING BALANCE, TOTAL DEBIT, TOTAL CREDIT are metadata, NOT transactions
+- If the same text appears across multiple pages (headers, footers, account info), it is NOT a transaction`;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -505,7 +506,7 @@ Rules:
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: fullText }] }],
       systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 16384 },
     }),
   });
 
@@ -555,7 +556,19 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     const fullText = data.text;
     const bank = detectBank(fullText);
 
-    // Try regex parser first (fast, free)
+    // Primary: use Gemini text extraction (reliable, works for any bank)
+    try {
+      console.log(`[BankParser] Using Gemini text extraction for ${bank} statement`);
+      const geminiResult = await extractWithGeminiBankStatement(fullText);
+      if (geminiResult.transactions.length > 0) {
+        return { ...geminiResult, fileHash };
+      }
+      console.log(`[BankParser] Gemini returned 0 transactions — falling back to regex`);
+    } catch (geminiErr) {
+      console.error('[BankParser] Gemini extraction failed, falling back to regex:', geminiErr);
+    }
+
+    // Fallback: regex parser (free, offline-safe)
     let regexResult: Omit<ParseResult, 'fileHash'> | null = null;
     if (bank === 'Maybank') {
       regexResult = parseMaybank(fullText);
@@ -564,36 +577,21 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     }
 
     if (regexResult && regexResult.transactions.length > 0) {
-      return { ...regexResult, fileHash };
+      return { ...regexResult, fileHash, usedGeminiFallback: false };
     }
 
-    // Fallback: use Gemini to extract transactions
-    console.log(`[BankParser] Regex found 0 transactions for ${bank} — falling back to Gemini`);
-    try {
-      const geminiResult = await extractWithGeminiBankStatement(fullText);
-      if (geminiResult.transactions.length > 0) {
-        return { ...geminiResult, fileHash, usedGeminiFallback: true };
-      }
-      return {
-        ...geminiResult,
-        fileHash,
-        errors: ['No transactions found by regex or Gemini extraction'],
-      };
-    } catch (geminiErr) {
-      console.error('[BankParser] Gemini fallback failed:', geminiErr);
-      return {
-        transactions: [],
-        bankName: bank,
-        accountNumber: null,
-        statementDate: null,
-        openingBalance: null,
-        closingBalance: null,
-        totalCredit: null,
-        totalDebit: null,
-        fileHash,
-        errors: [`Regex parser found 0 transactions and Gemini fallback failed: ${geminiErr instanceof Error ? geminiErr.message : String(geminiErr)}`],
-      };
-    }
+    return {
+      transactions: [],
+      bankName: bank,
+      accountNumber: null,
+      statementDate: null,
+      openingBalance: null,
+      closingBalance: null,
+      totalCredit: null,
+      totalDebit: null,
+      fileHash,
+      errors: ['No transactions found by Gemini or regex extraction'],
+    };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const isPasswordError = /password|encrypted|decrypt/i.test(msg);

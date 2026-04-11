@@ -115,6 +115,27 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 403 });
   }
 
+  // Block deletion if GL account is referenced by any records
+  const [jvLines, children, claims, invoices] = await Promise.all([
+    prisma.journalLine.count({ where: { gl_account_id: id } }),
+    prisma.gLAccount.count({ where: { parent_id: id } }),
+    prisma.claim.count({ where: { OR: [{ gl_account_id: id }, { contra_gl_account_id: id }] } }),
+    prisma.invoice.count({ where: { gl_account_id: id } }),
+  ]);
+
+  const refs: string[] = [];
+  if (jvLines > 0) refs.push(`${jvLines} journal entries`);
+  if (children > 0) refs.push(`${children} child accounts`);
+  if (claims > 0) refs.push(`${claims} claims`);
+  if (invoices > 0) refs.push(`${invoices} invoices`);
+
+  if (refs.length > 0) {
+    return NextResponse.json({
+      data: null,
+      error: `Cannot delete — this account is referenced by ${refs.join(', ')}. Deactivate instead.`,
+    }, { status: 400 });
+  }
+
   await prisma.gLAccount.delete({ where: { id } });
 
   await auditLog({
