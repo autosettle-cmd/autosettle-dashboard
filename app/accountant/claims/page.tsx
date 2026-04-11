@@ -1708,7 +1708,7 @@ function ClaimsPage() {
             {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
               <div className="px-5 pb-2 space-y-2">
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">{previewClaim.type === 'receipt' ? 'GL Account' : 'Expense GL (Debit)'}</label>
+                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
                   {previewClaim.approval === 'approved' ? (
                     <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1729,8 +1729,6 @@ function ClaimsPage() {
                     />
                   )}
                 </div>
-                {/* Contra GL only for claims/mileage — receipts get their JV at bank recon */}
-                {previewClaim.type !== 'receipt' && (
                 <div>
                   <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
                   {previewClaim.approval === 'approved' ? (
@@ -1754,7 +1752,6 @@ function ClaimsPage() {
                     />
                   )}
                 </div>
-                )}
               </div>
             )}
 
