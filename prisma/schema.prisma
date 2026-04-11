@@ -270,7 +270,8 @@ model Claim {
   to_location      String?
   distance_km      Decimal?       @db.Decimal(8, 2)
   trip_purpose     String?
-  gl_account_id    String?
+  gl_account_id          String?
+  contra_gl_account_id   String?
   tax_amount       Decimal?       @db.Decimal(10, 2)
   tax_rate         Decimal?       @db.Decimal(5, 2)
   tax_code_id      String?
@@ -280,7 +281,8 @@ model Claim {
   firm     Firm     @relation(fields: [firm_id], references: [id])
   employee Employee @relation(fields: [employee_id], references: [id])
   category Category @relation(fields: [category_id], references: [id])
-  glAccount  GLAccount? @relation(fields: [gl_account_id], references: [id])
+  glAccount      GLAccount? @relation("ClaimExpenseGL", fields: [gl_account_id], references: [id])
+  contraGlAccount GLAccount? @relation("ClaimContraGL", fields: [contra_gl_account_id], references: [id])
   taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id])
   paymentReceipts PaymentReceipt[]
 
@@ -663,7 +665,8 @@ model GLAccount {
   parent   GLAccount? @relation("GLAccountHierarchy", fields: [parent_id], references: [id])
   children GLAccount[] @relation("GLAccountHierarchy")
 
-  claims                Claim[]
+  claims                Claim[]  @relation("ClaimExpenseGL")
+  claimsContra          Claim[]  @relation("ClaimContraGL")
   invoices              Invoice[]
   salesInvoices         SalesInvoice[]
   categoryFirmOverrides CategoryFirmOverride[]

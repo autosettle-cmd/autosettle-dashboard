@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest) {
     where: { id: { in: claimIds }, ...scope },
     select: {
       id: true, firm_id: true, approval: true, rejection_reason: true,
-      amount: true, claim_date: true, gl_account_id: true, merchant: true,
+      amount: true, claim_date: true, gl_account_id: true, contra_gl_account_id: true, merchant: true,
       category: { select: { name: true } },
     },
   });
@@ -48,19 +48,18 @@ export async function PATCH(request: NextRequest) {
   if (action === 'approve') {
     const errors: string[] = [];
 
-    // Check firm GL defaults (skip if contra_gl_account_id provided)
+    // Check firm GL defaults (skip if contra_gl_account_id provided or claim has stored contra)
     const firmDefaultsMap = new Map<string, string | null>();
-    if (!contra_gl_account_id) {
-      for (const claim of oldClaims) {
-        if (!firmDefaultsMap.has(claim.firm_id)) {
-          const firm = await prisma.firm.findUnique({
-            where: { id: claim.firm_id },
-            select: { default_staff_claims_gl_id: true, name: true },
-          });
-          firmDefaultsMap.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
-          if (!firm?.default_staff_claims_gl_id) {
-            errors.push(`Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
-          }
+    for (const claim of oldClaims) {
+      if (contra_gl_account_id || claim.contra_gl_account_id) continue;
+      if (!firmDefaultsMap.has(claim.firm_id)) {
+        const firm = await prisma.firm.findUnique({
+          where: { id: claim.firm_id },
+          select: { default_staff_claims_gl_id: true, name: true },
+        });
+        firmDefaultsMap.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
+        if (!firm?.default_staff_claims_gl_id) {
+          errors.push(`Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
         }
       }
     }
@@ -97,7 +96,7 @@ export async function PATCH(request: NextRequest) {
   // ─── Proceed with update ───────────────────────────────────────────────
   const updateData =
     action === 'approve'
-      ? { approval: 'approved' as const, status: 'reviewed' as const, rejection_reason: null as string | null, ...(gl_account_id && { gl_account_id }) }
+      ? { approval: 'approved' as const, status: 'reviewed' as const, rejection_reason: null as string | null, ...(gl_account_id && { gl_account_id }), ...(contra_gl_account_id && { contra_gl_account_id }) }
       : action === 'revert'
       ? { approval: 'pending_approval' as const, rejection_reason: null as string | null }
       : { approval: 'not_approved' as const, rejection_reason: (reason ?? null) as string | null };
@@ -132,7 +131,7 @@ export async function PATCH(request: NextRequest) {
 
     for (const claim of oldClaims) {
       const expenseGlId = gl_account_id || claim.gl_account_id;
-      const contraGlId = contra_gl_account_id || firmDefaults.get(claim.firm_id);
+      const contraGlId = contra_gl_account_id || claim.contra_gl_account_id || firmDefaults.get(claim.firm_id);
       // Already validated above — safe to create
       await createJournalEntry({
         firmId: claim.firm_id,

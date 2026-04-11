@@ -39,6 +39,7 @@ interface ClaimRow {
   trip_purpose?: string | null;
   gl_account_id: string | null;
   gl_account_label: string | null;
+  contra_gl_account_id: string | null;
   linked_payment_count: number;
   linked_payments: { payment_id: string; amount: string; payment_date: string; reference: string | null; supplier_name: string }[];
 }
@@ -643,7 +644,8 @@ function ClaimsPage() {
 
           if (!cancelled) {
             setDefaultContraGlId(contraId);
-            setSelectedContraGlId(contraId);
+            // Use claim's stored contra GL if available, otherwise fall back to firm default
+            setSelectedContraGlId(previewClaim.contra_gl_account_id || contraId);
           }
         })
         .catch(console.error);

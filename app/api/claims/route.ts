@@ -99,6 +99,7 @@ export async function GET(request: NextRequest) {
     type: c.type,
     gl_account_id: c.gl_account_id,
     gl_account_label: c.glAccount ? `${c.glAccount.account_code} — ${c.glAccount.name}` : null,
+    contra_gl_account_id: c.contra_gl_account_id,
     from_location: c.from_location,
     to_location: c.to_location,
     distance_km: c.distance_km?.toString() ?? null,
