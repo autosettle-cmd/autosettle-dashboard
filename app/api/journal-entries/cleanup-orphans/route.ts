@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
+import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { reverseJVsForSource } from '@/lib/journal-entries';
 
 export async function POST(request: NextRequest) {

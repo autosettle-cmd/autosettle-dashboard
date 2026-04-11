@@ -2,7 +2,6 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
@@ -92,7 +91,6 @@ export default function EmployeeDashboard() {
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [dragOver, setDragOver] = useState(false);
-  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [modalDate, setModalDate] = useState('');
   const [modalMerchant, setModalMerchant] = useState('');

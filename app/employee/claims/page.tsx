@@ -148,7 +148,7 @@ export default function EmployeeClaimsPage() {
   }
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
-  const [batchScanning, setBatchScanning] = useState(false);
+
   const [batchSubmitting, setBatchSubmitting] = useState(false);
 
   // Mileage-specific fields

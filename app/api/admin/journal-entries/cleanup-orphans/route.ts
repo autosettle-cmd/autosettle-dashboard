@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
     if (!jv.source_id) continue;
     const claim = claimMap.get(jv.source_id);
     if (!claim) {
-      orphans.push({ jv_id: jv.id, voucher: jv.voucher_number, description: jv.description, reason: 'Claim deleted' });
+      orphans.push({ jv_id: jv.id, voucher: jv.voucher_number, description: jv.description ?? '', reason: 'Claim deleted' });
     } else if (claim.approval !== 'approved') {
-      orphans.push({ jv_id: jv.id, voucher: jv.voucher_number, description: jv.description, reason: `Claim status: ${claim.approval}` });
+      orphans.push({ jv_id: jv.id, voucher: jv.voucher_number, description: jv.description ?? '', reason: `Claim status: ${claim.approval}` });
     }
   }
 
