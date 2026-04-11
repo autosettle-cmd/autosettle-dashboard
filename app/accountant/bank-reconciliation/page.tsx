@@ -83,31 +83,30 @@ export default function AccountantBankReconciliationPage() {
   // Load GL accounts + bank mappings when statements change
   useEffect(() => {
     if (statements.length === 0) return;
-    // Get unique firm IDs from statements
     const firmIdArr = Array.from(new Set(statements.map((s) => s.firm_id)));
-    const targetFirmIds = firmFilter ? [firmFilter] : firmIdArr;
+    const firmId = firmFilter || (firmIdArr.length === 1 ? firmIdArr[0] : '');
 
-    // Load GL accounts + bank mappings for all relevant firms
+    // Load bank mappings for all firms (display only)
     Promise.all(
-      targetFirmIds.map((fid) =>
-        Promise.all([
-          fetch(`/api/gl-accounts?firmId=${fid}`).then((r) => r.json()),
-          fetch(`/api/accounting-settings?firmId=${fid}`).then((r) => r.json()),
-        ])
-      )
+      firmIdArr.map((fid) => fetch(`/api/accounting-settings?firmId=${fid}`).then((r) => r.json()))
     ).then((results) => {
-      const allGl: typeof glAccounts = [];
       const mappings: Record<string, { gl_account_id: string | null; gl_account_label: string | null }> = {};
-      for (const [glJson, settingsJson] of results) {
-        allGl.push(...(glJson.data ?? []));
+      for (const settingsJson of results) {
         for (const m of settingsJson.data?.bank_mappings ?? []) {
           mappings[`${m.bank_name}|${m.account_number}`] = { gl_account_id: m.gl_account_id, gl_account_label: m.gl_account_label };
         }
       }
-      // Deduplicate by id
-      setGlAccounts(Array.from(new Map(allGl.map(a => [a.id, a])).values()).sort((a, b) => a.account_code.localeCompare(b.account_code)));
       setBankGlMap(mappings);
     }).catch(console.error);
+
+    // GL accounts only load when a specific firm is selected
+    if (firmId) {
+      fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()).then((j) => {
+        setGlAccounts(j.data ?? []);
+      }).catch(console.error);
+    } else {
+      setGlAccounts([]);
+    }
   }, [statements.length, firmFilter]);
 
   // GL change confirmation modal
@@ -484,6 +483,22 @@ export default function AccountantBankReconciliationPage() {
                           const groupFirmId = statements.find((s) => s.bank_name === group.bank && (s.account_number ?? '') === (group.account === '-' ? '' : group.account))?.firm_id ?? '';
 
                           if (isEditing) {
+                            // Show warning if no firm selected (All Firms mode)
+                            if (glAccounts.length === 0) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
+                                    Select a firm first &uarr;
+                                  </span>
+                                  <button
+                                    onClick={() => setGlEditKey(null)}
+                                    className="text-xs px-2 py-1 rounded font-medium text-[#434654] border border-gray-200 hover:bg-gray-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              );
+                            }
                             return (
                               <div className="flex items-center gap-1.5">
                                 <div className="min-w-[220px]">
