@@ -101,6 +101,17 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
   const [firmName, setFirmName] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [firmHighlight, setFirmHighlight] = useState(false);
+
+  // Listen for highlight-firm-selector events from other pages
+  useEffect(() => {
+    const handler = () => {
+      setFirmHighlight(true);
+      setTimeout(() => setFirmHighlight(false), 3000);
+    };
+    window.addEventListener('highlight-firm-selector', handler);
+    return () => window.removeEventListener('highlight-firm-selector', handler);
+  }, []);
 
   // Check if an href (possibly with query params) matches the current URL
   const isActive = (href: string) => {
@@ -187,17 +198,24 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
 
       {/* Firm selector for multi-firm accountants */}
       {role === 'accountant' && firms.length > 1 && (
-        <div className="px-3 pt-3">
+        <div className={`px-3 pt-3 transition-all duration-300 ${firmHighlight ? 'animate-pulse' : ''}`}>
           <select
             value={firmId}
             onChange={(e) => setFirmId(e.target.value)}
-            className="w-full text-[12px] px-2.5 py-1.5 rounded-lg bg-white/10 text-white border border-white/10 focus:border-white/30 focus:outline-none appearance-none cursor-pointer"
+            className={`w-full text-[12px] px-2.5 py-1.5 rounded-lg text-white focus:outline-none appearance-none cursor-pointer transition-all duration-300 ${
+              firmHighlight
+                ? 'bg-red-500/30 border-2 border-red-400 ring-2 ring-red-400/50'
+                : 'bg-white/10 border border-white/10 focus:border-white/30'
+            }`}
           >
             <option value="" className="text-[#191C1E]">All Firms</option>
             {firms.map((f) => (
               <option key={f.id} value={f.id} className="text-[#191C1E]">{f.name}</option>
             ))}
           </select>
+          {firmHighlight && (
+            <p className="text-[10px] text-red-300 mt-1 text-center font-medium">Select a firm first</p>
+          )}
         </div>
       )}
 

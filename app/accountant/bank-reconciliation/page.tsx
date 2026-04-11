@@ -483,22 +483,6 @@ export default function AccountantBankReconciliationPage() {
                           const groupFirmId = statements.find((s) => s.bank_name === group.bank && (s.account_number ?? '') === (group.account === '-' ? '' : group.account))?.firm_id ?? '';
 
                           if (isEditing) {
-                            // Show warning if no firm selected (All Firms mode)
-                            if (glAccounts.length === 0) {
-                              return (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2.5 py-1.5">
-                                    Select a firm first &uarr;
-                                  </span>
-                                  <button
-                                    onClick={() => setGlEditKey(null)}
-                                    className="text-xs px-2 py-1 rounded font-medium text-[#434654] border border-gray-200 hover:bg-gray-50"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              );
-                            }
                             return (
                               <div className="flex items-center gap-1.5">
                                 <div className="min-w-[220px]">
@@ -532,7 +516,13 @@ export default function AccountantBankReconciliationPage() {
 
                           return (
                             <button
-                              onClick={() => { setGlEditKey(key); setGlEditValue(glMapping?.gl_account_id ?? ''); }}
+                              onClick={() => {
+                                if (glAccounts.length === 0) {
+                                  window.dispatchEvent(new Event('highlight-firm-selector'));
+                                  return;
+                                }
+                                setGlEditKey(key); setGlEditValue(glMapping?.gl_account_id ?? '');
+                              }}
                               className={`text-label-sm font-medium px-2.5 py-1 rounded transition-colors ${
                                 glMapping?.gl_account_id
                                   ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
