@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
     if (!jv.source_id) continue;
     const claim = claimMap.get(jv.source_id);
     if (!claim) {
-      orphans.push({ voucher: jv.voucher_number, description: jv.description, reason: 'Claim deleted' });
+      orphans.push({ voucher: jv.voucher_number, description: jv.description ?? '', reason: 'Claim deleted' });
       orphanSourceIds.push(jv.source_id);
     } else if (claim.approval !== 'approved') {
-      orphans.push({ voucher: jv.voucher_number, description: jv.description, reason: `Claim: ${claim.approval}` });
+      orphans.push({ voucher: jv.voucher_number, description: jv.description ?? '', reason: `Claim: ${claim.approval}` });
       orphanSourceIds.push(jv.source_id);
     }
   }
