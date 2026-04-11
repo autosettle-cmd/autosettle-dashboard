@@ -472,13 +472,13 @@ function AdminClaimsPage() {
   // Read initial filters from URL query params (e.g. ?status=pending_review)
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get('status') ?? '';
-  const initialType = searchParams.get('type');
-
-  // Set initial tab from URL
+  // Sync claimTab with URL ?type= param (reacts to sidebar navigation)
+  const urlType = searchParams.get('type');
   useEffect(() => {
-    if (initialType === 'receipt') setClaimTab('receipt');
-    if (initialType === 'mileage') setClaimTab('mileage');
-  }, [initialType]);
+    if (urlType === 'receipt') setClaimTab('receipt');
+    else if (urlType === 'mileage') setClaimTab('mileage');
+    else setClaimTab('claim');
+  }, [urlType]);
 
   // Filters
   const [dateRange,     setDateRange]    = useState(initialStatus ? '' : 'this_month');

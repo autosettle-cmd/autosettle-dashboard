@@ -524,12 +524,14 @@ function ClaimsPage() {
     }
   }, [showModal, modalFirmId]);
 
-  // Read initial type from URL
+  // Sync claimTab with URL ?type= param (reacts to sidebar navigation)
   const searchParams = useSearchParams();
-  const initialType = searchParams.get('type');
+  const urlType = searchParams.get('type');
   useEffect(() => {
-    if (initialType === 'receipt') setClaimTab('receipt');
-  }, [initialType]);
+    if (urlType === 'receipt') setClaimTab('receipt');
+    else if (urlType === 'mileage') setClaimTab('mileage');
+    else setClaimTab('claim');
+  }, [urlType]);
 
   // Filters
   const [dateRange,      setDateRange]     = useState('this_month');
