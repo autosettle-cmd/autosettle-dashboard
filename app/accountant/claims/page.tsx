@@ -503,7 +503,11 @@ function ClaimsPage() {
         .then((j) => {
           const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
           setModalEmployees(emps);
-          setModalEmployeeId(emps.length === 1 ? emps[0].id : '');
+          // Auto-select: first employee for receipts, only employee if just one
+          setModalEmployeeId(
+            (modalType === 'receipt' && emps.length > 0) ? emps[0].id :
+            emps.length === 1 ? emps[0].id : ''
+          );
         })
         .catch(console.error);
     } else {
@@ -796,8 +800,12 @@ function ClaimsPage() {
     setMileagePurpose('');
     setModalError('');
     setModalSaving(false);
+    // Auto-select first employee for receipts (company transactions, not personal claims)
+    if (claimTab === 'receipt' && modalEmployees.length > 0) {
+      setModalEmployeeId(modalEmployees[0].id);
+    }
     setShowModal(true);
-  }, [claimTab, firmId, firms]);
+  }, [claimTab, firmId, firms, modalEmployees]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -1261,7 +1269,7 @@ function ClaimsPage() {
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </div>
-              {modalEmployees.length > 0 && (
+              {modalEmployees.length > 0 && modalType !== 'receipt' && (
                 <div>
                   <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Employee *</label>
                   <select

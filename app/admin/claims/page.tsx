@@ -579,8 +579,12 @@ function AdminClaimsPage() {
     setMileagePurpose('');
     setModalError('');
     setModalSaving(false);
+    // Auto-select first employee for receipts (company transactions, not personal claims)
+    if (claimTab === 'receipt' && modalEmployees.length > 0) {
+      setModalEmployeeId(modalEmployees[0].id);
+    }
     setShowModal(true);
-  }, [claimTab, modalCategories]);
+  }, [claimTab, modalCategories, modalEmployees]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -952,7 +956,7 @@ function AdminClaimsPage() {
             )}
 
             <div className="space-y-3">
-              {modalEmployees.length > 0 && (
+              {modalEmployees.length > 0 && modalType !== 'receipt' && (
                 <div>
                   <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Employee *</label>
                   <select value={modalEmployeeId} onChange={(e) => setModalEmployeeId(e.target.value)} className="input-field w-full">
