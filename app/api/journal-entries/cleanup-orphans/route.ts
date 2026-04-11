@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
   }
 
   let reversed = 0;
-  for (const sid of [...new Set(orphanSourceIds)]) {
+  for (const sid of Array.from(new Set(orphanSourceIds))) {
     await reverseJVsForSource('claim_approval', sid, session.user.id);
     reversed++;
   }
