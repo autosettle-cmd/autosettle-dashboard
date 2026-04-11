@@ -15,10 +15,10 @@ const ADMIN_NAV = [
   { label: 'Claims', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
     children: [
       { label: 'Expense Claims', href: '/admin/claims?type=claim', countKey: 'claimPending' },
-      { label: 'Receipts',       href: '/admin/claims?type=receipt', countKey: 'receiptPending' },
       { label: 'Mileage',        href: '/admin/claims?type=mileage', countKey: 'mileagePending' },
     ],
   },
+  { label: 'Receipts',        href: '/admin/claims?type=receipt',  icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z', countKey: 'receiptPending' },
   { label: 'Invoices', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
     children: [
       { label: 'Received',  href: '/admin/invoices?tab=received', countKey: 'receivedPending' },
@@ -40,10 +40,10 @@ const ACCOUNTANT_NAV = [
   { label: 'Claims', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
     children: [
       { label: 'Expense Claims', href: '/accountant/claims?type=claim', countKey: 'claimPending' },
-      { label: 'Receipts',       href: '/accountant/claims?type=receipt', countKey: 'receiptPending' },
       { label: 'Mileage',        href: '/accountant/claims?type=mileage', countKey: 'mileagePending' },
     ],
   },
+  { label: 'Receipts',        href: '/accountant/claims?type=receipt',  icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z', countKey: 'receiptPending' },
   { label: 'Invoices', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
     children: [
       { label: 'Received',  href: '/accountant/invoices?tab=received', countKey: 'receivedPending' },
@@ -127,7 +127,14 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
   };
 
   const isChildActive = (href: string) => {
-    const [path] = href.split('?');
+    const [path, query] = href.split('?');
+    if (query) {
+      if (pathname !== path) return false;
+      const params = new URLSearchParams(query);
+      let match = true;
+      params.forEach((v, k) => { if (searchParams.get(k) !== v) match = false; });
+      return match;
+    }
     return pathname === path || pathname.startsWith(path);
   };
 
