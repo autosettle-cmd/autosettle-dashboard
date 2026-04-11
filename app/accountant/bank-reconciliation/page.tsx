@@ -447,7 +447,7 @@ export default function AccountantBankReconciliationPage() {
                 const latestBalance = group.statements[0]?.closing_balance;
                 const totalUnmatched = group.statements.reduce((s, st) => s + st.unmatched, 0);
                 return (
-                  <div key={key} className={`bg-white rounded-lg border overflow-hidden ${needsAttention ? 'border-amber-200' : 'border-gray-100'}`}>
+                  <div key={key} className={`bg-white rounded-lg border ${needsAttention ? 'border-amber-200' : 'border-gray-100'}`}>
                     {/* Account header */}
                     <div className={`flex items-center justify-between px-6 py-3.5 cursor-pointer transition-colors ${isOpen ? 'bg-gray-50' : 'hover:bg-gray-50/50'}`}
                       onClick={() => setExpandedAccount(isOpen ? null : key)}>
