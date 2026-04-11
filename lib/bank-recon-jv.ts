@@ -34,26 +34,33 @@ export async function validateBankReconJV(
     return `Bank account "${txn.bankStatement.bank_name} ${txn.bankStatement.account_number ?? ''}" has no GL account mapped. Go to Chart of Accounts → Bank Account GL to configure it.`;
   }
 
-  // Check if this is an employee claim payment
+  // Check if this is an employee claim payment with explicit receipt GL
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    select: { employee_id: true },
+    select: {
+      employee_id: true,
+      receipts: { select: { claim: { select: { gl_account_id: true, contra_gl_account_id: true } } } },
+    },
   });
   const isClaimPayment = !!payment?.employee_id;
+  const receipt = payment?.receipts[0]?.claim;
+  const hasExplicitGl = !!(receipt?.gl_account_id && receipt?.contra_gl_account_id);
 
-  // Check firm GL defaults
-  const firm = await prisma.firm.findUnique({
-    where: { id: firmId },
-    select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true, name: true },
-  });
+  // Skip firm GL defaults check if receipt has explicit GL
+  if (!hasExplicitGl) {
+    const firm = await prisma.firm.findUnique({
+      where: { id: firmId },
+      select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true, name: true },
+    });
 
-  if (isClaimPayment) {
-    if (!firm?.default_staff_claims_gl_id) {
-      return `Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`;
-    }
-  } else {
-    if (!firm?.default_trade_payables_gl_id) {
-      return `Firm "${firm?.name}" has no Trade Payables GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`;
+    if (isClaimPayment) {
+      if (!firm?.default_staff_claims_gl_id) {
+        return `Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`;
+      }
+    } else {
+      if (!firm?.default_trade_payables_gl_id) {
+        return `Firm "${firm?.name}" has no Trade Payables GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`;
+      }
     }
   }
 
@@ -90,11 +97,17 @@ export async function createBankReconJV(
 
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    select: { amount: true, direction: true, employee_id: true, supplier: { select: { name: true } }, employee: { select: { name: true } }, receipts: { select: { claim_id: true } } },
+    select: {
+      amount: true, direction: true, employee_id: true,
+      supplier: { select: { name: true } },
+      employee: { select: { name: true } },
+      receipts: { select: { claim_id: true, claim: { select: { gl_account_id: true, contra_gl_account_id: true } } } },
+    },
   });
   if (!payment) return { created: false, error: 'Payment not found' };
 
   const isClaimPayment = !!payment.employee_id;
+  const receipt = payment.receipts[0]?.claim;
 
   const bankAccount = await prisma.bankAccount.findUnique({
     where: {
@@ -108,18 +121,44 @@ export async function createBankReconJV(
   });
   if (!bankAccount) return { created: false, error: 'Bank account GL not mapped' };
 
-  const firm = await prisma.firm.findUnique({
-    where: { id: firmId },
-    select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true },
-  });
-
-  const payableGlId = isClaimPayment ? firm?.default_staff_claims_gl_id : firm?.default_trade_payables_gl_id;
-  if (!payableGlId) return { created: false, error: 'Firm GL defaults not set' };
-
   const amount = Number(payment.amount);
-  const isOutgoing = payment.direction === 'outgoing';
   const counterpartyName = isClaimPayment ? (payment.employee?.name ?? 'Employee') : (payment.supplier?.name ?? 'Supplier');
-  const payableLabel = isClaimPayment ? 'Staff Claims Payable' : 'Trade Payables';
+
+  // Use receipt's GL fields when set, otherwise fall back to firm defaults
+  let debitGlId: string | null = null;
+  let creditGlId: string | null = null;
+  let debitLabel = '';
+  let creditLabel = '';
+
+  if (receipt?.gl_account_id && receipt?.contra_gl_account_id) {
+    // Receipt has explicit GL — use as-is (Expense GL = Debit, Contra GL = Credit)
+    debitGlId = receipt.gl_account_id;
+    creditGlId = receipt.contra_gl_account_id;
+    debitLabel = counterpartyName;
+    creditLabel = counterpartyName;
+  } else {
+    // Fall back to firm defaults
+    const firm = await prisma.firm.findUnique({
+      where: { id: firmId },
+      select: { default_trade_payables_gl_id: true, default_staff_claims_gl_id: true },
+    });
+    const payableGlId = isClaimPayment ? firm?.default_staff_claims_gl_id : firm?.default_trade_payables_gl_id;
+    if (!payableGlId) return { created: false, error: 'Firm GL defaults not set' };
+    const isOutgoing = payment.direction === 'outgoing';
+    const payableLabel = isClaimPayment ? 'Staff Claims Payable' : 'Trade Payables';
+
+    if (isOutgoing) {
+      debitGlId = payableGlId;
+      creditGlId = bankAccount.gl_account_id;
+      debitLabel = payableLabel;
+      creditLabel = txn.bankStatement.bank_name;
+    } else {
+      debitGlId = bankAccount.gl_account_id;
+      creditGlId = payableGlId;
+      debitLabel = txn.bankStatement.bank_name;
+      creditLabel = payableLabel;
+    }
+  }
 
   try {
     await createJournalEntry({
@@ -128,15 +167,10 @@ export async function createBankReconJV(
       description: `Bank recon — ${counterpartyName}`,
       sourceType: 'bank_recon',
       sourceId: bankTransactionId,
-      lines: isOutgoing
-        ? [
-            { glAccountId: payableGlId, debitAmount: amount, creditAmount: 0, description: payableLabel },
-            { glAccountId: bankAccount.gl_account_id, debitAmount: 0, creditAmount: amount, description: txn.bankStatement.bank_name },
-          ]
-        : [
-            { glAccountId: bankAccount.gl_account_id, debitAmount: amount, creditAmount: 0, description: txn.bankStatement.bank_name },
-            { glAccountId: payableGlId, debitAmount: 0, creditAmount: amount, description: payableLabel },
-          ],
+      lines: [
+        { glAccountId: debitGlId!, debitAmount: amount, creditAmount: 0, description: debitLabel },
+        { glAccountId: creditGlId!, debitAmount: 0, creditAmount: amount, description: creditLabel },
+      ],
       createdBy,
     });
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { recalcInvoicePayment } from '@/lib/payment-utils';
+import { recalcInvoicePayment, recalcClaimPayment } from '@/lib/payment-utils';
 import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -55,17 +55,11 @@ export async function DELETE(
 
     await prisma.paymentReceipt.deleteMany({ where: { payment_id: paymentId } });
 
-    if (claimIds.length > 0) {
-      // Only set claims back to unpaid if they have no other payment links
-      for (const claimId of claimIds) {
-        const otherLinks = await prisma.paymentReceipt.count({ where: { claim_id: claimId } });
-        if (otherLinks === 0) {
-          await prisma.claim.update({ where: { id: claimId }, data: { payment_status: 'unpaid' } });
-        }
-      }
-    }
-
     await prisma.payment.delete({ where: { id: paymentId } });
+
+    for (const claimId of claimIds) {
+      await recalcClaimPayment(claimId);
+    }
   }
 
   return NextResponse.json({ success: true });

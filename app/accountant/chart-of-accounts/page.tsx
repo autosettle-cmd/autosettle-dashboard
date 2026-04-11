@@ -497,7 +497,7 @@ export default function ChartOfAccountsPage() {
       const url = editId ? `/api/gl-accounts/${editId}` : '/api/gl-accounts';
       const method = editId ? 'PATCH' : 'POST';
       const body = editId
-        ? { account_code: modalCode.trim(), name: modalName.trim(), description: modalDesc.trim() || null, parent_id: modalParent || null }
+        ? { account_code: modalCode.trim(), name: modalName.trim(), account_type: modalType, normal_balance: modalBalance, description: modalDesc.trim() || null, parent_id: modalParent || null }
         : { firmId, account_code: modalCode.trim(), name: modalName.trim(), account_type: modalType, normal_balance: modalBalance, parent_id: modalParent || null, description: modalDesc.trim() || null };
 
       const res = await fetch(url, {
@@ -830,32 +830,30 @@ export default function ChartOfAccountsPage() {
                 </div>
               </div>
 
-              {!editId && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="input-label">Account Type</label>
-                    <select value={modalType} onChange={(e) => {
-                      setModalType(e.target.value);
-                      // Auto-set normal balance based on type
-                      if (['Asset', 'Expense'].includes(e.target.value)) setModalBalance('Debit');
-                      else setModalBalance('Credit');
-                    }} className="input-field w-full">
-                      <option value="Asset">Asset</option>
-                      <option value="Liability">Liability</option>
-                      <option value="Equity">Equity</option>
-                      <option value="Revenue">Revenue</option>
-                      <option value="Expense">Expense</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="input-label">Normal Balance</label>
-                    <select value={modalBalance} onChange={(e) => setModalBalance(e.target.value)} className="input-field w-full">
-                      <option value="Debit">Debit</option>
-                      <option value="Credit">Credit</option>
-                    </select>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="input-label">Account Type</label>
+                  <select value={modalType} onChange={(e) => {
+                    setModalType(e.target.value);
+                    // Auto-set normal balance based on type
+                    if (['Asset', 'Expense'].includes(e.target.value)) setModalBalance('Debit');
+                    else setModalBalance('Credit');
+                  }} className="input-field w-full">
+                    <option value="Asset">Asset</option>
+                    <option value="Liability">Liability</option>
+                    <option value="Equity">Equity</option>
+                    <option value="Revenue">Revenue</option>
+                    <option value="Expense">Expense</option>
+                  </select>
                 </div>
-              )}
+                <div>
+                  <label className="input-label">Normal Balance</label>
+                  <select value={modalBalance} onChange={(e) => setModalBalance(e.target.value)} className="input-field w-full">
+                    <option value="Debit">Debit</option>
+                    <option value="Credit">Credit</option>
+                  </select>
+                </div>
+              </div>
 
               <div>
                 <label className="input-label">Parent Account</label>

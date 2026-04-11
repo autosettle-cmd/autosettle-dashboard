@@ -144,7 +144,7 @@ export default function JournalEntriesPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
   const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(entries, 'posting_date', 'desc');
-  const filtered = hideReversals ? sorted.filter((e) => e.status !== 'reversed' && !e.reversal_of_id) : sorted;
+  const filtered = hideReversals ? sorted.filter((e) => !e.reversed_by_id && !e.reversal_of_id) : sorted;
   useEffect(() => { setPage(0); }, [sortField, sortDir, hideReversals]);
   const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
@@ -285,12 +285,13 @@ export default function JournalEntriesPage() {
                   </thead>
                   <tbody>
                     {paged.map((e) => {
-                      const sCfg = STATUS_CFG[e.status];
+                      const effectiveStatus = e.reversed_by_id ? 'reversed' : e.status;
+                      const sCfg = STATUS_CFG[effectiveStatus];
                       return (
                         <tr
                           key={e.id}
                           onClick={() => setPreview(e)}
-                          className={`text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50 ${e.status === 'reversed' ? 'opacity-50' : ''}`}
+                          className={`text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50 ${e.reversed_by_id || e.reversal_of_id ? 'opacity-50' : ''}`}
                         >
                           <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(e.posting_date)}</td>
                           <td className="px-3 py-3 text-[#191C1E] font-medium font-mono text-xs">{e.voucher_number}</td>

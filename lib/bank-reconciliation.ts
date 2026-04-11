@@ -201,7 +201,7 @@ export async function autoMatchTransactions(
         // Determine direction from bank transaction
         const direction = txn.credit !== null ? 'incoming' : 'outgoing';
 
-        // Create Payment record as bridge
+        // Create Payment record as bridge (PaymentReceipt link deferred to confirm)
         const payment = await prisma.payment.create({
           data: {
             firm_id: firmId,
@@ -209,14 +209,9 @@ export async function autoMatchTransactions(
             amount: receipt.amount,
             payment_date: txn.transaction_date,
             reference: receipt.receipt_number,
-            notes: `Auto-matched from receipt: ${receipt.merchant}`,
+            notes: `Auto-matched from receipt: ${receipt.merchant} [claim:${receipt.id}]`,
             direction: direction as 'incoming' | 'outgoing',
           },
-        });
-
-        // Link receipt to payment
-        await prisma.paymentReceipt.create({
-          data: { payment_id: payment.id, claim_id: receipt.id, amount: receipt.amount },
         });
 
         matched.push({ bankTxnId: txn.id, paymentId: payment.id });

@@ -201,7 +201,7 @@ export async function reverseJournalEntry(
     });
 
     if (!original) throw new Error(`Journal entry ${journalEntryId} not found`);
-    if (original.status === 'reversed') throw new Error(`Journal entry ${original.voucher_number} is already reversed`);
+    if (original.reversed_by_id) throw new Error(`Journal entry ${original.voucher_number} is already reversed`);
 
     // Try original posting date first, then today — use whichever has an open period
     let postingDate = original.posting_date;
@@ -239,10 +239,10 @@ export async function reverseJournalEntry(
       include: { lines: true },
     });
 
-    // Mark original as reversed
+    // Link original to its reversal (both stay 'posted' so they cancel out in GL)
     await client.journalEntry.update({
       where: { id: original.id },
-      data: { status: 'reversed', reversed_by_id: reversal.id },
+      data: { reversed_by_id: reversal.id },
     });
 
     return reversal;

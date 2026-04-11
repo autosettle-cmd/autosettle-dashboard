@@ -26,6 +26,7 @@ interface PaymentReceipt {
   thumbnail_url: string | null;
   file_url: string | null;
   gl_label: string | null;
+  contra_gl_label: string | null;
 }
 
 interface MatchedPayment {
@@ -565,33 +566,43 @@ export default function AccountantReconciliationWorkspacePage() {
                               )}
 
                               {/* JV Preview for suggested matches */}
-                              {mp && (txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (
-                                <div className="mt-3 bg-white rounded-lg border border-gray-200 p-3">
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-2">Journal Entry Preview</p>
-                                  <table className="w-full text-body-sm">
-                                    <thead>
-                                      <tr className="text-left text-label-sm text-[#8E9196] uppercase">
-                                        <th className="py-1">Account</th>
-                                        <th className="py-1 text-right">Debit</th>
-                                        <th className="py-1 text-right">Credit</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {txn.credit ? (
-                                        <>
-                                          <tr><td className="py-1 text-[#191C1E] font-medium">{statement.bank_gl_label ?? `${statement.bank_name} (no GL mapped)`}</td><td className="py-1 text-right tabular-nums">{formatRM(txn.credit)}</td><td className="py-1 text-right">-</td></tr>
-                                          <tr><td className="py-1 text-[#191C1E] font-medium">{mp.receipts[0]?.gl_label ?? 'Staff Claims Payable (default)'}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(txn.credit)}</td></tr>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <tr><td className="py-1 text-[#191C1E] font-medium">{mp.receipts[0]?.gl_label ?? 'Trade Payables (default)'}</td><td className="py-1 text-right tabular-nums">{formatRM(txn.debit)}</td><td className="py-1 text-right">-</td></tr>
-                                          <tr><td className="py-1 text-[#191C1E] font-medium">{statement.bank_gl_label ?? `${statement.bank_name} (no GL mapped)`}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(txn.debit)}</td></tr>
-                                        </>
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
+                              {mp && (txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (() => {
+                                const receipt = mp.receipts[0];
+                                const hasExplicitGl = !!(receipt?.gl_label && receipt?.contra_gl_label);
+                                const bankGl = statement.bank_gl_label;
+                                const amount = txn.credit ?? txn.debit;
+
+                                // When receipt has explicit GL, use as-is (Expense=Debit, Contra=Credit)
+                                const debitLabel = hasExplicitGl ? receipt.gl_label! : (txn.credit ? (bankGl ?? `${statement.bank_name} (no GL mapped)`) : (receipt?.gl_label ?? 'Trade Payables (default)'));
+                                const creditLabel = hasExplicitGl ? receipt.contra_gl_label! : (txn.credit ? (receipt?.gl_label ?? 'Staff Claims Payable (default)') : (bankGl ?? `${statement.bank_name} (no GL mapped)`));
+
+                                // Mismatch warning: receipt has explicit GL but neither side matches the bank statement GL
+                                const glMismatch = hasExplicitGl && bankGl && receipt.gl_label !== bankGl && receipt.contra_gl_label !== bankGl;
+
+                                return (
+                                  <div className="mt-3 bg-white rounded-lg border border-gray-200 p-3">
+                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-2">Journal Entry Preview</p>
+                                    <table className="w-full text-body-sm">
+                                      <thead>
+                                        <tr className="text-left text-label-sm text-[#8E9196] uppercase">
+                                          <th className="py-1">Account</th>
+                                          <th className="py-1 text-right">Debit</th>
+                                          <th className="py-1 text-right">Credit</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr><td className="py-1 text-[#191C1E] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
+                                        <tr><td className="py-1 text-[#191C1E] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
+                                      </tbody>
+                                    </table>
+                                    {glMismatch && (
+                                      <p className="mt-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5">
+                                        Warning: Receipt GL does not reference this bank statement&apos;s GL ({bankGl}). Verify the GL accounts are correct before confirming.
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
                           </tr>
                         )}
@@ -853,12 +864,13 @@ export default function AccountantReconciliationWorkspacePage() {
         </main>
       </div>
 
-      {/* === Invoice Preview Slide-over === */}
+      {/* === Invoice Preview Modal === */}
       {previewInvoice && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -889,15 +901,17 @@ export default function AccountantReconciliationWorkspacePage() {
               </button>
             </div>
           </div>
+          </div>
         </>
       )}
 
-      {/* === Receipt Preview Slide-over === */}
+      {/* === Receipt Preview Modal === */}
       {previewReceipt && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewReceipt(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
@@ -913,11 +927,17 @@ export default function AccountantReconciliationWorkspacePage() {
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}
+              {previewReceipt.file_url && (
+                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">View full document</a>
+              )}
               <dl className="space-y-3">
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewReceipt.merchant}</dd></div>
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Receipt No.</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.receipt_number ?? '-'}</dd></div>
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewReceipt.claim_date)}</dd></div>
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
+                {previewReceipt.gl_label && (
+                  <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">GL Account</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.gl_label}</dd></div>
+                )}
               </dl>
 
               {previewTxn && (
@@ -937,6 +957,7 @@ export default function AccountantReconciliationWorkspacePage() {
                 Open in Claims
               </button>
             </div>
+          </div>
           </div>
         </>
       )}

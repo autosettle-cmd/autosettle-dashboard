@@ -714,9 +714,13 @@ function ClaimsPage() {
             approval: action === 'approve' ? 'approved' : 'not_approved',
             ...(action === 'reject' && reason ? { rejection_reason: reason } : {}),
             ...(action === 'approve' && glAccountId ? { gl_account_id: glAccountId, gl_account_label: glMatch ? `${glMatch.account_code} — ${glMatch.name}` : null } : {}),
+            ...(action === 'approve' && contraGlId ? { contra_gl_account_id: contraGlId } : {}),
           });
           if (action === 'approve' && glAccountId) {
             setSelectedGlAccountId(glAccountId);
+          }
+          if (action === 'approve' && contraGlId) {
+            setSelectedContraGlId(contraGlId);
           }
         }
       }
@@ -1670,10 +1674,13 @@ function ClaimsPage() {
                   ))}
                   <button
                     onClick={async () => {
-                      if (!confirm('Unlink this receipt from its payment?')) return;
+                      if (!confirm('Unlink this receipt from its payment?\n\nThis will:\n• Remove the payment link\n• Unmatch the bank transaction (if matched)\n• Reverse any posted journal entries from bank reconciliation')) return;
                       try {
                         const res = await fetch(`/api/claims/${previewClaim.id}/payment-link`, { method: 'DELETE' });
-                        if (res.ok) { setPreviewClaim(null); refresh(); }
+                        if (res.ok) {
+                          refresh();
+                          setPreviewClaim({ ...previewClaim, linked_payment_count: 0, linked_payments: [], payment_status: 'unpaid' });
+                        }
                       } catch (e) { console.error(e); }
                     }}
                     className="text-xs text-red-600 hover:text-red-800 font-medium"

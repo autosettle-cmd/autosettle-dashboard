@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { recalcClaimPayment } from '@/lib/payment-utils';
+import { reverseBankReconJV } from '@/lib/bank-recon-jv';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,21 +36,32 @@ export async function DELETE(
     return NextResponse.json({ error: 'Cannot delete payment with active allocations. Remove allocations first.' }, { status: 400 });
   }
 
+  // Unlink from bank transaction if matched
+  const bankTxn = await prisma.bankTransaction.findFirst({
+    where: { matched_payment_id: paymentId },
+  });
+  if (bankTxn) {
+    if (bankTxn.recon_status === 'manually_matched') {
+      await reverseBankReconJV(bankTxn.id, session.user.id);
+    }
+    await prisma.bankTransaction.update({
+      where: { id: bankTxn.id },
+      data: { matched_payment_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null },
+    });
+  }
+
   const claimIds = payment.receipts.map(r => r.claim_id);
 
   // Delete receipt links
   await prisma.paymentReceipt.deleteMany({ where: { payment_id: paymentId } });
 
-  // Set claims back to unpaid if they have no other payment links
-  for (const claimId of claimIds) {
-    const otherLinks = await prisma.paymentReceipt.count({ where: { claim_id: claimId } });
-    if (otherLinks === 0) {
-      await prisma.claim.update({ where: { id: claimId }, data: { payment_status: 'unpaid' } });
-    }
-  }
-
   // Delete the payment
   await prisma.payment.delete({ where: { id: paymentId } });
+
+  // Recalc claim payment status
+  for (const claimId of claimIds) {
+    await recalcClaimPayment(claimId);
+  }
 
   await auditLog({
     firmId: payment.firm_id,

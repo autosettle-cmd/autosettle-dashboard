@@ -33,7 +33,12 @@ export async function GET(request: NextRequest) {
     if (dateTo) where.posting_date.lte = new Date(dateTo);
   }
   if (sourceType) where.source_type = sourceType;
-  if (status) where.status = status;
+  if (status === 'reversed') {
+    where.reversed_by_id = { not: null };
+  } else if (status === 'posted') {
+    where.reversed_by_id = null;
+    where.reversal_of_id = null;
+  }
   if (search) {
     where.OR = [
       { voucher_number: { contains: search, mode: 'insensitive' } },

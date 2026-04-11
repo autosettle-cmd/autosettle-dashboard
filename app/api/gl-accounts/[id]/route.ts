@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   const body = await request.json();
-  const { name, account_code, description, is_active, parent_id, sort_order } = body;
+  const { name, account_code, description, is_active, parent_id, sort_order, account_type, normal_balance } = body;
 
   try {
     const updated = await prisma.gLAccount.update({
@@ -57,16 +57,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         ...(is_active !== undefined && { is_active }),
         ...(parent_id !== undefined && { parent_id: parent_id || null }),
         ...(sort_order !== undefined && { sort_order }),
+        ...(account_type !== undefined && { account_type }),
+        ...(normal_balance !== undefined && { normal_balance }),
       },
     });
+
+    // Cascade account_type and normal_balance to children
+    if (account_type !== undefined || normal_balance !== undefined) {
+      await prisma.gLAccount.updateMany({
+        where: { parent_id: id },
+        data: {
+          ...(account_type !== undefined && { account_type }),
+          ...(normal_balance !== undefined && { normal_balance }),
+        },
+      });
+    }
 
     await auditLog({
       firmId: account.firm_id,
       tableName: 'GLAccount',
       recordId: id,
       action: 'update',
-      oldValues: { name: account.name, account_code: account.account_code, is_active: account.is_active },
-      newValues: { name: updated.name, account_code: updated.account_code, is_active: updated.is_active },
+      oldValues: { name: account.name, account_code: account.account_code, is_active: account.is_active, account_type: account.account_type, normal_balance: account.normal_balance },
+      newValues: { name: updated.name, account_code: updated.account_code, is_active: updated.is_active, account_type: updated.account_type, normal_balance: updated.normal_balance },
       userId: session.user.id,
       userName: session.user.name,
     });

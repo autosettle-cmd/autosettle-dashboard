@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { reverseBankReconJV } from '@/lib/bank-recon-jv';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,44 @@ export async function DELETE(
     return NextResponse.json({ error: 'Receipt not found' }, { status: 404 });
   }
 
+  // Find the payment(s) linked to this receipt
+  const paymentReceipts = await prisma.paymentReceipt.findMany({
+    where: { claim_id: claimId },
+    select: { payment_id: true },
+  });
+
+  // For each linked payment, check if it's matched to a bank transaction and clean up
+  for (const pr of paymentReceipts) {
+    const bankTxn = await prisma.bankTransaction.findFirst({
+      where: { matched_payment_id: pr.payment_id },
+      select: { id: true, recon_status: true },
+    });
+
+    if (bankTxn) {
+      // Reverse JV if the bank transaction was confirmed
+      if (bankTxn.recon_status === 'manually_matched') {
+        await reverseBankReconJV(bankTxn.id, session.user.id);
+      }
+
+      // Unmatch the bank transaction
+      await prisma.bankTransaction.update({
+        where: { id: bankTxn.id },
+        data: { matched_payment_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null },
+      });
+    }
+
+    // Delete the auto-created payment
+    const payment = await prisma.payment.findUnique({
+      where: { id: pr.payment_id },
+      select: { notes: true },
+    });
+    if (payment?.notes?.startsWith('Auto-matched from receipt')) {
+      await prisma.paymentReceipt.deleteMany({ where: { payment_id: pr.payment_id } });
+      await prisma.payment.delete({ where: { id: pr.payment_id } });
+    }
+  }
+
+  // Delete any remaining PaymentReceipt links
   await prisma.paymentReceipt.deleteMany({ where: { claim_id: claimId } });
 
   await prisma.claim.update({

@@ -23,6 +23,8 @@ interface PaymentReceipt {
   claim_date: string;
   thumbnail_url: string | null;
   file_url: string | null;
+  gl_label: string | null;
+  contra_gl_label: string | null;
 }
 
 interface MatchedPayment {
@@ -57,6 +59,7 @@ interface StatementDetail {
   firm_id: string;
   bank_name: string;
   account_number: string | null;
+  bank_gl_label: string | null;
   statement_date: string;
   opening_balance: string | null;
   closing_balance: string | null;
@@ -545,6 +548,43 @@ export default function ReconciliationWorkspacePage() {
                               {mp.allocations.length === 0 && mp.receipts.length === 0 && (
                                 <p className="text-body-sm text-[#8E9196] italic">No invoices or receipts linked to this payment yet.</p>
                               )}
+
+                              {/* JV Preview */}
+                              {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (() => {
+                                const receipt = mp.receipts[0];
+                                const hasExplicitGl = !!(receipt?.gl_label && receipt?.contra_gl_label);
+                                const bankGl = statement.bank_gl_label;
+                                const amount = txn.credit ?? txn.debit;
+
+                                const debitLabel = hasExplicitGl ? receipt.gl_label! : (txn.credit ? (bankGl ?? `${statement.bank_name} (no GL mapped)`) : (receipt?.gl_label ?? 'Trade Payables (default)'));
+                                const creditLabel = hasExplicitGl ? receipt.contra_gl_label! : (txn.credit ? (receipt?.gl_label ?? 'Staff Claims Payable (default)') : (bankGl ?? `${statement.bank_name} (no GL mapped)`));
+
+                                const glMismatch = hasExplicitGl && bankGl && receipt.gl_label !== bankGl && receipt.contra_gl_label !== bankGl;
+
+                                return (
+                                  <div className="mt-3 bg-white rounded-lg border border-gray-200 p-3">
+                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-2">Journal Entry Preview</p>
+                                    <table className="w-full text-body-sm">
+                                      <thead>
+                                        <tr className="text-left text-label-sm text-[#8E9196] uppercase">
+                                          <th className="py-1">Account</th>
+                                          <th className="py-1 text-right">Debit</th>
+                                          <th className="py-1 text-right">Credit</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        <tr><td className="py-1 text-[#191C1E] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
+                                        <tr><td className="py-1 text-[#191C1E] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
+                                      </tbody>
+                                    </table>
+                                    {glMismatch && (
+                                      <p className="mt-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5">
+                                        Warning: Receipt GL does not reference this bank statement&apos;s GL ({bankGl}). Verify the GL accounts are correct before confirming.
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
                           </tr>
                         )}
@@ -806,14 +846,15 @@ export default function ReconciliationWorkspacePage() {
         </main>
       </div>
 
-      {/* ═══ Invoice Preview Slide-over ═══ */}
+      {/* ═══ Invoice Preview Modal ═══ */}
       {previewInvoice && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
-              <button onClick={() => setPreviewInvoice(null)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+              <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="space-y-3">
@@ -824,9 +865,8 @@ export default function ReconciliationWorkspacePage() {
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Allocated to Payment</dt><dd className="text-title-md font-bold text-green-600 tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
               </dl>
 
-              {/* Show which bank txn this links through */}
               {previewTxn && (
-                <div className="bg-gray-50 rounded-md p-3">
+                <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
                   <p className="text-body-sm text-[#434654]">{previewTxn.description.split(' | ')[0]}</p>
                   <p className="text-label-sm text-[#8E9196]">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
@@ -836,24 +876,26 @@ export default function ReconciliationWorkspacePage() {
             <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/admin/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
               </button>
             </div>
           </div>
+          </div>
         </>
       )}
 
-      {/* ═══ Receipt Preview Slide-over ═══ */}
+      {/* ═══ Receipt Preview Modal ═══ */}
       {previewReceipt && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewReceipt(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
               <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
-              <button onClick={() => setPreviewReceipt(null)} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-colors"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg></button>
+              <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (
@@ -867,15 +909,21 @@ export default function ReconciliationWorkspacePage() {
               ) : (
                 <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
               )}
+              {previewReceipt.file_url && (
+                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">View full document</a>
+              )}
               <dl className="space-y-3">
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewReceipt.merchant}</dd></div>
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Receipt No.</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.receipt_number ?? '-'}</dd></div>
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewReceipt.claim_date)}</dd></div>
                 <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
+                {previewReceipt.gl_label && (
+                  <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">GL Account</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.gl_label}</dd></div>
+                )}
               </dl>
 
               {previewTxn && (
-                <div className="bg-gray-50 rounded-md p-3">
+                <div className="bg-gray-50 rounded-lg p-3">
                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
                   <p className="text-body-sm text-[#434654]">{previewTxn.description.split(' | ')[0]}</p>
                   <p className="text-label-sm text-[#8E9196]">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
@@ -885,12 +933,13 @@ export default function ReconciliationWorkspacePage() {
             <div className="p-4 flex-shrink-0">
               <button
                 onClick={() => window.open(`/admin/claims?search=${encodeURIComponent(previewReceipt.receipt_number ?? previewReceipt.merchant)}`, '_blank')}
-                className="w-full py-2 rounded-md text-sm font-semibold text-white transition-opacity hover:opacity-85"
+                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Claims
               </button>
             </div>
+          </div>
           </div>
         </>
       )}

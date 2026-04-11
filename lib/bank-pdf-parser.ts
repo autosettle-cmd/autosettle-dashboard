@@ -140,14 +140,34 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
         line.includes('CURRENT ACCOUNT') || line.includes('SDN BHD') ||
         line.includes('SDN. BHD') || line.match(/^NO\s+\d/) ||
         line.match(/^JALAN\s/) || line.match(/^TAMAN\s/) ||
-        line.match(/^\d{5}\s/)) continue;
+        line.match(/^\d{5}\s/)) {
+      // If we hit a page header/footer while building a transaction, flush it
+      // This prevents page noise from leaking into the last transaction's description
+      if (currentTxn) {
+        flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
+        currentTxn = null;
+      }
+      continue;
+    }
     if (line.startsWith('BEGINNING BALANCE') || line.startsWith('ENDING BALANCE') ||
         line.startsWith('TOTAL CREDIT') || line.startsWith('TOTAL DEBIT') ||
-        line.startsWith('LEDGER BALANCE') || line.startsWith('PROFIT OUTSTANDING')) continue;
+        line.startsWith('LEDGER BALANCE') || line.startsWith('PROFIT OUTSTANDING')) {
+      if (currentTxn) {
+        flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
+        currentTxn = null;
+      }
+      continue;
+    }
 
     // Check for address/name lines that appear in page headers
     // These typically contain the account holder info repeated on every page
-    if (line.match(/^[A-Z\s,]+\d{5}/) || line.match(/NO \d+ ,/)) continue;
+    if (line.match(/^[A-Z\s,]+\d{5}/) || line.match(/NO \d+ ,/)) {
+      if (currentTxn) {
+        flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
+        currentTxn = null;
+      }
+      continue;
+    }
 
     const txnMatch = line.match(txnLineRegex);
 
@@ -161,11 +181,9 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
         amount: txnMatch[3],
         balance: txnMatch[4],
       };
-    } else if (currentTxn && line.match(/^\s{2,}/) || (currentTxn && !line.match(/^\d{2}\/\d{2}\/\d{2}/))) {
+    } else if (currentTxn && (line.match(/^\s{2,}/) || !line.match(/^\d{2}\/\d{2}\/\d{2}/))) {
       // Continuation line (indented or doesn't start with date)
-      if (currentTxn) {
-        currentTxn.descriptionLines.push(line.trim());
-      }
+      currentTxn.descriptionLines.push(line.trim());
     }
   }
 

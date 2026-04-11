@@ -52,9 +52,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: unique.join('\n') }, { status: 400 });
   }
 
-  // All validated — confirm and create JVs
+  // All validated — confirm, create PaymentReceipt links for auto-matched, and create JVs
   let confirmed = 0;
   for (const txn of txns) {
+    // Create PaymentReceipt link for auto-matched receipts (deferred from auto-match)
+    if (txn.matched_payment_id) {
+      const payment = await prisma.payment.findUnique({
+        where: { id: txn.matched_payment_id },
+        select: { notes: true, amount: true },
+      });
+      const claimMatch = payment?.notes?.match(/\[claim:([^\]]+)\]/);
+      if (claimMatch) {
+        const claimId = claimMatch[1];
+        const existing = await prisma.paymentReceipt.findFirst({
+          where: { payment_id: txn.matched_payment_id, claim_id: claimId },
+        });
+        if (!existing) {
+          await prisma.paymentReceipt.create({
+            data: { payment_id: txn.matched_payment_id, claim_id: claimId, amount: payment!.amount },
+          });
+        }
+      }
+    }
+
     await prisma.bankTransaction.update({
       where: { id: txn.id },
       data: {
