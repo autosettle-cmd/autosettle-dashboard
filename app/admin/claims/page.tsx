@@ -272,6 +272,35 @@ function AdminClaimsPage() {
         fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
         const json = await res.json();
+
+        if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+          // Multiple receipts in one image — switch to batch review
+          setShowModal(false);
+          setOcrScanning(false);
+          const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+            let catId = '';
+            if (r.category) {
+              const match = modalCategories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
+              if (match) catId = match.id;
+            }
+            return {
+              file,
+              merchant: r.merchant || '',
+              amount: r.amount ? String(r.amount) : '',
+              claim_date: r.date || todayStr(),
+              receipt_number: r.receiptNumber || '',
+              category_id: catId,
+              description: r.notes || '',
+              ocrDone: true,
+              ocrError: '',
+            };
+          });
+          setBatchItems(items);
+          setShowBatchReview(true);
+          setBatchScanning(false);
+          return;
+        }
+
         if (res.ok && json.fields) {
           const f = json.fields;
           if (json.documentType === 'invoice') {
@@ -565,24 +594,57 @@ function AdminClaimsPage() {
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();
 
+      if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+        setShowModal(false);
+        setOcrScanning(false);
+        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+          let catId = '';
+          if (r.category) {
+            const match = modalCategories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
+            if (match) catId = match.id;
+          }
+          return {
+            file,
+            merchant: r.merchant || '',
+            amount: r.amount ? String(r.amount) : '',
+            claim_date: r.date || todayStr(),
+            receipt_number: r.receiptNumber || '',
+            category_id: catId,
+            description: r.notes || '',
+            ocrDone: true,
+            ocrError: '',
+          };
+        });
+        setBatchItems(items);
+        setShowBatchReview(true);
+        setBatchScanning(false);
+        return;
+      }
+
       if (res.ok && json.fields) {
         const f = json.fields;
         if (json.documentType === 'invoice') {
-          // Invoice fields → map to claim form
           if (f.issueDate) setModalDate(f.issueDate);
           if (f.vendor) setModalMerchant(f.vendor);
           if (f.totalAmount) setModalAmount(String(f.totalAmount));
           if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
         } else {
-          // Receipt fields
           if (f.date) setModalDate(f.date);
           if (f.merchant) setModalMerchant(f.merchant);
           if (f.amount) setModalAmount(String(f.amount));
           if (f.receiptNumber) setModalReceipt(f.receiptNumber);
         }
+        if (f.notes) setModalDesc(f.notes);
         if (f.category) {
           const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
           if (match) setModalCategory(match.id);
+        }
+
+        // Auto-match employee from notes/merchant
+        if (f.notes || f.merchant || f.vendor) {
+          const text = `${f.notes || ''} ${f.merchant || ''} ${f.vendor || ''}`.toLowerCase();
+          const empMatch = modalEmployees.find(e => text.includes(e.name.toLowerCase()));
+          if (empMatch) setModalEmployeeId(empMatch.id);
         }
       }
     } catch (err) {

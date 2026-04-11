@@ -132,6 +132,24 @@ export default function EmployeeClaimsPage() {
   const [successMsg, setSuccessMsg]         = useState('');
   const [ocrScanning, setOcrScanning]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  // Batch review (multi-receipt in one image)
+  interface BatchClaimItem {
+    file: File;
+    merchant: string;
+    amount: string;
+    claim_date: string;
+    receipt_number: string;
+    category_id: string;
+    description: string;
+    ocrDone: boolean;
+    ocrError: string;
+  }
+  const [showBatchReview, setShowBatchReview] = useState(false);
+  const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
+  const [batchScanning, setBatchScanning] = useState(false);
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
 
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -202,6 +220,32 @@ export default function EmployeeClaimsPage() {
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();
 
+      if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+        setShowModal(false);
+        setOcrScanning(false);
+        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+          let catId = '';
+          if (r.category) {
+            const match = categories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
+            if (match) catId = match.id;
+          }
+          return {
+            file: file!,
+            merchant: r.merchant || '',
+            amount: r.amount ? String(r.amount) : '',
+            claim_date: r.date || todayStr(),
+            receipt_number: r.receiptNumber || '',
+            category_id: catId,
+            description: r.notes || '',
+            ocrDone: true,
+            ocrError: '',
+          };
+        });
+        setBatchItems(items);
+        setShowBatchReview(true);
+        return;
+      }
+
       if (res.ok && json.fields) {
         const f = json.fields;
         if (json.documentType === 'invoice') {
@@ -215,6 +259,7 @@ export default function EmployeeClaimsPage() {
           if (f.amount) setModalAmount(String(f.amount));
           if (f.receiptNumber) setModalReceipt(f.receiptNumber);
         }
+        if (f.notes) setModalDesc(f.notes);
         if (f.category) {
           const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
           if (match) setModalCategory(match.id);
@@ -292,6 +337,135 @@ export default function EmployeeClaimsPage() {
     }
   };
 
+  const submitBatchClaims = async () => {
+    const valid = batchItems.filter((item) => item.merchant && item.amount && item.category_id);
+    if (valid.length === 0) return;
+
+    setBatchSubmitting(true);
+    let submitted = 0;
+
+    for (const item of valid) {
+      try {
+        const fd = new FormData();
+        fd.append('claim_date', item.claim_date);
+        fd.append('merchant', item.merchant.trim());
+        fd.append('amount', item.amount);
+        fd.append('category_id', item.category_id);
+        if (item.receipt_number.trim()) fd.append('receipt_number', item.receipt_number.trim());
+        if (item.description.trim()) fd.append('description', item.description.trim());
+        fd.append('file', item.file);
+
+        const res = await fetch('/api/employee/claims', { method: 'POST', body: fd });
+        if (res.ok) submitted++;
+      } catch (err) {
+        console.error('Batch submit error:', err);
+      }
+    }
+
+    setBatchSubmitting(false);
+    setShowBatchReview(false);
+    setBatchItems([]);
+    refresh();
+    setSuccessMsg(`${submitted} claim${submitted !== 1 ? 's' : ''} submitted!`);
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
+
+  // ─── Drag & drop on page ────────────────────────────────────────────────────
+
+  const accepted = ['.pdf', '.jpg', '.jpeg', '.png', '.heic', '.heif'];
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((f) => {
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+      return accepted.includes(ext) || f.type.startsWith('image/') || f.type === 'application/pdf';
+    });
+    if (droppedFiles.length === 0) return;
+
+    const file = droppedFiles[0];
+    setClaimType('receipt');
+    setModalDate(todayStr());
+    setModalMerchant('');
+    setModalAmount('');
+    setModalCategory(categories.length === 1 ? categories[0].id : '');
+    setModalReceipt('');
+    setModalDesc('');
+    setSelectedFile(file);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(URL.createObjectURL(file));
+    setMileageFrom('');
+    setMileageTo('');
+    setMileageDistance('');
+    setMileagePurpose('');
+    setModalError('');
+    setModalSaving(false);
+    setShowModal(true);
+
+    // Trigger OCR scan
+    setOcrScanning(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+
+      const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      const json = await res.json();
+
+      if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+        // Multiple receipts in one image — switch to batch review
+        setShowModal(false);
+        setOcrScanning(false);
+        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+          let catId = '';
+          if (r.category) {
+            const match = categories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
+            if (match) catId = match.id;
+          }
+          return {
+            file,
+            merchant: r.merchant || '',
+            amount: r.amount ? String(r.amount) : '',
+            claim_date: r.date || todayStr(),
+            receipt_number: r.receiptNumber || '',
+            category_id: catId,
+            description: r.notes || '',
+            ocrDone: true,
+            ocrError: '',
+          };
+        });
+        setBatchItems(items);
+        setShowBatchReview(true);
+        return;
+      }
+
+      if (res.ok && json.fields) {
+        const f = json.fields;
+        if (json.documentType === 'invoice') {
+          if (f.issueDate) setModalDate(f.issueDate);
+          if (f.vendor) setModalMerchant(f.vendor);
+          if (f.totalAmount) setModalAmount(String(f.totalAmount));
+          if (f.invoiceNumber) setModalReceipt(f.invoiceNumber);
+        } else {
+          if (f.date) setModalDate(f.date);
+          if (f.merchant) setModalMerchant(f.merchant);
+          if (f.amount) setModalAmount(String(f.amount));
+          if (f.receiptNumber) setModalReceipt(f.receiptNumber);
+        }
+        if (f.notes) setModalDesc(f.notes);
+        if (f.category) {
+          const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+          if (match) setModalCategory(match.id);
+        }
+      }
+    } catch (err) {
+      console.error('OCR extraction failed:', err);
+    } finally {
+      setOcrScanning(false);
+    }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -301,7 +475,12 @@ export default function EmployeeClaimsPage() {
       <Sidebar role="employee" />
 
       {/* ═══ MAIN ═══ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div
+        className="flex-1 flex flex-col overflow-hidden relative"
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget as Node)) return; setDragOver(false); }}
+        onDrop={handleDrop}
+      >
 
         <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white">
           <div>
@@ -309,6 +488,12 @@ export default function EmployeeClaimsPage() {
             <p className="text-body-sm text-[#8E9196]">{formatDisplayDate()}</p>
           </div>
         </header>
+
+        {dragOver && (
+          <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-lg z-30 flex items-center justify-center pointer-events-none">
+            <p className="text-blue-600 font-semibold text-lg">Drop receipt to submit claim</p>
+          </div>
+        )}
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
@@ -550,6 +735,23 @@ export default function EmployeeClaimsPage() {
                     <div
                       className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
                       onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const file = Array.from(e.dataTransfer.files).find((f) => {
+                          const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+                          return accepted.includes(ext) || f.type.startsWith('image/') || f.type === 'application/pdf';
+                        });
+                        if (file) {
+                          const dt = new DataTransfer();
+                          dt.items.add(file);
+                          if (fileInputRef.current) {
+                            fileInputRef.current.files = dt.files;
+                            fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                          }
+                        }
+                      }}
                     >
                       {selectedFile ? (
                         <div className="space-y-2">
@@ -617,16 +819,112 @@ export default function EmployeeClaimsPage() {
         </div>
       )}
 
-      {/* ═══ CLAIM PREVIEW PANEL ═══ */}
+      {/* ═══ BATCH REVIEW MODAL ═══ */}
+      {showBatchReview && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 rounded-t-lg" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <h2 className="text-white font-semibold text-sm">
+                Review {batchItems.length} Receipts
+                <span className="ml-2 text-white/60 font-normal">from 1 image</span>
+              </h2>
+              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {batchItems.map((item, idx) => (
+                <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-[#191C1E]">Receipt {idx + 1}</span>
+                    <button onClick={() => setBatchItems(batchItems.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date</label>
+                      <input type="date" value={item.claim_date} onChange={(e) => { const items = [...batchItems]; items[idx].claim_date = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM)</label>
+                      <input type="number" step="0.01" value={item.amount} onChange={(e) => { const items = [...batchItems]; items[idx].amount = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant</label>
+                      <input type="text" value={item.merchant} onChange={(e) => { const items = [...batchItems]; items[idx].merchant = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                    </div>
+                    <div>
+                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category</label>
+                      <select value={item.category_id} onChange={(e) => { const items = [...batchItems]; items[idx].category_id = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm">
+                        <option value="">Select</option>
+                        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt No.</label>
+                      <input type="text" value={item.receipt_number} onChange={(e) => { const items = [...batchItems]; items[idx].receipt_number = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
+                      <input type="text" value={item.description} onChange={(e) => { const items = [...batchItems]; items[idx].description = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" placeholder="Optional" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 flex-shrink-0 flex gap-3 border-t">
+              <button
+                onClick={submitBatchClaims}
+                disabled={batchSubmitting || batchItems.length === 0}
+                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40"
+              >
+                {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
+              </button>
+              <button
+                onClick={() => { setShowBatchReview(false); setBatchItems([]); }}
+                disabled={batchSubmitting}
+                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ CLAIM PREVIEW ═══ */}
       {previewClaim && (
         <>
           <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Claim Details</h2>
-              <button onClick={() => setPreviewClaim(null)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <h2 className="text-white font-semibold text-sm">
+                {previewClaim.type === 'mileage' ? 'Mileage Claim' : 'Claim Details'}
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (editMode) {
+                      setEditMode(false);
+                      setEditData(null);
+                    } else {
+                      setEditMode(true);
+                      setEditData({
+                        claim_date: previewClaim.claim_date.split('T')[0],
+                        merchant: previewClaim.merchant,
+                        amount: previewClaim.amount,
+                        category_id: '',
+                        receipt_number: previewClaim.receipt_number ?? '',
+                        description: previewClaim.description ?? '',
+                      });
+                    }
+                  }}
+                  className={`text-sm px-2.5 py-1 rounded-md transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                >
+                  {editMode ? 'Cancel' : 'Edit'}
+                </button>
+                <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -640,47 +938,57 @@ export default function EmployeeClaimsPage() {
               ) : previewClaim.thumbnail_url ? (
                 previewClaim.file_url ? (
                   <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg" />
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
+                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
-                <div className="space-y-3">
+                <dl className="space-y-3">
                   <div>
-                    <label className="input-label">Date</label>
-                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full" />
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Date</dt>
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <label className="input-label">Merchant</label>
-                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full" />
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Merchant</dt>
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <label className="input-label">Amount (RM)</label>
-                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full" />
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Amount (RM)</dt>
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <label className="input-label">Category</label>
-                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Category</dt>
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full mt-0.5">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="input-label">Receipt Number</label>
-                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full" />
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Receipt No.</dt>
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <label className="input-label">Description</label>
-                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
+                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Description</dt>
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    Saving will reset status to Pending Review and approval to Pending.
-                  </p>
-                </div>
+                  <div className="flex items-start gap-2.5 bg-[#FFF3E0] rounded-lg px-4 py-3">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E65100" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <p className="text-body-sm text-[#E65100] leading-relaxed">
+                      Saving will reset status to Pending Review and approval to Pending.
+                    </p>
+                  </div>
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary w-full py-2.5 rounded-lg text-sm font-semibold">
+                    {editSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </dl>
               ) : (
                 <>
                   <dl className="space-y-3">
@@ -696,57 +1004,26 @@ export default function EmployeeClaimsPage() {
                       <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
                     ))}
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
-                    <span className={`text-xs font-semibold ${
-                      previewClaim.confidence === 'HIGH' ? 'text-green-600' :
-                      previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
-                    }`}>{previewClaim.confidence}</span>
-                  </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
-                      <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
+                    <div className="bg-[#FFEBEE] rounded-lg p-4">
+                      <p className="text-label-md text-[#B71C1C] uppercase mb-1.5">Rejection Reason</p>
+                      <p className="text-body-md text-[#B71C1C] leading-relaxed">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
                   {previewClaim.file_url && (
-                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
-                      View full document &rarr;
+                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-label-md text-primary hover:opacity-80">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                      View full document
                     </a>
                   )}
                 </>
               )}
             </div>
-
-            <div className="p-4 flex-shrink-0 flex gap-3">
-              {editMode ? (
-                <>
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-                    {editSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => {
-                    setEditMode(true);
-                    setEditData({
-                      claim_date: previewClaim.claim_date.split('T')[0],
-                      merchant: previewClaim.merchant,
-                      amount: previewClaim.amount,
-                      category_id: '',
-                      receipt_number: previewClaim.receipt_number ?? '',
-                      description: previewClaim.description ?? '',
-                    });
-                  }}
-                  className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
-                >
-                  Edit
-                </button>
-              )}
-            </div>
+          </div>
           </div>
         </>
       )}

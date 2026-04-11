@@ -31,7 +31,7 @@ export async function PATCH(
 
   const body = await request.json();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = { status: 'pending_review', approval: 'pending_approval', gl_account_id: null };
+  const data: any = { status: 'reviewed', approval: 'pending_approval', gl_account_id: null };
   if (body.claim_date !== undefined) data.claim_date = new Date(body.claim_date);
   if (body.merchant !== undefined) data.merchant = body.merchant;
   if (body.amount !== undefined) data.amount = body.amount;

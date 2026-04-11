@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 const heicConvert = require("heic-convert");
 import { runOCR, normaliseOCRText } from "@/lib/whatsapp/ocr";
 import {
+  countReceiptsInImage,
+  extractFromImage,
   extractWithGemini,
   extractWithGeminiInvoice,
   extractInvoiceFromPDF,
   classifyDocument,
 } from "@/lib/whatsapp/gemini";
-import { parseGeminiOutput, parseGeminiInvoiceOutput } from "@/lib/whatsapp/parser";
+import { parseGeminiOutput, parseGeminiOutputMultiple, parseGeminiInvoiceOutput } from "@/lib/whatsapp/parser";
 
 /**
  * POST /api/ocr/extract
@@ -66,11 +68,28 @@ export async function POST(req: NextRequest) {
       }
 
       // Receipt
-      const fields = parseGeminiOutput(raw);
-      return NextResponse.json({ documentType: "receipt", fields });
+      const allFields = parseGeminiOutputMultiple(raw);
+      return NextResponse.json({ documentType: "receipt", fields: allFields[0] });
     }
 
-    // Image → Google Vision OCR → classify → extract
+    // Step 1: Quick multimodal count — how many receipts in the image?
+    const mimeType = isHEIC ? "image/jpeg" : file.type || "image/jpeg";
+    const receiptCount = await countReceiptsInImage(buffer, mimeType);
+
+    if (receiptCount > 1) {
+      // Multiple receipts → Gemini multimodal extraction (spatial layout needed)
+      const geminiRaw = await extractFromImage(buffer, mimeType, categories);
+      const allReceipts = parseGeminiOutputMultiple(geminiRaw);
+
+      return NextResponse.json({
+        documentType: "receipt",
+        multipleReceipts: true,
+        receipts: allReceipts,
+        fields: allReceipts[0],
+      });
+    }
+
+    // Single receipt → Vision OCR + Gemini text (most accurate)
     const rawText = await runOCR(buffer);
     const normalised = normaliseOCRText(rawText);
     const documentType = await classifyDocument(normalised);
@@ -81,7 +100,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ documentType: "invoice", fields });
     }
 
-    // Receipt
     const geminiRaw = await extractWithGemini(normalised, categories);
     const fields = parseGeminiOutput(geminiRaw);
     return NextResponse.json({ documentType: "receipt", fields });

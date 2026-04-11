@@ -58,16 +58,15 @@ export async function extractWithGemini(
   const token = await client.getAccessToken();
 
   const systemPrompt = `You are an expert receipt parser for Malaysian SME expense claims.
-Extract the following fields from the receipt OCR text.
-Return ONLY valid JSON, no explanation, no markdown.
+The OCR text may contain ONE or MULTIPLE receipts. Carefully detect how many separate receipts are present.
 
-Fields to extract:
+Extract the following fields from EACH receipt:
 - date: receipt date in YYYY-MM-DD format
 - merchant: creditor/supplier name
 - amount: total amount as a number (RM, no currency symbol)
 - receiptNumber: invoice or receipt number (empty string if not found)
 - category: pick the BEST match from this list only: [${categories.join(", ")}]
-- notes: important extra details the accountant should know — e.g. phone/account numbers, service period, account holder name, what was purchased. Keep concise (2-3 lines max). Empty string if nothing notable.
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, account holder name, what was purchased. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Confidence rules:
@@ -75,8 +74,13 @@ Confidence rules:
 - MEDIUM: all fields found but some ambiguity
 - LOW: one or more key fields missing or unclear
 
-Return format:
-{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}`;
+If there is only ONE receipt, return a single JSON object:
+{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}
+
+If there are MULTIPLE receipts, return a JSON array:
+[{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}, ...]
+
+Return ONLY valid JSON, no explanation, no markdown.`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -117,6 +121,146 @@ Return format:
     throw new Error("No response from Gemini");
   }
 
+  return text;
+}
+
+/**
+ * Quick multimodal check: how many receipts are visible in the image?
+ * Returns a number (1 if unsure).
+ */
+export async function countReceiptsInImage(
+  imageBuffer: Buffer,
+  mimeType: string
+): Promise<number> {
+  const projectId = process.env.VERTEX_PROJECT_ID!;
+  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
+  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
+
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  const auth = getAuthClient();
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token.token}`,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType || "image/jpeg",
+                data: imageBuffer.toString("base64"),
+              },
+            },
+            { text: "How many separate receipts, invoices, or bills are visible in this image? Return ONLY a single number, nothing else." },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 8,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    }),
+  });
+
+  if (!res.ok) return 1;
+
+  const json = await res.json();
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "1";
+  const num = parseInt(text, 10);
+  return isNaN(num) || num < 1 ? 1 : num;
+}
+
+/**
+ * Send image directly to Gemini (multimodal) for structured extraction.
+ * Used for multi-receipt images where OCR text would be jumbled.
+ */
+export async function extractFromImage(
+  imageBuffer: Buffer,
+  mimeType: string,
+  categories: string[]
+): Promise<string> {
+  const projectId = process.env.VERTEX_PROJECT_ID!;
+  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
+  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
+
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+
+  const auth = getAuthClient();
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+
+  const systemPrompt = `You are an expert receipt parser for Malaysian SME expense claims.
+This image may contain ONE or MULTIPLE receipts. Look at the image carefully and detect how many separate receipts are visible.
+
+Extract the following fields from EACH receipt:
+- date: receipt date in YYYY-MM-DD format
+- merchant: creditor/supplier name
+- amount: total amount as a number (RM, no currency symbol)
+- receiptNumber: invoice or receipt number (empty string if not found)
+- category: pick the BEST match from this list only: [${categories.join(", ")}]
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, account holder name, what was purchased. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise (2-3 lines max). Empty string if nothing notable.
+- confidence: HIGH, MEDIUM, or LOW
+
+Confidence rules:
+- HIGH: date, merchant, amount all clearly extracted
+- MEDIUM: all fields found but some ambiguity
+- LOW: one or more key fields missing or unclear
+
+If there is only ONE receipt, return a single JSON object:
+{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}
+
+If there are MULTIPLE receipts, return a JSON array:
+[{"date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}, ...]
+
+Return ONLY valid JSON, no explanation, no markdown.`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token.token}`,
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: mimeType || "image/jpeg",
+                data: imageBuffer.toString("base64"),
+              },
+            },
+            { text: "Extract receipt data from this image." },
+          ],
+        },
+      ],
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 2048,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini API error: ${res.status} — ${errText}`);
+  }
+
+  const json = await res.json();
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("No response from Gemini");
   return text;
 }
 
@@ -198,7 +342,7 @@ Fields to extract:
 - taxAmount: tax/GST/SST amount as a number (0 if not found)
 - totalAmount: total amount payable as a number (RM, no currency symbol)
 - category: pick the BEST match from this list only: [${categories.join(", ")}]
-- notes: important extra details the accountant should know — e.g. phone/account numbers, service period, line item summary, account holder name, reference numbers. Keep it concise (2-3 lines max). Empty string if nothing notable.
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. Keep it concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Confidence rules:
@@ -272,7 +416,7 @@ If it is an INVOICE, extract:
 - taxAmount: tax/GST/SST amount (0 if not found)
 - totalAmount: total payable as number
 - category: pick BEST match from: [${categories.join(", ")}]
-- notes: important extra details the accountant should know — e.g. phone/account numbers, service period, line item summary, account holder name, reference numbers. Keep it concise (2-3 lines max). Empty string if nothing notable.
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. Keep it concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 If it is a RECEIPT, extract:
@@ -281,7 +425,7 @@ If it is a RECEIPT, extract:
 - amount: total amount as number
 - receiptNumber: receipt number (empty string if not found)
 - category: pick BEST match from: [${categories.join(", ")}]
-- notes: important extra details — e.g. what was purchased, reference numbers, location. Keep concise. Empty string if nothing notable.
+- notes: important extra details — e.g. "Billed To" / "Bill To" person name, what was purchased, reference numbers, location. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise. Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Return ONLY valid JSON with a "documentType" field ("receipt" or "invoice") plus the extracted fields.

@@ -297,19 +297,67 @@ function ClaimsPage() {
         const fd = new FormData();
         fd.append('file', file);
         // Categories may not be loaded yet for this firm — fetch inline
-        let catNames: string[] = modalCategories.map((c) => c.name);
-        if (catNames.length === 0) {
+        let cats = modalCategories;
+        if (cats.length === 0) {
           try {
             const catRes = await fetch(`/api/categories?firmId=${targetFirmId}`);
             const catJson = await catRes.json();
-            const cats = catJson.data ?? [];
-            catNames = cats.map((c: Category) => c.name);
+            cats = catJson.data ?? [];
+            setModalCategories(cats);
           } catch { /* ignore */ }
         }
-        fd.append('categories', JSON.stringify(catNames));
+        fd.append('categories', JSON.stringify(cats.map((c: Category) => c.name)));
+
+        // Fetch employees inline — useEffect may not have completed yet
+        let emps = modalEmployees;
+        if (emps.length === 0) {
+          try {
+            const empRes = await fetch(`/api/employees?firmId=${targetFirmId}`);
+            const empJson = await empRes.json();
+            emps = (empJson.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
+            setModalEmployees(emps);
+            if (emps.length === 1) setModalEmployeeId(emps[0].id);
+          } catch { /* ignore */ }
+        }
 
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
         const json = await res.json();
+
+        if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+          // Multiple receipts in one image — switch to batch review
+          setShowModal(false);
+          setOcrScanning(false);
+          const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+            let catId = '';
+            if (r.category) {
+              const match = cats.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
+              if (match) catId = match.id;
+            }
+            return {
+              file,
+              merchant: r.merchant || '',
+              amount: r.amount ? String(r.amount) : '',
+              claim_date: r.date || todayStr(),
+              receipt_number: r.receiptNumber || '',
+              category_id: catId,
+              description: r.notes || '',
+              ocrDone: true,
+              ocrError: '',
+            };
+          });
+          setBatchItems(items);
+          setBatchFirmId(targetFirmId);
+          // Auto-match employee for batch
+          const firstR = json.receipts[0];
+          if (firstR.notes || firstR.merchant) {
+            const text = `${firstR.notes || ''} ${firstR.merchant || ''}`.toLowerCase();
+            const empMatch = emps.find(e => text.includes(e.name.toLowerCase()));
+            if (empMatch) setModalEmployeeId(empMatch.id);
+          }
+          setShowBatchReview(true);
+          setBatchScanning(false);
+          return;
+        }
 
         if (res.ok && json.fields) {
           const f = json.fields;
@@ -326,14 +374,14 @@ function ClaimsPage() {
           }
           if (f.notes) setModalDesc(f.notes);
           if (f.category) {
-            const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            const match = cats.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) setModalCategory(match.id);
           }
 
           // Auto-match employee from notes/merchant
           if (f.notes || f.merchant || f.vendor) {
             const text = `${f.notes || ''} ${f.merchant || ''} ${f.vendor || ''}`.toLowerCase();
-            const empMatch = modalEmployees.find(e => text.includes(e.name.toLowerCase()));
+            const empMatch = emps.find(e => text.includes(e.name.toLowerCase()));
             if (empMatch) setModalEmployeeId(empMatch.id);
           }
         }
@@ -766,6 +814,35 @@ function ClaimsPage() {
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
         const json = await res.json();
 
+        if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+          // Multiple receipts in one image — switch to batch review
+          setShowModal(false);
+          setOcrScanning(false);
+          const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+            let catId = '';
+            if (r.category) {
+              const match = modalCategories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
+              if (match) catId = match.id;
+            }
+            return {
+              file,
+              merchant: r.merchant || '',
+              amount: r.amount ? String(r.amount) : '',
+              claim_date: r.date || todayStr(),
+              receipt_number: r.receiptNumber || '',
+              category_id: catId,
+              description: r.notes || '',
+              ocrDone: true,
+              ocrError: '',
+            };
+          });
+          setBatchItems(items);
+          setBatchFirmId(modalFirmId);
+          setShowBatchReview(true);
+          setBatchScanning(false);
+          return;
+        }
+
         if (res.ok && json.fields) {
           const f = json.fields;
           if (json.documentType === 'invoice') {
@@ -786,8 +863,8 @@ function ClaimsPage() {
           }
 
           // Auto-match employee from notes/merchant
-          if (f.notes || f.merchant) {
-            const text = `${f.notes || ''} ${f.merchant || ''}`.toLowerCase();
+          if (f.notes || f.merchant || f.vendor) {
+            const text = `${f.notes || ''} ${f.merchant || ''} ${f.vendor || ''}`.toLowerCase();
             const empMatch = modalEmployees.find(e => text.includes(e.name.toLowerCase()));
             if (empMatch) setModalEmployeeId(empMatch.id);
           }
