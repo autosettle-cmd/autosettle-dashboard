@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest) {
   const oldClaims = await prisma.claim.findMany({
     where: { id: { in: claimIds }, ...scope },
     select: {
-      id: true, firm_id: true, approval: true, rejection_reason: true,
+      id: true, firm_id: true, approval: true, rejection_reason: true, type: true,
       amount: true, claim_date: true, gl_account_id: true, contra_gl_account_id: true, merchant: true,
       category: { select: { name: true } },
     },
@@ -48,9 +48,12 @@ export async function PATCH(request: NextRequest) {
   if (action === 'approve') {
     const errors: string[] = [];
 
-    // Check firm GL defaults (skip if contra_gl_account_id provided or claim has stored contra)
+    // Receipts don't need contra GL — JV created at bank recon, not approval
+    const nonReceipts = oldClaims.filter((c) => c.type !== 'receipt');
+
+    // Check firm GL defaults for claims/mileage only
     const firmDefaultsMap = new Map<string, string | null>();
-    for (const claim of oldClaims) {
+    for (const claim of nonReceipts) {
       if (contra_gl_account_id || claim.contra_gl_account_id) continue;
       if (!firmDefaultsMap.has(claim.firm_id)) {
         const firm = await prisma.firm.findUnique({
@@ -64,8 +67,8 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Check each claim
-    for (const claim of oldClaims) {
+    // Check each claim/mileage has expense GL (receipts optional — just labels for bank recon)
+    for (const claim of nonReceipts) {
       const expenseGlId = gl_account_id || claim.gl_account_id;
       if (!expenseGlId) {
         errors.push(`Claim by ${claim.merchant} (${claim.category.name}) has no GL account assigned. Assign a GL account before approving.`);
@@ -117,34 +120,39 @@ export async function PATCH(request: NextRequest) {
   );
 
   // ─── Create / reverse JVs ─────────────────────────────────────────────
+  // Receipts: NO JV on approval — JV created during bank recon when matched
+  // Claims & Mileage: JV on approval (Debit Expense, Credit Staff Claims Payable)
   if (action === 'approve') {
-    const firmDefaults = new Map<string, string | null>();
-    for (const claim of oldClaims) {
-      if (!firmDefaults.has(claim.firm_id)) {
-        const firm = await prisma.firm.findUnique({
-          where: { id: claim.firm_id },
-          select: { default_staff_claims_gl_id: true },
-        });
-        firmDefaults.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
-      }
-    }
+    const nonReceipts = oldClaims.filter((c) => c.type !== 'receipt');
 
-    for (const claim of oldClaims) {
-      const expenseGlId = gl_account_id || claim.gl_account_id;
-      const contraGlId = contra_gl_account_id || claim.contra_gl_account_id || firmDefaults.get(claim.firm_id);
-      // Already validated above — safe to create
-      await createJournalEntry({
-        firmId: claim.firm_id,
-        postingDate: claim.claim_date,
-        description: `${claim.category.name} — ${claim.merchant}`,
-        sourceType: 'claim_approval',
-        sourceId: claim.id,
-        lines: [
-          { glAccountId: expenseGlId!, debitAmount: Number(claim.amount), creditAmount: 0, description: claim.merchant },
-          { glAccountId: contraGlId!, debitAmount: 0, creditAmount: Number(claim.amount), description: 'Staff Claims Payable' },
-        ],
-        createdBy: session.user.id,
-      });
+    if (nonReceipts.length > 0) {
+      const firmDefaults = new Map<string, string | null>();
+      for (const claim of nonReceipts) {
+        if (!firmDefaults.has(claim.firm_id)) {
+          const firm = await prisma.firm.findUnique({
+            where: { id: claim.firm_id },
+            select: { default_staff_claims_gl_id: true },
+          });
+          firmDefaults.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
+        }
+      }
+
+      for (const claim of nonReceipts) {
+        const expenseGlId = gl_account_id || claim.gl_account_id;
+        const contraGlId = contra_gl_account_id || claim.contra_gl_account_id || firmDefaults.get(claim.firm_id);
+        await createJournalEntry({
+          firmId: claim.firm_id,
+          postingDate: claim.claim_date,
+          description: `${claim.category.name} — ${claim.merchant}`,
+          sourceType: 'claim_approval',
+          sourceId: claim.id,
+          lines: [
+            { glAccountId: expenseGlId!, debitAmount: Number(claim.amount), creditAmount: 0, description: claim.merchant },
+            { glAccountId: contraGlId!, debitAmount: 0, creditAmount: Number(claim.amount), description: 'Staff Claims Payable' },
+          ],
+          createdBy: session.user.id,
+        });
+      }
     }
   }
 
