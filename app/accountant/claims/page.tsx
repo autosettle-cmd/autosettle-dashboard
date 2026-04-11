@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
@@ -160,6 +161,7 @@ export default function ClaimsPageWrapper() {
 
 function ClaimsPage() {
   usePageTitle('Claims');
+  const { data: session } = useSession();
   const { firms, firmId, firmsLoaded } = useFirm();
 
   // Tab
@@ -503,11 +505,15 @@ function ClaimsPage() {
         .then((j) => {
           const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
           setModalEmployees(emps);
-          // Auto-select: first employee for receipts, only employee if just one
-          setModalEmployeeId(
-            (modalType === 'receipt' && emps.length > 0) ? emps[0].id :
-            emps.length === 1 ? emps[0].id : ''
-          );
+          // Auto-select: user's own record for receipts, only employee if just one
+          const myEmpId = session?.user?.employee_id;
+          if (modalType === 'receipt' && myEmpId && emps.find((e: { id: string }) => e.id === myEmpId)) {
+            setModalEmployeeId(myEmpId);
+          } else if (modalType === 'receipt' && emps.length > 0) {
+            setModalEmployeeId(emps[0].id);
+          } else {
+            setModalEmployeeId(emps.length === 1 ? emps[0].id : '');
+          }
         })
         .catch(console.error);
     } else {
@@ -800,12 +806,17 @@ function ClaimsPage() {
     setMileagePurpose('');
     setModalError('');
     setModalSaving(false);
-    // Auto-select first employee for receipts (company transactions, not personal claims)
-    if (claimTab === 'receipt' && modalEmployees.length > 0) {
-      setModalEmployeeId(modalEmployees[0].id);
+    // Receipts: auto-select logged-in user's employee record (company transactions)
+    if (claimTab === 'receipt') {
+      const myEmpId = session?.user?.employee_id;
+      if (myEmpId && modalEmployees.find(e => e.id === myEmpId)) {
+        setModalEmployeeId(myEmpId);
+      } else if (modalEmployees.length > 0) {
+        setModalEmployeeId(modalEmployees[0].id);
+      }
     }
     setShowModal(true);
-  }, [claimTab, firmId, firms, modalEmployees]);
+  }, [claimTab, firmId, firms, modalEmployees, session]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;

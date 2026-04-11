@@ -71,6 +71,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const passwordHash = await hash(password, 10);
+
+    // Every user gets an employee record — role is just permissions
+    let employee = await prisma.employee.findFirst({ where: { firm_id: firmId, name } });
+    if (!employee) {
+      employee = await prisma.employee.create({
+        data: { name, phone, email, firm_id: firmId },
+      });
+    }
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -79,6 +88,7 @@ export async function POST(request: NextRequest) {
         role: 'admin',
         status: 'active',
         firm_id: firmId,
+        employee_id: employee.id,
       },
     });
 
