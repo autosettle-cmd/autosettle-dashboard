@@ -133,6 +133,9 @@ export default function EmployeeDashboard() {
     finally { setEditSaving(false); }
   };
 
+  // Cleanup blob URL on unmount
+  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
+
   // Load stats
   useEffect(() => {
     fetch('/api/employee/stats')

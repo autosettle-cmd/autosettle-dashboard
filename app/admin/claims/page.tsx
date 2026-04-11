@@ -426,6 +426,9 @@ function AdminClaimsPage() {
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
 
+  // Cleanup blob URL on unmount
+  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
+
   // Load categories + employees for modal + edit
   useEffect(() => {
     fetch('/api/admin/categories')

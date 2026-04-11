@@ -178,6 +178,7 @@ export async function getClaimsForPhone(
 export async function logMessage(params: {
   phone: string;
   employeeId?: string;
+  messageId?: string;
   messageType: string;
   ocrConfidence?: string;
   processingMs?: number;
@@ -187,6 +188,7 @@ export async function logMessage(params: {
     data: {
       phone: params.phone,
       employee_id: params.employeeId || null,
+      message_id: params.messageId || null,
       message_type: params.messageType,
       ocr_confidence: params.ocrConfidence || null,
       processing_ms: params.processingMs || null,

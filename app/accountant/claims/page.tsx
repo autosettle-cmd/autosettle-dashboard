@@ -486,6 +486,9 @@ function ClaimsPage() {
   const [mileagePurpose, setMileagePurpose] = useState('');
   const mileageRate = 0.55;
 
+  // Cleanup blob URL on unmount
+  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
+
   // Load categories + employees when modal firm changes
   useEffect(() => {
     if (showModal && modalFirmId) {

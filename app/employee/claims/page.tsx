@@ -158,6 +158,9 @@ export default function EmployeeClaimsPage() {
   const [mileagePurpose, setMileagePurpose] = useState('');
   const mileageRate = 0.55;
 
+  // Cleanup blob URL on unmount
+  useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
+
   // Load claims
   useEffect(() => {
     let cancelled = false;

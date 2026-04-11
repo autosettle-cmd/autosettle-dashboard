@@ -287,6 +287,9 @@ model Claim {
   @@index([firm_id, type, claim_date])
   @@index([firm_id, type, status])
   @@index([firm_id, claim_date])
+  @@index([firm_id, approval])
+  @@index([firm_id, payment_status])
+  @@index([employee_id, claim_date])
 }
 
 
@@ -446,6 +449,7 @@ model MessageLog {
   id             String    @id @default(uuid())
   phone          String
   employee_id    String?
+  message_id     String?   @unique
   message_type   String
   ocr_confidence String?
   processing_ms  Int?
@@ -634,6 +638,7 @@ model BankTransaction {
   matchedPayment Payment?      @relation(fields: [matched_payment_id], references: [id])
 
   @@index([bank_statement_id, recon_status])
+  @@index([bank_statement_id, transaction_date])
   @@index([matched_payment_id])
 }
 

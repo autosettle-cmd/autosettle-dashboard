@@ -36,6 +36,12 @@ export async function POST(request: NextRequest) {
   // Always return 200 immediately to Meta — process async
   const body = await request.json();
 
+  // Cleanup stale sessions older than 24h (fire-and-forget, runs ~1% of requests)
+  if (Math.random() < 0.01) {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    prisma.session.deleteMany({ where: { updated_at: { lt: cutoff } } }).catch(() => {});
+  }
+
   // Fire-and-forget: process in background, return 200 now
   processWebhook(body).catch((err) => {
     console.error("[WhatsApp Webhook] Unhandled error:", err);
@@ -60,6 +66,23 @@ async function processWebhook(body: Record<string, unknown>) {
 
   const message = messages[0];
   const phone = message.from as string;
+  const messageId = message.id as string | undefined;
+
+  // Idempotency check — skip if we already processed this message
+  if (messageId) {
+    const existing = await prisma.messageLog.findUnique({ where: { message_id: messageId } });
+    if (existing) {
+      console.log(`[WhatsApp] Duplicate message ${messageId} — skipping`);
+      return;
+    }
+    // Record early to prevent race conditions on parallel retries
+    await prisma.messageLog.create({
+      data: { phone, message_id: messageId, message_type: (message.type as string) || 'unknown' },
+    }).catch(() => {
+      // Unique constraint violation = another instance is processing this message
+      console.log(`[WhatsApp] Message ${messageId} already being processed — skipping`);
+    });
+  }
 
   // Look up employee by phone
   const employee = await lookupEmployeeByPhone(phone);
