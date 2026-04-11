@@ -25,6 +25,7 @@ interface PaymentReceipt {
   claim_date: string;
   thumbnail_url: string | null;
   file_url: string | null;
+  gl_label: string | null;
 }
 
 interface MatchedPayment {
@@ -59,6 +60,7 @@ interface StatementDetail {
   firm_id: string;
   bank_name: string;
   account_number: string | null;
+  bank_gl_label: string | null;
   statement_date: string;
   opening_balance: string | null;
   closing_balance: string | null;
@@ -560,6 +562,35 @@ export default function AccountantReconciliationWorkspacePage() {
 
                               {mp && mp.allocations.length === 0 && mp.receipts.length === 0 && (
                                 <p className="text-body-sm text-[#8E9196] italic">No invoices or receipts linked to this payment yet.</p>
+                              )}
+
+                              {/* JV Preview for suggested matches */}
+                              {mp && (txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (
+                                <div className="mt-3 bg-white rounded-lg border border-gray-200 p-3">
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-2">Journal Entry Preview</p>
+                                  <table className="w-full text-body-sm">
+                                    <thead>
+                                      <tr className="text-left text-label-sm text-[#8E9196] uppercase">
+                                        <th className="py-1">Account</th>
+                                        <th className="py-1 text-right">Debit</th>
+                                        <th className="py-1 text-right">Credit</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {txn.credit ? (
+                                        <>
+                                          <tr><td className="py-1 text-[#191C1E] font-medium">{statement.bank_gl_label ?? `${statement.bank_name} (no GL mapped)`}</td><td className="py-1 text-right tabular-nums">{formatRM(txn.credit)}</td><td className="py-1 text-right">-</td></tr>
+                                          <tr><td className="py-1 text-[#191C1E] font-medium">{mp.receipts[0]?.gl_label ?? 'Staff Claims Payable (default)'}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(txn.credit)}</td></tr>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <tr><td className="py-1 text-[#191C1E] font-medium">{mp.receipts[0]?.gl_label ?? 'Trade Payables (default)'}</td><td className="py-1 text-right tabular-nums">{formatRM(txn.debit)}</td><td className="py-1 text-right">-</td></tr>
+                                          <tr><td className="py-1 text-[#191C1E] font-medium">{statement.bank_gl_label ?? `${statement.bank_name} (no GL mapped)`}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(txn.debit)}</td></tr>
+                                        </>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
                               )}
                             </td>
                           </tr>

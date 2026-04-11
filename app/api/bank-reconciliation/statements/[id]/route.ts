@@ -30,7 +30,7 @@ export async function GET(
               supplier: { select: { name: true } },
               employee: { select: { name: true } },
               allocations: { include: { invoice: { select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, issue_date: true } } } },
-              receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true } } } },
+              receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true, gl_account_id: true, glAccount: { select: { account_code: true, name: true } } } } } },
             },
           },
         },
@@ -42,6 +42,21 @@ export async function GET(
   if (!statement || (firmIds && !firmIds.includes(statement.firm_id))) {
     return NextResponse.json({ data: null, error: 'Statement not found' }, { status: 404 });
   }
+
+  // Fetch bank account GL mapping
+  const bankAccountMapping = await prisma.bankAccount.findUnique({
+    where: {
+      firm_id_bank_name_account_number: {
+        firm_id: statement.firm_id,
+        bank_name: statement.bank_name,
+        account_number: statement.account_number ?? '',
+      },
+    },
+    include: { glAccount: { select: { account_code: true, name: true } } },
+  });
+  const bankGlLabel = bankAccountMapping?.glAccount
+    ? `${bankAccountMapping.glAccount.account_code} — ${bankAccountMapping.glAccount.name}`
+    : null;
 
   let systemDebit = 0, systemCredit = 0;
   for (const txn of statement.transactions) {
@@ -57,7 +72,7 @@ export async function GET(
 
   return NextResponse.json({
     data: {
-      id: statement.id, firm_id: statement.firm_id, bank_name: statement.bank_name, account_number: statement.account_number,
+      id: statement.id, firm_id: statement.firm_id, bank_name: statement.bank_name, account_number: statement.account_number, bank_gl_label: bankGlLabel,
       statement_date: statement.statement_date, opening_balance: statement.opening_balance?.toString() ?? null,
       closing_balance: statement.closing_balance?.toString() ?? null, file_name: statement.file_name, file_url: statement.file_url,
       created_at: statement.created_at,
@@ -78,6 +93,7 @@ export async function GET(
           receipts: t.matchedPayment.receipts.map((r) => ({
             id: r.claim.id, merchant: r.claim.merchant, receipt_number: r.claim.receipt_number,
             amount: r.claim.amount.toString(), claim_date: r.claim.claim_date, thumbnail_url: r.claim.thumbnail_url, file_url: r.claim.file_url,
+            gl_label: r.claim.glAccount ? `${r.claim.glAccount.account_code} — ${r.claim.glAccount.name}` : null,
           })),
         } : null,
       })),
