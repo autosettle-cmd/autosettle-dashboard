@@ -1030,7 +1030,7 @@ function ClaimsPage() {
         )}
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Claims</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -1094,7 +1094,7 @@ function ClaimsPage() {
             {loading ? (
               <div className="flex items-center justify-center h-full text-sm text-[#8E9196]">Loading...</div>
             ) : claims.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-sm text-[#8E9196]">No claims found for the selected filters.</div>
+              <div className="flex items-center justify-center h-full text-sm text-[#8E9196]">{claimTab === 'receipt' ? 'No receipts' : claimTab === 'mileage' ? 'No mileage claims' : 'No claims'} found for the selected filters.</div>
             ) : (
               <table className="w-full">
                 <thead>

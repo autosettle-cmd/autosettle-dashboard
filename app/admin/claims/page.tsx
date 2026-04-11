@@ -788,7 +788,7 @@ function AdminClaimsPage() {
         )}
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Claims</h1>
+          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
@@ -879,7 +879,7 @@ function AdminClaimsPage() {
                 {loading ? (
                   <tr><td colSpan={20} className="px-5 py-12 text-center text-body-sm text-[#8E9196]">Loading...</td></tr>
                 ) : pagedClaims.length === 0 ? (
-                  <tr><td colSpan={20} className="px-5 py-12 text-center text-body-sm text-[#8E9196]">No claims found for the selected filters.</td></tr>
+                  <tr><td colSpan={20} className="px-5 py-12 text-center text-body-sm text-[#8E9196]">{claimTab === 'receipt' ? 'No receipts' : claimTab === 'mileage' ? 'No mileage claims' : 'No claims'} found for the selected filters.</td></tr>
                 ) : pagedClaims.map((c) => (
                   <tr key={c.id} onClick={() => setPreviewClaim(c)} className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50">
                     <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(c.id)} onChange={() => toggleSelect(c.id)} /></td>
