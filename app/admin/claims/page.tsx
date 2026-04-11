@@ -270,6 +270,7 @@ function AdminClaimsPage() {
         const fd = new FormData();
         fd.append('file', file);
         fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        fd.append('context', 'claim');
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
         const json = await res.json();
 
@@ -358,6 +359,7 @@ function AdminClaimsPage() {
         const ocrFd = new FormData();
         ocrFd.append('file', droppedFiles[i]);
         ocrFd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        ocrFd.append('context', 'claim');
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
 
@@ -593,6 +595,7 @@ function AdminClaimsPage() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();

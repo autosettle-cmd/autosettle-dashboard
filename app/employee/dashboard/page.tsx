@@ -211,6 +211,7 @@ export default function EmployeeDashboard() {
       fd.append('file', file);
       const cats = categories.length > 0 ? categories : (await fetch('/api/employee/categories').then(r => r.json())).data ?? [];
       fd.append('categories', JSON.stringify(cats.map((c: { name: string }) => c.name)));
+        fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();
@@ -254,6 +255,7 @@ export default function EmployeeDashboard() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();

@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const categoriesRaw = formData.get("categories") as string | null;
+    const context = formData.get("context") as string | null; // "claim" or "invoice" — skips bank_statement classification
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
@@ -57,6 +58,13 @@ export async function POST(req: NextRequest) {
       const { documentType, raw } = await extractInvoiceFromPDF(buffer, categories);
 
       if (documentType === "bank_statement") {
+        if (context === "claim") {
+          // Claims context: force re-extract as receipt (bank transfer receipts)
+          const mimeType = "application/pdf";
+          const receiptRaw = await extractFromImage(buffer, mimeType, categories);
+          const fields = parseGeminiOutputMultiple(receiptRaw);
+          return NextResponse.json({ documentType: "receipt", fields: fields[0] });
+        }
         return NextResponse.json({
           documentType: "bank_statement",
           fields: null,

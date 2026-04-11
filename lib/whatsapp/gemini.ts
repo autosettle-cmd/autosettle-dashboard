@@ -404,7 +404,9 @@ Analyze this PDF document and:
 1. Classify it as "receipt", "invoice", or "bank_statement"
 2. Extract structured data
 
-A BANK STATEMENT is a document from a bank (Maybank, CIMB, Public Bank, RHB, Hong Leong, AmBank, OCBC, UOB, HSBC, Alliance, etc.) showing account transactions with dates, descriptions, debits, credits, and running balances. It has opening/closing balances and is NOT an invoice or receipt. If it is a bank statement, return ONLY: {"documentType": "bank_statement"}
+A BANK STATEMENT is a document showing MULTIPLE account transactions over a period with dates, descriptions, debits, credits, and running balances. It has opening/closing balances and covers a date range (e.g. monthly statement). If it is a bank statement, return ONLY: {"documentType": "bank_statement"}
+
+IMPORTANT: A bank transfer receipt, DuitNow confirmation, payment acknowledgment, or single transaction record from a bank is NOT a bank statement — it is a RECEIPT. Classify it as "receipt".
 
 If it is an INVOICE, extract:
 - vendor: supplier/vendor name

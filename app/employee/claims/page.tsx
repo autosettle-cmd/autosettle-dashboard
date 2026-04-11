@@ -219,6 +219,7 @@ export default function EmployeeClaimsPage() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();
@@ -412,6 +413,7 @@ export default function EmployeeClaimsPage() {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
       const json = await res.json();
