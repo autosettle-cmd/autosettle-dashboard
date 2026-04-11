@@ -25,8 +25,13 @@ const FirmContext = createContext<FirmContextValue>({
 export function FirmProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
   const [firms, setFirms] = useState<Firm[]>([]);
-  const [firmId, setFirmId] = useState('');
+  const [firmId, setFirmIdState] = useState('');
   const [firmsLoaded, setFirmsLoaded] = useState(false);
+
+  const setFirmId = (id: string) => {
+    setFirmIdState(id);
+    try { localStorage.setItem('autosettle_firm_id', id); } catch {}
+  };
 
   useEffect(() => {
     if (session?.user?.role !== 'accountant') {
@@ -38,7 +43,13 @@ export function FirmProvider({ children }: { children: ReactNode }) {
       .then((j) => {
         const list: Firm[] = j.data ?? [];
         setFirms(list);
-        if (list.length === 1) setFirmId(list[0].id);
+        // Restore saved firm, or default to single firm
+        const saved = (() => { try { return localStorage.getItem('autosettle_firm_id') ?? ''; } catch { return ''; } })();
+        if (saved && list.some((f) => f.id === saved)) {
+          setFirmIdState(saved);
+        } else if (list.length === 1) {
+          setFirmId(list[0].id);
+        }
         setFirmsLoaded(true);
       })
       .catch(() => setFirmsLoaded(true));
