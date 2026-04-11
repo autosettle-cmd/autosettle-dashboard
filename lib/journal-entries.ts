@@ -203,8 +203,15 @@ export async function reverseJournalEntry(
     if (!original) throw new Error(`Journal entry ${journalEntryId} not found`);
     if (original.status === 'reversed') throw new Error(`Journal entry ${original.voucher_number} is already reversed`);
 
-    const postingDate = new Date();
-    const period = await findOpenPeriod(client, original.firm_id, postingDate);
+    // Try original posting date first, then today — use whichever has an open period
+    let postingDate = original.posting_date;
+    let period;
+    try {
+      period = await findOpenPeriod(client, original.firm_id, postingDate);
+    } catch {
+      postingDate = new Date();
+      period = await findOpenPeriod(client, original.firm_id, postingDate);
+    }
     const voucherNumber = await generateVoucherNumber(client, original.firm_id, postingDate);
 
     // Create reversal JV with flipped DR/CR
