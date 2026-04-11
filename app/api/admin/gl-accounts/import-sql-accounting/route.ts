@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { SQL_ACCOUNTING_COA, SYSTEM_ACCOUNTS } from '@/lib/dsplus-coa';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {

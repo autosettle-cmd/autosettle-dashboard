@@ -6,6 +6,8 @@ import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
 import { reverseJVsForSource } from '@/lib/journal-entries';
 
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

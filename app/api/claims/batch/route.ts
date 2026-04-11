@@ -6,6 +6,8 @@ import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
 import { createJournalEntry, reverseJVsForSource, findOpenPeriod } from '@/lib/journal-entries';
 
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {

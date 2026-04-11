@@ -6,6 +6,8 @@ import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { uploadFileForFirm } from '@/lib/google-drive';
 import { getFirmMileageRate, calculateMileageAmount } from '@/lib/mileage';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {

@@ -7,6 +7,8 @@ import { recalcInvoicePayment, recalcClaimPayment } from '@/lib/payment-utils';
 import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
 import { auditLog } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
   const session = await getServerSession(authOptions);

@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { reverseJVsForSource } from '@/lib/journal-entries';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/admin/journal-entries/cleanup-orphans
  * Finds and reverses JVs whose source claims are no longer approved.

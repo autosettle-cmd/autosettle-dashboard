@@ -7,6 +7,8 @@ import { autoMatchTransactions } from '@/lib/bank-reconciliation';
 import { deduplicateTransactions, findOverlappingStatements, computePeriodRange } from '@/lib/bank-dedup';
 import { uploadToDriveForFirm, getDriveViewUrl } from '@/lib/google-drive';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
   const session = await getServerSession(authOptions);

@@ -6,6 +6,8 @@ import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { recalcInvoicePayment } from '@/lib/payment-utils';
 import { auditLog } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {

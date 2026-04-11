@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET: Fetch GL defaults + bank account mappings for a firm.
  * PATCH: Update bank account GL mappings (create/upsert).

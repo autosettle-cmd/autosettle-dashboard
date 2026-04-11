@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { seedCoAForFirm } from '@/lib/seed-coa';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST() {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {

@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { auditLog } from '@/lib/audit';
 import { reverseJVsForSource } from '@/lib/journal-entries';
 
+export const dynamic = 'force-dynamic';
+
 export async function DELETE(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {

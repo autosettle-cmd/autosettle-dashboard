@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { auditLog } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {

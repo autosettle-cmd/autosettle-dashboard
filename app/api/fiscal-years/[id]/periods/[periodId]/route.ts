@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string; periodId: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {

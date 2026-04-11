@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 
+export const dynamic = 'force-dynamic';
+
 async function verifyAccess(session: { user: { id: string; role: string } }, supplierId: string) {
   const firmIds = await getAccountantFirmIds(session.user.id);
   const supplier = await prisma.supplier.findUnique({

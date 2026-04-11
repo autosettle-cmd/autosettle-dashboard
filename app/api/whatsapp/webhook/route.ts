@@ -14,6 +14,8 @@ import { startMileageFlow, handleMileageStep, confirmMileageClaim, rejectMileage
 import { sendTelegramAlert } from "@/lib/whatsapp/errorNotify";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = 'force-dynamic';
+
 const UNREGISTERED_MESSAGE =
   "Hi there! It looks like your number isn't registered with any of our services yet. To get started, please reach out to us at: jeffrylau@auto-settle.com or +6012-345-8661";
 

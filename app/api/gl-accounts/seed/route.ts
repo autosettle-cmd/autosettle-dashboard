@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { seedCoAForFirm } from '@/lib/seed-coa';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {

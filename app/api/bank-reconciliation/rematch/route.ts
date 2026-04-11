@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { autoMatchTransactions } from '@/lib/bank-reconciliation';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {

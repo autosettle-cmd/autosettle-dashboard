@@ -12,6 +12,8 @@ import {
 } from "@/lib/whatsapp/gemini";
 import { parseGeminiOutput, parseGeminiOutputMultiple, parseGeminiInvoiceOutput } from "@/lib/whatsapp/parser";
 
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/ocr/extract
  * Accepts a file upload (image or PDF) + optional categories list.
