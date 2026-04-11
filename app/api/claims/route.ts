@@ -35,12 +35,14 @@ export async function GET(request: NextRequest) {
   else if (paymentStatus.length > 1) where.payment_status = { in: paymentStatus };
 
   if (dateFrom || dateTo) {
-    // Always include pending_approval claims regardless of date range
+    // Always include pending_approval items of the SAME type regardless of date range
     const dateFilter: any = {};
     if (dateFrom) dateFilter.gte = new Date(dateFrom);
     if (dateTo) dateFilter.lte = new Date(dateTo);
+    const outstandingFilter: any = { approval: 'pending_approval' };
+    if (type) outstandingFilter.type = type;
     if (!where.AND) where.AND = [];
-    where.AND.push({ OR: [{ claim_date: dateFilter }, { approval: 'pending_approval' }] });
+    where.AND.push({ OR: [{ claim_date: dateFilter }, outstandingFilter] });
   }
   if (approval && approval !== 'all') where.approval = approval;
   if (search) {
