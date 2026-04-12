@@ -717,14 +717,15 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {/* === EDIT EMPLOYEE PANEL === */}
+      {/* === EDIT EMPLOYEE MODAL === */}
       {editEmp && (
-        <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditEmp(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Edit Employee</h2>
-              <button onClick={() => setEditEmp(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditEmp(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-[#191C1E]">Edit Employee</h2>
+              <button onClick={() => setEditEmp(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <div className="flex-1 overflow-auto p-5 space-y-4">
@@ -747,7 +748,7 @@ export default function PeoplePage() {
               </div>
             </div>
 
-            <div className="flex-shrink-0 p-4 flex gap-3">
+            <div className="flex-shrink-0 p-4 border-t border-gray-100 flex gap-3">
               <button onClick={submitEditEmp} disabled={editSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -756,17 +757,18 @@ export default function PeoplePage() {
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* === EDIT ADMIN PANEL === */}
+      {/* === EDIT ADMIN MODAL === */}
       {editAdmin && (
-        <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditAdmin(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-16 flex items-center justify-between px-4 flex-shrink-0 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Edit Admin</h2>
-              <button onClick={() => setEditAdmin(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditAdmin(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-[#191C1E]">Edit Admin</h2>
+              <button onClick={() => setEditAdmin(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <div className="flex-1 overflow-auto p-5 space-y-4">
@@ -785,7 +787,7 @@ export default function PeoplePage() {
               </div>
             </div>
 
-            <div className="flex-shrink-0 p-4 flex gap-3">
+            <div className="flex-shrink-0 p-4 border-t border-gray-100 flex gap-3">
               <button onClick={submitEditAdmin} disabled={editAdminSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
                 {editAdminSaving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -794,7 +796,7 @@ export default function PeoplePage() {
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
     </div>

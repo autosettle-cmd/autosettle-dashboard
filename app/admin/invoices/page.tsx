@@ -3,9 +3,15 @@
 import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
+import Field from '@/components/forms/Field';
+import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
+import { formatDate, formatRM, getDateRange } from '@/lib/formatters';
+import { useFilters } from '@/hooks/useFilters';
+import { STATUS_CFG, PAYMENT_CFG, LINK_CFG } from '@/lib/badge-config';
+import FilterBar from '@/components/filters/FilterBar';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -42,91 +48,6 @@ interface SupplierOption {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
-  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
-};
-
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid:         { label: 'Unpaid',         cls: 'badge-gray'   },
-  partially_paid: { label: 'Partial',        cls: 'badge-amber'  },
-  paid:           { label: 'Paid',           cls: 'badge-purple' },
-};
-
-const LINK_CFG: Record<string, { label: string; cls: string }> = {
-  confirmed:    { label: 'Confirmed',    cls: 'badge-green' },
-  auto_matched: { label: 'Suggested',    cls: 'badge-amber' },
-  unmatched:    { label: 'Unconfirmed',  cls: 'badge-red'   },
-};
-
-function formatDate(val: string) {
-  if (!val) return '';
-  const d = new Date(val);
-  return [
-    d.getUTCDate().toString().padStart(2, '0'),
-    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
-    d.getUTCFullYear(),
-  ].join('/');
-}
-
-function formatRM(val: string | number) {
-  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function getDateRange(range: string, customFrom: string, customTo: string) {
-  const now = new Date();
-  const iso = (d: Date) => d.toISOString().split('T')[0];
-  switch (range) {
-    case 'this_week': {
-      const day = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-      return { from: iso(monday), to: iso(now) };
-    }
-    case 'this_month':
-      return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(now) };
-    case 'last_month':
-      return {
-        from: iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
-        to:   iso(new Date(now.getFullYear(), now.getMonth(), 0)),
-      };
-    case 'custom':
-      return { from: customFrom, to: customTo };
-    default:
-      return { from: '', to: '' };
-  }
-}
-
-// ─── AG Grid cell renderers ──────────────────────────────────────────────────
-
-function StatusCell({ value }: { value: string }) {
-  const cfg = STATUS_CFG[value];
-  return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
-}
-
-function PaymentCell({ value }: { value: string }) {
-  const cfg = PAYMENT_CFG[value];
-  return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
-}
-
-function LinkCell({ value }: { value: string }) {
-  const cfg = LINK_CFG[value];
-  return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
-}
-
-
-// ─── Preview field helper ─────────────────────────────────────────────────────
-
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
-  return (
-    <div>
-      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
-    </div>
-  );
-}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -562,12 +483,14 @@ function AdminInvoicesPage() {
   const initialStatus = pageSearchParams.get('status') ?? '';
   const initialPayment = pageSearchParams.get('paymentStatus') ?? '';
 
-  const [dateRange,       setDateRange]      = useState(initialStatus || initialPayment ? '' : 'this_month');
-  const [customFrom,      setCustomFrom]     = useState('');
-  const [customTo,        setCustomTo]       = useState('');
-  const [statusFilter,    setStatusFilter]   = useState(initialStatus);
-  const [paymentFilter,   setPaymentFilter]  = useState(initialPayment);
-  const [search,          setSearch]         = useState('');
+  const {
+    dateRange, setDateRange,
+    customFrom, setCustomFrom,
+    customTo, setCustomTo,
+    statusFilter, setStatusFilter,
+    search, setSearch,
+  } = useFilters({ initialStatus, initialDateRange: (initialStatus || initialPayment) ? '' : 'this_month' });
+  const [paymentFilter, setPaymentFilter] = useState(initialPayment);
 
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
@@ -640,44 +563,24 @@ function AdminInvoicesPage() {
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
 
           {/* ── Filter bar ────────────────────────────────── */}
-          <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-            <Select value={dateRange} onChange={setDateRange}>
-              <option value="">All Time</option>
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
-              <option value="last_month">Last Month</option>
-              <option value="custom">Custom</option>
-            </Select>
-
-            {dateRange === 'custom' && (
-              <>
-                <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
-                <span className="text-[#8E9196] text-sm">–</span>
-                <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
-              </>
-            )}
-
-            <Select value={statusFilter} onChange={setStatusFilter}>
-              <option value="">All Status</option>
-              <option value="pending_review">Pending Review</option>
-              <option value="reviewed">Reviewed</option>
-            </Select>
-
-            <Select value={paymentFilter} onChange={setPaymentFilter}>
-              <option value="">All Payments</option>
-              <option value="unpaid">Unpaid</option>
-              <option value="partially_paid">Partial</option>
-              <option value="paid">Paid</option>
-            </Select>
-
-            <input
-              type="text"
-              placeholder="Search vendor or invoice #…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field min-w-[210px]"
-            />
-
+          <FilterBar
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustomFromChange={setCustomFrom}
+            onCustomToChange={setCustomTo}
+            showStatusFilter
+            statusValue={statusFilter}
+            onStatusChange={setStatusFilter}
+            showPaymentFilter
+            paymentValue={paymentFilter}
+            onPaymentChange={setPaymentFilter}
+            showSearch
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search vendor or invoice #…"
+          >
             <div className="ml-auto">
               <button
                 onClick={() => setShowNewInvoice(true)}
@@ -686,7 +589,7 @@ function AdminInvoicesPage() {
                 + Submit New Invoice
               </button>
             </div>
-          </div>
+          </FilterBar>
 
           {/* ── Load More ─────────────────────────────────── */}
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={invoices.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
@@ -1290,15 +1193,5 @@ function AdminInvoicesPage() {
       )}
 
     </div>
-  );
-}
-
-// ─── Small reusable sub-components ────────────────────────────────────────────
-
-function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">
-      {children}
-    </select>
   );
 }

@@ -4,9 +4,12 @@ import React from 'react';
 import Sidebar from '@/components/Sidebar';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import ReceiptSelector from '@/components/ReceiptSelector';
+import Field from '@/components/forms/Field';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
+import { formatDate, formatRM } from '@/lib/formatters';
+import { PAYMENT_CFG } from '@/lib/badge-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -110,30 +113,6 @@ interface AgingSummary {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
-  partially_paid: { label: 'Partial', cls: 'badge-amber'  },
-  paid:           { label: 'Paid',    cls: 'badge-purple' },
-};
-
-function formatDate(val: string) {
-  if (!val) return '';
-  const d = new Date(val);
-  return [
-    d.getUTCDate().toString().padStart(2, '0'),
-    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
-    d.getUTCFullYear(),
-  ].join('/');
-}
-
-function formatRM(val: string | number) {
-  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function formatRMStr(val: string | number) {
-  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 function AgingCell({ value, warn }: { value: number; warn?: boolean }) {
   if (value === 0) return <td className="px-3 py-2.5 text-right text-[#8E9196] tabular-nums text-body-sm">-</td>;
   return (
@@ -153,19 +132,6 @@ function agingBucket(dueDate: string | null): string {
   if (diffDays <= 60) return '31-60';
   if (diffDays <= 90) return '61-90';
   return '90+';
-}
-
-
-// ─── Field helper ─────────────────────────────────────────────────────────────
-
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
-  return (
-    <div>
-      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
-    </div>
-  );
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -574,11 +540,11 @@ export default function AdminSuppliersPage() {
                               <td className="px-4 py-2 pl-10 text-[#434654]">
                                 {formatDate(inv.issue_date)} · <span className="text-[#434654] font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#434654] font-medium">{formatRMStr(inv.balance)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '31-60' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '61-90' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '90+' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[#434654] font-medium">{formatRM(inv.balance)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
@@ -1074,14 +1040,15 @@ export default function AdminSuppliersPage() {
         </>
       )}
 
-      {/* ═══ EDIT SIDE PANEL ═══ */}
+      {/* ═══ EDIT SUPPLIER MODAL ═══ */}
       {editSupplier && (
-        <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditSupplier(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Edit Supplier</h2>
-              <button onClick={() => setEditSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditSupplier(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-[#191C1E]">Edit Supplier</h2>
+              <button onClick={() => setEditSupplier(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -1143,16 +1110,16 @@ export default function AdminSuppliersPage() {
               </div>
             </div>
 
-            <div className="p-4 flex-shrink-0 flex gap-3">
-              <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+            <div className="p-4 flex-shrink-0 border-t border-gray-100 flex gap-3">
+              <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ═══ INVOICE PREVIEW ═══ */}
@@ -1234,12 +1201,13 @@ export default function AdminSuppliersPage() {
 
       {/* ═══ RECEIPT PREVIEW ═══ */}
       {previewReceipt && (
-        <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
-          <div className="fixed right-0 top-0 h-screen w-[400px] bg-white shadow-2xl z-50 flex flex-col preview-slide-in">
-            <div className="h-14 flex items-center justify-between px-4 flex-shrink-0" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
-              <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setPreviewReceipt(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-[#191C1E]">Receipt Details</h2>
+              <button onClick={() => setPreviewReceipt(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (
@@ -1265,13 +1233,13 @@ export default function AdminSuppliersPage() {
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0">
-              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+            <div className="p-4 flex-shrink-0 border-t border-gray-100">
+              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
                 Close
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
     </div>

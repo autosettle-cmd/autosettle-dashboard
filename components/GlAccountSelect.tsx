@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface GlAccount {
   id: string;
@@ -61,7 +61,7 @@ export default function GlAccountSelect({
   allAccounts,
   onAccountCreated,
   firmId,
-  placeholder = 'Select GL Account',
+  placeholder = 'Search GL Account...',
   preferredType,
   defaultType,
   defaultBalance,
@@ -74,12 +74,103 @@ export default function GlAccountSelect({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
-  const preferred = preferredType ? accounts.filter(a => a.account_type === preferredType) : [];
-  const rest = preferredType ? accounts.filter(a => a.account_type !== preferredType) : accounts;
+  // Search state
+  const [search, setSearch] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const [dropUp, setDropUp] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate if dropdown should appear above or below
+  const calculateDropDirection = () => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    // If less than 200px below but more space above, drop up
+    setDropUp(spaceBelow < 200 && spaceAbove > spaceBelow);
+  };
+
   const lookup = allAccounts ?? accounts;
+
+  // Get selected account for display
+  const selectedAccount = accounts.find(a => a.id === value);
+
+  // Filter and sort accounts
+  const searchLower = search.toLowerCase();
+  const filtered = accounts.filter(a => {
+    if (!search) return true;
+    return a.account_code.toLowerCase().includes(searchLower) ||
+           a.name.toLowerCase().includes(searchLower);
+  });
+
+  // Sort: preferred type first, then by account_code
+  const preferred = preferredType ? filtered.filter(a => a.account_type === preferredType) : [];
+  const rest = preferredType ? filtered.filter(a => a.account_type !== preferredType) : filtered;
+  const sortedFiltered = [...preferred, ...rest];
 
   // Infer parent from code as user types
   const inferredParent = newCode.trim() ? findParentByCode(newCode.trim(), lookup) : null;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset highlight when filtered list changes
+  useEffect(() => {
+    setHighlightIndex(0);
+  }, [search]);
+
+  const handleSelect = (account: GlAccount) => {
+    onChange(account.id);
+    setIsOpen(false);
+    setSearch('');
+  };
+
+  const openDropdown = () => {
+    calculateDropDirection();
+    setIsOpen(true);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') {
+        openDropdown();
+        e.preventDefault();
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightIndex(i => Math.min(i + 1, sortedFiltered.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightIndex(i => Math.max(i - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (sortedFiltered[highlightIndex]) {
+          handleSelect(sortedFiltered[highlightIndex]);
+        }
+        break;
+      case 'Escape':
+        setIsOpen(false);
+        setSearch('');
+        break;
+    }
+  };
 
   const createAccount = async () => {
     if (!newCode.trim() || !newName.trim() || !firmId) return;
@@ -115,22 +206,85 @@ export default function GlAccountSelect({
   };
 
   return (
-    <div>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className={`input-field w-full text-sm ${className}`}
-      >
-        <option value="">{placeholder}</option>
-        {preferred.map(a => (
-          <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-        ))}
-        {preferredType && rest.length > 0 && <option disabled>──────────</option>}
-        {rest.map(a => (
-          <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-        ))}
-      </select>
+    <div ref={containerRef} className="relative">
+      {/* Search input */}
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={isOpen ? search : (selectedAccount ? `${selectedAccount.account_code} — ${selectedAccount.name}` : '')}
+          onChange={(e) => { setSearch(e.target.value); if (!isOpen) openDropdown(); }}
+          onFocus={() => { openDropdown(); setSearch(''); }}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`input-field w-full text-sm pr-8 ${className}`}
+        />
+        <button
+          type="button"
+          onClick={() => { if (!disabled) { if (isOpen) { setIsOpen(false); } else { openDropdown(); inputRef.current?.focus(); } } }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8E9196] hover:text-[#434654] transition-colors"
+          tabIndex={-1}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points={isOpen ? "18 15 12 9 6 15" : "6 9 12 15 18 9"} />
+          </svg>
+        </button>
+      </div>
+
+      {/* Dropdown */}
+      {isOpen && !disabled && (
+        <div className={`absolute z-50 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+          {sortedFiltered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-[#8E9196]">No accounts found</div>
+          ) : (
+            <>
+              {preferred.length > 0 && preferredType && (
+                <div className="px-3 py-1.5 text-xs font-medium text-[#8E9196] uppercase tracking-wide bg-gray-50 border-b">
+                  {preferredType}
+                </div>
+              )}
+              {preferred.map((a, idx) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => handleSelect(a)}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    highlightIndex === idx ? 'bg-[var(--primary)]/10 text-[var(--primary)]' :
+                    a.id === value ? 'bg-gray-50 font-medium' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="font-medium">{a.account_code}</span>
+                  <span className="text-[#8E9196]"> — </span>
+                  {a.name}
+                </button>
+              ))}
+              {preferred.length > 0 && rest.length > 0 && (
+                <div className="px-3 py-1.5 text-xs font-medium text-[#8E9196] uppercase tracking-wide bg-gray-50 border-y">
+                  Other
+                </div>
+              )}
+              {rest.map((a, idx) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => handleSelect(a)}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    highlightIndex === preferred.length + idx ? 'bg-[var(--primary)]/10 text-[var(--primary)]' :
+                    a.id === value ? 'bg-gray-50 font-medium' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="font-medium">{a.account_code}</span>
+                  <span className="text-[#8E9196]"> — </span>
+                  {a.name}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Add new account */}
       {firmId && !disabled && (
         <>
           {!showAdd ? (

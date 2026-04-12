@@ -36,9 +36,11 @@ export async function GET(request: NextRequest) {
 
   if (dateFrom || dateTo) {
     // Always include pending_approval items of the SAME type regardless of date range
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dateFilter: any = {};
     if (dateFrom) dateFilter.gte = new Date(dateFrom);
     if (dateTo) dateFilter.lte = new Date(dateTo);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const outstandingFilter: any = { approval: 'pending_approval' };
     if (type) outstandingFilter.type = type;
     if (!where.AND) where.AND = [];

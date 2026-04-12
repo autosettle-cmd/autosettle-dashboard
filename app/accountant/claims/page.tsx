@@ -5,8 +5,14 @@ import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
+import Field from '@/components/forms/Field';
+import { StatusCell, ApprovalCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
+import { todayStr, formatDate, formatRM, getDateRange } from '@/lib/formatters';
+import { useFilters } from '@/hooks/useFilters';
+import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
+import FilterBar from '@/components/filters/FilterBar';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 
@@ -49,109 +55,6 @@ interface ClaimRow {
 interface Category {
   id: string;
   name: string;
-}
-
-function todayStr() {
-  const d = new Date();
-  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
-}
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
-  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
-};
-
-const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',      cls: 'badge-amber' },
-  approved:         { label: 'Approved',     cls: 'badge-green' },
-  not_approved:     { label: 'Rejected',     cls: 'badge-red'   },
-};
-
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid: { label: 'Unpaid', cls: 'badge-gray'   },
-  paid:   { label: 'Paid',   cls: 'badge-purple' },
-};
-
-function formatDate(val: string) {
-  if (!val) return '';
-  const d = new Date(val);
-  return [
-    d.getUTCDate().toString().padStart(2, '0'),
-    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
-    d.getUTCFullYear(),
-  ].join('/');
-}
-
-function formatRM(val: string | number) {
-  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function getDateRange(range: string, customFrom: string, customTo: string) {
-  const now = new Date();
-  const iso = (d: Date) => d.toISOString().split('T')[0];
-
-  switch (range) {
-    case 'this_week': {
-      const day = now.getDay();
-      const monday = new Date(now);
-      monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-      return { from: iso(monday), to: iso(now) };
-    }
-    case 'this_month':
-      return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(now) };
-    case 'last_month':
-      return {
-        from: iso(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
-        to:   iso(new Date(now.getFullYear(), now.getMonth(), 0)),
-      };
-    case 'custom':
-      return { from: customFrom, to: customTo };
-    default:
-      return { from: '', to: '' };
-  }
-}
-
-// ─── AG Grid cell renderers ──────────────────────────────────────────────────
-
-function StatusCell({ value }: { value: string }) {
-  const cfg = STATUS_CFG[value];
-  if (!cfg) return null;
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
-}
-
-function ApprovalCell({ value }: { value: string }) {
-  const cfg = APPROVAL_CFG[value];
-  if (!cfg) return null;
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
-}
-
-function ConfidenceCell({ value }: { value: string }) {
-  const cls = value === 'HIGH' ? 'text-green-600' : value === 'MEDIUM' ? 'text-amber-600' : 'text-red-600';
-  return <span className={`text-xs font-semibold ${cls}`}>{value}</span>;
-}
-
-function LinkedCell({ value }: { value: number }) {
-  return value > 0
-    ? <span className="badge-green">Linked</span>
-    : <span className="badge-gray">Unlinked</span>;
-}
-
-function PaymentStatusCell({ value }: { value: string }) {
-  const cfg = PAYMENT_CFG[value];
-  if (!cfg) return null;
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
-}
-
-// ─── Preview field helper ─────────────────────────────────────────────────────
-
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
-  return (
-    <div>
-      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
-      <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
-    </div>
-  );
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -534,11 +437,13 @@ function ClaimsPage() {
   }, [urlType]);
 
   // Filters
-  const [dateRange,      setDateRange]     = useState('this_month');
-  const [customFrom,     setCustomFrom]    = useState('');
-  const [customTo,       setCustomTo]      = useState('');
-  const [approvalFilter, setApprovalFilter]= useState('');
-  const [search,         setSearch]        = useState('');
+  const {
+    dateRange, setDateRange,
+    customFrom, setCustomFrom,
+    customTo, setCustomTo,
+    approvalFilter, setApprovalFilter,
+    search, setSearch,
+  } = useFilters();
 
   // Pagination
   const [page, setPage] = useState(0);
@@ -1065,47 +970,21 @@ function ClaimsPage() {
 
 
           {/* ── Filter bar ────────────────────────────────── */}
-          <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-
-            <Select value={dateRange} onChange={setDateRange}>
-              <option value="this_week">This Week</option>
-              <option value="this_month">This Month</option>
-              <option value="last_month">Last Month</option>
-              <option value="custom">Custom</option>
-            </Select>
-
-            {dateRange === 'custom' && (
-              <>
-                <input
-                  type="date" value={customFrom}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className={inputCls}
-                />
-                <span className="text-[#8E9196] text-sm">–</span>
-                <input
-                  type="date" value={customTo}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className={inputCls}
-                />
-              </>
-            )}
-
-            <Select value={approvalFilter} onChange={setApprovalFilter}>
-              <option value="">All Approval</option>
-              <option value="pending_approval">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="not_approved">Not Approved</option>
-            </Select>
-
-            <input
-              type="text"
-              placeholder="Search merchant, employee or receipt no…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={`${inputCls} min-w-[210px]`}
-            />
-
-          </div>
+          <FilterBar
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            customFrom={customFrom}
+            customTo={customTo}
+            onCustomFromChange={setCustomFrom}
+            onCustomToChange={setCustomTo}
+            showApprovalFilter
+            approvalValue={approvalFilter}
+            onApprovalChange={setApprovalFilter}
+            showSearch
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search merchant, employee or receipt no…"
+          />
 
           {/* ── Success message ──────────────────────────── */}
           {successMsg && (
@@ -1869,11 +1748,3 @@ function ClaimsPage() {
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
 const inputCls = 'input-field';
-
-function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
-      {children}
-    </select>
-  );
-}
