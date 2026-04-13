@@ -1,125 +1,155 @@
-# Autosettle — Master Context
+# Autosettle Guidelines
 
-## How To Start a Session
-Read this file and all files in /docs/ before doing anything.
-Then fetch these two Notion pages for current build status:
-- Dashboard Build: https://www.notion.so/3329e5f5baeb819fa4bbde374726c16f
-- Next Session: https://www.notion.so/3329e5f5baeb812d9d93d706f5b9325e
-
-Tell me the current status and what's next, then we begin.
+Read this file before doing anything. These are the rules for building and maintaining Autosettle.
 
 ---
 
 ## What Is Autosettle
-Autosettle is a Malaysian B2B2C SaaS platform for accounting firms and their SME clients. Clients submit receipts, invoices, and expense claims via WhatsApp. AI extracts and categorises the data. Accountants review and approve via this web dashboard. Employees track their own submissions.
 
-## Stack
-- Framework: Next.js 14 (App Router)
-- Styling: Tailwind CSS
-- Database: PostgreSQL (self-hosted on VPS)
-- ORM: Prisma
-- Auth: NextAuth.js (email + password, credentials provider)
-- Table component: AG Grid Community (free)
-- Deployment: Vercel (frontend) + VPS (Postgres + WhatsApp backend)
+Malaysian B2B2C SaaS for accounting firms. Clients submit receipts, invoices, and expense claims via WhatsApp. AI extracts and categorizes. Accountants review and approve via web dashboard.
 
-## Three User Roles
+**Stack:** Next.js 14 (App Router), TypeScript, Tailwind CSS, Prisma 7, PostgreSQL, NextAuth.js
 
-### Accountant
-- Manages multiple firms (accountant with zero firm assignments = sees all firms)
-- Sees ALL data across assigned firms
-- Can approve and reject claims and receipts (batch and individual)
-- Can manage firms, employees, and categories
-- After login → redirect to /accountant/dashboard
+---
 
-### Admin
-- One or more per SME firm
-- Sees only their own firm's data
-- Can mark claims as Reviewed
-- Can manage their own employees
-- After login → redirect to /admin/dashboard
+## Role Permissions
 
-### Employee
-- Individual staff under a firm
-- Sees only their own submissions
-- Can submit claims via dashboard or WhatsApp
-- Read-only on approval status
-- After login → redirect to /employee/dashboard
+| Role | Scope | Can Do | JV Created? |
+|------|-------|--------|-------------|
+| **Accountant** | Assigned firms (`AccountantFirm` table). `null` = ALL firms. | Approve/reject, manage GL, COA import, all reports | **Yes** on approval |
+| **Admin** | Single firm (`firm_id` on user) | Review only (not approve), manage employees, view reports | **No** |
+| **Employee** | Own records only | Submit claims, view own status (reviewed, approved, payment) | N/A |
 
-## Auth Rules
-- Email + password only. No Google OAuth.
-- Role stored in users table, read on login, stored in NextAuth session
-- Role-based middleware: /accountant/* requires role=accountant, /admin/* requires role=admin, /employee/* requires role=employee
-- Wrong role accessing wrong route → redirect to their correct dashboard
-- Unauthenticated → redirect to /login
+### Critical Rule: firmIds = null
 
-## Database
-Postgres on VPS. Prisma as ORM. Schema in /prisma/schema.prisma.
-Never query the database directly from frontend components.
-All DB access goes through /app/api/* route handlers only.
+`getAccountantFirmIds()` returns `null` for accountants with zero firm assignments = sees ALL firms.
 
-## API Route Rules
-- ALL database calls go through Next.js /app/api/* routes
-- Frontend fetches from these routes, never touches Prisma directly
-- Always return consistent JSON shape: { data, error, meta }
+**Never use `firmIds ?? []`** — it converts null to empty array, returning zero results.
 
-## Engineering Rules — Never Violate These
-1. Never send a base64 image to an AI model more than once per document
-2. Classify documents from OCR text first — escalate to AI only if confidence is low
-3. Never expose database credentials or API keys client-side
-4. All WhatsApp message bodies: no bold (**) or italic (*) formatting
-5. Batch DB operations: use Promise.all() for parallel, chunk at 20 if >50 records
-6. Always handle loading, error, and empty states in every UI component
+```typescript
+// CORRECT pattern
+const firmScope = firmIds === null
+  ? {}  // no filter = all firms
+  : { firm_id: { in: firmIds } };
+```
 
-## Design System
-- Sidebar/header background: #152237 (dark navy)
-- Content area: white
-- Accent/buttons: #A60201 (Autosettle red)
-- Success: #22C55E (green)
-- Warning: #EAB308 (yellow)
-- Danger: #EF4444 (red)
-- Text primary: #1E293B
-- Text muted: #94A3B8
-- Font: Inter (Google Fonts)
-- Status badges: Pending review=yellow, Reviewed=blue, Approved=green, Not approved=red, Paid=purple
+---
 
-## Project Structure
+## JV (Journal Entry) Rules
 
-### Pages
-/app/admin — Admin portal: Dashboard, Claims, Invoices, Suppliers, Employees, Categories
-/app/accountant — Accountant portal: Dashboard, Claims, Invoices, Suppliers, Clients, Employees, Categories
-/app/employee — Employee portal: Dashboard, My Claims
-/app/login — Login page
+| Entity | When JV Created | Debit | Credit |
+|--------|-----------------|-------|--------|
+| **Claim** | Accountant approval | Expense GL | Staff Claims Payable |
+| **Mileage** | Accountant approval | Expense GL | Staff Claims Payable |
+| **Receipt** | Bank reconciliation | Expense GL | Bank account |
+| **Invoice** | Accountant approval | Expense/Asset GL | Accounts Payable |
 
-### API Routes
-/app/api/admin/* — Admin-scoped APIs (single firm)
-/app/api/* (claims, invoices, payments, suppliers, etc.) — Accountant-scoped APIs (multi-firm)
-/app/api/employee/* — Employee-scoped APIs (own data only)
-/app/api/accountant/admins — Accountant admin management API
-/app/api/whatsapp — WhatsApp + OCR backend
-/app/api/payments/apply-credit — Supplier credit allocation
-/app/api/receipts/unlinked — Available receipts for payment linking
+### Reversal Rules
+- Revert/edit of approved item = auto-reverse JV
+- Reversal date: try original posting date first, fallback to today
+- Both original + reversal stay posted, linked via `reversed_by_id`
+- Show warning if posting to closed period
 
-### Key Directories
-/lib — Shared utilities (db, auth, whatsapp, payment-utils)
-/lib/whatsapp — WhatsApp backend (claims, invoices, mileage, ocr, gemini, parser, send, session, drive)
-/lib/mileage.ts — Mileage rate lookup + amount calculation
-/lib/payment-utils.ts — recalcInvoicePayment() for payment status updates
-/prisma — Schema + migrations (13 migrations as of 2026-04-01)
-/docs — Spec files
+### No Special Cases
+**Approved = JV created. Always. No exceptions.**
 
-### UI Patterns
-- NAV is duplicated per page file (not shared component)
-- Preview panels: 400px slide-in from right, dark header #152237
-- All entity references clickable → preview panel (never redirect to filtered table)
-- Edit mode in preview: inline fields with Save/Cancel, resets status on save
-- Statement opens in new tab
+Never create workflows that skip JV for approved records (migration, bulk upload, historical, admin tools). Keeps the system predictable and GL accurate.
 
-## Docs To Read Before Building Any Feature
-- /docs/database-schema.md — full Postgres schema
-- /docs/user-roles.md — access control rules per role
-- /docs/accountant-portal.md — accountant dashboard spec
-- /docs/design-system.md — colors, fonts, components
-- /docs/auth.md — authentication spec
-- /docs/categories-spec.md — category business rules
-- /docs/signup-spec.md — user onboarding flow
-- /docs/whatsapp-backend.md — WhatsApp and OCR backend spec
+---
+
+## Delete & Revert Rules
+
+### Delete
+- **Blocked** if entity has downstream links (receipts, payments, bank recon)
+- Only allowed if entity has NO downstream references
+
+### Revert
+- **Always allowed** by both admin and accountant
+- **Cascades backward** — undoes all downstream effects
+- **Shows warning** with list of affected records before user confirms
+- Admin can revert approved items (accountant re-approves after)
+
+### Cascade Flow (revert undoes in reverse order)
+```
+Claim/Receipt submitted
+    ↓ Admin reviews
+Claim/Receipt reviewed
+    ↓ Accountant approves (JV created for claims/mileage)
+Claim/Receipt approved
+    ↓ Used for:
+    ├── Auto-match to pay invoice
+    └── Bank recon to verify transaction (JV created for receipts)
+```
+
+### Soft Delete
+Suppliers, Employees, GL Accounts = set `is_active = false`, never hard delete if referenced.
+
+---
+
+## UI/UX Standards
+
+### Design System
+- **Name:** Editorial Financial Intelligence
+- **Principle:** Tonal layering, no 1px borders for sectioning
+- **Colors:** Use CSS vars from `config/branding.ts` — never hardcode
+
+### Components
+| Pattern | Rule |
+|---------|------|
+| **Tables** | HTML `ds-table-header` + `useTableSort` hook. **No AG Grid.** |
+| **Modals** | Centered only. **No slide-in panels.** |
+| **Previews** | Click entity = centered modal preview |
+| **Dropdowns** | Must be searchable (type to filter) AND scrollable |
+
+### Button Colors
+| Action | Color | Class |
+|--------|-------|-------|
+| Approve, confirm, proceed | Green | `btn-approve` |
+| Submit, create | Blue | `btn-primary` |
+| Delete, reject, danger | Red | `btn-reject` |
+
+### Error Feedback
+- Pulse/highlight the button or field user needs to interact with
+- Don't just show error text — visually point to the fix
+- Example: Upload without firm selected = pulse red on firm dropdown
+
+---
+
+## Development Workflow
+
+### Multi-Role Parity
+When implementing any feature, apply to ALL relevant roles (admin, accountant) automatically. Don't wait for instruction. Future roles should follow same pattern.
+
+### Explain Changes
+After making changes, explain what was done so the structure is understood.
+
+### Other Rules
+| Rule | Description |
+|------|-------------|
+| **Milestone confirmation** | Wait for confirmation before moving to next step |
+| **No dead code** | Delete unused features entirely, don't hide nav links |
+| **No hardcoded fixes** | Don't hardcode patterns for parsing issues, use structural/AI solutions |
+| **Every user = Employee** | All users get Employee record, role is just permissions |
+
+---
+
+## Accounting Standards (Implemented)
+
+- **Audit trail** — Log who changed what, when (`AuditLog` table)
+- **Document numbering** — Auto-increment JV/invoice numbers per firm per year
+- **Period lock** — Prevent changes to closed periods, warning before posting
+- **Double-entry validation** — Every JV must balance (debits = credits)
+- **Bank reconciliation** — Auto-match and manual match with reports
+
+---
+
+## Docs Reference
+
+| File | Contents |
+|------|----------|
+| `/docs/user-roles.md` | Detailed role permissions and flows |
+| `/docs/database-schema.md` | Full Postgres schema reference |
+| `/docs/auth.md` | NextAuth login flow, middleware |
+| `/docs/categories-spec.md` | Category business rules |
+| `/docs/signup-spec.md` | User onboarding flow |
+| `/docs/whatsapp-backend.md` | WhatsApp + OCR pipeline |

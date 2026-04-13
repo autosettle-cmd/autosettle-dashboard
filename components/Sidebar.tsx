@@ -187,16 +187,11 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     <aside className="w-[232px] flex-shrink-0 flex flex-col backdrop-blur-[12px]" style={{ backgroundColor: 'rgba(21, 28, 40, 0.85)' }}>
       {/* Logo */}
       <div className="h-16 flex items-center gap-2.5 px-5 border-b border-white/[0.06]">
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg"
-          style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%)' }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-        </div>
+        <img
+          src={brand.logo}
+          alt={brand.logoAlt}
+          className="h-8 w-auto object-contain rounded"
+        />
         <div className="min-w-0 flex-1">
           <span className="text-white font-bold text-[15px] tracking-tight block leading-tight">{brand.name}</span>
           <span className="text-white/25 text-[10px] font-medium tracking-wider uppercase block truncate">{firmName ?? ROLE_LABELS[role]}</span>

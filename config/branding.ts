@@ -5,38 +5,38 @@
 
 export const brand = {
   // ── App Identity ──────────────────────────────────────────────────────────
-  name: 'Autosettle',
-  tagline: 'Expense management for Malaysian accounting firms',
+  name: 'Fortura',
+  tagline: 'Business Advisory',
   description:
-    'AI-powered expense management built for Malaysian accounting firms. Invoices, claims, reconciliation — settled automatically.',
-  portalTitle: 'Autosettle Portal',
+    'AI-powered expense management for Fortura Business Advisory.',
+  portalTitle: 'Fortura Portal',
 
   // ── Assets ────────────────────────────────────────────────────────────────
-  logo: '/logo.png',
-  logoAlt: 'Autosettle AI Solutions',
+  logo: '/Fortura logo.svg',
+  logoAlt: 'Fortura Business Advisory',
 
   // ── Brand Colors ──────────────────────────────────────────────────────────
   colors: {
     // Primary action (CTA buttons, active states, links)
-    primary: '#003D9B',
-    primaryContainer: '#0052CC',    // Gradient end for primary buttons
+    primary: '#234C77',             // Dark navy
+    primaryContainer: '#7AAED9',    // Light blue (gradient end)
 
     // Sidebar / Navigation anchor
-    sidebar: '#151C28',
+    sidebar: '#1A3A5C',             // Navy sidebar
 
     // Surfaces (tonal layering — no borders, use bg shifts)
-    surfaceBase: '#F7F9FB',         // Level 0: page background
-    surfaceLow: '#F2F4F6',          // Level 1: sections
+    surfaceBase: '#F0F2F5',         // Level 0: page background
+    surfaceLow: '#E8ECF0',          // Level 1: sections
     surfaceCard: '#FFFFFF',         // Level 2: cards
-    surfaceHeader: '#E6E8EA',       // Table headers, elevated sections
+    surfaceHeader: '#DDE3E9',       // Table headers, elevated sections
 
     // Text hierarchy
-    textPrimary: '#191C1E',         // Main text — never use #000
-    textSecondary: '#434654',       // Labels, metadata
-    textMuted: '#8E9196',           // Placeholder, disabled
+    textPrimary: '#1E3A5F',         // Main text — navy tint
+    textSecondary: '#4A5B6D',       // Labels, metadata
+    textMuted: '#7A8A9A',           // Placeholder, disabled
 
     // Borders (ghost borders only — 15% opacity)
-    outline: '#C3C6D6',
+    outline: '#B8C4D0',
 
     // Status: Warning / Pending (amber spectrum — use sparingly)
     warningBg: '#805000',

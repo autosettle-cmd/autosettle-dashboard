@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useLogout } from '@/lib/use-logout';
+import { brand } from '@/config/branding';
 
 const NAV = [
   { label: 'Dashboard', href: '/platform/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1' },
@@ -20,13 +21,13 @@ export default function PlatformSidebar() {
       {/* Brand */}
       <div className="px-4 pt-5 pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
+          <img
+            src={brand.logo}
+            alt={brand.logoAlt}
+            className="h-8 w-auto object-contain rounded"
+          />
           <div>
-            <h1 className="text-sm font-bold leading-tight">Autosettle</h1>
+            <h1 className="text-sm font-bold leading-tight">{brand.name}</h1>
             <p className="text-[10px] text-white/50 uppercase tracking-widest">Platform</p>
           </div>
         </div>

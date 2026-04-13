@@ -1,139 +1,167 @@
-# Autosettle — User Roles & Access Control
+# Autosettle User Roles & Access Control
 
 ## The Three Roles
 
 ### Accountant
-- Managed by Jeff (created manually via TablePlus or seed script)
-- Sees ALL data across ALL firms — no firm filter applied
-- Can approve and reject claims and receipts (batch and individual)
-- Can manage all firms, all employees, and all categories
-- Can create admin accounts for any firm
-- After login → redirect to /accountant/dashboard
+- Assigned firms via `AccountantFirm` table (zero assignments = sees ALL firms)
+- Can approve and reject claims, receipts, invoices
+- Approval creates Journal Entry (JV)
+- Can manage GL accounts, COA, fiscal periods
+- Can manage all firms, employees, categories
+- After login: redirect to `/accountant/dashboard`
 
 ### Admin
-- One or more per SME firm
-- Created by accountant OR by another admin in the same firm
-- Sees ONLY their own firm's data — all queries filter by firm_id
-- Can mark claims as Reviewed (first-pass review before accountant approves)
-- Can manage employees in their own firm only
-- Can add/deactivate firm-specific categories for their firm only
-- Can create additional admin accounts for their own firm only
-- After login → redirect to /admin/dashboard
+- One firm only (`firm_id` on user record)
+- Can mark claims/receipts as **Reviewed** (not approve)
+- Review does NOT create JV
+- Can manage employees in own firm
+- Can add/deactivate categories for own firm
+- After login: redirect to `/admin/dashboard`
 
 ### Employee
 - Individual staff under a firm
-- Self-signup via /signup page — requires admin approval before login works
-- Sees ONLY their own submissions — all queries filter by user_id
-- Can view their own claims and receipts (read only on approval status)
+- Sees only own submissions
+- Can view: reviewed status, approved status, payment status
 - Submits via WhatsApp or employee portal
-- After login → redirect to /employee/dashboard
+- After login: redirect to `/employee/dashboard`
 
 ---
 
-## Approval Flow
-Employee submits → Admin reviews (sets status: reviewed) → Accountant approves or rejects (sets approval: approved / not_approved)
+## Critical: firmIds = null
+
+`getAccountantFirmIds()` returns `null` when accountant has zero firm assignments.
+
+**null means "see ALL firms", not "see none".**
+
+```typescript
+// WRONG - converts null to empty array, returns nothing
+const filter = { firm_id: { in: firmIds ?? [] } };
+
+// CORRECT
+const firmScope = firmIds === null
+  ? {}  // no filter
+  : { firm_id: { in: firmIds } };
+```
+
+Use the `firmScope()` helper in `lib/accountant-firms.ts`.
+
+---
+
+## JV Creation Rules
+
+| Entity | Who Approves | JV Created | Debit | Credit |
+|--------|--------------|------------|-------|--------|
+| Claim | Accountant | On approval | Expense GL | Staff Claims Payable |
+| Mileage | Accountant | On approval | Expense GL | Staff Claims Payable |
+| Receipt | Accountant | At bank recon | Expense GL | Bank Account |
+| Invoice | Accountant | On approval | Expense GL | Accounts Payable |
+
+**Admin review = status change only, no JV.**
+
+### No Special Cases
+
+**Approved = JV created. Always. No exceptions.**
+
+Never create special modes, flags, or workflows that skip JV generation for approved records. This includes:
+- Migration imports
+- Bulk uploads
+- Historical data
+- God mode / admin tools
+
+If a record is approved, it gets a JV. This keeps the system predictable and the GL accurate.
+
+---
+
+## Delete & Revert Rules
+
+### Delete
+Blocked if entity has downstream links. Only allowed if no references.
+
+### Revert
+- Always allowed by both admin and accountant
+- Cascades backward (undoes all downstream effects)
+- Shows warning with affected records before user confirms
+- Admin can revert approved items — accountant re-approves after
+
+### Cascade Behavior
+
+When reverting, undo in reverse order:
+
+| Action | What Gets Undone |
+|--------|------------------|
+| Admin reverts to "not reviewed" | Approval, JV, bank recon match, invoice payment |
+| Accountant reverts to "pending approval" | JV reversed, bank recon unmatched, payment unlinked |
+| Unmatch bank recon | Bank recon JV reversed, payment link removed |
+
+---
+
+## Status Flow
+
+### Claims/Receipts
+
+```
+Employee submits
+    ↓
+status: pending_review, approval: pending_approval
+    ↓ Admin reviews
+status: reviewed
+    ↓ Accountant approves (JV created)
+approval: approved
+    ↓ Payment recorded
+payment_status: paid
+```
+
+### Admin Actions
+- `pending_review` → `reviewed`
+
+### Accountant Actions
+- `pending_approval` → `approved` or `not_approved`
+- `unpaid` → `paid`
 
 ---
 
 ## Table Access Matrix
 
-| Table             | Accountant      | Admin                  | Employee         |
-|-------------------|-----------------|------------------------|------------------|
-| users             | All             | No                     | No               |
-| firms             | All             | Own firm only          | No               |
-| employees         | All             | Own firm only          | No               |
-| categories        | All             | Own firm only          | No               |
-| receipts          | All             | Own firm only          | Own only         |
-| invoices          | All             | Own firm only          | No               |
-| claims            | All             | Own firm only          | Own only         |
-| sessions          | No (n8n only)   | No (n8n only)          | No (n8n only)    |
+| Table | Accountant | Admin | Employee |
+|-------|------------|-------|----------|
+| users | All | No | No |
+| firms | All | Own only | No |
+| employees | All | Own firm | No |
+| categories | All | Own firm | No |
+| claims | All | Own firm | Own only |
+| invoices | All | Own firm | No |
+| glAccounts | All | View only | No |
+| journalEntries | All | View only | No |
 
 ---
 
-## Filtering Rules Per Role
+## Role-Based Middleware
 
-### Accountant
-- No filter on any query — sees all records
-- Full CRUD on all tables except sessions
-- Can approve/reject → sets approval field to approved or not_approved
+```
+/accountant/* → requires role = accountant
+/admin/* → requires role = admin
+/employee/* → requires role = employee
+```
 
-### Admin
-- Every query filters by: WHERE firm_id = session.user.firmId
-- Cannot see any other firm's data
-- Can set status → reviewed (cannot set approved/not_approved)
-- Can deactivate default categories for their own firm via CategoryFirmOverride
-- Can add/edit firm-specific categories for their own firm only
-
-### Employee
-- Every query filters by: WHERE employee_id = session.user.employeeId
-- Cannot see other employees' submissions
-- Read-only on all records — no edit, no delete
-- Can view: own claims, own receipts
-- Cannot view: firms, employees, categories, invoices
-
----
-
-## Status Flow (applies to Claims and Receipts)
-
-Status field (admin controls):
-  pending_review → reviewed
-
-Approval field (accountant controls):
-  pending_approval → approved OR not_approved
-
-Payment status (accountant controls):
-  unpaid → paid
-
-Full flow:
-  Employee submits
-  → status: pending_review, approval: pending_approval
-  → Admin reviews → status: reviewed
-  → Accountant approves → approval: approved
-  → Accountant marks paid → payment_status: paid
-
----
-
-## Role-Based Middleware Rules
-- /accountant/* → requires role = accountant
-- /admin/* → requires role = admin
-- /employee/* → requires role = employee
-- Wrong role accessing wrong route → redirect to their correct dashboard
-- Unauthenticated → redirect to /login
-- Implemented in middleware.ts using NextAuth session
+Wrong role = redirect to their correct dashboard.
+Unauthenticated = redirect to `/login`.
 
 ---
 
 ## Who Creates Who
 
-Jeff (manually via TablePlus or seed script)
+```
+Jeff (via seed/TablePlus)
   └── Creates accountant accounts
 
 Accountant
-  └── Creates first admin for each firm (from Clients tab)
+  └── Creates first admin for each firm
 
 Admin
-  ├── Creates additional admins for their own firm only
-  └── Approves pending employee self-signups for their firm
+  ├── Creates additional admins for own firm
+  └── Approves pending employee signups
 
 Employee
   └── Self-signup via /signup
-  └── Status set to pending_onboarding until admin approves
-  └── Cannot log in until status = active
-
----
-
-## User Status Values
-
-| Status               | Meaning                                      |
-|----------------------|----------------------------------------------|
-| active               | Can log in and use the system                |
-| pending_onboarding   | Self-signed up, waiting for admin approval   |
-| rejected             | Admin rejected the signup request            |
-| inactive             | Was active, manually deactivated by admin    |
-
----
-
-## Open Questions (decide before building)
-- Can employees see the Payment status of their claims?
-- Can admin change Payment status, or only accountant?
-- Will there ever be a Manager role separate from Accountant?
+  └── Needs admin approval before login
+```

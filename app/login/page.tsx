@@ -6,94 +6,6 @@ import { brand } from '@/config/branding';
 
 type View = "login" | "forgot-email" | "forgot-reset" | "forgot-done";
 
-/* ── Gear SVG generator ─────────────────────────────────────────── */
-function GearRing({
-  radius,
-  teeth,
-  toothDepth,
-  toothWidth,
-  strokeColor,
-  duration,
-  reverse,
-  className,
-}: {
-  radius: number;
-  teeth: number;
-  toothDepth: number;
-  toothWidth: number;
-  strokeColor: string;
-  duration: number;
-  reverse?: boolean;
-  className?: string;
-}) {
-  const size = (radius + toothDepth + 2) * 2;
-  const cx = size / 2;
-  const cy = size / 2;
-
-  const toothPaths: string[] = [];
-  for (let i = 0; i < teeth; i++) {
-    const angle = (i / teeth) * Math.PI * 2;
-    const halfTooth = (toothWidth / radius) * 0.5;
-
-    const x1 = cx + radius * Math.cos(angle - halfTooth);
-    const y1 = cy + radius * Math.sin(angle - halfTooth);
-    const x2 = cx + (radius + toothDepth) * Math.cos(angle - halfTooth * 0.6);
-    const y2 = cy + (radius + toothDepth) * Math.sin(angle - halfTooth * 0.6);
-    const x3 = cx + (radius + toothDepth) * Math.cos(angle + halfTooth * 0.6);
-    const y3 = cy + (radius + toothDepth) * Math.sin(angle + halfTooth * 0.6);
-    const x4 = cx + radius * Math.cos(angle + halfTooth);
-    const y4 = cy + radius * Math.sin(angle + halfTooth);
-
-    toothPaths.push(`M${x1},${y1} L${x2},${y2} L${x3},${y3} L${x4},${y4}`);
-  }
-
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      className={className}
-      style={{
-        animation: `${reverse ? "gear-spin-reverse" : "gear-spin"} ${duration}s linear infinite`,
-        position: "absolute",
-        left: "50%",
-        top: "50%",
-        marginLeft: -size / 2,
-        marginTop: -size / 2,
-      }}
-    >
-      <circle
-        cx={cx}
-        cy={cy}
-        r={radius}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="1.5"
-      />
-      {toothPaths.map((d, i) => (
-        <path key={i} d={d} fill="none" stroke={strokeColor} strokeWidth="1.5" />
-      ))}
-    </svg>
-  );
-}
-
-/* ── Floating particle ──────────────────────────────────────────── */
-function Particle({ x, y, size, delay }: { x: number; y: number; size: number; delay: number }) {
-  return (
-    <div
-      className="absolute rounded-full"
-      style={{
-        left: `${x}%`,
-        top: `${y}%`,
-        width: size,
-        height: size,
-        backgroundColor: "rgba(var(--accent-rgb), 0.3)",
-        animation: `particle-float 8s ease-in-out ${delay}s infinite`,
-      }}
-    />
-  );
-}
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -226,115 +138,23 @@ export default function LoginPage() {
   return (
     <div>
       <main className="flex min-h-screen" style={{ backgroundColor: "#0D1B2A" }}>
-        {/* ── Left Panel: Decorative ─────────────────────────────── */}
+        {/* ── Left Panel: Logo ─────────────────────────────────────── */}
         <div
           className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative overflow-hidden items-center justify-center"
-          style={{
-            background: "linear-gradient(160deg, #0A1628 0%, #0D1B2A 40%, #111F33 100%)",
-          }}
+          style={{ backgroundColor: "var(--surface-base)" }}
         >
-          {/* Noise texture overlay */}
-          <div
-            className="absolute inset-0 opacity-[0.015]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
-              backgroundSize: "128px 128px",
-            }}
+          {/* Centered logo */}
+          <img
+            src={brand.logo}
+            alt={brand.logoAlt}
+            className="w-[80%] max-w-[550px] h-auto"
           />
-
-          {/* Subtle grid */}
-          <div
-            className="absolute inset-0 opacity-[0.025]"
-            style={{
-              backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-              backgroundSize: "60px 60px",
-            }}
-          />
-
-          {/* Radial glow behind gears */}
-          <div
-            className="absolute w-[500px] h-[500px] rounded-full"
-            style={{
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-              background: "radial-gradient(circle, rgba(var(--accent-rgb),0.12) 0%, transparent 65%)",
-              animation: "gradient-shift 6s ease-in-out infinite",
-            }}
-          />
-
-          {/* Animated gear rings */}
-          <div className="relative w-[400px] h-[400px]">
-            <GearRing
-              radius={180}
-              teeth={32}
-              toothDepth={12}
-              toothWidth={18}
-              strokeColor="rgba(var(--accent-rgb), 0.12)"
-              duration={120}
-              reverse={false}
-            />
-            <GearRing
-              radius={130}
-              teeth={24}
-              toothDepth={10}
-              toothWidth={16}
-              strokeColor="rgba(255, 255, 255, 0.06)"
-              duration={90}
-              reverse={true}
-            />
-            <GearRing
-              radius={80}
-              teeth={16}
-              toothDepth={8}
-              toothWidth={14}
-              strokeColor="rgba(var(--accent-rgb), 0.08)"
-              duration={60}
-              reverse={false}
-            />
-            <GearRing
-              radius={40}
-              teeth={10}
-              toothDepth={6}
-              toothWidth={12}
-              strokeColor="rgba(255, 255, 255, 0.04)"
-              duration={45}
-              reverse={true}
-            />
-
-            {/* Center dot */}
-            <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full"
-              style={{ backgroundColor: "rgba(var(--accent-rgb), 0.3)" }}
-            />
-          </div>
-
-          {/* Floating particles */}
-          <Particle x={15} y={20} size={3} delay={0} />
-          <Particle x={75} y={15} size={2} delay={1.5} />
-          <Particle x={85} y={70} size={4} delay={3} />
-          <Particle x={20} y={80} size={2} delay={4.5} />
-          <Particle x={60} y={90} size={3} delay={2} />
-          <Particle x={40} y={10} size={2} delay={5} />
-
-          {/* Brand content overlay */}
-          <div className="absolute bottom-16 left-12 right-12 z-10">
-            <img
-              src={brand.logo}
-              alt={brand.logoAlt}
-              className="h-10 mb-6 opacity-80"
-            />
-            <p className="text-white/25 text-body-md leading-relaxed max-w-[320px]">
-              {brand.description}
-            </p>
-          </div>
 
           {/* Right edge accent line */}
           <div
             className="absolute right-0 top-0 bottom-0 w-px"
             style={{
-              background:
-                "linear-gradient(to bottom, transparent, rgba(var(--accent-rgb), 0.2) 30%, rgba(var(--accent-rgb), 0.3) 50%, rgba(var(--accent-rgb), 0.2) 70%, transparent)",
+              background: "linear-gradient(to bottom, transparent, var(--outline) 30%, var(--outline) 70%, transparent)",
             }}
           />
         </div>
