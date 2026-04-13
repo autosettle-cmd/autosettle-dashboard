@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { uploadFileForFirm } from '@/lib/google-drive';
 import { getFirmMileageRate, calculateMileageAmount } from '@/lib/mileage';
+import { checkClaimDuplicate } from '@/lib/claim-dedup';
 
 export const dynamic = 'force-dynamic';
 
@@ -204,6 +205,22 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ data: null, error: 'Travel & Transport category not found' }, { status: 400 });
       }
 
+      // ── Duplicate check ──
+      const mileageDedup = await checkClaimDuplicate({
+        firmId: selectedFirmId,
+        employeeId: employee.id,
+        claimDate: new Date(claimDate),
+        merchant: 'Mileage Claim',
+        amount,
+        type: 'mileage',
+        fromLocation,
+        toLocation,
+        distanceKm,
+      });
+      if (mileageDedup.isDuplicate) {
+        return NextResponse.json({ data: null, error: mileageDedup.message }, { status: 409 });
+      }
+
       const claim = await prisma.claim.create({
         data: {
           firm_id: selectedFirmId,
@@ -295,6 +312,20 @@ export async function POST(request: NextRequest) {
       } catch (err) {
         console.warn('Google Drive upload failed, creating claim without file URLs:', err);
       }
+    }
+
+    // ── Duplicate check ──
+    const dedup = await checkClaimDuplicate({
+      firmId: selectedFirmId,
+      employeeId: employee.id,
+      claimDate: new Date(claimDate),
+      merchant,
+      amount,
+      receiptNumber,
+      type: claimType as 'claim' | 'receipt',
+    });
+    if (dedup.isDuplicate) {
+      return NextResponse.json({ data: null, error: dedup.message }, { status: 409 });
     }
 
     const claim = await prisma.claim.create({
