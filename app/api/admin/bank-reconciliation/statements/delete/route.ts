@@ -36,7 +36,7 @@ export async function DELETE(request: NextRequest) {
     if (paymentIds.length > 0) {
       const paymentReceipts = await prisma.paymentReceipt.findMany({
         where: { payment_id: { in: paymentIds } },
-        select: { claim_id: true, invoice_id: true },
+        select: { claim_id: true },
       });
 
       await prisma.paymentReceipt.deleteMany({ where: { payment_id: { in: paymentIds } } });
@@ -47,13 +47,6 @@ export async function DELETE(request: NextRequest) {
         await prisma.claim.updateMany({
           where: { id: { in: claimIds } },
           data: { payment_status: 'unpaid' },
-        });
-      }
-      const invoiceIds = paymentReceipts.filter(pr => pr.invoice_id).map(pr => pr.invoice_id!);
-      if (invoiceIds.length > 0) {
-        await prisma.invoice.updateMany({
-          where: { id: { in: invoiceIds } },
-          data: { payment_status: 'unpaid', amount_paid: 0 },
         });
       }
     }

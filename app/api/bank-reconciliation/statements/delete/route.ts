@@ -40,15 +40,13 @@ export async function DELETE(request: NextRequest) {
     const paymentIds = matchedTxns.map(t => t.matched_payment_id!);
 
     if (paymentIds.length > 0) {
-      // Get linked claims/invoices BEFORE deleting payment receipts
+      // Get linked claims BEFORE deleting payment receipts
       const paymentReceipts = await prisma.paymentReceipt.findMany({
         where: { payment_id: { in: paymentIds } },
-        select: { claim_id: true, invoice_id: true },
+        select: { claim_id: true },
       });
 
-      // Delete payment receipts → unblocks claim/invoice deletion
       await prisma.paymentReceipt.deleteMany({ where: { payment_id: { in: paymentIds } } });
-      // Delete orphaned payments
       await prisma.payment.deleteMany({ where: { id: { in: paymentIds } } });
 
       // Reset affected claims back to unpaid
@@ -57,14 +55,6 @@ export async function DELETE(request: NextRequest) {
         await prisma.claim.updateMany({
           where: { id: { in: claimIds } },
           data: { payment_status: 'unpaid' },
-        });
-      }
-      // Reset affected invoices back to unpaid
-      const invoiceIds = paymentReceipts.filter(pr => pr.invoice_id).map(pr => pr.invoice_id!);
-      if (invoiceIds.length > 0) {
-        await prisma.invoice.updateMany({
-          where: { id: { in: invoiceIds } },
-          data: { payment_status: 'unpaid', amount_paid: 0 },
         });
       }
     }
