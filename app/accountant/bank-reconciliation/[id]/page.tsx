@@ -211,7 +211,7 @@ export default function AccountantReconciliationWorkspacePage() {
     setLoadingCandidates(true);
 
     const amount = txn.debit ?? txn.credit ?? '';
-    const direction = txn.credit ? 'outgoing' : 'incoming'; // credit in bank = money out, debit = money in
+    const direction = txn.debit ? 'outgoing' : 'incoming'; // debit in bank = money out (withdrawal), credit = money in (deposit)
 
     // Fetch outstanding invoices/claims
     const params = new URLSearchParams({ firmId, direction });
@@ -705,7 +705,7 @@ export default function AccountantReconciliationWorkspacePage() {
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
               <div className="bg-white rounded-lg shadow-xl p-6 w-[600px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">
-                  {matchingTxn.credit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
+                  {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
                 </h2>
                 <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
                   <p className="font-medium text-[#191C1E]">{matchingTxn.description.split(' | ')[0]}</p>
@@ -716,7 +716,7 @@ export default function AccountantReconciliationWorkspacePage() {
 
                 {/* Outstanding items list */}
                 <p className="text-body-sm font-medium text-[#434654] mb-2">
-                  {matchingTxn.credit ? 'Outstanding Invoices & Claims' : 'Outstanding Sales Invoices'}
+                  {matchingTxn.debit ? 'Outstanding Invoices & Claims' : 'Outstanding Sales Invoices'}
                 </p>
                 {loadingCandidates ? (
                   <p className="text-sm text-[#8E9196] py-4 text-center">Loading...</p>

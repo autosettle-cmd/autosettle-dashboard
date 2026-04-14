@@ -258,8 +258,8 @@ export async function autoMatchTransactions(
       const txnAmount = Number(txn.credit ?? txn.debit ?? 0);
       const descLower = txn.description.toLowerCase();
 
-      if (txn.credit) {
-        // Outgoing = credit in bank → match to supplier invoices
+      if (txn.debit) {
+        // Outgoing = debit in bank (withdrawal) → match to supplier invoices
         const candidates = supplierInvoices.filter(inv => {
           const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
           if (Math.abs(remaining - txnAmount) > 0.01) return false;
@@ -277,8 +277,8 @@ export async function autoMatchTransactions(
           unmatchedBankTxnIds.delete(txn.id);
           matched.push({ bankTxnId: txn.id, paymentId: '' }); // count only
         }
-      } else if (txn.debit) {
-        // Incoming = debit in bank → match to sales invoices
+      } else if (txn.credit) {
+        // Incoming = credit in bank (deposit) → match to sales invoices
         const candidates = salesInvoices.filter(inv => {
           const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
           if (Math.abs(remaining - txnAmount) > 0.01) return false;
