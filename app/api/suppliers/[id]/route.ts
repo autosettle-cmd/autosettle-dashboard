@@ -252,6 +252,10 @@ export async function PATCH(
   if (body.state !== undefined) data.state = body.state || null;
   if (body.country !== undefined) data.country = body.country || null;
 
+  // GL account defaults
+  if (body.default_gl_account_id !== undefined) data.default_gl_account_id = body.default_gl_account_id || null;
+  if (body.default_contra_gl_account_id !== undefined) data.default_contra_gl_account_id = body.default_contra_gl_account_id || null;
+
   const updated = await prisma.supplier.update({ where: { id }, data });
   return NextResponse.json({ data: updated, error: null });
 }

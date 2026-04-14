@@ -86,6 +86,8 @@ interface Supplier {
   receivable_amount: string;
   expense_gl_label: string | null;
   contra_gl_label: string | null;
+  default_gl_account_id: string | null;
+  default_contra_gl_account_id: string | null;
 }
 
 
@@ -308,6 +310,10 @@ export default function AccountantSuppliersPage() {
   };
 
   // Open edit panel
+  const [editExpenseGlId, setEditExpenseGlId] = useState('');
+  const [editContraGlId, setEditContraGlId] = useState('');
+  const [editGlAccounts, setEditGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+
   const openEdit = (s: Supplier) => {
     setEditSupplier(s);
     setEditName(s.name);
@@ -315,6 +321,10 @@ export default function AccountantSuppliersPage() {
     setEditPhone(s.contact_phone ?? '');
     setEditNotes(s.notes ?? '');
     setNewAlias('');
+    // Load GL accounts and pre-fill from supplier defaults
+    setEditExpenseGlId(s.default_gl_account_id ?? '');
+    setEditContraGlId(s.default_contra_gl_account_id ?? '');
+    fetch(`/api/gl-accounts?firmId=${s.firm_id}`).then(r => r.json()).then(j => setEditGlAccounts(j.data ?? [])).catch(console.error);
   };
 
   const saveSupplier = async () => {
@@ -329,6 +339,8 @@ export default function AccountantSuppliersPage() {
           contact_email: editEmail.trim(),
           contact_phone: editPhone.trim(),
           notes: editNotes.trim(),
+          default_gl_account_id: editExpenseGlId || null,
+          default_contra_gl_account_id: editContraGlId || null,
         }),
       });
       if (res.ok) { setEditSupplier(null); refresh(); }
@@ -1130,6 +1142,31 @@ export default function AccountantSuppliersPage() {
                   </button>
                 </div>
               </div>
+
+              {/* GL Account Assignment */}
+              {editGlAccounts.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide">GL Account Mapping</h3>
+                  <div>
+                    <label className="input-label">Expense GL (Debit)</label>
+                    <select value={editExpenseGlId} onChange={(e) => setEditExpenseGlId(e.target.value)} className="input-field w-full text-sm">
+                      <option value="">Not assigned</option>
+                      {editGlAccounts.filter(a => ['Expense', 'CostOfSales'].includes(a.account_type)).map(a => (
+                        <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="input-label">Contra GL (Credit — Supplier Account)</label>
+                    <select value={editContraGlId} onChange={(e) => setEditContraGlId(e.target.value)} className="input-field w-full text-sm">
+                      <option value="">Not assigned</option>
+                      {editGlAccounts.filter(a => a.account_type === 'Liability').map(a => (
+                        <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
 
               {/* Summary */}
               <div className="bg-gray-50 rounded-lg p-3 space-y-2">

@@ -104,6 +104,8 @@ export async function GET(request: NextRequest) {
     overdue_amount: (overdueMap.get(s.id) ?? 0).toFixed(2),
     credit_balance: (creditMap.get(s.id) ?? 0).toFixed(2),
     receivable_amount: (receivableMap.get(s.id) ?? 0).toFixed(2),
+    default_gl_account_id: s.default_gl_account_id,
+    default_contra_gl_account_id: s.default_contra_gl_account_id,
     expense_gl_label: s.defaultGlAccount ? `${s.defaultGlAccount.account_code} — ${s.defaultGlAccount.name}` : null,
     contra_gl_label: s.defaultContraGlAccount ? `${s.defaultContraGlAccount.account_code} — ${s.defaultContraGlAccount.name}` : null,
     // LHDN buyer fields
