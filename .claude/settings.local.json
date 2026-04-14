@@ -107,7 +107,29 @@
       "Bash(head:*)",
       "Bash(gh repo:*)",
       "Bash(find /Users/jeffrylau/autosettle-dashboard -name *general-ledger* -type f)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard -type f -name *claim*)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard -path node_modules -prune -o -name \"*.ts\" -type f -exec grep -l \"ReconStatus\\\\|recon_status\" {})",
+      "Bash(/tmp/supplier_code_snippets.md:*)",
+      "Read(//tmp/**)",
+      "Bash(mkdir -p \"/Users/jeffrylau/autosettle-dashboard/app/api/admin/employees/[id]/claims-account\")",
+      "Bash(mkdir -p \"/Users/jeffrylau/autosettle-dashboard/app/api/employees/[id]/claims-account\")",
+      "Bash(sed 's|/api/admin/employees|/api/employees|g; s|/api/admin/claims|/api/claims|g; s|/api/admin/payments|/api/payments|g; s|role=\"\"admin\"\"|role=\"\"accountant\"\"|g; s|/admin/employees|/accountant/employees|g; s|AdminEmployeeClaimsAccountPage|AccountantEmployeeClaimsAccountPage|g' \"/Users/jeffrylau/autosettle-dashboard/app/admin/employees/[id]/claims-account/page.tsx\")",
+      "Bash(\"/Users/jeffrylau/autosettle-dashboard/app/accountant/employees/[id]/claims-account/page.tsx\")",
+      "Bash(brew install:*)",
+      "Bash(python3 -c \"import subprocess; result = subprocess.run\\([''python3'', ''-m'', ''pip'', ''list''], capture_output=True, text=True\\); print\\(''pdfplumber'' in result.stdout, ''PyPDF2'' in result.stdout, ''pdfminer'' in result.stdout\\)\")",
+      "Bash(python3 -m pip install pdfplumber)",
+      "Bash(python3:*)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/api/employee -type f -name *.ts)",
+      "Bash(npx ts-node:*)",
+      "Bash(nc -z -w 3 187.127.108.219 5432)",
+      "Bash(prisma/migrations/20260411_audit_fixes/migration.sql:*)",
+      "Bash(identify \"public/COMPANY LOGO \\(1\\).png\")",
+      "Bash(source .env.local)",
+      "Bash(source .env)",
+      "Bash(npx create-next-app@latest richera-dashboard --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --use-npm)",
+      "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.ts ~/richera-dashboard/tailwind.config.ts)",
+      "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.js ~/richera-dashboard/tailwind.config.js)"
     ]
   }
 }

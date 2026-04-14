@@ -39,7 +39,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       firm_name: entry.firm.name,
       voucher_number: entry.voucher_number,
       posting_date: entry.posting_date,
-      period_label: `${entry.period.fiscalYear.year_label} P${entry.period.period_number}`,
+      period_label: entry.period ? `${entry.period.fiscalYear.year_label} P${entry.period.period_number}` : null,
       description: entry.description,
       source_type: entry.source_type,
       source_id: entry.source_id,

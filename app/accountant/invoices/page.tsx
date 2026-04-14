@@ -114,6 +114,9 @@ function AccountantInvoicesPage() {
             ...(action === 'reject' && reason ? { rejection_reason: reason } : {}),
           });
         }
+      } else {
+        const json = await res.json().catch(() => ({ error: 'Unknown error' }));
+        alert(json.error || `Failed to ${action}`);
       }
     } catch (e) { console.error(e); }
   };

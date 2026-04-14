@@ -795,7 +795,7 @@ model JournalEntry {
   firm_id         String
   voucher_number  String
   posting_date    DateTime           @db.Date
-  period_id       String
+  period_id       String?
   description     String?
   source_type     JournalSourceType
   source_id       String?
@@ -806,7 +806,7 @@ model JournalEntry {
   created_at      DateTime           @default(now())
 
   firm           Firm           @relation(fields: [firm_id], references: [id])
-  period         Period         @relation(fields: [period_id], references: [id])
+  period         Period?        @relation(fields: [period_id], references: [id])
   reversedBy     JournalEntry?  @relation("JournalReversedBy", fields: [reversed_by_id], references: [id])
   reversedByOf   JournalEntry?  @relation("JournalReversedBy")
   reversalOf     JournalEntry?  @relation("JournalReversalOf", fields: [reversal_of_id], references: [id])

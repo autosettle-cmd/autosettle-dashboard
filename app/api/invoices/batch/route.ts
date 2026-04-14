@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
-import { createJournalEntry, reverseJVsForSource, findOpenPeriod } from '@/lib/journal-entries';
+import { createJournalEntry, reverseJVsForSource } from '@/lib/journal-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,20 +49,19 @@ export async function PATCH(request: NextRequest) {
   if (action === 'approve') {
     const errors: string[] = [];
 
-    // Check firm GL defaults (skip if contra_gl_account_id provided)
+    // Check contra GL — supplier's sub-account → firm default → provided
     const firmDefaultsMap = new Map<string, string | null>();
-    if (!contra_gl_account_id) {
-      for (const inv of invoices) {
-        if (!firmDefaultsMap.has(inv.firm_id)) {
-          const firm = await prisma.firm.findUnique({
-            where: { id: inv.firm_id },
-            select: { default_trade_payables_gl_id: true, name: true },
-          });
-          firmDefaultsMap.set(inv.firm_id, firm?.default_trade_payables_gl_id ?? null);
-          if (!firm?.default_trade_payables_gl_id) {
-            errors.push(`Firm "${firm?.name}" has no Trade Payables GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
-          }
-        }
+    for (const inv of invoices) {
+      if (!firmDefaultsMap.has(inv.firm_id)) {
+        const firm = await prisma.firm.findUnique({
+          where: { id: inv.firm_id },
+          select: { default_trade_payables_gl_id: true, name: true },
+        });
+        firmDefaultsMap.set(inv.firm_id, firm?.default_trade_payables_gl_id ?? null);
+      }
+      const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaultsMap.get(inv.firm_id);
+      if (!contraGlId) {
+        errors.push(`No Trade Payables GL for ${inv.vendor_name_raw}. Select a Contra GL (Credit) account before approving.`);
       }
     }
 
@@ -71,20 +70,6 @@ export async function PATCH(request: NextRequest) {
       const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
       if (!expenseGlId) {
         errors.push(`Invoice from ${inv.vendor_name_raw} (${inv.category.name}) has no GL account assigned. Assign a GL account before approving.`);
-      }
-    }
-
-    // Check fiscal periods
-    const checkedPeriods = new Set<string>();
-    for (const inv of invoices) {
-      const periodKey = `${inv.firm_id}|${inv.issue_date.toISOString().split('T')[0]}`;
-      if (checkedPeriods.has(periodKey)) continue;
-      checkedPeriods.add(periodKey);
-      try {
-        await findOpenPeriod(prisma, inv.firm_id, inv.issue_date);
-      } catch {
-        const dateStr = inv.issue_date.toISOString().split('T')[0];
-        errors.push(`No open fiscal period for date ${dateStr}. Go to Fiscal Periods to create or open a period covering this date.`);
       }
     }
 
@@ -145,6 +130,11 @@ export async function PATCH(request: NextRequest) {
         ],
         createdBy: session.user.id,
       });
+
+      // Save resolved GL on the invoice itself (so preview shows it)
+      if (expenseGlId && !inv.gl_account_id) {
+        await prisma.invoice.update({ where: { id: inv.id }, data: { gl_account_id: expenseGlId } });
+      }
 
       // Save GL to supplier for future auto-fill (learn once per supplier)
       if (inv.supplier) {

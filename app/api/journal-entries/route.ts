@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     firm_name: e.firm.name,
     voucher_number: e.voucher_number,
     posting_date: e.posting_date,
-    period_label: `${e.period.fiscalYear.year_label} P${e.period.period_number}`,
+    period_label: e.period ? `${e.period.fiscalYear.year_label} P${e.period.period_number}` : null,
     description: e.description,
     source_type: e.source_type,
     source_id: e.source_id,

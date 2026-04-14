@@ -141,7 +141,14 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
   }
 
   const execute = async (client: Prisma.TransactionClient) => {
-    const period = await findOpenPeriod(client, firmId, postingDate);
+    // Period is optional — find if exists, but don't block JV creation
+    let periodId: string | null = null;
+    try {
+      const period = await findOpenPeriod(client, firmId, postingDate);
+      periodId = period.id;
+    } catch {
+      // No fiscal period — JV still created, period can be assigned later
+    }
     const voucherNumber = await generateVoucherNumber(client, firmId, postingDate);
 
     const entry = await client.journalEntry.create({
@@ -149,7 +156,7 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
         firm_id: firmId,
         voucher_number: voucherNumber,
         posting_date: postingDate,
-        period_id: period.id,
+        period_id: periodId,
         description,
         source_type: sourceType,
         source_id: sourceId,
