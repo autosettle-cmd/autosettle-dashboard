@@ -214,7 +214,10 @@ export default function AccountantBankReconciliationPage() {
         const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
         const json = await res.json();
 
-        if (json.error) {
+        if (res.status === 409) {
+          // Already uploaded — treat as skip, not error
+          results.push({ name: file.name, ok: true, msg: 'Already uploaded — skipped' });
+        } else if (json.error) {
           results.push({ name: file.name, ok: false, msg: json.error });
         } else {
           const d = json.data;
@@ -294,7 +297,9 @@ export default function AccountantBankReconciliationPage() {
         fd.append('firm_id', targetFirmId);
         const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
         const json = await res.json();
-        if (json.error) {
+        if (res.status === 409) {
+          results.push({ name: files[i].name, ok: true, msg: 'Already uploaded — skipped' });
+        } else if (json.error) {
           results.push({ name: files[i].name, ok: false, msg: json.error });
         } else {
           const d = json.data;
@@ -413,7 +418,7 @@ export default function AccountantBankReconciliationPage() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => { setShowUpload(false); setBatchProgress(null); }} className="flex-1 px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
+                    <button onClick={() => { setShowUpload(false); setBatchProgress(null); }} className={`flex-1 px-3 py-2 text-body-md rounded-lg ${batchProgress && !uploading ? 'btn-approve text-white' : 'text-[#434654] border border-gray-200 hover:bg-gray-50'}`}>
                       {batchProgress && !uploading ? 'Done' : 'Cancel'}
                     </button>
                     {!batchProgress && (

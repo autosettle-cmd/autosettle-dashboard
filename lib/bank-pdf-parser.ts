@@ -442,7 +442,7 @@ function detectBank(text: string): string {
 
 // ─── Gemini Fallback ────────────────────────────────────────────────────────
 
-async function extractWithGeminiBankStatement(fullText: string): Promise<Omit<ParseResult, 'fileHash'>> {
+async function extractWithGeminiBankStatement(fullText: string, detectedBank: string = 'Unknown'): Promise<Omit<ParseResult, 'fileHash'>> {
   const { GoogleAuth } = await import('google-auth-library');
   const { parseServiceAccountCredentials } = await import('@/lib/google-drive');
 
@@ -489,13 +489,27 @@ Return format:
 Rules:
 - date must be YYYY-MM-DD format
 - debit/credit: use null if not applicable, number if applicable
-- balance: the running balance after this transaction
+- balance: the running balance after this transaction — NEVER use the balance value as debit or credit
 - reference: transaction reference number if visible, null otherwise
 - description: ONLY include the actual transaction description lines (payee name, transfer details, payment method). Join multiple lines with " | ". NEVER include page headers, footers, bank disclaimers, addresses, marketing text, page numbers, or boilerplate text.
 - Negative amounts or amounts with "-" suffix are DEBITS
 - Positive amounts or amounts with "+" suffix are CREDITS
 - BEGINNING BALANCE, ENDING BALANCE, TOTAL DEBIT, TOTAL CREDIT are metadata, NOT transactions
-- If the same text appears across multiple pages (headers, footers, account info), it is NOT a transaction`;
+- If the same text appears across multiple pages (headers, footers, account info), it is NOT a transaction${detectedBank === 'OCBC' ? `
+
+OCBC-specific rules (THIS IS AN OCBC STATEMENT):
+- OCBC raw text has columns MERGED together without separators. The pattern is:
+  - For DEPOSITS (e.g. BULK CREDIT): DESCRIPTION + DATE + BALANCE + DEPOSIT_AMOUNT + CHEQUE_NO
+    Example: "BULK CREDIT01 OCT 202566,897.52482.00/IB" → date=01 OCT 2025, credit=482.00, balance=66,897.52
+  - For WITHDRAWALS (e.g. DUITNOW): DESCRIPTION + DATE + BALANCE + CHEQUE_NO + WITHDRAWAL_AMOUNT
+    Example: "DUITNOW(INST TRF) DR05 OCT 202567,445.47/IB700.00" → date=05 OCT 2025, debit=700.00, balance=67,445.47
+- The FIRST number after the date is ALWAYS the balance (running total). It is NEVER the transaction amount.
+- If the transaction amount appears BEFORE /IB, it is a DEPOSIT (credit)
+- If the transaction amount appears AFTER /IB, it is a WITHDRAWAL (debit)
+- NEVER use the balance value as debit or credit
+- "Balance B/F" is the opening balance, NOT a transaction
+- Lines containing "Statement Date / Tarikh Penyata", "Account Branch / Cawangan Akaun", "Account Number / Nombor Akaun", page headers, or boilerplate text are NOT transactions
+- If a row has no amount in Withdrawal or Deposit columns, it is a continuation of the previous transaction's description, NOT a new transaction` : ''}`;
 
   const res = await fetch(url, {
     method: 'POST',
@@ -559,9 +573,13 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     // Primary: use Gemini text extraction (reliable, works for any bank)
     try {
       console.log(`[BankParser] Using Gemini text extraction for ${bank} statement`);
-      const geminiResult = await extractWithGeminiBankStatement(fullText);
+      const geminiResult = await extractWithGeminiBankStatement(fullText, bank);
       if (geminiResult.transactions.length > 0) {
-        return { ...geminiResult, fileHash };
+        // Use detectBank() for consistent bank name (Gemini returns variable names like "OCBC Bank (Malaysia) Berhad")
+        const normalizedBankName = bank !== 'Unknown' ? bank : geminiResult.bankName;
+        // Normalize account number — strip dashes and spaces for consistent grouping
+        const normalizedAccount = geminiResult.accountNumber?.replace(/[-\s]/g, '') || null;
+        return { ...geminiResult, bankName: normalizedBankName, accountNumber: normalizedAccount, fileHash };
       }
       console.log(`[BankParser] Gemini returned 0 transactions — falling back to regex`);
     } catch (geminiErr) {
@@ -577,7 +595,8 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     }
 
     if (regexResult && regexResult.transactions.length > 0) {
-      return { ...regexResult, fileHash, usedGeminiFallback: false };
+      const normalizedAccount = regexResult.accountNumber?.replace(/[-\s]/g, '') || null;
+      return { ...regexResult, accountNumber: normalizedAccount, fileHash, usedGeminiFallback: false };
     }
 
     return {

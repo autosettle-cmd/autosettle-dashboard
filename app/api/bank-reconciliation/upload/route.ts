@@ -56,6 +56,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for duplicate before uploading to Drive
+    const existing = await prisma.bankStatement.findUnique({ where: { file_hash: result.fileHash } });
+    if (existing) {
+      return NextResponse.json({ data: null, error: 'This statement has already been uploaded' }, { status: 409 });
+    }
+
     // Upload to Google Drive
     let fileUrl: string | null = null;
     let driveWarning: string | null = null;
@@ -69,11 +75,6 @@ export async function POST(request: NextRequest) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('Drive upload failed:', msg);
       driveWarning = `PDF not saved to Drive: ${msg}`;
-    }
-
-    const existing = await prisma.bankStatement.findUnique({ where: { file_hash: result.fileHash } });
-    if (existing) {
-      return NextResponse.json({ data: null, error: 'This statement has already been uploaded' }, { status: 409 });
     }
 
     // Deduplicate transactions against existing ones for the same bank account
