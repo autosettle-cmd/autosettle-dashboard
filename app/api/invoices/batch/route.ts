@@ -38,8 +38,9 @@ export async function PATCH(request: NextRequest) {
     where: { id: { in: invoiceIds }, ...scope },
     select: {
       id: true, firm_id: true, total_amount: true, issue_date: true,
-      gl_account_id: true, approval: true, vendor_name_raw: true,
+      gl_account_id: true, approval: true, vendor_name_raw: true, supplier_id: true,
       category: { select: { name: true } },
+      supplier: { select: { id: true, default_gl_account_id: true } },
     },
   });
   const oldMap = new Map(invoices.map((inv) => [inv.id, inv]));
@@ -65,9 +66,9 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Check each invoice
+    // Check each invoice — fall back to supplier's default GL
     for (const inv of invoices) {
-      const expenseGlId = gl_account_id || inv.gl_account_id;
+      const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
       if (!expenseGlId) {
         errors.push(`Invoice from ${inv.vendor_name_raw} (${inv.category.name}) has no GL account assigned. Assign a GL account before approving.`);
       }
@@ -130,7 +131,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     for (const inv of invoices) {
-      const expenseGlId = gl_account_id || inv.gl_account_id;
+      const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
       const contraGlId = contra_gl_account_id || firmDefaults.get(inv.firm_id);
       await createJournalEntry({
         firmId: inv.firm_id,
@@ -144,6 +145,15 @@ export async function PATCH(request: NextRequest) {
         ],
         createdBy: session.user.id,
       });
+
+      // Save GL to supplier for future auto-fill (learn once per supplier)
+      const resolvedGlId = gl_account_id || inv.gl_account_id;
+      if (resolvedGlId && inv.supplier && !inv.supplier.default_gl_account_id) {
+        await prisma.supplier.update({
+          where: { id: inv.supplier.id },
+          data: { default_gl_account_id: resolvedGlId },
+        });
+      }
     }
   }
 

@@ -45,6 +45,7 @@ interface InvoiceRow {
   notes: string | null;
   gl_account_id: string | null;
   gl_account_label: string | null;
+  supplier_default_gl_id: string | null;
   approval: 'pending_approval' | 'approved' | 'not_approved';
   rejection_reason: string | null;
 }
@@ -545,6 +546,9 @@ function AccountantInvoicesPage() {
           setGlAccounts(glJson.data ?? []);
           if (previewInvoice.gl_account_id) {
             setSelectedGlAccountId(previewInvoice.gl_account_id);
+          } else if (previewInvoice.supplier_default_gl_id) {
+            // Auto-fill from supplier's saved GL (learned from first approval)
+            setSelectedGlAccountId(previewInvoice.supplier_default_gl_id);
           } else {
             const catData = catJson.data ?? [];
             const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);

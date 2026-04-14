@@ -317,7 +317,11 @@ model Supplier {
   state                  String?
   country                String?   @default("MYS")
 
+  // Default GL for invoice approval (learned from first approval, auto-applied thereafter)
+  default_gl_account_id String?
+
   firm          Firm            @relation(fields: [firm_id], references: [id])
+  defaultGlAccount GLAccount?  @relation("SupplierDefaultGL", fields: [default_gl_account_id], references: [id])
   aliases       SupplierAlias[]
   invoices      Invoice[]
   salesInvoices SalesInvoice[]
@@ -677,6 +681,7 @@ model GLAccount {
   firmsStaffClaims      Firm[]  @relation("FirmStaffClaims")
   firmsTradeReceivables Firm[]  @relation("FirmTradeReceivables")
   firmsRetainedEarnings Firm[]  @relation("FirmRetainedEarnings")
+  suppliersDefaultGL    Supplier[] @relation("SupplierDefaultGL")
 
   @@unique([firm_id, account_code])
   @@index([firm_id, account_type])
