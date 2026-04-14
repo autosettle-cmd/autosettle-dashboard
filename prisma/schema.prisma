@@ -285,6 +285,7 @@ model Claim {
   contraGlAccount GLAccount? @relation("ClaimContraGL", fields: [contra_gl_account_id], references: [id])
   taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id])
   paymentReceipts PaymentReceipt[]
+  bankTransactions BankTransaction[]
 
   @@index([firm_id, type, claim_date])
   @@index([firm_id, type, status])
@@ -383,6 +384,7 @@ model Invoice {
   category            Category             @relation(fields: [category_id], references: [id])
   glAccount           GLAccount?           @relation(fields: [gl_account_id], references: [id])
   paymentAllocations  PaymentAllocation[]
+  bankTransactions    BankTransaction[]
 
   @@index([firm_id, status])
   @@index([firm_id, issue_date])
@@ -511,6 +513,7 @@ model SalesInvoice {
   glAccount            GLAccount?           @relation(fields: [gl_account_id], references: [id])
   items                SalesInvoiceItem[]
   paymentAllocations   SalesPaymentAllocation[]
+  bankTransactions     BankTransaction[]
 
   @@index([firm_id, issue_date])
   @@index([firm_id, lhdn_status])
@@ -637,17 +640,26 @@ model BankTransaction {
   credit             Decimal?    @db.Decimal(12, 2)
   balance            Decimal?    @db.Decimal(12, 2)
   recon_status       ReconStatus @default(unmatched)
-  matched_payment_id String?
-  matched_at         DateTime?
-  matched_by         String?
-  notes              String?
+  matched_payment_id       String?
+  matched_invoice_id       String?
+  matched_sales_invoice_id String?
+  matched_claim_id         String?
+  matched_at               DateTime?
+  matched_by               String?
+  notes                    String?
   created_at         DateTime    @default(now())
 
-  bankStatement  BankStatement @relation(fields: [bank_statement_id], references: [id], onDelete: Cascade)
-  matchedPayment Payment?      @relation(fields: [matched_payment_id], references: [id])
+  bankStatement      BankStatement @relation(fields: [bank_statement_id], references: [id], onDelete: Cascade)
+  matchedPayment     Payment?      @relation(fields: [matched_payment_id], references: [id])
+  matchedInvoice     Invoice?      @relation(fields: [matched_invoice_id], references: [id])
+  matchedSalesInvoice SalesInvoice? @relation(fields: [matched_sales_invoice_id], references: [id])
+  matchedClaim       Claim?        @relation(fields: [matched_claim_id], references: [id])
 
   @@index([bank_statement_id, recon_status])
   @@index([bank_statement_id, transaction_date])
+  @@index([matched_invoice_id])
+  @@index([matched_sales_invoice_id])
+  @@index([matched_claim_id])
   @@index([matched_payment_id])
 }
 

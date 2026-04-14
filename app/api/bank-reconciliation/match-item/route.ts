@@ -4,14 +4,12 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { createJournalEntry, findOpenPeriod } from '@/lib/journal-entries';
-import { recalcInvoicePayment, recalcClaimPayment } from '@/lib/payment-utils';
-import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Matches a bank transaction to an invoice, sales invoice, or claim.
- * Creates Payment + allocation link + BankTransaction match + JV.
+ * Matches a bank transaction directly to an invoice, sales invoice, or claim.
+ * No Payment record needed — direct FK link on BankTransaction.
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -20,13 +18,12 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { bankTransactionId, invoiceId, salesInvoiceId, claimId, glAccountId, amount: matchAmount } = body as {
+  const { bankTransactionId, invoiceId, salesInvoiceId, claimId, glAccountId } = body as {
     bankTransactionId: string;
     invoiceId?: string;
     salesInvoiceId?: string;
     claimId?: string;
     glAccountId?: string;
-    amount?: number;
   };
 
   if (!bankTransactionId) {
@@ -42,7 +39,7 @@ export async function POST(request: NextRequest) {
     include: { bankStatement: { select: { firm_id: true, bank_name: true, account_number: true } } },
   });
   if (!txn) return NextResponse.json({ data: null, error: 'Bank transaction not found' }, { status: 404 });
-  if (txn.matched_payment_id) return NextResponse.json({ data: null, error: 'Transaction already matched' }, { status: 400 });
+  if (txn.recon_status === 'manually_matched') return NextResponse.json({ data: null, error: 'Transaction already confirmed' }, { status: 400 });
 
   const firmId = txn.bankStatement.firm_id;
 
@@ -70,57 +67,49 @@ export async function POST(request: NextRequest) {
   }
   const bankGlId = bankAccount.gl_account_id;
 
-  // Check fiscal period
-  try {
-    await findOpenPeriod(prisma, firmId, txn.transaction_date);
-  } catch {
-    return NextResponse.json({ data: null, error: `No open fiscal period for ${txn.transaction_date.toISOString().split('T')[0]}` }, { status: 400 });
-  }
+  const txnAmount = Number(txn.credit ?? txn.debit ?? 0);
 
   try {
     // ─── Match to Supplier Invoice (DEBIT / outgoing) ────────────────────
     if (invoiceId) {
       const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId },
-        select: { id: true, firm_id: true, total_amount: true, amount_paid: true, supplier_id: true, vendor_name_raw: true, gl_account_id: true },
+        select: { id: true, firm_id: true, total_amount: true, amount_paid: true, vendor_name_raw: true, gl_account_id: true,
+          supplier: { select: { default_contra_gl_account_id: true } } },
       });
       if (!invoice || invoice.firm_id !== firmId) {
         return NextResponse.json({ data: null, error: 'Invoice not found' }, { status: 404 });
       }
 
-      const remaining = Number(invoice.total_amount) - Number(invoice.amount_paid);
-      const payAmount = matchAmount ?? remaining;
-
-      // Get firm default trade payables GL
-      const firm = await prisma.firm.findUnique({
-        where: { id: firmId },
-        select: { default_trade_payables_gl_id: true },
-      });
-      const tradePayablesGlId = glAccountId || firm?.default_trade_payables_gl_id;
-      if (!tradePayablesGlId) {
-        return NextResponse.json({ data: null, error: 'No Trade Payables GL configured. Set it in GL Defaults or select a GL account.' }, { status: 400 });
+      // Determine contra GL: supplier sub-account → firm default
+      const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true } });
+      const contraGlId = glAccountId || invoice.supplier?.default_contra_gl_account_id || firm?.default_trade_payables_gl_id;
+      if (!contraGlId) {
+        return NextResponse.json({ data: null, error: 'No Trade Payables GL configured for this supplier.' }, { status: 400 });
       }
 
-      // Create Payment → PaymentAllocation → match BankTransaction → JV
-      const payment = await prisma.payment.create({
+      const payAmount = txnAmount;
+
+      // Link bank transaction directly to invoice
+      await prisma.bankTransaction.update({
+        where: { id: bankTransactionId },
         data: {
-          firm_id: firmId,
-          supplier_id: invoice.supplier_id,
-          amount: payAmount,
-          payment_date: txn.transaction_date,
-          reference: txn.reference ?? txn.description,
-          direction: 'outgoing',
-          notes: `Bank recon match to invoice ${invoice.vendor_name_raw}`,
+          matched_invoice_id: invoiceId,
+          recon_status: 'manually_matched',
+          matched_at: new Date(),
+          matched_by: session.user.id,
         },
       });
 
-      await prisma.paymentAllocation.create({
-        data: { payment_id: payment.id, invoice_id: invoiceId, amount: payAmount },
-      });
-
-      await prisma.bankTransaction.update({
-        where: { id: bankTransactionId },
-        data: { matched_payment_id: payment.id, recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id },
+      // Update invoice payment
+      const newPaid = Number(invoice.amount_paid) + payAmount;
+      const total = Number(invoice.total_amount);
+      await prisma.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          amount_paid: newPaid,
+          payment_status: newPaid >= total ? 'paid' : 'partially_paid',
+        },
       });
 
       // JV: DR Trade Payables / CR Bank
@@ -131,85 +120,69 @@ export async function POST(request: NextRequest) {
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
         lines: [
-          { glAccountId: tradePayablesGlId, debitAmount: payAmount, creditAmount: 0, description: 'Trade Payables' },
+          { glAccountId: contraGlId, debitAmount: payAmount, creditAmount: 0, description: 'Trade Payables' },
           { glAccountId: bankGlId, debitAmount: 0, creditAmount: payAmount, description: txn.bankStatement.bank_name },
         ],
         createdBy: session.user.id,
       });
 
-      await recalcInvoicePayment(invoiceId);
-
-      return NextResponse.json({ data: { matched: true, paymentId: payment.id }, error: null });
+      return NextResponse.json({ data: { matched: true }, error: null });
     }
 
     // ─── Match to Sales Invoice (CREDIT / incoming) ──────────────────────
     if (salesInvoiceId) {
       const salesInvoice = await prisma.salesInvoice.findUnique({
         where: { id: salesInvoiceId },
-        select: { id: true, firm_id: true, total_amount: true, amount_paid: true, supplier_id: true, invoice_number: true, gl_account_id: true },
+        select: { id: true, firm_id: true, total_amount: true, amount_paid: true, invoice_number: true,
+          buyer: { select: { name: true } } },
       });
       if (!salesInvoice || salesInvoice.firm_id !== firmId) {
         return NextResponse.json({ data: null, error: 'Sales invoice not found' }, { status: 404 });
       }
 
-      const remaining = Number(salesInvoice.total_amount) - Number(salesInvoice.amount_paid);
-      const payAmount = matchAmount ?? remaining;
-
-      // Get buyer name
-      const buyer = await prisma.supplier.findUnique({
-        where: { id: salesInvoice.supplier_id },
-        select: { name: true },
-      });
-
-      // Get firm default trade receivables GL
-      const firm = await prisma.firm.findUnique({
-        where: { id: firmId },
-        select: { default_trade_receivables_gl_id: true },
-      });
-      const tradeReceivablesGlId = glAccountId || firm?.default_trade_receivables_gl_id;
-      if (!tradeReceivablesGlId) {
-        return NextResponse.json({ data: null, error: 'No Trade Receivables GL configured. Set it in GL Defaults or select a GL account.' }, { status: 400 });
+      const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_receivables_gl_id: true } });
+      const receivablesGlId = glAccountId || firm?.default_trade_receivables_gl_id;
+      if (!receivablesGlId) {
+        return NextResponse.json({ data: null, error: 'No Trade Receivables GL configured.' }, { status: 400 });
       }
 
-      // Create Payment → SalesPaymentAllocation → match BankTransaction → JV
-      const payment = await prisma.payment.create({
-        data: {
-          firm_id: firmId,
-          supplier_id: salesInvoice.supplier_id,
-          amount: payAmount,
-          payment_date: txn.transaction_date,
-          reference: txn.reference ?? txn.description,
-          direction: 'incoming',
-          notes: `Bank recon match to sales invoice ${salesInvoice.invoice_number}`,
-        },
-      });
-
-      await prisma.salesPaymentAllocation.create({
-        data: { payment_id: payment.id, sales_invoice_id: salesInvoiceId, amount: payAmount },
-      });
+      const payAmount = txnAmount;
 
       await prisma.bankTransaction.update({
         where: { id: bankTransactionId },
-        data: { matched_payment_id: payment.id, recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id },
+        data: {
+          matched_sales_invoice_id: salesInvoiceId,
+          recon_status: 'manually_matched',
+          matched_at: new Date(),
+          matched_by: session.user.id,
+        },
+      });
+
+      const newPaid = Number(salesInvoice.amount_paid) + payAmount;
+      const total = Number(salesInvoice.total_amount);
+      await prisma.salesInvoice.update({
+        where: { id: salesInvoiceId },
+        data: {
+          amount_paid: newPaid,
+          payment_status: newPaid >= total ? 'paid' : 'partially_paid',
+        },
       });
 
       // JV: DR Bank / CR Trade Receivables
       await createJournalEntry({
         firmId,
         postingDate: txn.transaction_date,
-        description: `Bank recon — ${buyer?.name ?? 'Customer'}`,
+        description: `Bank recon — ${salesInvoice.buyer?.name ?? 'Customer'}`,
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
         lines: [
           { glAccountId: bankGlId, debitAmount: payAmount, creditAmount: 0, description: txn.bankStatement.bank_name },
-          { glAccountId: tradeReceivablesGlId, debitAmount: 0, creditAmount: payAmount, description: 'Trade Receivables' },
+          { glAccountId: receivablesGlId, debitAmount: 0, creditAmount: payAmount, description: 'Trade Receivables' },
         ],
         createdBy: session.user.id,
       });
 
-      await recalcSalesInvoicePayment(salesInvoiceId);
-
-      return NextResponse.json({ data: { matched: true, paymentId: payment.id }, error: null });
+      return NextResponse.json({ data: { matched: true }, error: null });
     }
 
     // ─── Match to Employee Claim (DEBIT / outgoing) ──────────────────────
@@ -226,8 +199,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
       }
 
-      const payAmount = matchAmount ?? Number(claim.amount);
-
       // Determine expense GL: provided > claim > category mapping
       let expenseGlId = glAccountId || claim.gl_account_id;
       if (!expenseGlId && claim.category_id) {
@@ -241,27 +212,31 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ data: null, error: 'No GL account for this claim category. Select a GL account.' }, { status: 400 });
       }
 
-      // Create Payment → PaymentReceipt → match BankTransaction → JV
-      const payment = await prisma.payment.create({
-        data: {
-          firm_id: firmId,
-          employee_id: claim.employee.id,
-          amount: payAmount,
-          payment_date: txn.transaction_date,
-          reference: txn.reference ?? txn.description,
-          direction: 'outgoing',
-          notes: `Bank recon reimbursement — ${claim.employee.name}`,
-        },
-      });
-
-      await prisma.paymentReceipt.create({
-        data: { payment_id: payment.id, claim_id: claimId, amount: payAmount },
-      });
+      const payAmount = Number(claim.amount);
 
       await prisma.bankTransaction.update({
         where: { id: bankTransactionId },
-        data: { matched_payment_id: payment.id, recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id },
+        data: {
+          matched_claim_id: claimId,
+          recon_status: 'manually_matched',
+          matched_at: new Date(),
+          matched_by: session.user.id,
+        },
       });
+
+      await prisma.claim.update({
+        where: { id: claimId },
+        data: { payment_status: 'paid' },
+      });
+
+      // Save category GL mapping for future use
+      if (glAccountId && claim.category_id) {
+        await prisma.categoryFirmOverride.upsert({
+          where: { category_id_firm_id: { category_id: claim.category_id, firm_id: firmId } },
+          update: { gl_account_id: glAccountId },
+          create: { firm_id: firmId, category_id: claim.category_id, gl_account_id: glAccountId },
+        });
+      }
 
       // JV: DR Expense GL / CR Bank
       await createJournalEntry({
@@ -277,18 +252,7 @@ export async function POST(request: NextRequest) {
         createdBy: session.user.id,
       });
 
-      // Save category GL mapping for future use (learn inline)
-      if (glAccountId && claim.category_id) {
-        await prisma.categoryFirmOverride.upsert({
-          where: { category_id_firm_id: { category_id: claim.category_id, firm_id: firmId } },
-          update: { gl_account_id: glAccountId },
-          create: { firm_id: firmId, category_id: claim.category_id, gl_account_id: glAccountId },
-        });
-      }
-
-      await recalcClaimPayment(claimId);
-
-      return NextResponse.json({ data: { matched: true, paymentId: payment.id }, error: null });
+      return NextResponse.json({ data: { matched: true }, error: null });
     }
 
     return NextResponse.json({ data: null, error: 'No match target provided' }, { status: 400 });
