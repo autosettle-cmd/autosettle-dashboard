@@ -321,6 +321,7 @@ export async function GET(request: NextRequest) {
       },
     },
     orderBy: { payment_date: 'desc' },
+    take: 100,
   });
 
   // Batch-fetch claim details for all receipts in one query

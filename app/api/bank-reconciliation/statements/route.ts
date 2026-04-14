@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       firm: { select: { name: true } },
     },
     orderBy: { statement_date: 'desc' },
+    take: 100,
   });
 
   const statusCounts = await prisma.bankTransaction.groupBy({

@@ -338,17 +338,15 @@ function AdminClaimsPage() {
 
   // Load categories + employees for modal + edit
   useEffect(() => {
-    fetch('/api/admin/categories')
-      .then((r) => r.json())
-      .then((j) => { setModalCategories(j.data ?? []); setEditCategories(j.data ?? []); })
-      .catch(console.error);
-    fetch('/api/admin/employees')
-      .then((r) => r.json())
-      .then((j) => {
-        const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
-        setModalEmployees(emps);
-      })
-      .catch(console.error);
+    Promise.all([
+      fetch('/api/admin/categories').then((r) => r.json()),
+      fetch('/api/admin/employees').then((r) => r.json()),
+    ]).then(([catJson, empJson]) => {
+      setModalCategories(catJson.data ?? []);
+      setEditCategories(catJson.data ?? []);
+      const emps = (empJson.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
+      setModalEmployees(emps);
+    }).catch(console.error);
   }, []);
 
   const saveEdit = async () => {

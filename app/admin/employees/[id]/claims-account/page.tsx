@@ -104,7 +104,7 @@ export default function AdminEmployeeClaimsAccountPage() {
     }
   }, [id, dateFrom, dateTo]);
 
-  useEffect(() => { fetchStatement(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchStatement(); }, [fetchStatement]);
 
   // ── Fetch unpaid claims for payment modal ──
   const openPayModal = async () => {

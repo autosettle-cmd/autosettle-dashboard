@@ -28,6 +28,7 @@ export async function GET() {
       category: { select: { name: true } },
     },
     orderBy: { claim_date: 'desc' },
+    take: 100,
   });
 
   const data = claims.map((c) => ({

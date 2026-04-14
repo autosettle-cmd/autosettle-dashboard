@@ -219,12 +219,18 @@ export async function reverseJournalEntry(
 
     // Try original posting date first, then today — use whichever has an open period
     let postingDate = original.posting_date;
-    let period;
+    let periodId: string | null = null;
     try {
-      period = await findOpenPeriod(client, original.firm_id, postingDate);
+      const period = await findOpenPeriod(client, original.firm_id, postingDate);
+      periodId = period.id;
     } catch {
       postingDate = new Date();
-      period = await findOpenPeriod(client, original.firm_id, postingDate);
+      try {
+        const period = await findOpenPeriod(client, original.firm_id, postingDate);
+        periodId = period.id;
+      } catch {
+        // No open period — reversal still created, period can be assigned later
+      }
     }
     const voucherNumber = await generateVoucherNumber(client, original.firm_id, postingDate);
 
@@ -234,7 +240,7 @@ export async function reverseJournalEntry(
         firm_id: original.firm_id,
         voucher_number: voucherNumber,
         posting_date: postingDate,
-        period_id: period.id,
+        period_id: periodId,
         description: `Reversal of ${original.voucher_number}`,
         source_type: original.source_type,
         source_id: original.source_id,

@@ -398,26 +398,24 @@ function ClaimsPage() {
   // Load categories + employees when modal firm changes
   useEffect(() => {
     if (showModal && modalFirmId) {
-      fetch(`/api/categories?firmId=${modalFirmId}`)
-        .then((r) => r.json())
-        .then((j) => { setModalCategories(j.data ?? []); setModalCategory(''); })
-        .catch(console.error);
-      fetch(`/api/employees?firmId=${modalFirmId}`)
-        .then((r) => r.json())
-        .then((j) => {
-          const emps = (j.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
-          setModalEmployees(emps);
-          // Auto-select: user's own record for receipts, only employee if just one
-          const myEmpId = session?.user?.employee_id;
-          if (modalType === 'receipt' && myEmpId && emps.find((e: { id: string }) => e.id === myEmpId)) {
-            setModalEmployeeId(myEmpId);
-          } else if (modalType === 'receipt' && emps.length > 0) {
-            setModalEmployeeId(emps[0].id);
-          } else {
-            setModalEmployeeId(emps.length === 1 ? emps[0].id : '');
-          }
-        })
-        .catch(console.error);
+      Promise.all([
+        fetch(`/api/categories?firmId=${modalFirmId}`).then((r) => r.json()),
+        fetch(`/api/employees?firmId=${modalFirmId}`).then((r) => r.json()),
+      ]).then(([catJson, empJson]) => {
+        setModalCategories(catJson.data ?? []);
+        setModalCategory('');
+        const emps = (empJson.data ?? []).filter((e: { is_active: boolean }) => e.is_active);
+        setModalEmployees(emps);
+        // Auto-select: user's own record for receipts, only employee if just one
+        const myEmpId = session?.user?.employee_id;
+        if (modalType === 'receipt' && myEmpId && emps.find((e: { id: string }) => e.id === myEmpId)) {
+          setModalEmployeeId(myEmpId);
+        } else if (modalType === 'receipt' && emps.length > 0) {
+          setModalEmployeeId(emps[0].id);
+        } else {
+          setModalEmployeeId(emps.length === 1 ? emps[0].id : '');
+        }
+      }).catch(console.error);
     } else {
       setModalCategories([]);
       setModalEmployees([]);

@@ -74,10 +74,24 @@ export async function DELETE(request: NextRequest) {
 
     // Reverse JVs for all confirmed matches
     const { reverseJVsForSource } = await import('@/lib/journal-entries');
+    const reversalErrors: string[] = [];
     for (const t of allTxns) {
       if (t.matched_invoice_id || t.matched_sales_invoice_id || t.matched_claim_id || t.matched_payment_id) {
-        await reverseJVsForSource('bank_recon', t.id, session.user.id).catch(() => {});
+        try {
+          await reverseJVsForSource('bank_recon', t.id, session.user.id);
+        } catch (err) {
+          const msg = `Failed to reverse JV for txn ${t.id}: ${err instanceof Error ? err.message : String(err)}`;
+          console.error(msg);
+          reversalErrors.push(msg);
+        }
       }
+    }
+
+    if (reversalErrors.length > 0) {
+      return NextResponse.json(
+        { error: `Statement deleted but ${reversalErrors.length} JV reversal(s) failed. Orphaned JVs may remain — use the cleanup tool to fix. Errors: ${reversalErrors.join('; ')}` },
+        { status: 207 }
+      );
     }
 
     // Now safe to delete transactions and statement

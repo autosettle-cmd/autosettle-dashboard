@@ -78,7 +78,7 @@ export default function AccountantSupplierStatementPage() {
       }
     }
     loadInitial();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id, dateFrom, dateTo]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">

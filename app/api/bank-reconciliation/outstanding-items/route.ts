@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
     if (firmIds && !firmIds.includes(firmId)) {
       return NextResponse.json({ data: null, error: 'Unauthorized for this firm' }, { status: 403 });
     }
+  } else if (session.user.role === 'admin' && session.user.firm_id !== firmId) {
+    return NextResponse.json({ data: null, error: 'Unauthorized for this firm' }, { status: 403 });
   }
 
   if (direction === 'outgoing') {

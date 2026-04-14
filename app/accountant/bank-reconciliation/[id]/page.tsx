@@ -137,7 +137,7 @@ export default function AccountantReconciliationWorkspacePage() {
     fetch(`/api/bank-reconciliation/statements/${id}`)
       .then((r) => r.json())
       .then((j) => { setStatement(j.data); setLoading(false); })
-      .catch(() => setLoading(false));
+      .catch((err) => { console.error('Failed to load statement:', err); setLoading(false); });
   };
 
   useEffect(() => { loadStatement(); }, [id]);
