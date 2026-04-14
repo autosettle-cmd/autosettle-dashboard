@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
-    data: { recon_status: 'excluded', matched_payment_id: null, notes: notes || null, matched_at: new Date(), matched_by: session.user.id },
+    data: { recon_status: 'excluded', matched_payment_id: null, matched_invoice_id: null, matched_sales_invoice_id: null, matched_claim_id: null, notes: notes || null, matched_at: new Date(), matched_by: session.user.id },
   });
   return NextResponse.json({ data: { id: updated.id, recon_status: updated.recon_status }, error: null });
 }

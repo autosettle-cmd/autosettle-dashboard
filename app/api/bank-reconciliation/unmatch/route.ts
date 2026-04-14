@@ -28,16 +28,31 @@ export async function POST(request: NextRequest) {
   }
 
   const jvResult = await reverseBankReconJV(bankTransactionId, session.user.id);
+  const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
 
-  // Clean up auto-created Payment if it was created by bank recon matching
-  // (has notes starting with "Auto-matched from receipt")
+  // Revert direct invoice/claim matches
+  if (txn.matched_invoice_id) {
+    const inv = await prisma.invoice.findUnique({ where: { id: txn.matched_invoice_id }, select: { amount_paid: true, total_amount: true } });
+    if (inv) {
+      const newPaid = Math.max(0, Number(inv.amount_paid) - txnAmount);
+      await prisma.invoice.update({ where: { id: txn.matched_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
+    }
+  }
+  if (txn.matched_sales_invoice_id) {
+    const inv = await prisma.salesInvoice.findUnique({ where: { id: txn.matched_sales_invoice_id }, select: { amount_paid: true } });
+    if (inv) {
+      const newPaid = Math.max(0, Number(inv.amount_paid) - txnAmount);
+      await prisma.salesInvoice.update({ where: { id: txn.matched_sales_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
+    }
+  }
+  if (txn.matched_claim_id) {
+    await prisma.claim.update({ where: { id: txn.matched_claim_id }, data: { payment_status: 'unpaid' } });
+  }
+
+  // Clean up legacy auto-created Payment
   if (txn.matched_payment_id) {
-    const payment = await prisma.payment.findUnique({
-      where: { id: txn.matched_payment_id },
-      select: { id: true, notes: true },
-    });
+    const payment = await prisma.payment.findUnique({ where: { id: txn.matched_payment_id }, select: { id: true, notes: true } });
     if (payment?.notes?.startsWith('Auto-matched from receipt')) {
-      // Delete PaymentReceipt links first (cascade would handle but be explicit)
       await prisma.paymentReceipt.deleteMany({ where: { payment_id: payment.id } });
       await prisma.payment.delete({ where: { id: payment.id } });
     }
@@ -45,7 +60,7 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
-    data: { matched_payment_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null },
+    data: { matched_payment_id: null, matched_invoice_id: null, matched_sales_invoice_id: null, matched_claim_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
   });
 
   return NextResponse.json({
