@@ -894,7 +894,7 @@ function AccountantInvoicesPage() {
         <>
           <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowNewInvoice(false)}>
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-[800px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-[800px] max-h-[90vh] overflow-y-scroll" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
                 <h2 className="text-white font-semibold text-sm">Submit New Invoice</h2>
                 <button onClick={() => setShowNewInvoice(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -1120,7 +1120,7 @@ function AccountantInvoicesPage() {
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex-1 overflow-y-scroll p-5 space-y-4">
               {previewInvoice.file_url ? (
                 <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block">
                   {previewInvoice.thumbnail_url && !previewInvoice.file_url.includes('.pdf') ? (

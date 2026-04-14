@@ -809,7 +809,7 @@ function AdminClaimsPage() {
       {/* ═══ SUBMIT MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-scroll">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-semibold text-[#191C1E]">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-100 transition-colors">
@@ -1032,7 +1032,7 @@ function AdminClaimsPage() {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            <div className="flex-1 overflow-y-scroll p-5 space-y-3">
               {batchItems.map((item, idx) => (
                 <div key={idx} className={`border rounded-lg p-4 ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-gray-200') : 'border-gray-100 bg-gray-50 opacity-60'}`}>
                   <div className="flex items-center justify-between mb-2">
@@ -1113,7 +1113,7 @@ function AdminClaimsPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex-1 overflow-y-scroll p-5 space-y-4">
               {previewClaim.thumbnail_url ? (
                 previewClaim.file_url ? (
                   <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">

@@ -1049,7 +1049,7 @@ function ClaimsPage() {
       {/* ═══════════════════════ SUBMIT MODAL ═══════════════════════ */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-scroll">
             <h3 className="text-base font-semibold text-[#191C1E]">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
             <p className="text-sm text-[#434654] mt-1 mb-4">Fill in the details below.</p>
 
@@ -1250,7 +1250,7 @@ function ClaimsPage() {
                 </select>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+            <div className="flex-1 overflow-y-scroll p-5 space-y-3">
               {batchItems.map((item, idx) => (
                 <div key={idx} className={`border rounded-lg p-4 ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-gray-200') : 'border-gray-100 bg-gray-50 opacity-60'}`}>
                   <div className="flex items-center justify-between mb-2">
@@ -1367,7 +1367,7 @@ function ClaimsPage() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex-1 overflow-y-scroll p-5 space-y-4">
               {previewClaim.thumbnail_url ? (
                 previewClaim.file_url ? (
                   <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
