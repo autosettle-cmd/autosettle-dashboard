@@ -588,7 +588,10 @@ function AccountantInvoicesPage() {
       const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
+        body: JSON.stringify({
+          ...editData,
+          ...(selectedGlAccountId && { gl_account_id: selectedGlAccountId }),
+        }),
       });
       if (res.ok) { setEditMode(false); setEditData(null); setPreviewInvoice(null); refresh(); }
     } catch (e) { console.error(e); }
@@ -1193,6 +1196,37 @@ function AccountantInvoicesPage() {
                       {suppliers.filter((s) => s.firm_id === previewInvoice.firm_id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
+                  {glAccounts.length > 0 && (
+                    <>
+                      <div>
+                        <label className="input-label">Expense GL (Debit)</label>
+                        <GlAccountSelect
+                          value={selectedGlAccountId}
+                          onChange={setSelectedGlAccountId}
+                          accounts={glAccounts}
+                          firmId={previewInvoice.firm_id}
+                          placeholder="Select Expense GL"
+                          preferredType="Expense"
+                          defaultType="Expense"
+                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      </div>
+                      <div>
+                        <label className="input-label">Contra GL (Credit)</label>
+                        <GlAccountSelect
+                          value={selectedContraGlId}
+                          onChange={setSelectedContraGlId}
+                          accounts={glAccounts}
+                          firmId={previewInvoice.firm_id}
+                          placeholder="Select Contra GL"
+                          preferredType="Liability"
+                          defaultType="Liability"
+                          defaultBalance="Credit"
+                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <>
