@@ -26,7 +26,39 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Statement not found' }, { status: 404 });
     }
 
-    // Delete transactions first, then statement
+    // Find matched payments from this statement's transactions
+    const matchedTxns = await prisma.bankTransaction.findMany({
+      where: { bank_statement_id: statementId, matched_payment_id: { not: null } },
+      select: { matched_payment_id: true },
+    });
+    const paymentIds = matchedTxns.map(t => t.matched_payment_id!);
+
+    if (paymentIds.length > 0) {
+      const paymentReceipts = await prisma.paymentReceipt.findMany({
+        where: { payment_id: { in: paymentIds } },
+        select: { claim_id: true, invoice_id: true },
+      });
+
+      await prisma.paymentReceipt.deleteMany({ where: { payment_id: { in: paymentIds } } });
+      await prisma.payment.deleteMany({ where: { id: { in: paymentIds } } });
+
+      const claimIds = paymentReceipts.filter(pr => pr.claim_id).map(pr => pr.claim_id!);
+      if (claimIds.length > 0) {
+        await prisma.claim.updateMany({
+          where: { id: { in: claimIds } },
+          data: { payment_status: 'unpaid' },
+        });
+      }
+      const invoiceIds = paymentReceipts.filter(pr => pr.invoice_id).map(pr => pr.invoice_id!);
+      if (invoiceIds.length > 0) {
+        await prisma.invoice.updateMany({
+          where: { id: { in: invoiceIds } },
+          data: { payment_status: 'unpaid', amount_paid: 0 },
+        });
+      }
+    }
+
+    // Now safe to delete transactions and statement
     await prisma.bankTransaction.deleteMany({ where: { bank_statement_id: statementId } });
     await prisma.bankStatement.delete({ where: { id: statementId } });
 

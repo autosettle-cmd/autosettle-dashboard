@@ -892,7 +892,6 @@ function AccountantInvoicesPage() {
               </div>
 
               <div className="p-5 space-y-4">
-                {newInvError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{newInvError}</p>}
 
                 <div>
                   <label className="input-label">Firm *</label>
@@ -971,6 +970,9 @@ function AccountantInvoicesPage() {
                   <div>
                     <label className="input-label">Total Amount (RM) *</label>
                     <input type="number" step="0.01" value={newInv.total_amount} onChange={(e) => setNewInv({ ...newInv, total_amount: e.target.value })} className="input-field w-full" placeholder="0.00" />
+                    {parseFloat(newInv.total_amount) < 0 && (
+                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1">Credit Note — negative amount will offset against this supplier</p>
+                    )}
                   </div>
                   <div>
                     <label className="input-label">Payment Terms</label>
@@ -1075,6 +1077,7 @@ function AccountantInvoicesPage() {
                 )}
               </div>
 
+              {newInvError && <div className="px-5 pt-3"><p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{newInvError}</p></div>}
               <div className="flex gap-3 px-5 py-4 border-t">
                 {!batchProgress && (
                   <button

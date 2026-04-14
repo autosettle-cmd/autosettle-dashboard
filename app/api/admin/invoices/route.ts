@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     const totalAmount = parseFloat(totalAmountStr);
-    if (isNaN(totalAmount) || totalAmount <= 0) {
+    if (isNaN(totalAmount) || totalAmount === 0) {
       return NextResponse.json(
         { data: null, error: 'Invalid total_amount' },
         { status: 400 }

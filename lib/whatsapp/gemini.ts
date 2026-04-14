@@ -62,10 +62,10 @@ The OCR text may contain ONE or MULTIPLE receipts. Carefully detect how many sep
 
 Extract the following fields from EACH receipt:
 - date: receipt date in YYYY-MM-DD format
-- merchant: creditor/supplier name
+- merchant: the actual payee/recipient of the payment, NOT the banking platform. For bank transfer receipts (Maybank2u, CIMB Clicks, DuitNow, FPX, etc.), use the "Transfer To" / "Recipient" / "Beneficiary" name as the merchant. For regular purchase receipts, use the store/shop name.
 - amount: total amount as a number (RM, no currency symbol)
 - receiptNumber: invoice or receipt number (empty string if not found)
-- category: pick the BEST match from this list only: [${categories.join(", ")}]
+- category: pick the BEST match from this list only: [${categories.join(", ")}]. Base the category on the PURPOSE of the transaction (what was paid for), not the banking platform or payment method. For bank transfers, infer the category from the recipient name and context (e.g. paying "NINJA LOGISTICS" = Logistics/Delivery, not "Bank & Finance").
 - notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, account holder name, what was purchased. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
@@ -203,10 +203,10 @@ This image may contain ONE or MULTIPLE receipts. Look at the image carefully and
 
 Extract the following fields from EACH receipt:
 - date: receipt date in YYYY-MM-DD format
-- merchant: creditor/supplier name
+- merchant: the actual payee/recipient of the payment, NOT the banking platform. For bank transfer receipts (Maybank2u, CIMB Clicks, DuitNow, FPX, etc.), use the "Transfer To" / "Recipient" / "Beneficiary" name as the merchant. For regular purchase receipts, use the store/shop name.
 - amount: total amount as a number (RM, no currency symbol)
 - receiptNumber: invoice or receipt number (empty string if not found)
-- category: pick the BEST match from this list only: [${categories.join(", ")}]
+- category: pick the BEST match from this list only: [${categories.join(", ")}]. Base the category on the PURPOSE of the transaction (what was paid for), not the banking platform or payment method. For bank transfers, infer the category from the recipient name and context (e.g. paying "NINJA LOGISTICS" = Logistics/Delivery, not "Bank & Finance").
 - notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, account holder name, what was purchased. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
@@ -341,7 +341,7 @@ Fields to extract:
 - subtotal: subtotal before tax as a number (0 if not found)
 - taxAmount: tax/GST/SST amount as a number (0 if not found)
 - totalAmount: total amount payable as a number (RM, no currency symbol)
-- category: pick the BEST match from this list only: [${categories.join(", ")}]
+- category: pick the BEST match from this list only: [${categories.join(", ")}]. Base the category on the PURPOSE of the transaction (what was paid for), not the banking platform or payment method. For bank transfers, infer the category from the recipient name and context (e.g. paying "NINJA LOGISTICS" = Logistics/Delivery, not "Bank & Finance").
 - notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. Keep it concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
@@ -408,26 +408,28 @@ A BANK STATEMENT is a document showing MULTIPLE account transactions over a peri
 
 IMPORTANT: A bank transfer receipt, DuitNow confirmation, payment acknowledgment, or single transaction record from a bank is NOT a bank statement — it is a RECEIPT. Classify it as "receipt".
 
-If it is an INVOICE, extract:
+IMPORTANT: A "Credit Note" or "CN" is still classified as "invoice", but with a NEGATIVE totalAmount (e.g. -17.50). Credit notes represent refunds or adjustments owed back to the customer. Always prefix the notes with "CREDIT NOTE: " for credit notes.
+
+If it is an INVOICE (or Credit Note), extract:
 - vendor: supplier/vendor name
-- invoiceNumber: invoice or bill number (empty string if not found)
+- invoiceNumber: invoice or bill number, or Credit Note number (empty string if not found)
 - issueDate: issue date in YYYY-MM-DD format
 - dueDate: due date in YYYY-MM-DD format. If not explicitly stated but paymentTerms and issueDate are known, CALCULATE it (e.g. issueDate 2026-03-15 + "30 Days" = dueDate 2026-04-14). Empty string only if truly unknown.
 - paymentTerms: e.g. "Net 30", "30 Days" (empty string if not found)
-- subtotal: subtotal before tax (0 if not found)
-- taxAmount: tax/GST/SST amount (0 if not found)
-- totalAmount: total payable as number
-- category: pick BEST match from: [${categories.join(", ")}]
-- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. Keep it concise (2-3 lines max). Empty string if nothing notable.
+- subtotal: subtotal before tax (0 if not found). Use NEGATIVE for credit notes.
+- taxAmount: tax/GST/SST amount (0 if not found). Use NEGATIVE for credit notes.
+- totalAmount: total payable as number. Use NEGATIVE for credit notes (e.g. -17.50).
+- category: pick BEST match from: [${categories.join(", ")}]. Base category on the PURPOSE of the payment (what was paid for), not the banking platform. Infer from recipient name and context.
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. For credit notes, prefix with "CREDIT NOTE: " and include reason. Keep it concise (2-3 lines max). Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 If it is a RECEIPT, extract:
 - date: date in YYYY-MM-DD format
-- merchant: merchant/supplier name
+- merchant: the actual payee/recipient, NOT the banking platform. For bank transfer receipts (Maybank2u, CIMB Clicks, DuitNow, FPX, etc.), use the "Transfer To" / "Recipient" / "Beneficiary" name. For regular purchase receipts, use the store/shop name.
 - amount: total amount as number
-- receiptNumber: receipt number (empty string if not found)
-- category: pick BEST match from: [${categories.join(", ")}]
-- notes: important extra details — e.g. "Billed To" / "Bill To" person name, what was purchased, reference numbers, location. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise. Empty string if nothing notable.
+- receiptNumber: receipt number or Reference ID for bank transfers (empty string if not found)
+- category: pick BEST match from: [${categories.join(", ")}]. Base category on the PURPOSE of the payment (what was paid for), not the banking platform. Infer from recipient name and context.
+- notes: important extra details — e.g. "Billed To" / "Bill To" person name, what was purchased, reference numbers, recipient reference, location. ALWAYS include the "Billed To" or "Bill To" name if present. Keep concise. Empty string if nothing notable.
 - confidence: HIGH, MEDIUM, or LOW
 
 Return ONLY valid JSON with a "documentType" field ("receipt" or "invoice") plus the extracted fields.
