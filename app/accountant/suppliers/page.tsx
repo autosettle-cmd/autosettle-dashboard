@@ -84,6 +84,8 @@ interface Supplier {
   overdue_amount: string;
   credit_balance: string;
   receivable_amount: string;
+  expense_gl_label: string | null;
+  contra_gl_label: string | null;
 }
 
 
@@ -634,33 +636,33 @@ export default function AccountantSuppliersPage() {
                       </p>
                     </div>
 
-                    {/* Outstanding — summary blocks */}
+                    {/* GL labels */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {s.expense_gl_label && (
+                        <span className="text-[10px] font-medium text-[#8E9196] bg-gray-50 border border-gray-200 rounded px-2 py-1 truncate max-w-[180px]" title={s.expense_gl_label}>
+                          DR: {s.expense_gl_label}
+                        </span>
+                      )}
+                      {s.contra_gl_label && (
+                        <span className="text-[10px] font-medium text-[#8E9196] bg-gray-50 border border-gray-200 rounded px-2 py-1 truncate max-w-[180px]" title={s.contra_gl_label}>
+                          CR: {s.contra_gl_label}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Net outstanding */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {(() => {
                         const payable = Number(s.total_outstanding);
                         const receivable = Number(s.receivable_amount);
                         const net = payable - receivable;
                         return (
-                          <>
-                            {payable > 0 && (
-                              <div className="bg-red-50 border border-red-100 rounded-md px-2.5 py-1.5 text-right">
-                                <p className="text-[10px] font-medium text-red-400 uppercase tracking-wide leading-none">Payable</p>
-                                <p className="text-sm font-bold text-red-600 tabular-nums mt-0.5">{formatRM(payable)}</p>
-                              </div>
-                            )}
-                            {receivable > 0 && (
-                              <div className="bg-green-50 border border-green-100 rounded-md px-2.5 py-1.5 text-right">
-                                <p className="text-[10px] font-medium text-green-400 uppercase tracking-wide leading-none">Receivable</p>
-                                <p className="text-sm font-bold text-green-600 tabular-nums mt-0.5">{formatRM(receivable)}</p>
-                              </div>
-                            )}
-                            <div className={`rounded-md px-2.5 py-1.5 text-right ${net > 0 ? 'bg-red-50/60 border border-red-100' : net < 0 ? 'bg-green-50/60 border border-green-100' : 'bg-gray-50 border border-gray-200'}`}>
-                              <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide leading-none">Net</p>
-                              <p className={`text-sm font-bold tabular-nums mt-0.5 ${net > 0 ? 'text-red-600' : net < 0 ? 'text-green-600' : 'text-[#191C1E]'}`}>
-                                {formatRM(Math.abs(net))}{net > 0 ? ' owed' : net < 0 ? ' due' : ''}
-                              </p>
-                            </div>
-                          </>
+                          <div className={`rounded-md px-2.5 py-1.5 text-right ${net > 0 ? 'bg-red-50/60 border border-red-100' : net < 0 ? 'bg-green-50/60 border border-green-100' : 'bg-gray-50 border border-gray-200'}`}>
+                            <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide leading-none">Net</p>
+                            <p className={`text-sm font-bold tabular-nums mt-0.5 ${net > 0 ? 'text-red-600' : net < 0 ? 'text-green-600' : 'text-[#191C1E]'}`}>
+                              {formatRM(Math.abs(net))}{net > 0 ? ' owed' : net < 0 ? ' due' : ''}
+                            </p>
+                          </div>
                         );
                       })()}
                     </div>

@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
       include: {
         firm: { select: { name: true } },
         aliases: { select: { id: true, alias: true, is_confirmed: true } },
+        defaultGlAccount: { select: { account_code: true, name: true } },
+        defaultContraGlAccount: { select: { account_code: true, name: true } },
         _count: { select: { invoices: true, salesInvoices: true } },
       },
       orderBy: { name: 'asc' },
@@ -102,6 +104,8 @@ export async function GET(request: NextRequest) {
     overdue_amount: (overdueMap.get(s.id) ?? 0).toFixed(2),
     credit_balance: (creditMap.get(s.id) ?? 0).toFixed(2),
     receivable_amount: (receivableMap.get(s.id) ?? 0).toFixed(2),
+    expense_gl_label: s.defaultGlAccount ? `${s.defaultGlAccount.account_code} — ${s.defaultGlAccount.name}` : null,
+    contra_gl_label: s.defaultContraGlAccount ? `${s.defaultContraGlAccount.account_code} — ${s.defaultContraGlAccount.name}` : null,
     // LHDN buyer fields
     tin: s.tin,
     brn: s.brn,
