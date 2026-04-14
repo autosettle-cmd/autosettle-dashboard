@@ -119,11 +119,18 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
     }
   }
 
-  // Idempotency guard — skip if a posted JV already exists for this source
+  // Idempotency guard — skip if a posted, non-reversal JV already exists for this source
   if (sourceId) {
     const run = async (client: Prisma.TransactionClient) => {
       const existing = await client.journalEntry.findFirst({
-        where: { firm_id: firmId, source_type: sourceType, source_id: sourceId, status: 'posted' },
+        where: {
+          firm_id: firmId,
+          source_type: sourceType,
+          source_id: sourceId,
+          status: 'posted',
+          description: { not: { startsWith: 'Reversal of' } },
+          reversed_by_id: null, // not reversed
+        },
         select: { id: true, voucher_number: true },
       });
       if (existing) return existing;
