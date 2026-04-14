@@ -536,8 +536,7 @@ export default function EmployeeClaimsPage() {
                       <th className="px-6 py-2.5">Category</th>
                       <th className="px-6 py-2.5 text-right">Amount</th>
                       <th className="px-6 py-2.5">Status</th>
-                      <th className="px-6 py-2.5">Approval</th>
-                      <th className="px-6 py-2.5">Rejection Reason</th>
+                      <th className="px-6 py-2.5">Reimbursed</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -561,14 +560,9 @@ export default function EmployeeClaimsPage() {
                             {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                           </td>
                           <td className="px-6 py-3">
-                            {aCfg && <span className={aCfg.cls}>{aCfg.label}</span>}
-                          </td>
-                          <td className="px-6 py-3">
-                            {c.approval === 'not_approved' && c.rejection_reason ? (
-                              <span className="text-xs text-red-600">{c.rejection_reason}</span>
-                            ) : (
-                              <span className="text-xs text-[#8E9196]">&mdash;</span>
-                            )}
+                            <span className={c.payment_status === 'paid' ? 'badge-green' : 'badge-amber'}>
+                              {c.payment_status === 'paid' ? 'Reimbursed' : 'Pending'}
+                            </span>
                           </td>
                         </tr>
                       );
@@ -1005,7 +999,7 @@ export default function EmployeeClaimsPage() {
                     <Field label="Description" value={previewClaim.description} />
                   </dl>
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {[STATUS_CFG[previewClaim.status], APPROVAL_CFG[previewClaim.approval], PAYMENT_CFG[previewClaim.payment_status]].filter(Boolean).map((cfg) => (
+                    {[STATUS_CFG[previewClaim.status], PAYMENT_CFG[previewClaim.payment_status]].filter(Boolean).map((cfg) => (
                       <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
                     ))}
                   </div>

@@ -460,7 +460,7 @@ function ClaimsPage() {
     if (firmId)        p.set('firmId',   firmId);
     if (from)          p.set('dateFrom', from);
     if (to)            p.set('dateTo',   to);
-    if (approvalFilter) p.set('approval', approvalFilter);
+    if (approvalFilter) p.set('paymentStatus', approvalFilter);
     if (search)        p.set('search',   search);
     if (takeLimit)     p.set('take',     String(takeLimit));
 
@@ -578,9 +578,9 @@ function ClaimsPage() {
   const _exportCSV = () => {
     if (!claims.length) return;
     const headers = claimTab === 'claim'
-      ? ['Date', 'Employee', 'Firm', 'Merchant', 'Category', 'Amount', 'Status', 'Approval']
+      ? ['Date', 'Employee', 'Firm', 'Merchant', 'Category', 'Amount', 'Status', 'Reimbursed']
       : claimTab === 'mileage'
-      ? ['Date', 'Employee', 'Firm', 'From', 'To', 'Distance (km)', 'Amount', 'Status', 'Approval']
+      ? ['Date', 'Employee', 'Firm', 'From', 'To', 'Distance (km)', 'Amount', 'Status', 'Reimbursed']
       : ['Date', 'Firm', 'Merchant', 'Receipt No.', 'Category', 'Amount', 'Status', 'Payment', 'Linked'];
     const rows = claims.map((c) => {
       if (claimTab === 'claim') return [c.claim_date, c.employee_name, c.firm_name, c.merchant, c.category_name, c.amount, c.status, c.approval];
@@ -893,9 +893,10 @@ function ClaimsPage() {
             customTo={customTo}
             onCustomFromChange={setCustomFrom}
             onCustomToChange={setCustomTo}
-            showApprovalFilter
-            approvalValue={approvalFilter}
-            onApprovalChange={setApprovalFilter}
+            showPaymentFilter
+            paymentValue={approvalFilter}
+            onPaymentChange={setApprovalFilter}
+            paymentOptions={[{ value: '', label: 'All Reimbursement' }, { value: 'unpaid', label: 'Pending' }, { value: 'paid', label: 'Reimbursed' }]}
             showSearch
             searchValue={search}
             onSearchChange={setSearch}
@@ -930,7 +931,7 @@ function ClaimsPage() {
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('category_name')}>Category{sortIndicator('category_name')}</th>
                       <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
-                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Reimbursed{sortIndicator('payment_status')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('confidence')}>Confidence{sortIndicator('confidence')}</th>
                     </tr>
                   )}
@@ -944,7 +945,7 @@ function ClaimsPage() {
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('category_name')}>Category{sortIndicator('category_name')}</th>
                       <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
-                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Reimbursed{sortIndicator('payment_status')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('confidence')}>Confidence{sortIndicator('confidence')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('linked_payment_count')}>Linked{sortIndicator('linked_payment_count')}</th>
@@ -961,7 +962,7 @@ function ClaimsPage() {
                       <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('distance_km')}>Distance (km){sortIndicator('distance_km')}</th>
                       <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
-                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                      <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Reimbursed{sortIndicator('payment_status')}</th>
                     </tr>
                   )}
                 </thead>
@@ -978,7 +979,7 @@ function ClaimsPage() {
                         <td className="px-5 py-3 text-[#434654]">{c.category_name}</td>
                         <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                        <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>
+                        <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                         <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                       </tr>
                     );
@@ -993,7 +994,7 @@ function ClaimsPage() {
                         <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{c.distance_km}</td>
                         <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                        <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>
+                        <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                       </tr>
                     );
                     // receipt tab
@@ -1007,7 +1008,7 @@ function ClaimsPage() {
                         <td className="px-5 py-3 text-[#434654]">{c.category_name}</td>
                         <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                        <td className="px-5 py-3"><ApprovalCell value={c.approval} /></td>
+                        <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                         <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                         <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                         <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>
@@ -1434,7 +1435,6 @@ function ClaimsPage() {
               <div className="flex flex-wrap gap-2 pt-1">
                 {[
                   STATUS_CFG[previewClaim.status],
-                  APPROVAL_CFG[previewClaim.approval],
                   PAYMENT_CFG[previewClaim.payment_status],
                 ].filter(Boolean).map((cfg) => (
                   <span key={cfg!.label} className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${cfg!.cls}`}>
