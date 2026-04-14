@@ -1185,17 +1185,7 @@ function AccountantInvoicesPage() {
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
-                  <div>
-                    <label className="input-label">Supplier Account</label>
-                    <select
-                      value={editData.supplier_id}
-                      onChange={(e) => setEditData({ ...editData, supplier_id: e.target.value })}
-                      className="input-field w-full"
-                    >
-                      <option value="">No supplier assigned</option>
-                      {suppliers.filter((s) => s.firm_id === previewInvoice.firm_id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                  </div>
+                  <input type="hidden" value={editData.supplier_id} />
                   {glAccounts.length > 0 && (
                     <>
                       <div>
