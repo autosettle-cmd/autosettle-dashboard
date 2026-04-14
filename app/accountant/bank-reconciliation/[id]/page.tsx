@@ -54,6 +54,9 @@ interface BankTxn {
   matched_at: string | null;
   notes: string | null;
   matched_payment: MatchedPayment | null;
+  matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null } | null;
+  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string } | null;
+  matched_claim: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_name: string; category_name: string } | null;
 }
 
 interface StatementDetail {
@@ -561,6 +564,49 @@ export default function AccountantReconciliationWorkspacePage() {
                                   <p className="text-label-sm text-[#8E9196] mt-1">Status: <span className={cfg.cls}>{cfg.label}</span></p>
                                   {txn.matched_at && <p className="text-label-sm text-[#8E9196]">Matched: {formatDate(txn.matched_at)}</p>}
                                 </div>
+                                {/* Matched invoice/claim block */}
+                                {txn.matched_invoice && (
+                                  <div>
+                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Invoice</p>
+                                    <div className="bg-white rounded-lg border border-blue-100 p-3">
+                                      <p className="text-body-sm font-semibold text-[#191C1E]">{txn.matched_invoice.vendor_name}</p>
+                                      <p className="text-body-sm text-[#434654]">{txn.matched_invoice.invoice_number} · {formatDate(txn.matched_invoice.issue_date)}</p>
+                                      <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(txn.matched_invoice.total_amount)}</p>
+                                      {txn.matched_invoice.file_url && (
+                                        <a href={txn.matched_invoice.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
+                                          View Invoice PDF &rarr;
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                {txn.matched_sales_invoice && (
+                                  <div>
+                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Sales Invoice</p>
+                                    <div className="bg-white rounded-lg border border-green-100 p-3">
+                                      <p className="text-body-sm font-semibold text-[#191C1E]">{txn.matched_sales_invoice.buyer_name}</p>
+                                      <p className="text-body-sm text-[#434654]">{txn.matched_sales_invoice.invoice_number} · {formatDate(txn.matched_sales_invoice.issue_date)}</p>
+                                      <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(txn.matched_sales_invoice.total_amount)}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {txn.matched_claim && (
+                                  <div>
+                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Claim</p>
+                                    <div className="bg-white rounded-lg border border-amber-100 p-3">
+                                      <p className="text-body-sm font-semibold text-[#191C1E]">{txn.matched_claim.employee_name} — {txn.matched_claim.merchant}</p>
+                                      <p className="text-body-sm text-[#434654]">{txn.matched_claim.category_name} · {formatDate(txn.matched_claim.claim_date)}</p>
+                                      <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(txn.matched_claim.amount)}</p>
+                                      {txn.matched_claim.file_url && (
+                                        <a href={txn.matched_claim.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
+                                          View Receipt &rarr;
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                                 {mp && (
                                 <div>
                                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Payment</p>

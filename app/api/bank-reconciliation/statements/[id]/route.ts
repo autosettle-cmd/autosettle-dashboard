@@ -33,6 +33,15 @@ export async function GET(
               receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true, gl_account_id: true, glAccount: { select: { account_code: true, name: true } }, contra_gl_account_id: true, contraGlAccount: { select: { account_code: true, name: true } } } } } },
             },
           },
+          matchedInvoice: {
+            select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true },
+          },
+          matchedSalesInvoice: {
+            select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, buyer: { select: { name: true } } },
+          },
+          matchedClaim: {
+            select: { id: true, merchant: true, amount: true, claim_date: true, receipt_number: true, file_url: true, thumbnail_url: true, employee: { select: { name: true } }, category: { select: { name: true } } },
+          },
         },
         orderBy: { transaction_date: 'asc' },
       },
@@ -123,6 +132,22 @@ export async function GET(
           id: t.id, transaction_date: t.transaction_date, description: t.description, reference: t.reference,
           cheque_number: t.cheque_number, debit: t.debit?.toString() ?? null, credit: t.credit?.toString() ?? null,
           balance: t.balance?.toString() ?? null, recon_status: t.recon_status, matched_at: t.matched_at, notes: t.notes,
+          matched_invoice: t.matchedInvoice ? {
+            id: t.matchedInvoice.id, invoice_number: t.matchedInvoice.invoice_number, vendor_name: t.matchedInvoice.vendor_name_raw,
+            total_amount: t.matchedInvoice.total_amount.toString(), amount_paid: t.matchedInvoice.amount_paid.toString(),
+            issue_date: t.matchedInvoice.issue_date, file_url: t.matchedInvoice.file_url, thumbnail_url: t.matchedInvoice.thumbnail_url,
+          } : null,
+          matched_sales_invoice: t.matchedSalesInvoice ? {
+            id: t.matchedSalesInvoice.id, invoice_number: t.matchedSalesInvoice.invoice_number,
+            total_amount: t.matchedSalesInvoice.total_amount.toString(), amount_paid: t.matchedSalesInvoice.amount_paid.toString(),
+            issue_date: t.matchedSalesInvoice.issue_date, buyer_name: t.matchedSalesInvoice.buyer?.name ?? 'Unknown',
+          } : null,
+          matched_claim: t.matchedClaim ? {
+            id: t.matchedClaim.id, merchant: t.matchedClaim.merchant, amount: t.matchedClaim.amount.toString(),
+            claim_date: t.matchedClaim.claim_date, receipt_number: t.matchedClaim.receipt_number,
+            file_url: t.matchedClaim.file_url, thumbnail_url: t.matchedClaim.thumbnail_url,
+            employee_name: t.matchedClaim.employee.name, category_name: t.matchedClaim.category.name,
+          } : null,
           matched_payment: t.matchedPayment ? {
             id: t.matchedPayment.id, reference: t.matchedPayment.reference, payment_date: t.matchedPayment.payment_date,
             amount: t.matchedPayment.amount.toString(), direction: t.matchedPayment.direction, notes: t.matchedPayment.notes,
