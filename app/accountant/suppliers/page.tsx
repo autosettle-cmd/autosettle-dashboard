@@ -649,18 +649,20 @@ export default function AccountantSuppliersPage() {
                     </div>
 
                     {/* GL labels */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {s.expense_gl_label && (
-                        <span className="text-[10px] font-medium text-[#8E9196] bg-gray-50 border border-gray-200 rounded px-2 py-1 truncate max-w-[180px]" title={s.expense_gl_label}>
-                          DR: {s.expense_gl_label}
-                        </span>
-                      )}
-                      {s.contra_gl_label && (
-                        <span className="text-[10px] font-medium text-[#8E9196] bg-gray-50 border border-gray-200 rounded px-2 py-1 truncate max-w-[180px]" title={s.contra_gl_label}>
-                          CR: {s.contra_gl_label}
-                        </span>
-                      )}
-                    </div>
+                    {(s.expense_gl_label || s.contra_gl_label) && (
+                      <div className="flex flex-col gap-1 flex-shrink-0">
+                        {s.expense_gl_label && (
+                          <span className="text-[10px] font-medium text-[#8E9196] bg-gray-50 border border-gray-200 rounded px-2 py-0.5 truncate max-w-[200px]" title={s.expense_gl_label}>
+                            DR: {s.expense_gl_label}
+                          </span>
+                        )}
+                        {s.contra_gl_label && (
+                          <span className="text-[10px] font-medium text-[#8E9196] bg-gray-50 border border-gray-200 rounded px-2 py-0.5 truncate max-w-[200px]" title={s.contra_gl_label}>
+                            CR: {s.contra_gl_label}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Net outstanding */}
                     <div className="flex items-center gap-2 flex-shrink-0">
