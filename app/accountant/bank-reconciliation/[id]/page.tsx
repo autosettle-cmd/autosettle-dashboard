@@ -139,6 +139,17 @@ export default function AccountantReconciliationWorkspacePage() {
 
   useEffect(() => { loadStatement(); }, [id]);
 
+  // Auto-rematch when statement loads with unmatched transactions
+  const [autoRematched, setAutoRematched] = useState(false);
+  useEffect(() => {
+    if (!statement || autoRematched || rematching) return;
+    const unmatched = statement.transactions.filter(t => t.recon_status === 'unmatched').length;
+    if (unmatched > 0) {
+      setAutoRematched(true);
+      doRematch();
+    }
+  }, [statement]);
+
 
   const filteredTxns = statement?.transactions.filter((t) => {
     if (filter === 'all') return true;

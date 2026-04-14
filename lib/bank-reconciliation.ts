@@ -232,11 +232,78 @@ export async function autoMatchTransactions(
     }
   }
 
-  // ── Bulk update matched transactions ──
+  // ── Pass 5: Match against approved invoices by amount + supplier name ──
+  {
+    // Load approved unpaid supplier invoices for outgoing (credit) transactions
+    const supplierInvoices = await prisma.invoice.findMany({
+      where: { firm_id: firmId, approval: 'approved', payment_status: { in: ['unpaid', 'partially_paid'] } },
+      select: {
+        id: true, total_amount: true, amount_paid: true, issue_date: true, vendor_name_raw: true,
+        supplier: { select: { name: true, aliases: { select: { alias: true } } } },
+      },
+    });
+
+    // Load approved unpaid sales invoices for incoming (debit) transactions
+    const salesInvoices = await prisma.salesInvoice.findMany({
+      where: { firm_id: firmId, approval: 'approved', payment_status: { in: ['unpaid', 'partially_paid'] } },
+      select: {
+        id: true, total_amount: true, amount_paid: true, issue_date: true, invoice_number: true,
+        buyer: { select: { name: true, aliases: { select: { alias: true } } } },
+      },
+    });
+
+    for (const txn of bankTxns) {
+      if (!unmatchedBankTxnIds.has(txn.id)) continue;
+
+      const txnAmount = Number(txn.credit ?? txn.debit ?? 0);
+      const descLower = txn.description.toLowerCase();
+
+      if (txn.credit) {
+        // Outgoing = credit in bank → match to supplier invoices
+        const candidates = supplierInvoices.filter(inv => {
+          const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
+          if (Math.abs(remaining - txnAmount) > 0.01) return false;
+          // Check if description contains supplier name or aliases
+          const names = [inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
+          return names.some(n => descLower.includes(n!.toLowerCase()));
+        });
+
+        if (candidates.length === 1) {
+          // Mark as suggested with invoice reference in notes
+          await prisma.bankTransaction.update({
+            where: { id: txn.id },
+            data: { recon_status: 'matched', matched_at: new Date(), notes: `[invoice:${candidates[0].id}]` },
+          });
+          unmatchedBankTxnIds.delete(txn.id);
+          matched.push({ bankTxnId: txn.id, paymentId: '' }); // count only
+        }
+      } else if (txn.debit) {
+        // Incoming = debit in bank → match to sales invoices
+        const candidates = salesInvoices.filter(inv => {
+          const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
+          if (Math.abs(remaining - txnAmount) > 0.01) return false;
+          const names = [inv.buyer?.name, ...(inv.buyer?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
+          return names.some(n => descLower.includes(n!.toLowerCase()));
+        });
+
+        if (candidates.length === 1) {
+          await prisma.bankTransaction.update({
+            where: { id: txn.id },
+            data: { recon_status: 'matched', matched_at: new Date(), notes: `[sales_invoice:${candidates[0].id}]` },
+          });
+          unmatchedBankTxnIds.delete(txn.id);
+          matched.push({ bankTxnId: txn.id, paymentId: '' }); // count only
+        }
+      }
+    }
+  }
+
+  // ── Bulk update matched transactions (skip Pass 5 which already updated) ──
   const now = new Date();
-  if (matched.length > 0) {
+  const paymentMatches = matched.filter(m => m.paymentId);
+  if (paymentMatches.length > 0) {
     await prisma.$transaction(
-      matched.map((m) =>
+      paymentMatches.map((m) =>
         prisma.bankTransaction.update({
           where: { id: m.bankTxnId },
           data: {
