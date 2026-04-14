@@ -83,7 +83,7 @@ function ClaimsPage() {
   // UI
   const [selectedRows, setSelectedRows] = useState<ClaimRow[]>([]);
   const [previewClaim, setPreviewClaim] = useState<ClaimRow | null>(null);
-  const [rejectModal, setRejectModal]   = useState({ open: false, claimIds: [] as string[], reason: '' });
+  // rejectModal removed — accountant no longer rejects claims
 
   // Edit mode
   const [editMode, setEditMode] = useState(false);
@@ -99,8 +99,7 @@ function ClaimsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
-  const [selectedGlAccountId, setSelectedGlAccountId] = useState<string>('');
-  const [selectedContraGlId, setSelectedContraGlId] = useState<string>('');
+  // GL selection removed — GL assigned at bank recon, not claim approval
   const [_defaultContraGlId, setDefaultContraGlId] = useState<string>('');
 
   // Submit modal
@@ -492,78 +491,7 @@ function ClaimsPage() {
     }
   }, [editMode, previewClaim]);
 
-  // Fetch GL accounts for the claim's firm + pre-fill GL suggestion from category mapping / history + contra default
-  useEffect(() => {
-    if (previewClaim) {
-      let cancelled = false;
-      Promise.all([
-        fetch(`/api/gl-accounts?firmId=${previewClaim.firm_id}`).then(r => r.json()),
-        fetch(`/api/categories?firmId=${previewClaim.firm_id}`).then(r => r.json()),
-        fetch(`/api/accounting-settings?firmId=${previewClaim.firm_id}`).then(r => r.json()),
-      ])
-        .then(async ([glJson, catJson, settingsJson]) => {
-          if (cancelled) return;
-          const accounts = glJson.data ?? [];
-          setGlAccounts(accounts);
-
-          let glId = '';
-          if (previewClaim.gl_account_id) {
-            glId = previewClaim.gl_account_id;
-            console.log('[GL] Using claim explicit GL:', glId);
-          }
-
-          // Priority: history suggestion first (more specific), then category override as fallback
-          if (!glId && previewClaim.category_id) {
-            console.log('[GL] Calling suggest API...', { merchant: previewClaim.merchant, desc: previewClaim.description?.slice(0, 40) });
-            try {
-              const params = new URLSearchParams({ firmId: previewClaim.firm_id, categoryId: previewClaim.category_id });
-              if (previewClaim.merchant) params.set('merchant', previewClaim.merchant);
-              if (previewClaim.description) params.set('description', previewClaim.description);
-              const suggestRes = await fetch(`/api/gl-accounts/suggest?${params}`);
-              const suggestJson = await suggestRes.json();
-              console.log('[GL] Suggest response:', suggestJson.data);
-              if (!cancelled && suggestJson.data?.gl_account_id) {
-                glId = suggestJson.data.gl_account_id;
-              }
-            } catch (err) { console.error('[GL Suggest] Failed:', err); }
-          }
-
-          // Fallback: category override mapping
-          if (!glId) {
-            const catData = catJson.data ?? [];
-            const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewClaim.category_id);
-            glId = match?.gl_account_id ?? '';
-            console.log('[GL] Fallback to category override:', glId ? 'found' : 'none');
-          }
-
-          if (!cancelled) setSelectedGlAccountId(glId);
-
-          // Pre-fill contra GL from firm defaults, fall back to name-based search
-          let contraId = settingsJson.data?.default_staff_claims_gl_id ?? '';
-
-          // If no firm default, try to find a "staff claims payable" account by name
-          if (!contraId) {
-            const claimsPayable = accounts.find((a: { name: string; account_type: string }) =>
-              a.account_type === 'Liability' && /staff.?claims|claims.?payable/i.test(a.name)
-            );
-            if (claimsPayable) contraId = claimsPayable.id;
-          }
-
-          if (!cancelled) {
-            setDefaultContraGlId(contraId);
-            // Use claim's stored contra GL if available, otherwise fall back to firm default
-            setSelectedContraGlId(previewClaim.contra_gl_account_id || contraId);
-          }
-        })
-        .catch(console.error);
-      return () => { cancelled = true; };
-    } else {
-      setGlAccounts([]);
-      setSelectedGlAccountId('');
-      setSelectedContraGlId('');
-      setDefaultContraGlId('');
-    }
-  }, [previewClaim]);
+  // GL selection removed — GL assigned at bank recon, not claim preview
 
   // Sort
   const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(claims, 'status', 'asc', 'confidence', 'asc');
@@ -621,12 +549,6 @@ function ClaimsPage() {
             ...(action === 'approve' && glAccountId ? { gl_account_id: glAccountId, gl_account_label: glMatch ? `${glMatch.account_code} — ${glMatch.name}` : null } : {}),
             ...(action === 'approve' && contraGlId ? { contra_gl_account_id: contraGlId } : {}),
           });
-          if (action === 'approve' && glAccountId) {
-            setSelectedGlAccountId(glAccountId);
-          }
-          if (action === 'approve' && contraGlId) {
-            setSelectedContraGlId(contraGlId);
-          }
         }
       }
     } catch (e) {
@@ -651,12 +573,6 @@ function ClaimsPage() {
     } catch (e) {
       console.error(e);
     }
-  };
-
-  const confirmReject = async () => {
-    if (!rejectModal.reason.trim()) return;
-    await batchAction(rejectModal.claimIds, 'reject', rejectModal.reason);
-    setRejectModal({ open: false, claimIds: [], reason: '' });
   };
 
   const _exportCSV = () => {
@@ -1399,18 +1315,6 @@ function ClaimsPage() {
           </span>
           <span className="w-px h-5 bg-white/20" />
           <button
-            onClick={() => batchAction(selectedRows.map((r) => r.id), 'approve')}
-            className="btn-approve text-sm px-4 py-1.5 rounded-full"
-          >
-            Approve
-          </button>
-          <button
-            onClick={() => setRejectModal({ open: true, claimIds: selectedRows.map((r) => r.id), reason: '' })}
-            className="btn-reject text-sm px-4 py-1.5 rounded-full"
-          >
-            Reject
-          </button>
-          <button
             onClick={() => deleteClaims(selectedRows.map((r) => r.id))}
             className="text-sm px-4 py-1.5 rounded-full font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
           >
@@ -1592,57 +1496,6 @@ function ClaimsPage() {
               )}
             </div>
 
-            {/* GL Account Assignment */}
-            {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
-              <div className="px-5 pb-2 space-y-2">
-                <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
-                  {previewClaim.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{previewClaim.gl_account_label ?? 'Not assigned'}</span>
-                    </div>
-                  ) : (
-                    <GlAccountSelect
-                      value={selectedGlAccountId}
-                      onChange={setSelectedGlAccountId}
-                      accounts={glAccounts}
-                      firmId={previewClaim.firm_id}
-                      placeholder="Select GL Account"
-                      preferredType="Expense"
-                      defaultType="Expense"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
-                  {previewClaim.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
-                    </div>
-                  ) : (
-                    <GlAccountSelect
-                      value={selectedContraGlId}
-                      onChange={setSelectedContraGlId}
-                      accounts={glAccounts}
-                      firmId={previewClaim.firm_id}
-                      placeholder="Select Contra GL Account"
-                      preferredType="Liability"
-                      defaultType="Liability"
-                      defaultBalance="Credit"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-
             <div className="p-4 flex gap-3 flex-shrink-0">
               {editMode ? (
                 <button
@@ -1654,46 +1507,12 @@ function ClaimsPage() {
                   {editSaving ? 'Saving...' : 'Save Changes'}
                 </button>
               ) : (
-                <>
-                  {previewClaim.approval === 'approved' || previewClaim.approval === 'not_approved' ? (
-                    <button
-                      onClick={() => {
-                        if (!confirm('Revert this claim to pending?\n\nThis will reverse the journal entry created during approval.')) return;
-                        fetch('/api/claims/batch', {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ claimIds: [previewClaim.id], action: 'revert' }),
-                        }).then(async (res) => {
-                          if (res.ok) {
-                            refresh();
-                            setPreviewClaim({ ...previewClaim, approval: 'pending_approval', rejection_reason: null, gl_account_id: null });
-                          } else {
-                            const json = await res.json().catch(() => ({ error: 'Failed' }));
-                            alert(json.error || 'Failed to revert');
-                          }
-                        }).catch(() => alert('Network error'));
-                      }}
-                      className="btn-reject flex-1 py-2 rounded-lg text-sm"
-                    >
-                      Revert to Pending
-                    </button>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => batchAction([previewClaim.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                        className="btn-approve flex-1 py-2 rounded-lg text-sm"
-                      >
-                        Approve
-                      </button>
-                      <button
-                        onClick={() => setRejectModal({ open: true, claimIds: [previewClaim.id], reason: '' })}
-                        className="btn-reject flex-1 py-2 rounded-lg text-sm"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                </>
+                <button
+                  onClick={() => setPreviewClaim(null)}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
               )}
               <button
                 onClick={() => deleteClaims([previewClaim.id])}
@@ -1707,39 +1526,7 @@ function ClaimsPage() {
         </>
       )}
 
-      {/* ═══════════════════════ REJECT MODAL ═══════════════════════ */}
-      {rejectModal.open && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-[#191C1E]">Reject {rejectModal.claimIds.length} Claim{rejectModal.claimIds.length !== 1 ? 's' : ''}</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-4">A reason is required and will be stored on the claim record.</p>
-            <textarea
-              value={rejectModal.reason}
-              onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
-              placeholder="Enter rejection reason…"
-              rows={4}
-              autoFocus
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--sidebar)]/20 resize-none"
-            />
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={confirmReject}
-                disabled={!rejectModal.reason.trim()}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--accent)' }}
-              >
-                Confirm Reject
-              </button>
-              <button
-                onClick={() => setRejectModal({ open: false, claimIds: [], reason: '' })}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reject modal removed — accountant no longer approves/rejects claims */}
 
     </div>
   );
