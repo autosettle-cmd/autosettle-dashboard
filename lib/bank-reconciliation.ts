@@ -232,67 +232,99 @@ export async function autoMatchTransactions(
     }
   }
 
-  // ── Pass 5: Match against approved invoices by amount + supplier name ──
+  // ── Pass 5: Match against approved invoices ──
+  // 5A: Exact amount match (if only 1 invoice has this exact remaining amount)
+  // 5B: Amount + supplier name in description (if multiple amount matches)
   {
-    // Load approved unpaid supplier invoices for outgoing (credit) transactions
     const supplierInvoices = await prisma.invoice.findMany({
       where: { firm_id: firmId, approval: 'approved', payment_status: { in: ['unpaid', 'partially_paid'] } },
       select: {
-        id: true, total_amount: true, amount_paid: true, issue_date: true, vendor_name_raw: true,
+        id: true, total_amount: true, amount_paid: true, vendor_name_raw: true,
         supplier: { select: { name: true, aliases: { select: { alias: true } } } },
       },
     });
 
-    // Load approved unpaid sales invoices for incoming (debit) transactions
     const salesInvoices = await prisma.salesInvoice.findMany({
       where: { firm_id: firmId, approval: 'approved', payment_status: { in: ['unpaid', 'partially_paid'] } },
       select: {
-        id: true, total_amount: true, amount_paid: true, issue_date: true, invoice_number: true,
+        id: true, total_amount: true, amount_paid: true, invoice_number: true,
         buyer: { select: { name: true, aliases: { select: { alias: true } } } },
       },
     });
 
+    const matchedInvoiceIds = new Set<string>();
+
     for (const txn of bankTxns) {
       if (!unmatchedBankTxnIds.has(txn.id)) continue;
-
-      const txnAmount = Number(txn.credit ?? txn.debit ?? 0);
+      const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
       const descLower = txn.description.toLowerCase();
 
       if (txn.debit) {
-        // Outgoing = debit in bank (withdrawal) → match to supplier invoices
-        const candidates = supplierInvoices.filter(inv => {
+        // Outgoing — match to supplier invoices
+        const amountCandidates = supplierInvoices.filter(inv => {
+          if (matchedInvoiceIds.has(inv.id)) return false;
           const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
-          if (Math.abs(remaining - txnAmount) > 0.01) return false;
-          // Check if description contains supplier name or aliases
-          const names = [inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
-          return names.some(n => descLower.includes(n!.toLowerCase()));
+          return Math.abs(remaining - txnAmount) <= 0.01;
         });
 
-        if (candidates.length === 1) {
-          // Mark as suggested with invoice reference in notes
+        let winner: typeof amountCandidates[0] | null = null;
+
+        // 5A: only 1 invoice with this exact amount → match
+        if (amountCandidates.length === 1) {
+          winner = amountCandidates[0];
+        }
+        // 5B: multiple amount matches → narrow by supplier name in description
+        else if (amountCandidates.length > 1) {
+          const nameCandidates = amountCandidates.filter(inv => {
+            const names = [inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
+            return names.some(n => {
+              const words = n!.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+              return words.some(w => descLower.includes(w));
+            });
+          });
+          if (nameCandidates.length === 1) winner = nameCandidates[0];
+        }
+
+        if (winner) {
           await prisma.bankTransaction.update({
             where: { id: txn.id },
-            data: { recon_status: 'matched', matched_at: new Date(), notes: `[invoice:${candidates[0].id}]` },
+            data: { recon_status: 'matched', matched_at: new Date(), notes: `[invoice:${winner.id}]` },
           });
           unmatchedBankTxnIds.delete(txn.id);
-          matched.push({ bankTxnId: txn.id, paymentId: '' }); // count only
+          matchedInvoiceIds.add(winner.id);
+          matched.push({ bankTxnId: txn.id, paymentId: '' });
         }
       } else if (txn.credit) {
-        // Incoming = credit in bank (deposit) → match to sales invoices
-        const candidates = salesInvoices.filter(inv => {
+        // Incoming — match to sales invoices
+        const amountCandidates = salesInvoices.filter(inv => {
+          if (matchedInvoiceIds.has(inv.id)) return false;
           const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
-          if (Math.abs(remaining - txnAmount) > 0.01) return false;
-          const names = [inv.buyer?.name, ...(inv.buyer?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
-          return names.some(n => descLower.includes(n!.toLowerCase()));
+          return Math.abs(remaining - txnAmount) <= 0.01;
         });
 
-        if (candidates.length === 1) {
+        let winner: typeof amountCandidates[0] | null = null;
+
+        if (amountCandidates.length === 1) {
+          winner = amountCandidates[0];
+        } else if (amountCandidates.length > 1) {
+          const nameCandidates = amountCandidates.filter(inv => {
+            const names = [inv.buyer?.name, ...(inv.buyer?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
+            return names.some(n => {
+              const words = n!.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+              return words.some(w => descLower.includes(w));
+            });
+          });
+          if (nameCandidates.length === 1) winner = nameCandidates[0];
+        }
+
+        if (winner) {
           await prisma.bankTransaction.update({
             where: { id: txn.id },
-            data: { recon_status: 'matched', matched_at: new Date(), notes: `[sales_invoice:${candidates[0].id}]` },
+            data: { recon_status: 'matched', matched_at: new Date(), notes: `[sales_invoice:${winner.id}]` },
           });
           unmatchedBankTxnIds.delete(txn.id);
-          matched.push({ bankTxnId: txn.id, paymentId: '' }); // count only
+          matchedInvoiceIds.add(winner.id);
+          matched.push({ bankTxnId: txn.id, paymentId: '' });
         }
       }
     }
