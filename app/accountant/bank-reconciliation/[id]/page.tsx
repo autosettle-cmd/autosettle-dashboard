@@ -113,6 +113,11 @@ export default function AccountantReconciliationWorkspacePage() {
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
   const [candidates, setCandidates] = useState<CandidatePayment[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [outstandingItems, setOutstandingItems] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<{ type: string; id: string } | null>(null);
+  const [matchSubmitting, setMatchSubmitting] = useState(false);
+  const [matchError, setMatchError] = useState('');
   const [rematching, setRematching] = useState(false);
   const [rematchResult, setRematchResult] = useState<{ matched: number } | null>(null);
 
@@ -181,21 +186,28 @@ export default function AccountantReconciliationWorkspacePage() {
 
   const openMatchModal = async (txn: BankTxn) => {
     // Require firm selection
-    if (!selectedFirmId) {
+    const firmId = selectedFirmId || statement?.firm_id;
+    if (!firmId) {
       window.dispatchEvent(new Event('highlight-firm-selector'));
       return;
     }
     setMatchingTxn(txn);
     setShowVoucherForm(false);
+    setShowReceiptForm(false);
     setVoucherError('');
+    setMatchError('');
+    setSelectedItem(null);
     setLoadingCandidates(true);
+
     const amount = txn.debit ?? txn.credit ?? '';
-    const params = new URLSearchParams();
-    params.set('firmId', selectedFirmId);
+    const direction = txn.credit ? 'outgoing' : 'incoming'; // credit in bank = money out, debit = money in
+
+    // Fetch outstanding invoices/claims
+    const params = new URLSearchParams({ firmId, direction });
     if (amount) params.set('amount', amount);
-    const res = await fetch(`/api/bank-reconciliation/unreconciled-payments?${params}`);
+    const res = await fetch(`/api/bank-reconciliation/outstanding-items?${params}`);
     const json = await res.json();
-    setCandidates(json.data ?? []);
+    setOutstandingItems(json.data ?? []);
     setLoadingCandidates(false);
   };
 
@@ -208,6 +220,35 @@ export default function AccountantReconciliationWorkspacePage() {
     });
     closeMatchModal();
     loadStatement();
+  };
+
+  const doMatchItem = async (item: { type: string; id: string }) => {
+    if (!matchingTxn) return;
+    setMatchSubmitting(true);
+    setMatchError('');
+    try {
+      const body: Record<string, string> = { bankTransactionId: matchingTxn.id };
+      if (item.type === 'invoice') body.invoiceId = item.id;
+      else if (item.type === 'sales_invoice') body.salesInvoiceId = item.id;
+      else if (item.type === 'claim') body.claimId = item.id;
+
+      const res = await fetch('/api/bank-reconciliation/match-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMatchError(json.error || 'Match failed');
+        setMatchSubmitting(false);
+        return;
+      }
+      closeMatchModal();
+      loadStatement();
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : 'Network error');
+    }
+    setMatchSubmitting(false);
   };
 
   const openVoucherForm = async () => {
@@ -651,35 +692,75 @@ export default function AccountantReconciliationWorkspacePage() {
           {/* Match modal */}
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
-              <div className="bg-white rounded-lg shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">Match Transaction</h2>
+              <div className="bg-white rounded-lg shadow-xl p-6 w-[600px] max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">
+                  {matchingTxn.credit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
+                </h2>
                 <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
                   <p className="font-medium text-[#191C1E]">{matchingTxn.description.split(' | ')[0]}</p>
                   <p className="text-[#434654] mt-1">
                     {formatDate(matchingTxn.transaction_date)} — {matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}
                   </p>
                 </div>
-                <p className="text-body-sm font-medium text-[#434654] mb-2">Select a payment to match:</p>
+
+                {/* Outstanding items list */}
+                <p className="text-body-sm font-medium text-[#434654] mb-2">
+                  {matchingTxn.credit ? 'Outstanding Invoices & Claims' : 'Outstanding Sales Invoices'}
+                </p>
                 {loadingCandidates ? (
                   <p className="text-sm text-[#8E9196] py-4 text-center">Loading...</p>
-                ) : candidates.length === 0 ? (
-                  <p className="text-sm text-[#8E9196] py-4 text-center">No matching payments found.</p>
+                ) : outstandingItems.length === 0 ? (
+                  <p className="text-sm text-[#8E9196] py-4 text-center">No outstanding items found.</p>
                 ) : (
-                  <div className="space-y-1">
-                    {candidates.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => doMatch(p.id)}
-                        className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
-                      >
-                        <div>
-                          <p className="text-body-sm font-medium text-[#191C1E]">{p.supplier_name}</p>
-                          <p className="text-label-sm text-[#8E9196]">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
+                  <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                    {outstandingItems.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string; categoryName?: string }) => {
+                      const isSelected = selectedItem?.id === item.id;
+                      return (
+                        <div
+                          key={`${item.type}-${item.id}`}
+                          onClick={() => setSelectedItem(isSelected ? null : { type: item.type, id: item.id })}
+                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                            isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-300 hover:bg-blue-50/50'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : item.type === 'claim' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                              }`}>
+                                {item.type === 'invoice' ? 'INV' : item.type === 'claim' ? 'CLAIM' : 'SALES'}
+                              </span>
+                              <p className="text-body-sm font-medium text-[#191C1E] truncate">{item.name}</p>
+                            </div>
+                            <p className="text-label-sm text-[#8E9196] mt-0.5">
+                              {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
+                              {item.categoryName ? ` · ${item.categoryName}` : ''}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0 ml-3">
+                            <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(String(item.remaining))}</p>
+                            {item.remaining !== item.totalAmount && (
+                              <p className="text-label-sm text-[#8E9196]">of {formatRM(String(item.totalAmount))}</p>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(p.amount)}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                )}
+
+                {/* Match error */}
+                {matchError && <p className="text-sm text-red-600 mt-2">{matchError}</p>}
+
+                {/* Confirm match button */}
+                {selectedItem && (
+                  <button
+                    onClick={() => doMatchItem(selectedItem)}
+                    disabled={matchSubmitting}
+                    className="btn-approve w-full mt-3 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+                  >
+                    {matchSubmitting ? 'Matching...' : 'Confirm & Create JV'}
+                  </button>
                 )}
 
                 {/* Official receipt option — debit (money received) transactions only */}
