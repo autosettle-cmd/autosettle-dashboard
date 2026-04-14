@@ -46,6 +46,7 @@ interface InvoiceRow {
   gl_account_id: string | null;
   gl_account_label: string | null;
   supplier_default_gl_id: string | null;
+  supplier_default_contra_gl_id: string | null;
   approval: 'pending_approval' | 'approved' | 'not_approved';
   rejection_reason: string | null;
 }
@@ -554,7 +555,8 @@ function AccountantInvoicesPage() {
             const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
             setSelectedGlAccountId(match?.gl_account_id ?? '');
           }
-          const contraId = settingsJson.data?.default_trade_payables_gl_id ?? '';
+          // Contra GL: supplier's sub-account → firm default → empty
+          const contraId = previewInvoice.supplier_default_contra_gl_id || settingsJson.data?.default_trade_payables_gl_id || '';
           setDefaultContraGlId(contraId);
           setSelectedContraGlId(contraId);
         })

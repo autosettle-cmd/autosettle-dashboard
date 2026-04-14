@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest) {
       id: true, firm_id: true, total_amount: true, issue_date: true,
       gl_account_id: true, approval: true, vendor_name_raw: true, supplier_id: true,
       category: { select: { name: true } },
-      supplier: { select: { id: true, default_gl_account_id: true } },
+      supplier: { select: { id: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
     },
   });
   const oldMap = new Map(invoices.map((inv) => [inv.id, inv]));
@@ -132,7 +132,7 @@ export async function PATCH(request: NextRequest) {
 
     for (const inv of invoices) {
       const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
-      const contraGlId = contra_gl_account_id || firmDefaults.get(inv.firm_id);
+      const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaults.get(inv.firm_id);
       await createJournalEntry({
         firmId: inv.firm_id,
         postingDate: inv.issue_date,
@@ -147,12 +147,19 @@ export async function PATCH(request: NextRequest) {
       });
 
       // Save GL to supplier for future auto-fill (learn once per supplier)
-      const resolvedGlId = gl_account_id || inv.gl_account_id;
-      if (resolvedGlId && inv.supplier && !inv.supplier.default_gl_account_id) {
-        await prisma.supplier.update({
-          where: { id: inv.supplier.id },
-          data: { default_gl_account_id: resolvedGlId },
-        });
+      if (inv.supplier) {
+        const updates: Record<string, string> = {};
+        const resolvedGlId = gl_account_id || inv.gl_account_id;
+        if (resolvedGlId && !inv.supplier.default_gl_account_id) {
+          updates.default_gl_account_id = resolvedGlId;
+        }
+        const resolvedContraGlId = contra_gl_account_id;
+        if (resolvedContraGlId && !inv.supplier.default_contra_gl_account_id) {
+          updates.default_contra_gl_account_id = resolvedContraGlId;
+        }
+        if (Object.keys(updates).length > 0) {
+          await prisma.supplier.update({ where: { id: inv.supplier.id }, data: updates });
+        }
       }
     }
   }

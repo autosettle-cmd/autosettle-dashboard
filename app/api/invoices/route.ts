@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
       include: {
         uploader: { select: { name: true } },
         firm: { select: { name: true } },
-        supplier: { select: { id: true, name: true, default_gl_account_id: true } },
+        supplier: { select: { id: true, name: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
         category: { select: { name: true } },
         glAccount: { select: { id: true, account_code: true, name: true } },
       },
@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
     gl_account_id: inv.gl_account_id,
     gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
     supplier_default_gl_id: inv.supplier?.default_gl_account_id ?? null,
+    supplier_default_contra_gl_id: inv.supplier?.default_contra_gl_account_id ?? null,
     approval: inv.approval,
     rejection_reason: inv.rejection_reason,
   }));
