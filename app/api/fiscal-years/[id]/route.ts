@@ -101,3 +101,97 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ data: null, error: message }, { status: 400 });
   }
 }
+
+/** Edit fiscal year dates and label, regenerating periods */
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'accountant') {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const fy = await prisma.fiscalYear.findUnique({
+    where: { id },
+    include: { periods: true },
+  });
+  if (!fy) return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
+
+  const firmIds = await getAccountantFirmIds(session.user.id);
+  if (firmIds && !firmIds.includes(fy.firm_id)) {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 403 });
+  }
+
+  // Block edit if any JVs exist in this fiscal year's periods
+  const jvCount = await prisma.journalEntry.count({
+    where: { period_id: { in: fy.periods.map(p => p.id) } },
+  });
+  if (jvCount > 0) {
+    return NextResponse.json({ data: null, error: 'Cannot edit fiscal year with existing journal entries. Delete or reverse them first.' }, { status: 400 });
+  }
+
+  const body = await request.json();
+  const { year_label, start_date, end_date } = body as { year_label?: string; start_date?: string; end_date?: string };
+
+  const newStart = start_date ? new Date(start_date) : fy.start_date;
+  const newEnd = end_date ? new Date(end_date) : fy.end_date;
+  const newLabel = year_label || fy.year_label;
+
+  // Delete old periods and regenerate monthly
+  await prisma.period.deleteMany({ where: { fiscal_year_id: id } });
+
+  const periods: { fiscal_year_id: string; period_number: number; start_date: Date; end_date: Date }[] = [];
+  const cursor = new Date(newStart);
+  let periodNum = 1;
+  while (cursor < newEnd) {
+    const periodStart = new Date(cursor);
+    cursor.setMonth(cursor.getMonth() + 1);
+    const periodEnd = cursor > newEnd ? new Date(newEnd) : new Date(cursor.getTime() - 86400000);
+    periods.push({ fiscal_year_id: id, period_number: periodNum++, start_date: periodStart, end_date: periodEnd });
+  }
+
+  await prisma.fiscalYear.update({
+    where: { id },
+    data: { year_label: newLabel, start_date: newStart, end_date: newEnd },
+  });
+  await prisma.period.createMany({ data: periods });
+
+  const updated = await prisma.fiscalYear.findUnique({
+    where: { id },
+    include: { periods: { orderBy: { period_number: 'asc' } } },
+  });
+
+  return NextResponse.json({ data: updated, error: null });
+}
+
+/** Delete fiscal year and all its periods */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'accountant') {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const fy = await prisma.fiscalYear.findUnique({
+    where: { id },
+    include: { periods: true },
+  });
+  if (!fy) return NextResponse.json({ data: null, error: 'Not found' }, { status: 404 });
+
+  const firmIds = await getAccountantFirmIds(session.user.id);
+  if (firmIds && !firmIds.includes(fy.firm_id)) {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 403 });
+  }
+
+  // Block delete if any JVs exist
+  const jvCount = await prisma.journalEntry.count({
+    where: { period_id: { in: fy.periods.map(p => p.id) } },
+  });
+  if (jvCount > 0) {
+    return NextResponse.json({ data: null, error: 'Cannot delete fiscal year with existing journal entries.' }, { status: 400 });
+  }
+
+  await prisma.period.deleteMany({ where: { fiscal_year_id: id } });
+  await prisma.fiscalYear.delete({ where: { id } });
+
+  return NextResponse.json({ data: { deleted: true }, error: null });
+}

@@ -258,10 +258,45 @@ export default function FiscalPeriodsPage() {
                         </div>
                         <span className={STATUS_BADGE[fy.status].class}>{STATUS_BADGE[fy.status].label}</span>
                         <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const newLabel = prompt('Year label:', fy.year_label);
+                            if (!newLabel) return;
+                            const newStart = prompt('Start date (YYYY-MM-DD):', fy.start_date.split('T')[0]);
+                            if (!newStart) return;
+                            const newEnd = prompt('End date (YYYY-MM-DD):', fy.end_date.split('T')[0]);
+                            if (!newEnd) return;
+                            fetch(`/api/fiscal-years/${fy.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ year_label: newLabel, start_date: newStart, end_date: newEnd }),
+                            }).then(async (res) => {
+                              if (res.ok) setRefreshKey(k => k + 1);
+                              else { const j = await res.json(); alert(j.error || 'Failed to edit'); }
+                            });
+                          }}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                        >
+                          Edit
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); toggleFYStatus(fy); }}
                           className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                         >
                           {fy.status === 'open' ? 'Close Year' : 'Reopen Year'}
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Delete ${fy.year_label}? This will remove all its periods.`)) return;
+                            fetch(`/api/fiscal-years/${fy.id}`, { method: 'DELETE' }).then(async (res) => {
+                              if (res.ok) setRefreshKey(k => k + 1);
+                              else { const j = await res.json(); alert(j.error || 'Failed to delete'); }
+                            });
+                          }}
+                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          Delete
                         </button>
                       </div>
                     </div>
