@@ -542,7 +542,7 @@ export default function EmployeeClaimsPage() {
                   <tbody>
                     {claims.map((c) => {
                       const sCfg = STATUS_CFG[c.status];
-                      const aCfg = APPROVAL_CFG[c.approval];
+                      const _aCfg = APPROVAL_CFG[c.approval];
                       return (
                         <tr key={c.id} onClick={() => setPreviewClaim(c)} className="group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer">
                           <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>

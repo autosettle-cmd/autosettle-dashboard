@@ -6,14 +6,13 @@ import { useSession } from 'next-auth/react';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
 import Field from '@/components/forms/Field';
-import { StatusCell, ApprovalCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
+import { StatusCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { todayStr, formatDate, formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
-import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
+import { STATUS_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 import FilterBar from '@/components/filters/FilterBar';
-import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -98,9 +97,9 @@ function ClaimsPage() {
   } | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
-  const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const [glAccounts, _setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   // GL selection removed — GL assigned at bank recon, not claim approval
-  const [_defaultContraGlId, setDefaultContraGlId] = useState<string>('');
+  const [_defaultContraGlId, _setDefaultContraGlId] = useState<string>('');
 
   // Submit modal
   const [showModal, setShowModal]               = useState(false);
@@ -529,7 +528,7 @@ function ClaimsPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
-  const batchAction = async (claimIds: string[], action: 'approve' | 'reject', reason?: string, glAccountId?: string, contraGlId?: string) => {
+  const _batchAction = async (claimIds: string[], action: 'approve' | 'reject', reason?: string, glAccountId?: string, contraGlId?: string) => {
     try {
       const res = await fetch('/api/claims/batch', {
         method: 'PATCH',

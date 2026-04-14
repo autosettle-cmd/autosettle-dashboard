@@ -114,7 +114,7 @@ export default function AccountantReconciliationWorkspacePage() {
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<PaymentAllocation | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
-  const [candidates, setCandidates] = useState<CandidatePayment[]>([]);
+  const [_candidates, _setCandidates] = useState<CandidatePayment[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [outstandingItems, setOutstandingItems] = useState<any[]>([]);
@@ -225,7 +225,7 @@ export default function AccountantReconciliationWorkspacePage() {
     setLoadingCandidates(false);
   };
 
-  const doMatch = async (paymentId: string) => {
+  const _doMatch = async (paymentId: string) => {
     if (!matchingTxn) return;
     await fetch('/api/bank-reconciliation/match', {
       method: 'POST',

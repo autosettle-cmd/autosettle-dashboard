@@ -6,13 +6,13 @@ import { useSession } from 'next-auth/react';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Sidebar from '@/components/Sidebar';
 import Field from '@/components/forms/Field';
-import { StatusCell, ApprovalCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
+import { StatusCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { todayStr, formatDate, formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
 import FilterBar from '@/components/filters/FilterBar';
-import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
+import { STATUS_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

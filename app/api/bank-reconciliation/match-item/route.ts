@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
-import { createJournalEntry, findOpenPeriod } from '@/lib/journal-entries';
+import { createJournalEntry } from '@/lib/journal-entries';
 
 export const dynamic = 'force-dynamic';
 
