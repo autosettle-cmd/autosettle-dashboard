@@ -13,6 +13,7 @@ export const brand = {
 
   // ── Assets ────────────────────────────────────────────────────────────────
   logo: '/Fortura logo.svg',
+  sidebarLogo: '/Fortura logo icon.svg',
   logoAlt: 'Fortura Business Advisory',
 
   // ── Brand Colors ──────────────────────────────────────────────────────────

@@ -22,9 +22,9 @@ export default function PlatformSidebar() {
       <div className="px-4 pt-5 pb-4">
         <div className="flex items-center gap-2.5">
           <img
-            src={brand.logo}
+            src={brand.sidebarLogo}
             alt={brand.logoAlt}
-            className="h-8 w-auto object-contain rounded"
+            className="h-8 w-8 object-contain"
           />
           <div>
             <h1 className="text-sm font-bold leading-tight">{brand.name}</h1>

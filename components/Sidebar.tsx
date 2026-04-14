@@ -188,9 +188,9 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
       {/* Logo */}
       <div className="h-16 flex items-center gap-2.5 px-5 border-b border-white/[0.06]">
         <img
-          src={brand.logo}
+          src={brand.sidebarLogo}
           alt={brand.logoAlt}
-          className="h-8 w-auto object-contain rounded"
+          className="h-9 w-auto object-contain"
         />
         <div className="min-w-0 flex-1">
           <span className="text-white font-bold text-[15px] tracking-tight block leading-tight">{brand.name}</span>
