@@ -6,340 +6,270 @@ interface MatchResult {
 }
 
 /**
- * Auto-match bank transactions to existing Payment records and approved Receipts.
- * All matches are firm-scoped — only matches within the same firm.
- * Runs 4 passes with decreasing confidence:
- *   Pass 1: Reference match (exact ref + amount within ±0.01 + date within ±5 days)
- *   Pass 2: Amount + Date match (exact amount + date within ±3 days, only if 1 candidate)
- *   Pass 3: Supplier name match (description contains supplier name + amount match)
- *   Pass 4: Receipt match (approved receipts by amount + date, auto-creates Payment bridge)
+ * Auto-match bank transactions to approved invoices, sales invoices, and claims.
+ * Direct FK links on BankTransaction — no Payment bridge records.
+ *
+ * Passes with decreasing confidence:
+ *   Pass 1: Invoice number in bank description + exact amount
+ *   Pass 2: Exact amount + date within ±3 days (only if 1 candidate)
+ *   Pass 3: Supplier/buyer name in bank description + exact amount
+ *   Pass 4: Exact amount only (only if 1 candidate across all types)
  */
 export async function autoMatchTransactions(
   firmId: string,
   bankStatementId: string
 ): Promise<MatchResult> {
-  // Load all unmatched bank transactions for this statement
   const bankTxns = await prisma.bankTransaction.findMany({
     where: { bank_statement_id: bankStatementId, recon_status: 'unmatched' },
   });
 
   if (bankTxns.length === 0) return { matched: 0, unmatched: 0 };
 
-  // Load all unreconciled payments for this firm (not already linked to a bank transaction)
-  const payments = await prisma.payment.findMany({
+  // Load approved unpaid supplier invoices
+  const supplierInvoices = await prisma.invoice.findMany({
     where: {
       firm_id: firmId,
+      approval: 'approved',
+      payment_status: { in: ['unpaid', 'partially_paid'] },
+      // Exclude invoices already linked to a bank transaction
       bankTransactions: { none: {} },
     },
-    include: {
-      supplier: {
-        select: { name: true, aliases: { select: { alias: true } } },
-      },
+    select: {
+      id: true, invoice_number: true, total_amount: true, amount_paid: true,
+      issue_date: true, vendor_name_raw: true,
+      supplier: { select: { name: true, aliases: { select: { alias: true } } } },
     },
   });
 
-  // Build lookup structures
-  const paymentsByRef = new Map<string, typeof payments>();
-  const paymentsByAmount = new Map<string, typeof payments>();
+  // Load approved unpaid sales invoices
+  const salesInvoices = await prisma.salesInvoice.findMany({
+    where: {
+      firm_id: firmId,
+      approval: 'approved',
+      payment_status: { in: ['unpaid', 'partially_paid'] },
+      bankTransactions: { none: {} },
+    },
+    select: {
+      id: true, invoice_number: true, total_amount: true, amount_paid: true,
+      issue_date: true,
+      buyer: { select: { name: true, aliases: { select: { alias: true } } } },
+    },
+  });
 
-  for (const p of payments) {
-    // By reference
-    if (p.reference) {
-      const ref = p.reference.toLowerCase().trim();
-      const list = paymentsByRef.get(ref) ?? [];
-      list.push(p);
-      paymentsByRef.set(ref, list);
-    }
-    // By amount (key = amount string for exact match)
-    const amtKey = Number(p.amount).toFixed(2);
-    const list = paymentsByAmount.get(amtKey) ?? [];
-    list.push(p);
-    paymentsByAmount.set(amtKey, list);
-  }
+  // Load reviewed unpaid employee claims (for reimbursement matching)
+  const claims = await prisma.claim.findMany({
+    where: {
+      firm_id: firmId,
+      status: 'reviewed',
+      payment_status: 'unpaid',
+      type: { in: ['claim', 'mileage'] },
+      bankTransactions: { none: {} },
+    },
+    select: {
+      id: true, amount: true, claim_date: true, merchant: true, receipt_number: true,
+      employee: { select: { name: true } },
+    },
+  });
 
-  const matched: { bankTxnId: string; paymentId: string }[] = [];
-  const matchedPaymentIds = new Set<string>();
-  const unmatchedBankTxnIds = new Set(bankTxns.map((t) => t.id));
+  // Track what's been matched to avoid double-matching
+  const matchedTxnIds = new Set<string>();
+  const matchedInvoiceIds = new Set<string>();
+  const matchedSalesInvoiceIds = new Set<string>();
+  const matchedClaimIds = new Set<string>();
+  const updates: { txnId: string; data: { matched_invoice_id?: string; matched_sales_invoice_id?: string; matched_claim_id?: string; notes?: string } }[] = [];
 
-  // ── Pass 1: Reference match ──
+  // Helper: get remaining amount for an invoice
+  const remaining = (total: unknown, paid: unknown) => Number(total) - Number(paid);
+
+  // Helper: check if any name word appears in description
+  const nameInDesc = (names: (string | null | undefined)[], descLower: string) => {
+    return names.filter(Boolean).some(n => {
+      const words = n!.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
+      return words.some(w => descLower.includes(w));
+    });
+  };
+
+  // ── Pass 1: Invoice number in bank description + exact amount ──────────
   for (const txn of bankTxns) {
-    if (!unmatchedBankTxnIds.has(txn.id)) continue;
-
-    const txnRef = (txn.reference ?? '').toLowerCase().trim();
-    if (!txnRef) continue;
-
-    const candidates = paymentsByRef.get(txnRef);
-    if (!candidates) continue;
-
+    if (matchedTxnIds.has(txn.id)) continue;
     const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-    const txnDate = txn.transaction_date.getTime();
+    const descLower = txn.description.toLowerCase();
 
-    for (const p of candidates) {
-      if (matchedPaymentIds.has(p.id)) continue;
-
-      const pAmount = Number(p.amount);
-      const pDate = p.payment_date.getTime();
-      const daysDiff = Math.abs(txnDate - pDate) / (1000 * 60 * 60 * 24);
-
-      // Amount within ±0.01, date within ±5 days
-      if (Math.abs(txnAmount - pAmount) <= 0.01 && daysDiff <= 5) {
-        matched.push({ bankTxnId: txn.id, paymentId: p.id });
-        matchedPaymentIds.add(p.id);
-        unmatchedBankTxnIds.delete(txn.id);
-        break;
+    if (txn.debit) {
+      // Outgoing → supplier invoices
+      for (const inv of supplierInvoices) {
+        if (matchedInvoiceIds.has(inv.id)) continue;
+        if (!inv.invoice_number) continue;
+        const rem = remaining(inv.total_amount, inv.amount_paid);
+        if (Math.abs(rem - txnAmount) > 0.01) continue;
+        if (descLower.includes(inv.invoice_number.toLowerCase())) {
+          updates.push({ txnId: txn.id, data: { matched_invoice_id: inv.id, notes: `Pass 1: invoice# ${inv.invoice_number}` } });
+          matchedTxnIds.add(txn.id);
+          matchedInvoiceIds.add(inv.id);
+          break;
+        }
+      }
+    } else if (txn.credit) {
+      // Incoming → sales invoices
+      for (const inv of salesInvoices) {
+        if (matchedSalesInvoiceIds.has(inv.id)) continue;
+        if (!inv.invoice_number) continue;
+        const rem = remaining(inv.total_amount, inv.amount_paid);
+        if (Math.abs(rem - txnAmount) > 0.01) continue;
+        if (descLower.includes(inv.invoice_number.toLowerCase())) {
+          updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: inv.id, notes: `Pass 1: invoice# ${inv.invoice_number}` } });
+          matchedTxnIds.add(txn.id);
+          matchedSalesInvoiceIds.add(inv.id);
+          break;
+        }
       }
     }
   }
 
-  // ── Pass 2: Amount + Date match ──
+  // ── Pass 2: Exact amount + date within ±3 days (only if 1 candidate) ──
   for (const txn of bankTxns) {
-    if (!unmatchedBankTxnIds.has(txn.id)) continue;
-
+    if (matchedTxnIds.has(txn.id)) continue;
     const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-    const amtKey = txnAmount.toFixed(2);
-    const candidates = paymentsByAmount.get(amtKey);
-    if (!candidates) continue;
-
     const txnDate = txn.transaction_date.getTime();
-    const isDebit = txn.debit !== null;
+    const DAY3 = 3 * 86400000;
 
-    // Filter: same direction, within ±3 days, not already matched
-    const viable = candidates.filter((p) => {
-      if (matchedPaymentIds.has(p.id)) return false;
-      const pDate = p.payment_date.getTime();
-      const daysDiff = Math.abs(txnDate - pDate) / (1000 * 60 * 60 * 24);
-      // Debit = outgoing, Credit = incoming
-      const directionMatch = isDebit ? p.direction === 'outgoing' : p.direction === 'incoming';
-      return daysDiff <= 3 && directionMatch;
-    });
-
-    // Only auto-match if exactly 1 candidate
-    if (viable.length === 1) {
-      matched.push({ bankTxnId: txn.id, paymentId: viable[0].id });
-      matchedPaymentIds.add(viable[0].id);
-      unmatchedBankTxnIds.delete(txn.id);
-    }
-  }
-
-  // ── Pass 3: Supplier name match ──
-  for (const txn of bankTxns) {
-    if (!unmatchedBankTxnIds.has(txn.id)) continue;
-
-    const txnDesc = txn.description.toLowerCase();
-    const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-    const isDebit = txn.debit !== null;
-
-    // Find payments where supplier name appears in the bank description
-    const nameMatches = payments.filter((p) => {
-      if (matchedPaymentIds.has(p.id)) return false;
-
-      const directionMatch = isDebit ? p.direction === 'outgoing' : p.direction === 'incoming';
-      if (!directionMatch) return false;
-      if (Math.abs(Number(p.amount) - txnAmount) > 0.01) return false;
-
-      // Check supplier name and aliases
-      if (!p.supplier) return false; // Skip employee payments for name matching
-      const names = [p.supplier.name, ...p.supplier.aliases.map((a) => a.alias)];
-      return names.some((name) => {
-        const n = name.toLowerCase();
-        // Check if first 3+ words of supplier name appear in description
-        return n.length >= 3 && txnDesc.includes(n);
+    if (txn.debit) {
+      const candidates = supplierInvoices.filter(inv => {
+        if (matchedInvoiceIds.has(inv.id)) return false;
+        const rem = remaining(inv.total_amount, inv.amount_paid);
+        if (Math.abs(rem - txnAmount) > 0.01) return false;
+        return Math.abs(inv.issue_date.getTime() - txnDate) <= DAY3;
       });
-    });
+      if (candidates.length === 1) {
+        updates.push({ txnId: txn.id, data: { matched_invoice_id: candidates[0].id, notes: `Pass 2: amount+date` } });
+        matchedTxnIds.add(txn.id);
+        matchedInvoiceIds.add(candidates[0].id);
+      }
 
-    if (nameMatches.length === 1) {
-      matched.push({ bankTxnId: txn.id, paymentId: nameMatches[0].id });
-      matchedPaymentIds.add(nameMatches[0].id);
-      unmatchedBankTxnIds.delete(txn.id);
-    }
-  }
-
-  // ── Pass 4: Match against approved receipts (Claims with type='receipt') ──
-  // Receipts don't have Payment records yet — create one when matched
-  if (unmatchedBankTxnIds.size > 0) {
-    // Find receipts not already linked to a Payment (check both PaymentReceipt AND Payment notes)
-    const existingPaymentClaimIds = (await prisma.payment.findMany({
-      where: { firm_id: firmId, notes: { contains: '[claim:' } },
-      select: { notes: true },
-    })).map(p => p.notes?.match(/\[claim:([^\]]+)\]/)?.[1]).filter(Boolean) as string[];
-
-    const receipts = await prisma.claim.findMany({
-      where: {
-        firm_id: firmId,
-        type: 'receipt',
-        approval: 'approved',
-        payment_status: 'unpaid',
-        paymentReceipts: { none: {} },
-        ...(existingPaymentClaimIds.length > 0 && { id: { notIn: existingPaymentClaimIds } }),
-      },
-      select: {
-        id: true, amount: true, claim_date: true, merchant: true, receipt_number: true, employee_id: true,
-      },
-    });
-
-    // Build receipt lookup by amount
-    const receiptsByAmount = new Map<string, typeof receipts>();
-    for (const r of receipts) {
-      const amtKey = Number(r.amount).toFixed(2);
-      const list = receiptsByAmount.get(amtKey) ?? [];
-      list.push(r);
-      receiptsByAmount.set(amtKey, list);
-    }
-
-    for (const txn of bankTxns) {
-      if (!unmatchedBankTxnIds.has(txn.id)) continue;
-
-      const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-      const amtKey = txnAmount.toFixed(2);
-      const candidates = receiptsByAmount.get(amtKey);
-      if (!candidates) continue;
-
-      const txnDate = txn.transaction_date.getTime();
-
-      // Filter: date within ±5 days, pick closest date match
-      const viable = candidates
-        .map((r) => {
-          const daysDiff = Math.abs(txnDate - r.claim_date.getTime()) / (1000 * 60 * 60 * 24);
-          return { receipt: r, daysDiff };
-        })
-        .filter((v) => v.daysDiff <= 5)
-        .sort((a, b) => a.daysDiff - b.daysDiff);
-
-      if (viable.length === 1 || (viable.length > 1 && viable[0].daysDiff < viable[1].daysDiff)) {
-        const receipt = viable[0].receipt;
-        // Determine direction from bank transaction
-        const direction = txn.credit !== null ? 'incoming' : 'outgoing';
-
-        // Create Payment record as bridge (PaymentReceipt link deferred to confirm)
-        const payment = await prisma.payment.create({
-          data: {
-            firm_id: firmId,
-            employee_id: receipt.employee_id,
-            amount: receipt.amount,
-            payment_date: txn.transaction_date,
-            reference: receipt.receipt_number,
-            notes: `Auto-matched from receipt: ${receipt.merchant} [claim:${receipt.id}]`,
-            direction: direction as 'incoming' | 'outgoing',
-          },
+      // Also check claims for reimbursements
+      if (!matchedTxnIds.has(txn.id)) {
+        const claimCandidates = claims.filter(c => {
+          if (matchedClaimIds.has(c.id)) return false;
+          if (Math.abs(Number(c.amount) - txnAmount) > 0.01) return false;
+          return Math.abs(c.claim_date.getTime() - txnDate) <= DAY3;
         });
-
-        matched.push({ bankTxnId: txn.id, paymentId: payment.id });
-        unmatchedBankTxnIds.delete(txn.id);
-        // Remove from candidates so it doesn't match again
-        const idx = candidates.indexOf(receipt);
-        if (idx >= 0) candidates.splice(idx, 1);
+        if (claimCandidates.length === 1) {
+          updates.push({ txnId: txn.id, data: { matched_claim_id: claimCandidates[0].id, notes: `Pass 2: claim amount+date` } });
+          matchedTxnIds.add(txn.id);
+          matchedClaimIds.add(claimCandidates[0].id);
+        }
+      }
+    } else if (txn.credit) {
+      const candidates = salesInvoices.filter(inv => {
+        if (matchedSalesInvoiceIds.has(inv.id)) return false;
+        const rem = remaining(inv.total_amount, inv.amount_paid);
+        if (Math.abs(rem - txnAmount) > 0.01) return false;
+        return Math.abs(inv.issue_date.getTime() - txnDate) <= DAY3;
+      });
+      if (candidates.length === 1) {
+        updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: candidates[0].id, notes: `Pass 2: amount+date` } });
+        matchedTxnIds.add(txn.id);
+        matchedSalesInvoiceIds.add(candidates[0].id);
       }
     }
   }
 
-  // ── Pass 5: Match against approved invoices ──
-  // 5A: Exact amount match (if only 1 invoice has this exact remaining amount)
-  // 5B: Amount + supplier name in description (if multiple amount matches)
-  {
-    const supplierInvoices = await prisma.invoice.findMany({
-      where: { firm_id: firmId, approval: 'approved', payment_status: { in: ['unpaid', 'partially_paid'] } },
-      select: {
-        id: true, total_amount: true, amount_paid: true, vendor_name_raw: true,
-        supplier: { select: { name: true, aliases: { select: { alias: true } } } },
-      },
-    });
+  // ── Pass 3: Supplier/buyer name in description + exact amount ──────────
+  for (const txn of bankTxns) {
+    if (matchedTxnIds.has(txn.id)) continue;
+    const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
+    const descLower = txn.description.toLowerCase();
 
-    const salesInvoices = await prisma.salesInvoice.findMany({
-      where: { firm_id: firmId, approval: 'approved', payment_status: { in: ['unpaid', 'partially_paid'] } },
-      select: {
-        id: true, total_amount: true, amount_paid: true, invoice_number: true,
-        buyer: { select: { name: true, aliases: { select: { alias: true } } } },
-      },
-    });
+    if (txn.debit) {
+      const candidates = supplierInvoices.filter(inv => {
+        if (matchedInvoiceIds.has(inv.id)) return false;
+        const rem = remaining(inv.total_amount, inv.amount_paid);
+        if (Math.abs(rem - txnAmount) > 0.01) return false;
+        return nameInDesc([inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])], descLower);
+      });
+      if (candidates.length === 1) {
+        updates.push({ txnId: txn.id, data: { matched_invoice_id: candidates[0].id, notes: `Pass 3: name+amount` } });
+        matchedTxnIds.add(txn.id);
+        matchedInvoiceIds.add(candidates[0].id);
+      }
 
-    const matchedInvoiceIds = new Set<string>();
-
-    for (const txn of bankTxns) {
-      if (!unmatchedBankTxnIds.has(txn.id)) continue;
-      const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-      const descLower = txn.description.toLowerCase();
-
-      if (txn.debit) {
-        // Outgoing — match to supplier invoices
-        const amountCandidates = supplierInvoices.filter(inv => {
-          if (matchedInvoiceIds.has(inv.id)) return false;
-          const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
-          return Math.abs(remaining - txnAmount) <= 0.01;
+      // Claims — check employee name or merchant in description
+      if (!matchedTxnIds.has(txn.id)) {
+        const claimCandidates = claims.filter(c => {
+          if (matchedClaimIds.has(c.id)) return false;
+          if (Math.abs(Number(c.amount) - txnAmount) > 0.01) return false;
+          return nameInDesc([c.employee.name, c.merchant], descLower);
         });
-
-        let winner: typeof amountCandidates[0] | null = null;
-
-        // 5A: only 1 invoice with this exact amount → match
-        if (amountCandidates.length === 1) {
-          winner = amountCandidates[0];
+        if (claimCandidates.length === 1) {
+          updates.push({ txnId: txn.id, data: { matched_claim_id: claimCandidates[0].id, notes: `Pass 3: claim name+amount` } });
+          matchedTxnIds.add(txn.id);
+          matchedClaimIds.add(claimCandidates[0].id);
         }
-        // 5B: multiple amount matches → narrow by supplier name in description
-        else if (amountCandidates.length > 1) {
-          const nameCandidates = amountCandidates.filter(inv => {
-            const names = [inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
-            return names.some(n => {
-              const words = n!.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
-              return words.some(w => descLower.includes(w));
-            });
-          });
-          if (nameCandidates.length === 1) winner = nameCandidates[0];
-        }
-
-        if (winner) {
-          await prisma.bankTransaction.update({
-            where: { id: txn.id },
-            data: { recon_status: 'matched', matched_at: new Date(), notes: `[invoice:${winner.id}]` },
-          });
-          unmatchedBankTxnIds.delete(txn.id);
-          matchedInvoiceIds.add(winner.id);
-          matched.push({ bankTxnId: txn.id, paymentId: '' });
-        }
-      } else if (txn.credit) {
-        // Incoming — match to sales invoices
-        const amountCandidates = salesInvoices.filter(inv => {
-          if (matchedInvoiceIds.has(inv.id)) return false;
-          const remaining = Number(inv.total_amount) - Number(inv.amount_paid);
-          return Math.abs(remaining - txnAmount) <= 0.01;
-        });
-
-        let winner: typeof amountCandidates[0] | null = null;
-
-        if (amountCandidates.length === 1) {
-          winner = amountCandidates[0];
-        } else if (amountCandidates.length > 1) {
-          const nameCandidates = amountCandidates.filter(inv => {
-            const names = [inv.buyer?.name, ...(inv.buyer?.aliases?.map(a => a.alias) ?? [])].filter(Boolean);
-            return names.some(n => {
-              const words = n!.toLowerCase().split(/\s+/).filter(w => w.length >= 3);
-              return words.some(w => descLower.includes(w));
-            });
-          });
-          if (nameCandidates.length === 1) winner = nameCandidates[0];
-        }
-
-        if (winner) {
-          await prisma.bankTransaction.update({
-            where: { id: txn.id },
-            data: { recon_status: 'matched', matched_at: new Date(), notes: `[sales_invoice:${winner.id}]` },
-          });
-          unmatchedBankTxnIds.delete(txn.id);
-          matchedInvoiceIds.add(winner.id);
-          matched.push({ bankTxnId: txn.id, paymentId: '' });
-        }
+      }
+    } else if (txn.credit) {
+      const candidates = salesInvoices.filter(inv => {
+        if (matchedSalesInvoiceIds.has(inv.id)) return false;
+        const rem = remaining(inv.total_amount, inv.amount_paid);
+        if (Math.abs(rem - txnAmount) > 0.01) return false;
+        return nameInDesc([inv.buyer?.name, ...(inv.buyer?.aliases?.map(a => a.alias) ?? [])], descLower);
+      });
+      if (candidates.length === 1) {
+        updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: candidates[0].id, notes: `Pass 3: name+amount` } });
+        matchedTxnIds.add(txn.id);
+        matchedSalesInvoiceIds.add(candidates[0].id);
       }
     }
   }
 
-  // ── Bulk update matched transactions (skip Pass 5 which already updated) ──
+  // ── Pass 4: Exact amount only (only if 1 candidate) ────────────────────
+  for (const txn of bankTxns) {
+    if (matchedTxnIds.has(txn.id)) continue;
+    const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
+
+    if (txn.debit) {
+      // Check invoices + claims together — only match if exactly 1 total candidate
+      const invCandidates = supplierInvoices.filter(inv => {
+        if (matchedInvoiceIds.has(inv.id)) return false;
+        return Math.abs(remaining(inv.total_amount, inv.amount_paid) - txnAmount) <= 0.01;
+      });
+      const claimCandidates = claims.filter(c => {
+        if (matchedClaimIds.has(c.id)) return false;
+        return Math.abs(Number(c.amount) - txnAmount) <= 0.01;
+      });
+      const total = invCandidates.length + claimCandidates.length;
+      if (total === 1) {
+        if (invCandidates.length === 1) {
+          updates.push({ txnId: txn.id, data: { matched_invoice_id: invCandidates[0].id, notes: `Pass 4: amount only` } });
+          matchedTxnIds.add(txn.id);
+          matchedInvoiceIds.add(invCandidates[0].id);
+        } else {
+          updates.push({ txnId: txn.id, data: { matched_claim_id: claimCandidates[0].id, notes: `Pass 4: claim amount only` } });
+          matchedTxnIds.add(txn.id);
+          matchedClaimIds.add(claimCandidates[0].id);
+        }
+      }
+    } else if (txn.credit) {
+      const candidates = salesInvoices.filter(inv => {
+        if (matchedSalesInvoiceIds.has(inv.id)) return false;
+        return Math.abs(remaining(inv.total_amount, inv.amount_paid) - txnAmount) <= 0.01;
+      });
+      if (candidates.length === 1) {
+        updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: candidates[0].id, notes: `Pass 4: amount only` } });
+        matchedTxnIds.add(txn.id);
+        matchedSalesInvoiceIds.add(candidates[0].id);
+      }
+    }
+  }
+
+  // ── Bulk update matched transactions ──
   const now = new Date();
-  const paymentMatches = matched.filter(m => m.paymentId);
-  if (paymentMatches.length > 0) {
+  if (updates.length > 0) {
     await prisma.$transaction(
-      paymentMatches.map((m) =>
+      updates.map((u) =>
         prisma.bankTransaction.update({
-          where: { id: m.bankTxnId },
+          where: { id: u.txnId },
           data: {
-            matched_payment_id: m.paymentId,
+            ...u.data,
             recon_status: 'matched',
             matched_at: now,
           },
@@ -349,7 +279,7 @@ export async function autoMatchTransactions(
   }
 
   return {
-    matched: matched.length,
-    unmatched: unmatchedBankTxnIds.size,
+    matched: updates.length,
+    unmatched: bankTxns.length - matchedTxnIds.size,
   };
 }
