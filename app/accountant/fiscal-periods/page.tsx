@@ -65,6 +65,40 @@ export default function FiscalPeriodsPage() {
   const [modalError, setModalError] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
 
+  // Edit modal
+  const [editFY, setEditFY] = useState<FiscalYear | null>(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [editStart, setEditStart] = useState('');
+  const [editEnd, setEditEnd] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEditModal = (fy: FiscalYear) => {
+    setEditFY(fy);
+    setEditLabel(fy.year_label);
+    setEditStart(fy.start_date.split('T')[0]);
+    setEditEnd(fy.end_date.split('T')[0]);
+    setEditError('');
+  };
+
+  const saveEdit = async () => {
+    if (!editFY || !editLabel || !editStart || !editEnd) return;
+    setEditSaving(true);
+    setEditError('');
+    try {
+      const res = await fetch(`/api/fiscal-years/${editFY.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ year_label: editLabel, start_date: editStart, end_date: editEnd }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setEditError(json.error || 'Failed'); setEditSaving(false); return; }
+      setEditFY(null);
+      setRefreshKey(k => k + 1);
+    } catch { setEditError('Network error'); }
+    setEditSaving(false);
+  };
+
   // Load fiscal years
   useEffect(() => {
     if (!firmsLoaded) return;
@@ -258,23 +292,7 @@ export default function FiscalPeriodsPage() {
                         </div>
                         <span className={STATUS_BADGE[fy.status].class}>{STATUS_BADGE[fy.status].label}</span>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newLabel = prompt('Year label:', fy.year_label);
-                            if (!newLabel) return;
-                            const newStart = prompt('Start date (YYYY-MM-DD):', fy.start_date.split('T')[0]);
-                            if (!newStart) return;
-                            const newEnd = prompt('End date (YYYY-MM-DD):', fy.end_date.split('T')[0]);
-                            if (!newEnd) return;
-                            fetch(`/api/fiscal-years/${fy.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ year_label: newLabel, start_date: newStart, end_date: newEnd }),
-                            }).then(async (res) => {
-                              if (res.ok) setRefreshKey(k => k + 1);
-                              else { const j = await res.json(); alert(j.error || 'Failed to edit'); }
-                            });
-                          }}
+                          onClick={(e) => { e.stopPropagation(); openEditModal(fy); }}
                           className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
                         >
                           Edit
@@ -433,6 +451,46 @@ export default function FiscalPeriodsPage() {
             </div>
           </div>
         </div>
+      )}
+      {/* === EDIT FISCAL YEAR MODAL === */}
+      {editFY && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditFY(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setEditFY(null)}>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[480px] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+                <span className="text-white font-semibold text-sm">Edit Fiscal Year</span>
+                <button onClick={() => setEditFY(null)} className="text-white/70 hover:text-white text-xl">&times;</button>
+              </div>
+              <div className="p-5 space-y-4">
+                {editError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{editError}</p>}
+                <div>
+                  <label className="input-label">Label</label>
+                  <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="input-field w-full" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="input-label">Start Date</label>
+                    <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="input-field w-full" />
+                  </div>
+                  <div>
+                    <label className="input-label">End Date</label>
+                    <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="input-field w-full" />
+                  </div>
+                </div>
+                <p className="text-xs text-[#8E9196]">Monthly periods will be regenerated based on the new dates.</p>
+              </div>
+              <div className="p-4 flex gap-3 border-t border-gray-100">
+                <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
+                  {editSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button onClick={() => setEditFY(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
