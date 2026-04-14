@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
-import { createJournalEntry, reverseJVsForSource, findOpenPeriod } from '@/lib/journal-entries';
+import { reverseJVsForSource } from '@/lib/journal-entries';
 import { reverseBankReconJV } from '@/lib/bank-recon-jv';
 import { recalcClaimPayment } from '@/lib/payment-utils';
 
@@ -46,59 +46,8 @@ export async function PATCH(request: NextRequest) {
   });
   const oldClaimMap = new Map(oldClaims.map((c) => [c.id, c]));
 
-  // ─── Pre-validation for approve: block if JV cannot be created ─────────
-  if (action === 'approve') {
-    const errors: string[] = [];
-
-    // Receipts don't need contra GL — JV created at bank recon, not approval
-    const nonReceipts = oldClaims.filter((c) => c.type !== 'receipt');
-
-    // Check firm GL defaults for claims/mileage only
-    const firmDefaultsMap = new Map<string, string | null>();
-    for (const claim of nonReceipts) {
-      if (contra_gl_account_id || claim.contra_gl_account_id) continue;
-      if (!firmDefaultsMap.has(claim.firm_id)) {
-        const firm = await prisma.firm.findUnique({
-          where: { id: claim.firm_id },
-          select: { default_staff_claims_gl_id: true, name: true },
-        });
-        firmDefaultsMap.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
-        if (!firm?.default_staff_claims_gl_id) {
-          errors.push(`Firm "${firm?.name}" has no Staff Claims Payable GL account configured. Go to Chart of Accounts → GL Defaults to set it up.`);
-        }
-      }
-    }
-
-    // Check each claim/mileage has expense GL (receipts optional — just labels for bank recon)
-    for (const claim of nonReceipts) {
-      const expenseGlId = gl_account_id || claim.gl_account_id;
-      if (!expenseGlId) {
-        errors.push(`Claim by ${claim.merchant} (${claim.category.name}) has no GL account assigned. Assign a GL account before approving.`);
-      }
-    }
-
-    // Check fiscal periods
-    const checkedPeriods = new Set<string>();
-    for (const claim of oldClaims) {
-      const periodKey = `${claim.firm_id}|${claim.claim_date.toISOString().split('T')[0]}`;
-      if (checkedPeriods.has(periodKey)) continue;
-      checkedPeriods.add(periodKey);
-      try {
-        await findOpenPeriod(prisma, claim.firm_id, claim.claim_date);
-      } catch {
-        const dateStr = claim.claim_date.toISOString().split('T')[0];
-        errors.push(`No open fiscal period for date ${dateStr}. Go to Fiscal Periods to create or open a period covering this date.`);
-      }
-    }
-
-    if (errors.length > 0) {
-      // Deduplicate
-      const unique = Array.from(new Set(errors));
-      return NextResponse.json({ data: null, error: unique.join('\n') }, { status: 400 });
-    }
-  }
-
   // ─── Proceed with update ───────────────────────────────────────────────
+  // Note: No JV on claim approval — JV created at bank recon when reimbursement is matched
   const updateData =
     action === 'approve'
       ? { approval: 'approved' as const, status: 'reviewed' as const, rejection_reason: null as string | null, ...(gl_account_id && { gl_account_id }), ...(contra_gl_account_id && { contra_gl_account_id }) }
@@ -121,43 +70,8 @@ export async function PATCH(request: NextRequest) {
     )
   );
 
-  // ─── Create / reverse JVs ─────────────────────────────────────────────
-  // Receipts: NO JV on approval — JV created during bank recon when matched
-  // Claims & Mileage: JV on approval (Debit Expense, Credit Staff Claims Payable)
-  if (action === 'approve') {
-    const nonReceipts = oldClaims.filter((c) => c.type !== 'receipt');
-
-    if (nonReceipts.length > 0) {
-      const firmDefaults = new Map<string, string | null>();
-      for (const claim of nonReceipts) {
-        if (!firmDefaults.has(claim.firm_id)) {
-          const firm = await prisma.firm.findUnique({
-            where: { id: claim.firm_id },
-            select: { default_staff_claims_gl_id: true },
-          });
-          firmDefaults.set(claim.firm_id, firm?.default_staff_claims_gl_id ?? null);
-        }
-      }
-
-      for (const claim of nonReceipts) {
-        const expenseGlId = gl_account_id || claim.gl_account_id;
-        const contraGlId = contra_gl_account_id || claim.contra_gl_account_id || firmDefaults.get(claim.firm_id);
-        await createJournalEntry({
-          firmId: claim.firm_id,
-          postingDate: claim.claim_date,
-          description: `${claim.category.name} — ${claim.merchant}`,
-          sourceType: 'claim_approval',
-          sourceId: claim.id,
-          lines: [
-            { glAccountId: expenseGlId!, debitAmount: Number(claim.amount), creditAmount: 0, description: claim.merchant },
-            { glAccountId: contraGlId!, debitAmount: 0, creditAmount: Number(claim.amount), description: 'Staff Claims Payable' },
-          ],
-          createdBy: session.user.id,
-        });
-      }
-    }
-  }
-
+  // ─── Revert handling ───────────────────────────────────────────────────
+  // Reverse any legacy JVs from before the overhaul + cascade bank recon links
   if (action === 'revert') {
     for (const claim of oldClaims) {
       if (claim.approval !== 'approved') continue;
