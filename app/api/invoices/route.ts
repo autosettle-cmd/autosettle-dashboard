@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
     const categoryId = formData.get('category_id') as string | null;
     const paymentTerms = formData.get('payment_terms') as string | null;
     const notes = formData.get('notes') as string | null;
+    const glAccountId = formData.get('gl_account_id') as string | null;
     const file = formData.get('file') as File | null;
 
     if (!firmId || !vendorName || !issueDate || !totalAmountStr || !categoryId) {
@@ -268,6 +269,7 @@ export async function POST(request: NextRequest) {
         notes: notes || null,
         total_amount: totalAmount,
         category_id: categoryId!,
+        gl_account_id: glAccountId || null,
         confidence: 'HIGH',
         status: 'pending_review',
         payment_status: 'unpaid',
