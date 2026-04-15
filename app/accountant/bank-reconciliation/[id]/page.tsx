@@ -55,7 +55,7 @@ interface BankTxn {
   notes: string | null;
   matched_payment: MatchedPayment | null;
   matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null; allocation_amount?: string } | null;
-  matched_invoice_allocations?: { invoice_id: string; invoice_number: string; vendor_name: string; total_amount: string; amount: string; issue_date: string }[];
+  matched_invoice_allocations?: { invoice_id: string; invoice_number: string; vendor_name: string; total_amount: string; allocation_amount: string; issue_date: string }[];
   matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string } | null;
   matched_claims: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_id: string; employee_name: string; category_name: string }[];
 }
@@ -579,17 +579,17 @@ export default function AccountantReconciliationWorkspacePage() {
                                   return (
                                   <div>
                                     <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
-                                    {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1
+                                    {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
                                       ? txn.matched_invoice_allocations
-                                      : [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }]
+                                      : [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }]
                                     ).map((alloc, idx) => (
                                       <div key={idx}
-                                        onClick={(e) => { e.stopPropagation(); setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.amount) }); }}
+                                        onClick={(e) => { e.stopPropagation(); setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.allocation_amount) }); }}
                                         className="bg-white rounded-lg border border-blue-100 p-3 mb-2 last:mb-0 cursor-pointer hover:border-blue-300 transition-colors">
                                         <p className="text-body-sm font-semibold text-[#191C1E]">{alloc.vendor_name}</p>
                                         <p className="text-body-sm text-[#434654]">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
                                         <div className="flex items-center gap-2 mt-1">
-                                          <p className="text-body-sm font-medium text-[#191C1E]">Allocated: {formatRM(String(alloc.amount))}</p>
+                                          <p className="text-body-sm font-medium text-[#191C1E]">Allocated: {formatRM(String(alloc.allocation_amount))}</p>
                                           <span className="text-label-sm text-[#8E9196]">of {formatRM(alloc.total_amount)} invoice</span>
                                         </div>
                                       </div>
@@ -631,7 +631,7 @@ export default function AccountantReconciliationWorkspacePage() {
                                 {(() => {
                                   const txnAmt = Number(txn.debit ?? txn.credit ?? 0);
                                   const invAllocated = txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
-                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.amount || 0), 0)
+                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.allocation_amount || 0), 0)
                                     : txn.matched_invoice ? Number(txn.matched_invoice.allocation_amount || txn.matched_invoice.total_amount || 0) : 0;
                                   const claimAllocated = txn.matched_claims
                                     ? txn.matched_claims.reduce((s, c) => s + Number(c.amount), 0) : 0;
