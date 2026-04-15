@@ -1,11 +1,17 @@
 import { prisma } from './prisma';
 
 export async function recalcClaimPayment(claimId: string) {
-  const result = await prisma.paymentReceipt.aggregate({
-    where: { claim_id: claimId },
-    _sum: { amount: true },
-  });
-  const totalPaid = Number(result._sum.amount ?? 0);
+  const [paymentResult, invoiceLinkResult] = await Promise.all([
+    prisma.paymentReceipt.aggregate({
+      where: { claim_id: claimId },
+      _sum: { amount: true },
+    }),
+    prisma.invoiceReceiptLink.aggregate({
+      where: { claim_id: claimId },
+      _sum: { amount: true },
+    }),
+  ]);
+  const totalPaid = Number(paymentResult._sum.amount ?? 0) + Number(invoiceLinkResult._sum.amount ?? 0);
   const claim = await prisma.claim.findUnique({
     where: { id: claimId },
     select: { amount: true },

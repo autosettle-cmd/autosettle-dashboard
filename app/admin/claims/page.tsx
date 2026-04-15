@@ -88,6 +88,13 @@ function AdminClaimsPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [editCategories, setEditCategories] = useState<{ id: string; name: string }[]>([]);
 
+  // Invoice linking for receipts
+  const [invoiceLinkSearch, setInvoiceLinkSearch] = useState('');
+  const [invoiceLinkResults, setInvoiceLinkResults] = useState<{ id: string; invoice_number: string; vendor_name_raw: string; total_amount: number; amount_paid: number; issue_date: string }[]>([]);
+  const [invoiceLinkLoading, setInvoiceLinkLoading] = useState(false);
+  const [linkedInvoices, setLinkedInvoices] = useState<{ id: string; invoice_id: string; amount: number; invoice_number: string; vendor_name: string }[]>([]);
+  const [suggestedInvoices, setSuggestedInvoices] = useState<{ id: string; invoice_number: string; vendor_name_raw: string; total_amount: number; amount_paid: number; issue_date: string; match_reason: string }[]>([]);
+
   // Submit modal
   const [showModal, setShowModal]           = useState(false);
   const [modalCategories, setModalCategories] = useState<Category[]>([]);
@@ -331,7 +338,76 @@ function AdminClaimsPage() {
   const mileageRate = 0.55;
 
   // Reset edit mode when preview changes
-  useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
+  useEffect(() => { setEditMode(false); setEditData(null); setInvoiceLinkSearch(''); setInvoiceLinkResults([]); }, [previewClaim]);
+
+  // Fetch linked invoices + auto-link best match when previewing a receipt
+  useEffect(() => {
+    if (!previewClaim || previewClaim.type !== 'receipt') { setLinkedInvoices([]); setSuggestedInvoices([]); return; }
+    let cancelled = false;
+    (async () => {
+      // Fetch existing links
+      let existing: typeof linkedInvoices = [];
+      try {
+        const res = await fetch(`/api/receipt-invoice-links?claimId=${previewClaim.id}`);
+        const j = await res.json();
+        existing = j.data ?? [];
+        if (!cancelled) setLinkedInvoices(existing);
+      } catch { if (!cancelled) setLinkedInvoices([]); }
+
+      // Search for matching invoices by merchant
+      const merchant = previewClaim.merchant?.trim().replace(/[.\s]+$/, '');
+      if (!merchant) return;
+      const searchTerm = merchant.split(/\s+/).slice(0, 3).join(' ');
+      try {
+        const res = await fetch(`/api/admin/invoices?search=${encodeURIComponent(searchTerm)}&take=20`);
+        const j = await res.json();
+        if (cancelled) return;
+        const allInvs = (j.data ?? []) as { id: string; invoice_number: string; vendor_name_raw: string; total_amount: number; amount_paid: number; issue_date: string }[];
+        const candidates = allInvs.filter(inv => Number(inv.total_amount) - Number(inv.amount_paid) > 0.01);
+        const receiptAmt = Number(previewClaim.amount);
+        const receiptDesc = (previewClaim.description || '').toLowerCase();
+        const receiptRef = (previewClaim.receipt_number || '').toLowerCase();
+        const alreadyLinkedIds = new Set(existing.map(l => l.invoice_id));
+        const scored = candidates.filter(inv => !alreadyLinkedIds.has(inv.id)).map(inv => {
+          const balance = Number(inv.total_amount) - Number(inv.amount_paid);
+          const reasons: string[] = [];
+          if (Math.abs(balance - receiptAmt) < 0.01) reasons.push('Exact amount match');
+          else if (receiptAmt <= balance) reasons.push('Amount within balance');
+          const invNum = (inv.invoice_number || '').toLowerCase();
+          if (invNum && (receiptDesc.includes(invNum) || receiptRef.includes(invNum))) reasons.push('Reference match');
+          if (inv.vendor_name_raw.toLowerCase().includes(merchant.toLowerCase())) reasons.push('Supplier match');
+          return { ...inv, match_reason: reasons.join(' · ') || 'Supplier match', score: reasons.length };
+        });
+        scored.sort((a, b) => b.score - a.score);
+        if (!cancelled) setSuggestedInvoices(scored.slice(0, 10));
+
+        // Auto-link best match if no existing links and we have a good candidate (score >= 2)
+        if (existing.length === 0 && scored.length > 0 && scored[0].score >= 2) {
+          const best = scored[0];
+          try {
+            const linkRes = await fetch(`/api/invoices/${best.id}/receipt-link`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ claimId: previewClaim.id }),
+            });
+            const linkJ = await linkRes.json();
+            if (linkRes.ok && !cancelled) {
+              setLinkedInvoices([{
+                id: `auto-${best.id}`,
+                invoice_id: best.id,
+                amount: linkJ.data?.amount ?? 0,
+                invoice_number: best.invoice_number,
+                vendor_name: best.vendor_name_raw,
+              }]);
+              setSuggestedInvoices(prev => prev.filter(s => s.id !== best.id));
+              refresh();
+            }
+          } catch { /* auto-link failed, user can still link manually */ }
+        }
+      } catch { if (!cancelled) setSuggestedInvoices([]); }
+    })();
+    return () => { cancelled = true; };
+  }, [previewClaim]);
 
   // Cleanup blob URL on unmount
   useEffect(() => { return () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }; }, [previewUrl]);
@@ -756,9 +832,8 @@ function AdminClaimsPage() {
                   {claimTab === 'mileage' && <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('distance_km')}>Distance (km){sortIndicator('distance_km')}</th>}
                   <th className="px-5 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('amount')}>Amount (RM){sortIndicator('amount')}</th>
                   <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
-                  <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Reimbursed{sortIndicator('payment_status')}</th>
+                  {claimTab !== 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Reimbursed{sortIndicator('payment_status')}</th>}
                   {claimTab !== 'mileage' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('confidence')}>Confidence{sortIndicator('confidence')}</th>}
-                  {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>}
                   {claimTab === 'receipt' && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('linked_payment_count')}>Linked{sortIndicator('linked_payment_count')}</th>}
                 </tr>
               </thead>
@@ -781,9 +856,8 @@ function AdminClaimsPage() {
                     {claimTab === 'mileage' && <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{c.distance_km}</td>}
                     <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{Number(c.amount).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                    <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
+                    {claimTab !== 'receipt' && <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>}
                     {claimTab !== 'mileage' && <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>}
-                    {claimTab === 'receipt' && <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>}
                     {claimTab === 'receipt' && <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>}
                   </tr>
                 ))}
@@ -1160,6 +1234,119 @@ function AdminClaimsPage() {
                       {modalEmployees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                     </select>
                   </div>
+                  {previewClaim.type === 'receipt' && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                      <label className="input-label">Linked Invoices</label>
+                      {linkedInvoices.length > 0 && (
+                        <div className="space-y-1.5">
+                          {linkedInvoices.map(li => (
+                            <div key={li.id} className="flex items-center justify-between bg-white rounded px-2.5 py-1.5 border border-gray-100">
+                              <div className="text-sm">
+                                <span className="font-medium text-[#434654]">{li.invoice_number || 'No number'}</span>
+                                <span className="text-[#8E9196] ml-1.5">{li.vendor_name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-[#434654] tabular-nums">{formatRM(li.amount)}</span>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm('Unlink this receipt from the invoice?')) return;
+                                    try {
+                                      const res = await fetch(`/api/invoices/${li.invoice_id}/receipt-link`, {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ claimId: previewClaim.id }),
+                                      });
+                                      if (res.ok) {
+                                        setLinkedInvoices(prev => prev.filter(x => x.id !== li.id));
+                                        refresh();
+                                      }
+                                    } catch (e) { console.error(e); }
+                                  }}
+                                  className="text-xs text-red-500 hover:text-red-700"
+                                >&times;</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        placeholder="Search invoice number or supplier..."
+                        value={invoiceLinkSearch}
+                        onChange={(e) => {
+                          const q = e.target.value;
+                          setInvoiceLinkSearch(q);
+                          if (q.length < 2) { setInvoiceLinkResults([]); return; }
+                          setInvoiceLinkLoading(true);
+                          fetch(`/api/admin/invoices?search=${encodeURIComponent(q)}&take=10`)
+                            .then(r => r.json())
+                            .then(j => {
+                              const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id));
+                              setInvoiceLinkResults((j.data ?? []).filter((inv: { id: string }) => !alreadyLinked.has(inv.id)));
+                            })
+                            .catch(console.error)
+                            .finally(() => setInvoiceLinkLoading(false));
+                        }}
+                        className="input-field w-full text-sm"
+                      />
+                      {(() => {
+                        const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id));
+                        const displayList = invoiceLinkSearch.length >= 2
+                          ? invoiceLinkResults
+                          : suggestedInvoices.filter(s => !alreadyLinked.has(s.id));
+                        if (displayList.length === 0) return null;
+                        return (
+                          <div>
+                            {invoiceLinkSearch.length < 2 && <p className="text-xs text-[#8E9196] mb-1">Suggested matches:</p>}
+                            <div className="max-h-36 overflow-y-auto space-y-1">
+                              {displayList.map(inv => (
+                                <button
+                                  type="button"
+                                  key={inv.id}
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/invoices/${inv.id}/receipt-link`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ claimId: previewClaim.id }),
+                                      });
+                                      const j = await res.json();
+                                      if (res.ok) {
+                                        setLinkedInvoices(prev => [...prev, {
+                                          id: `temp-${inv.id}`,
+                                          invoice_id: inv.id,
+                                          amount: j.data?.amount ?? 0,
+                                          invoice_number: inv.invoice_number,
+                                          vendor_name: inv.vendor_name_raw,
+                                        }]);
+                                        setSuggestedInvoices(prev => prev.filter(s => s.id !== inv.id));
+                                        setInvoiceLinkSearch('');
+                                        setInvoiceLinkResults([]);
+                                        refresh();
+                                      } else {
+                                        alert(j.error || 'Failed to link');
+                                      }
+                                    } catch (e) { console.error(e); }
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 border border-gray-100 transition-colors"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-[#434654]">{inv.invoice_number || 'No number'}</span>
+                                    <span className="text-xs text-[#8E9196] tabular-nums">{formatRM(inv.total_amount)}</span>
+                                  </div>
+                                  <p className="text-xs text-[#8E9196]">
+                                    {inv.vendor_name_raw} &middot; Balance: {formatRM(Number(inv.total_amount) - Number(inv.amount_paid))}
+                                    {'match_reason' in inv && inv.match_reason ? ` · ${inv.match_reason}` : ''}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
@@ -1211,6 +1398,128 @@ function AdminClaimsPage() {
                       >
                         Unlink from Payment
                       </button>
+                    </div>
+                  )}
+
+                  {/* Invoice Linking for receipts */}
+                  {previewClaim.type === 'receipt' && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                      <p className="text-label-sm font-semibold text-[#434654] uppercase tracking-wide">Linked Invoices</p>
+                      {linkedInvoices.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {linkedInvoices.map(li => (
+                            <div key={li.id} className="flex items-center justify-between bg-white rounded px-2.5 py-1.5 border border-gray-100">
+                              <div className="text-sm">
+                                <span className="font-medium text-[#434654]">{li.invoice_number || 'No number'}</span>
+                                <span className="text-[#8E9196] ml-1.5">{li.vendor_name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-medium text-[#434654] tabular-nums">{formatRM(li.amount)}</span>
+                                <button
+                                  onClick={async () => {
+                                    if (!confirm('Unlink this receipt from the invoice?')) return;
+                                    try {
+                                      const res = await fetch(`/api/invoices/${li.invoice_id}/receipt-link`, {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ claimId: previewClaim.id }),
+                                      });
+                                      if (res.ok) {
+                                        setLinkedInvoices(prev => prev.filter(x => x.id !== li.id));
+                                        refresh();
+                                      }
+                                    } catch (e) { console.error(e); }
+                                  }}
+                                  className="text-xs text-red-500 hover:text-red-700"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-[#8E9196]">No invoices linked yet.</p>
+                      )}
+                      {/* Search & link */}
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search invoice number or supplier..."
+                          value={invoiceLinkSearch}
+                          onChange={(e) => {
+                            const q = e.target.value;
+                            setInvoiceLinkSearch(q);
+                            if (q.length < 2) { setInvoiceLinkResults([]); return; }
+                            setInvoiceLinkLoading(true);
+                            fetch(`/api/admin/invoices?search=${encodeURIComponent(q)}&paymentStatus=unpaid&take=10`)
+                              .then(r => r.json())
+                              .then(j => {
+                                const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id));
+                                setInvoiceLinkResults((j.data ?? []).filter((inv: { id: string }) => !alreadyLinked.has(inv.id)));
+                              })
+                              .catch(console.error)
+                              .finally(() => setInvoiceLinkLoading(false));
+                          }}
+                          className="input-field w-full text-sm"
+                        />
+                        {invoiceLinkLoading && <span className="absolute right-2 top-2 text-xs text-[#8E9196]">Searching...</span>}
+                      </div>
+                      {/* Show search results when typing, or auto-suggestions when idle */}
+                      {(() => {
+                        const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id));
+                        const displayList = invoiceLinkSearch.length >= 2
+                          ? invoiceLinkResults
+                          : suggestedInvoices.filter(s => !alreadyLinked.has(s.id));
+                        if (displayList.length === 0) return null;
+                        return (
+                          <div>
+                            {invoiceLinkSearch.length < 2 && <p className="text-xs text-[#8E9196] mb-1">Suggested matches:</p>}
+                            <div className="max-h-48 overflow-y-auto space-y-1">
+                              {displayList.map(inv => (
+                                <button
+                                  key={inv.id}
+                                  onClick={async () => {
+                                    try {
+                                      const res = await fetch(`/api/invoices/${inv.id}/receipt-link`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ claimId: previewClaim.id }),
+                                      });
+                                      const j = await res.json();
+                                      if (res.ok) {
+                                        setLinkedInvoices(prev => [...prev, {
+                                          id: `temp-${inv.id}`,
+                                          invoice_id: inv.id,
+                                          amount: j.data?.amount ?? 0,
+                                          invoice_number: inv.invoice_number,
+                                          vendor_name: inv.vendor_name_raw,
+                                        }]);
+                                        setSuggestedInvoices(prev => prev.filter(s => s.id !== inv.id));
+                                        setInvoiceLinkSearch('');
+                                        setInvoiceLinkResults([]);
+                                        refresh();
+                                      } else {
+                                        alert(j.error || 'Failed to link');
+                                      }
+                                    } catch (e) { console.error(e); }
+                                  }}
+                                  className="w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 border border-gray-100 transition-colors"
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-[#434654]">{inv.invoice_number || 'No number'}</span>
+                                    <span className="text-xs text-[#8E9196] tabular-nums">{formatRM(inv.total_amount)}</span>
+                                  </div>
+                                  <p className="text-xs text-[#8E9196]">
+                                    {inv.vendor_name_raw} &middot; Balance: {formatRM(Number(inv.total_amount) - Number(inv.amount_paid))}
+                                    {'match_reason' in inv && inv.match_reason ? ` · ${inv.match_reason}` : ''}
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

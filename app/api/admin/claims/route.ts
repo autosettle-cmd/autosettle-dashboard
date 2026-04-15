@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       include: {
         employee: { select: { name: true } },
         category: { select: { name: true } },
-        _count: { select: { paymentReceipts: true } },
+        _count: { select: { paymentReceipts: true, invoiceReceiptLinks: true } },
         paymentReceipts: {
           include: {
             payment: {
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
     to_location: c.to_location,
     distance_km: c.distance_km?.toString() ?? null,
     trip_purpose: c.trip_purpose,
-    linked_payment_count: c._count.paymentReceipts,
+    linked_payment_count: c._count.paymentReceipts + c._count.invoiceReceiptLinks,
     linked_payments: c.paymentReceipts.map((pr) => ({
       payment_id: pr.payment.id,
       amount: pr.payment.amount.toString(),

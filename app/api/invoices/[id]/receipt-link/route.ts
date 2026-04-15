@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { recalcInvoicePaid } from '@/lib/invoice-payment';
+import { recalcClaimPayment } from '@/lib/payment-utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,6 +136,7 @@ export async function POST(
   });
 
   await recalcInvoicePaid(invoiceId);
+  await recalcClaimPayment(claimId);
 
   return NextResponse.json({ data: { linked: true, amount: linkAmount }, error: null });
 }
@@ -182,6 +184,7 @@ export async function DELETE(
   });
 
   await recalcInvoicePaid(invoiceId);
+  await recalcClaimPayment(claimId);
 
   return NextResponse.json({
     data: { unlinked: true },
