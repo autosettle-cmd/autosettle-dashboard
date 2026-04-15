@@ -42,3 +42,4 @@ next-env.d.ts
 
 # environment secrets
 .env
+test-results/
