@@ -630,9 +630,9 @@ export default function AccountantReconciliationWorkspacePage() {
                                 {/* Add more items block — shown when transaction not fully allocated */}
                                 {(() => {
                                   const txnAmt = Number(txn.debit ?? txn.credit ?? 0);
-                                  const invAllocated = txn.matched_invoice_allocations
-                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.amount), 0)
-                                    : txn.matched_invoice ? Number(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount) : 0;
+                                  const invAllocated = txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
+                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.amount || 0), 0)
+                                    : txn.matched_invoice ? Number(txn.matched_invoice.allocation_amount || txn.matched_invoice.total_amount || 0) : 0;
                                   const claimAllocated = txn.matched_claims
                                     ? txn.matched_claims.reduce((s, c) => s + Number(c.amount), 0) : 0;
                                   const remaining = txnAmt - invAllocated - claimAllocated;
