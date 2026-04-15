@@ -31,14 +31,14 @@ export async function PATCH(
 
   if (category.firm_id === null) {
     // Global category — use override system
-    const { is_active, firmId } = body;
+    const { is_active, firmId, gl_account_id } = body;
 
     if (!firmId) {
-      return NextResponse.json({ data: null, error: 'firmId is required when toggling a global category' }, { status: 400 });
+      return NextResponse.json({ data: null, error: 'firmId is required when updating a global category' }, { status: 400 });
     }
 
-    if (typeof is_active !== 'boolean') {
-      return NextResponse.json({ data: null, error: 'is_active (boolean) is required' }, { status: 400 });
+    if (typeof is_active !== 'boolean' && gl_account_id === undefined) {
+      return NextResponse.json({ data: null, error: 'is_active (boolean) or gl_account_id is required' }, { status: 400 });
     }
 
     // Validate firmId is in accountant's assigned firms
@@ -47,12 +47,26 @@ export async function PATCH(
     }
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData: any = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const createData: any = { category_id: id, firm_id: firmId };
+
+      if (typeof is_active === 'boolean') {
+        updateData.is_active = is_active;
+        createData.is_active = is_active;
+      }
+      if (gl_account_id !== undefined) {
+        updateData.gl_account_id = gl_account_id || null;
+        createData.gl_account_id = gl_account_id || null;
+      }
+
       const override = await prisma.categoryFirmOverride.upsert({
         where: {
           category_id_firm_id: { category_id: id, firm_id: firmId },
         },
-        update: { is_active },
-        create: { category_id: id, firm_id: firmId, is_active },
+        update: updateData,
+        create: createData,
       });
 
       return NextResponse.json({ data: override, error: null });
@@ -66,7 +80,7 @@ export async function PATCH(
       return NextResponse.json({ data: null, error: 'Not authorized for this category' }, { status: 403 });
     }
 
-    const { is_active, name, tax_code } = body;
+    const { is_active, name, tax_code, gl_account_id } = body;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = {};
@@ -79,6 +93,17 @@ export async function PATCH(
         where: { id },
         data,
       });
+
+      // Store GL account in override (firm-specific categories use the same override table)
+      if (gl_account_id !== undefined) {
+        await prisma.categoryFirmOverride.upsert({
+          where: {
+            category_id_firm_id: { category_id: id, firm_id: category.firm_id },
+          },
+          update: { gl_account_id: gl_account_id || null },
+          create: { category_id: id, firm_id: category.firm_id, gl_account_id: gl_account_id || null },
+        });
+      }
 
       return NextResponse.json({ data: updated, error: null });
     } catch (err: unknown) {

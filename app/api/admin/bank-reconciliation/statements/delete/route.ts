@@ -29,8 +29,15 @@ export async function DELETE(request: NextRequest) {
     // Revert all direct invoice/claim matches
     const allTxns = await prisma.bankTransaction.findMany({
       where: { bank_statement_id: statementId },
-      select: { id: true, debit: true, credit: true, matched_payment_id: true, matched_invoice_id: true, matched_sales_invoice_id: true, matched_claim_id: true },
+      select: { id: true, debit: true, credit: true, matched_payment_id: true, matched_invoice_id: true, matched_sales_invoice_id: true },
     });
+
+    // Collect txn IDs that have claims linked (before we clear them)
+    const txnIds = allTxns.map(t => t.id);
+    const claimLinkedTxnIds = new Set(
+      (await prisma.claim.findMany({ where: { matched_bank_txn_id: { in: txnIds } }, select: { matched_bank_txn_id: true } }))
+        .map(c => c.matched_bank_txn_id!)
+    );
 
     for (const t of allTxns) {
       const txnAmount = Number(t.debit ?? t.credit ?? 0);
@@ -48,9 +55,8 @@ export async function DELETE(request: NextRequest) {
           await prisma.salesInvoice.update({ where: { id: t.matched_sales_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
         }
       }
-      if (t.matched_claim_id) {
-        await prisma.claim.update({ where: { id: t.matched_claim_id }, data: { payment_status: 'unpaid' } });
-      }
+      // Revert claims linked via matched_bank_txn_id
+      await prisma.claim.updateMany({ where: { matched_bank_txn_id: t.id }, data: { matched_bank_txn_id: null, payment_status: 'unpaid' } });
     }
 
     // Clean up legacy Payment-based matches
@@ -69,7 +75,7 @@ export async function DELETE(request: NextRequest) {
     const { reverseJVsForSource } = await import('@/lib/journal-entries');
     const reversalErrors: string[] = [];
     for (const t of allTxns) {
-      if (t.matched_invoice_id || t.matched_sales_invoice_id || t.matched_claim_id || t.matched_payment_id) {
+      if (t.matched_invoice_id || t.matched_sales_invoice_id || t.matched_payment_id || claimLinkedTxnIds.has(t.id)) {
         try {
           await reverseJVsForSource('bank_recon', t.id, session.user.id);
         } catch (err) {

@@ -32,9 +32,27 @@ export async function GET(
   const to = dateTo ? new Date(dateTo) : new Date();
   to.setHours(23, 59, 59, 999);
 
-  // ── Opening balance: all 4 types before period ──
-  const [invoicesBefore, outPaymentsBefore, salesInvoicesBefore, inPaymentsBefore] = await Promise.all([
+  // ── Get supplier's invoice IDs and sales invoice IDs for bank recon lookup ──
+  const [supplierInvoiceIds, supplierSalesInvoiceIds] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { supplier_id: supplierId },
+      select: { id: true },
+    }),
+    prisma.salesInvoice.findMany({
+      where: { supplier_id: supplierId },
+      select: { id: true },
+    }),
+  ]);
+  const invIds = supplierInvoiceIds.map(i => i.id);
+  const sInvIds = supplierSalesInvoiceIds.map(i => i.id);
+
+  // ── Opening balance: invoices + bank recon payments + legacy payments ──
+  const [invoicesBefore, salesInvoicesBefore, outPaymentsBefore, inPaymentsBefore, bankReconOutBefore, bankReconInBefore] = await Promise.all([
     prisma.invoice.aggregate({
+      where: { supplier_id: supplierId, issue_date: { lt: from } },
+      _sum: { total_amount: true },
+    }),
+    prisma.salesInvoice.aggregate({
       where: { supplier_id: supplierId, issue_date: { lt: from } },
       _sum: { total_amount: true },
     }),
@@ -42,29 +60,43 @@ export async function GET(
       where: { supplier_id: supplierId, direction: 'outgoing', payment_date: { lt: from } },
       _sum: { amount: true },
     }),
-    prisma.salesInvoice.aggregate({
-      where: { supplier_id: supplierId, issue_date: { lt: from } },
-      _sum: { total_amount: true },
-    }),
     prisma.payment.aggregate({
       where: { supplier_id: supplierId, direction: 'incoming', payment_date: { lt: from } },
       _sum: { amount: true },
     }),
+    invIds.length > 0
+      ? prisma.bankTransaction.aggregate({
+          where: {
+            matched_invoice_id: { in: invIds },
+            recon_status: 'manually_matched',
+            transaction_date: { lt: from },
+          },
+          _sum: { debit: true },
+        })
+      : { _sum: { debit: null } },
+    sInvIds.length > 0
+      ? prisma.bankTransaction.aggregate({
+          where: {
+            matched_sales_invoice_id: { in: sInvIds },
+            recon_status: 'manually_matched',
+            transaction_date: { lt: from },
+          },
+          _sum: { credit: true },
+        })
+      : { _sum: { credit: null } },
   ]);
 
   // Positive = firm owes supplier, Negative = supplier owes firm
-  // Received invoices add to what firm owes (credit to AP)
-  // Outgoing payments reduce what firm owes (debit to AP)
-  // Sales invoices reduce what firm owes / supplier owes firm (debit to AP)
-  // Incoming payments add to what firm owes (credit to AP)
   const openingBalance =
     Number(invoicesBefore._sum.total_amount ?? 0)
     - Number(outPaymentsBefore._sum.amount ?? 0)
+    - Number(bankReconOutBefore._sum.debit ?? 0)
     - Number(salesInvoicesBefore._sum.total_amount ?? 0)
-    + Number(inPaymentsBefore._sum.amount ?? 0);
+    + Number(inPaymentsBefore._sum.amount ?? 0)
+    + Number(bankReconInBefore._sum.credit ?? 0);
 
   // ── Entries in period ──
-  const [invoices, outPayments, salesInvoices, inPayments] = await Promise.all([
+  const [invoices, outPayments, salesInvoices, inPayments, bankReconOut, bankReconIn] = await Promise.all([
     prisma.invoice.findMany({
       where: { supplier_id: supplierId, issue_date: { gte: from, lte: to } },
       select: { id: true, invoice_number: true, issue_date: true, total_amount: true, vendor_name_raw: true },
@@ -85,9 +117,39 @@ export async function GET(
       select: { id: true, reference: true, payment_date: true, amount: true, notes: true },
       orderBy: { payment_date: 'asc' },
     }),
+    invIds.length > 0
+      ? prisma.bankTransaction.findMany({
+          where: {
+            matched_invoice_id: { in: invIds },
+            recon_status: 'manually_matched',
+            transaction_date: { gte: from, lte: to },
+          },
+          select: {
+            id: true, transaction_date: true, description: true, debit: true,
+            matchedInvoice: { select: { invoice_number: true, vendor_name_raw: true } },
+            bankStatement: { select: { bank_name: true, account_number: true } },
+          },
+          orderBy: { transaction_date: 'asc' },
+        })
+      : [],
+    sInvIds.length > 0
+      ? prisma.bankTransaction.findMany({
+          where: {
+            matched_sales_invoice_id: { in: sInvIds },
+            recon_status: 'manually_matched',
+            transaction_date: { gte: from, lte: to },
+          },
+          select: {
+            id: true, transaction_date: true, description: true, credit: true,
+            matchedSalesInvoice: { select: { invoice_number: true } },
+            bankStatement: { select: { bank_name: true, account_number: true } },
+          },
+          orderBy: { transaction_date: 'asc' },
+        })
+      : [],
   ]);
 
-  // Batch-fetch receipt names for all payments in one query (avoids N+1)
+  // Batch-fetch receipt names for legacy payments (avoids N+1)
   const allPaymentIds = [...outPayments, ...inPayments].map((p) => p.id);
   const receiptMap = new Map<string, string[]>();
   if (allPaymentIds.length > 0) {
@@ -118,7 +180,7 @@ export async function GET(
     });
   }
 
-  // Outgoing payments = debit (decreases AP liability — firm paid supplier)
+  // Legacy outgoing payments = debit (decreases AP liability — firm paid supplier)
   for (const pmt of outPayments) {
     const receiptNames = receiptMap.get(pmt.id) ?? [];
     let description = 'Payment Out';
@@ -131,6 +193,20 @@ export async function GET(
       reference: pmt.reference ?? '-',
       description,
       debit: Number(pmt.amount),
+      credit: 0,
+      balance: 0,
+    });
+  }
+
+  // Bank recon outgoing payments (matched to supplier invoices)
+  for (const txn of bankReconOut) {
+    const invRef = txn.matchedInvoice?.invoice_number ?? '-';
+    entries.push({
+      date: txn.transaction_date.toISOString(),
+      type: 'bank_recon_payment',
+      reference: invRef,
+      description: `Payment — ${txn.matchedInvoice?.vendor_name_raw ?? txn.description} (${txn.bankStatement.bank_name})`,
+      debit: Number(txn.debit ?? 0),
       credit: 0,
       balance: 0,
     });
@@ -149,7 +225,7 @@ export async function GET(
     });
   }
 
-  // Incoming payments = credit (increases AP — supplier paid firm, increasing what firm holds)
+  // Legacy incoming payments = credit
   for (const pmt of inPayments) {
     const receiptNames = receiptMap.get(pmt.id) ?? [];
     let description = 'Payment In';
@@ -163,6 +239,20 @@ export async function GET(
       description,
       debit: 0,
       credit: Number(pmt.amount),
+      balance: 0,
+    });
+  }
+
+  // Bank recon incoming receipts (matched to sales invoices)
+  for (const txn of bankReconIn) {
+    const invRef = txn.matchedSalesInvoice?.invoice_number ?? '-';
+    entries.push({
+      date: txn.transaction_date.toISOString(),
+      type: 'bank_recon_receipt',
+      reference: invRef,
+      description: `Receipt — ${invRef} (${txn.bankStatement.bank_name})`,
+      debit: 0,
+      credit: Number(txn.credit ?? 0),
       balance: 0,
     });
   }

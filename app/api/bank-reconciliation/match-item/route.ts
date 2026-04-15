@@ -18,19 +18,22 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  const { bankTransactionId, invoiceId, salesInvoiceId, claimId, glAccountId } = body as {
+  const { bankTransactionId, invoiceId, salesInvoiceId, claimId, claimIds, glAccountId } = body as {
     bankTransactionId: string;
     invoiceId?: string;
     salesInvoiceId?: string;
     claimId?: string;
+    claimIds?: string[];
     glAccountId?: string;
   };
+  // Normalize: claimIds takes priority, fall back to single claimId
+  const resolvedClaimIds = claimIds ?? (claimId ? [claimId] : []);
 
   if (!bankTransactionId) {
     return NextResponse.json({ data: null, error: 'bankTransactionId required' }, { status: 400 });
   }
-  if (!invoiceId && !salesInvoiceId && !claimId) {
-    return NextResponse.json({ data: null, error: 'Must provide invoiceId, salesInvoiceId, or claimId' }, { status: 400 });
+  if (!invoiceId && !salesInvoiceId && resolvedClaimIds.length === 0) {
+    return NextResponse.json({ data: null, error: 'Must provide invoiceId, salesInvoiceId, or claimIds' }, { status: 400 });
   }
 
   // Load bank transaction
@@ -185,74 +188,79 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ data: { matched: true }, error: null });
     }
 
-    // ─── Match to Employee Claim (DEBIT / outgoing) ──────────────────────
-    if (claimId) {
-      const claim = await prisma.claim.findUnique({
-        where: { id: claimId },
+    // ─── Match to Employee Claims (DEBIT / outgoing) — supports multi-claim ──
+    if (resolvedClaimIds.length > 0) {
+      const claims = await prisma.claim.findMany({
+        where: { id: { in: resolvedClaimIds } },
         select: {
           id: true, firm_id: true, amount: true, merchant: true, category_id: true, gl_account_id: true,
           employee: { select: { id: true, name: true } },
           category: { select: { name: true } },
         },
       });
-      if (!claim || claim.firm_id !== firmId) {
-        return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
+      if (claims.length === 0 || claims.some(c => c.firm_id !== firmId)) {
+        return NextResponse.json({ data: null, error: 'Claim not found or access denied' }, { status: 404 });
       }
 
-      // Determine expense GL: provided > claim > category mapping
-      let expenseGlId = glAccountId || claim.gl_account_id;
-      if (!expenseGlId && claim.category_id) {
-        const catOverride = await prisma.categoryFirmOverride.findUnique({
-          where: { category_id_firm_id: { category_id: claim.category_id, firm_id: firmId } },
-          select: { gl_account_id: true },
-        });
-        expenseGlId = catOverride?.gl_account_id ?? null;
-      }
-      if (!expenseGlId) {
-        return NextResponse.json({ data: null, error: 'No GL account for this claim category. Select a GL account.' }, { status: 400 });
-      }
+      // Resolve GL for each claim + build JV lines
+      const jvLines: { glAccountId: string; debitAmount: number; creditAmount: number; description: string }[] = [];
+      let totalAmount = 0;
+      const descriptions: string[] = [];
 
-      const payAmount = Number(claim.amount);
+      for (const claim of claims) {
+        let expenseGlId = glAccountId || claim.gl_account_id;
+        if (!expenseGlId && claim.category_id) {
+          const catOverride = await prisma.categoryFirmOverride.findUnique({
+            where: { category_id_firm_id: { category_id: claim.category_id, firm_id: firmId } },
+            select: { gl_account_id: true },
+          });
+          expenseGlId = catOverride?.gl_account_id ?? null;
+        }
+        if (!expenseGlId) {
+          return NextResponse.json({ data: null, error: `No GL account for claim: ${claim.merchant}` }, { status: 400 });
+        }
 
-      await prisma.bankTransaction.update({
-        where: { id: bankTransactionId },
-        data: {
-          matched_claim_id: claimId,
-          recon_status: 'manually_matched',
-          matched_at: new Date(),
-          matched_by: session.user.id,
-        },
-      });
+        const amt = Number(claim.amount);
+        totalAmount += amt;
+        jvLines.push({ glAccountId: expenseGlId, debitAmount: amt, creditAmount: 0, description: `${claim.category.name} — ${claim.merchant}` });
+        descriptions.push(`${claim.merchant} (${claim.employee.name})`);
 
-      await prisma.claim.update({
-        where: { id: claimId },
-        data: { payment_status: 'paid' },
-      });
-
-      // Save category GL mapping for future use
-      if (glAccountId && claim.category_id) {
-        await prisma.categoryFirmOverride.upsert({
-          where: { category_id_firm_id: { category_id: claim.category_id, firm_id: firmId } },
-          update: { gl_account_id: glAccountId },
-          create: { firm_id: firmId, category_id: claim.category_id, gl_account_id: glAccountId },
-        });
+        // Save category GL mapping
+        if (glAccountId && claim.category_id) {
+          await prisma.categoryFirmOverride.upsert({
+            where: { category_id_firm_id: { category_id: claim.category_id, firm_id: firmId } },
+            update: { gl_account_id: glAccountId },
+            create: { firm_id: firmId, category_id: claim.category_id, gl_account_id: glAccountId },
+          });
+        }
       }
 
-      // JV: DR Expense GL / CR Bank
+      // Credit bank for total
+      jvLines.push({ glAccountId: bankGlId, debitAmount: 0, creditAmount: totalAmount, description: txn.bankStatement.bank_name });
+
+      // Update bank txn + all claims in one transaction
+      await prisma.$transaction([
+        prisma.bankTransaction.update({
+          where: { id: bankTransactionId },
+          data: { recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id },
+        }),
+        ...claims.map(c => prisma.claim.update({
+          where: { id: c.id },
+          data: { matched_bank_txn_id: bankTransactionId, payment_status: 'paid' },
+        })),
+      ]);
+
       await createJournalEntry({
         firmId,
         postingDate: txn.transaction_date,
-        description: `${claim.category.name} — ${claim.merchant} (${claim.employee.name})`,
+        description: `Reimbursement — ${descriptions.join(', ')}`.slice(0, 255),
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
-        lines: [
-          { glAccountId: expenseGlId, debitAmount: payAmount, creditAmount: 0, description: `${claim.category.name} — ${claim.merchant}` },
-          { glAccountId: bankGlId, debitAmount: 0, creditAmount: payAmount, description: txn.bankStatement.bank_name },
-        ],
+        lines: jvLines,
         createdBy: session.user.id,
       });
 
-      return NextResponse.json({ data: { matched: true }, error: null });
+      return NextResponse.json({ data: { matched: true, claimsMatched: claims.length }, error: null });
     }
 
     return NextResponse.json({ data: null, error: 'No match target provided' }, { status: 400 });

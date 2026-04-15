@@ -63,7 +63,7 @@ export async function autoMatchTransactions(
       status: 'reviewed',
       payment_status: 'unpaid',
       type: { in: ['claim', 'mileage'] },
-      bankTransactions: { none: {} },
+      matched_bank_txn_id: null,
     },
     select: {
       id: true, amount: true, claim_date: true, merchant: true, receipt_number: true,
@@ -76,7 +76,8 @@ export async function autoMatchTransactions(
   const matchedInvoiceIds = new Set<string>();
   const matchedSalesInvoiceIds = new Set<string>();
   const matchedClaimIds = new Set<string>();
-  const updates: { txnId: string; data: { matched_invoice_id?: string; matched_sales_invoice_id?: string; matched_claim_id?: string; notes?: string } }[] = [];
+  const updates: { txnId: string; data: { matched_invoice_id?: string; matched_sales_invoice_id?: string; notes?: string } }[] = [];
+  const claimUpdates: { txnId: string; claimId: string; notes: string }[] = [];
 
   // Helper: get remaining amount for an invoice
   const remaining = (total: unknown, paid: unknown) => Number(total) - Number(paid);
@@ -154,7 +155,7 @@ export async function autoMatchTransactions(
           return Math.abs(c.claim_date.getTime() - txnDate) <= DAY3;
         });
         if (claimCandidates.length === 1) {
-          updates.push({ txnId: txn.id, data: { matched_claim_id: claimCandidates[0].id, notes: `Pass 2: claim amount+date` } });
+          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, notes: `Pass 2: claim amount+date` });
           matchedTxnIds.add(txn.id);
           matchedClaimIds.add(claimCandidates[0].id);
         }
@@ -201,7 +202,7 @@ export async function autoMatchTransactions(
           return nameInDesc([c.employee.name, c.merchant], descLower);
         });
         if (claimCandidates.length === 1) {
-          updates.push({ txnId: txn.id, data: { matched_claim_id: claimCandidates[0].id, notes: `Pass 3: claim name+amount` } });
+          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, notes: `Pass 3: claim name+amount` });
           matchedTxnIds.add(txn.id);
           matchedClaimIds.add(claimCandidates[0].id);
         }
@@ -243,7 +244,7 @@ export async function autoMatchTransactions(
           matchedTxnIds.add(txn.id);
           matchedInvoiceIds.add(invCandidates[0].id);
         } else {
-          updates.push({ txnId: txn.id, data: { matched_claim_id: claimCandidates[0].id, notes: `Pass 4: claim amount only` } });
+          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, notes: `Pass 4: claim amount only` });
           matchedTxnIds.add(txn.id);
           matchedClaimIds.add(claimCandidates[0].id);
         }
@@ -263,23 +264,30 @@ export async function autoMatchTransactions(
 
   // ── Bulk update matched transactions ──
   const now = new Date();
-  if (updates.length > 0) {
-    await prisma.$transaction(
-      updates.map((u) =>
-        prisma.bankTransaction.update({
-          where: { id: u.txnId },
-          data: {
-            ...u.data,
-            recon_status: 'matched',
-            matched_at: now,
-          },
-        })
-      )
+  const totalMatched = updates.length + claimUpdates.length;
+  if (totalMatched > 0) {
+    const txnOps = updates.map((u) =>
+      prisma.bankTransaction.update({
+        where: { id: u.txnId },
+        data: { ...u.data, recon_status: 'matched', matched_at: now },
+      })
     );
+    // For claim matches: update bank txn status + set matched_bank_txn_id on claim
+    const claimTxnOps = claimUpdates.flatMap((u) => [
+      prisma.bankTransaction.update({
+        where: { id: u.txnId },
+        data: { recon_status: 'matched', matched_at: now, notes: u.notes },
+      }),
+      prisma.claim.update({
+        where: { id: u.claimId },
+        data: { matched_bank_txn_id: u.txnId },
+      }),
+    ]);
+    await prisma.$transaction([...txnOps, ...claimTxnOps]);
   }
 
   return {
-    matched: updates.length,
+    matched: totalMatched,
     unmatched: bankTxns.length - matchedTxnIds.size,
   };
 }

@@ -275,6 +275,7 @@ model Claim {
   tax_amount       Decimal?       @db.Decimal(10, 2)
   tax_rate         Decimal?       @db.Decimal(5, 2)
   tax_code_id      String?
+  matched_bank_txn_id    String?
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
 
@@ -284,8 +285,8 @@ model Claim {
   glAccount      GLAccount? @relation("ClaimExpenseGL", fields: [gl_account_id], references: [id])
   contraGlAccount GLAccount? @relation("ClaimContraGL", fields: [contra_gl_account_id], references: [id])
   taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id])
+  matchedBankTxn BankTransaction? @relation(fields: [matched_bank_txn_id], references: [id])
   paymentReceipts PaymentReceipt[]
-  bankTransactions BankTransaction[]
 
   @@index([firm_id, type, claim_date])
   @@index([firm_id, type, status])
@@ -293,6 +294,7 @@ model Claim {
   @@index([firm_id, approval])
   @@index([firm_id, payment_status])
   @@index([employee_id, claim_date])
+  @@index([matched_bank_txn_id])
 }
 
 
@@ -643,7 +645,6 @@ model BankTransaction {
   matched_payment_id       String?
   matched_invoice_id       String?
   matched_sales_invoice_id String?
-  matched_claim_id         String?
   matched_at               DateTime?
   matched_by               String?
   notes                    String?
@@ -653,13 +654,12 @@ model BankTransaction {
   matchedPayment     Payment?      @relation(fields: [matched_payment_id], references: [id])
   matchedInvoice     Invoice?      @relation(fields: [matched_invoice_id], references: [id])
   matchedSalesInvoice SalesInvoice? @relation(fields: [matched_sales_invoice_id], references: [id])
-  matchedClaim       Claim?        @relation(fields: [matched_claim_id], references: [id])
+  matchedClaims      Claim[]
 
   @@index([bank_statement_id, recon_status])
   @@index([bank_statement_id, transaction_date])
   @@index([matched_invoice_id])
   @@index([matched_sales_invoice_id])
-  @@index([matched_claim_id])
   @@index([matched_payment_id])
 }
 

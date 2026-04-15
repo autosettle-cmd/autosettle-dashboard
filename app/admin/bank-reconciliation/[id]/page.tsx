@@ -52,6 +52,7 @@ interface BankTxn {
   matched_at: string | null;
   notes: string | null;
   matched_payment: MatchedPayment | null;
+  matched_claims: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_name: string; category_name: string }[];
 }
 
 interface StatementDetail {
@@ -111,6 +112,13 @@ export default function ReconciliationWorkspacePage() {
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
   const [candidates, setCandidates] = useState<CandidatePayment[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [outstandingItems, setOutstandingItems] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<{ type: string; id: string } | null>(null);
+  const [selectedClaimIds, setSelectedClaimIds] = useState<Set<string>>(new Set());
+  const [matchTab, setMatchTab] = useState<'invoices' | 'claims'>('invoices');
+  const [matchSubmitting, setMatchSubmitting] = useState(false);
+  const [matchError, setMatchError] = useState('');
   const [rematching, setRematching] = useState(false);
   const [rematchResult, setRematchResult] = useState<{ matched: number } | null>(null);
 
@@ -174,17 +182,40 @@ export default function ReconciliationWorkspacePage() {
     setShowReceiptForm(false);
     setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '' });
     setVoucherError('');
+    setSelectedClaimIds(new Set());
+    setSelectedItem(null);
+    setMatchError('');
+    setMatchTab('invoices');
   };
 
   const openMatchModal = async (txn: BankTxn) => {
     setMatchingTxn(txn);
     setShowVoucherForm(false);
+    setShowReceiptForm(false);
     setVoucherError('');
+    setMatchError('');
+    setSelectedItem(null);
+    setSelectedClaimIds(new Set());
     setLoadingCandidates(true);
     const amount = txn.debit ?? txn.credit ?? '';
-    const params = new URLSearchParams();
-    if (amount) params.set('amount', amount);
-    const res = await fetch(`/api/admin/bank-reconciliation/unreconciled-payments?${params}`);
+    const direction = txn.debit ? 'outgoing' : 'incoming';
+
+    // Fetch outstanding items (invoices/claims)
+    const firmId = statement?.firm_id;
+    if (firmId) {
+      const params = new URLSearchParams({ firmId, direction });
+      if (amount) params.set('amount', amount);
+      const res = await fetch(`/api/bank-reconciliation/outstanding-items?${params}`);
+      const json = await res.json();
+      setOutstandingItems(json.data ?? []);
+    } else {
+      setOutstandingItems([]);
+    }
+
+    // Also fetch legacy payment candidates
+    const legacyParams = new URLSearchParams();
+    if (amount) legacyParams.set('amount', amount);
+    const res = await fetch(`/api/admin/bank-reconciliation/unreconciled-payments?${legacyParams}`);
     const json = await res.json();
     setCandidates(json.data ?? []);
     setLoadingCandidates(false);
@@ -199,6 +230,41 @@ export default function ReconciliationWorkspacePage() {
     });
     closeMatchModal();
     loadStatement();
+  };
+
+  const doMatchItem = async (item?: { type: string; id: string }) => {
+    if (!matchingTxn) return;
+    setMatchSubmitting(true);
+    setMatchError('');
+    try {
+      const body: Record<string, unknown> = { bankTransactionId: matchingTxn.id };
+
+      // Multi-claim match
+      if (selectedClaimIds.size > 0) {
+        body.claimIds = Array.from(selectedClaimIds);
+      } else if (item) {
+        if (item.type === 'invoice') body.invoiceId = item.id;
+        else if (item.type === 'sales_invoice') body.salesInvoiceId = item.id;
+        else if (item.type === 'claim') body.claimIds = [item.id];
+      }
+
+      const res = await fetch('/api/bank-reconciliation/match-item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setMatchError(json.error || 'Match failed');
+        setMatchSubmitting(false);
+        return;
+      }
+      closeMatchModal();
+      loadStatement();
+    } catch (e) {
+      setMatchError(e instanceof Error ? e.message : 'Network error');
+    }
+    setMatchSubmitting(false);
   };
 
   const openVoucherForm = async () => {
@@ -432,14 +498,16 @@ export default function ReconciliationWorkspacePage() {
                       const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
                       const isExpanded = previewTxn?.id === txn.id;
                       const mp = txn.matched_payment;
+                      const hasClaims = txn.matched_claims && txn.matched_claims.length > 0;
+                      const hasExpandable = !!(mp || hasClaims);
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`transition-colors ${mp ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-[#F2F4F6]'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : ''}`}
-                          onClick={() => mp ? setPreviewTxn(isExpanded ? null : txn) : null}
+                        <tr className={`transition-colors ${hasExpandable ? 'cursor-pointer hover:bg-blue-50/40' : 'hover:bg-[#F2F4F6]'} ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : ''}`}
+                          onClick={() => hasExpandable ? setPreviewTxn(isExpanded ? null : txn) : null}
                         >
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-1.5">
-                              {mp && (
+                              {hasExpandable && (
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                                   className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                   <path d="M9 18l6-6-6-6" />
@@ -459,6 +527,8 @@ export default function ReconciliationWorkspacePage() {
                           <td className="px-3 py-2.5 text-body-sm text-[#434654]">
                             {mp ? (
                               <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
+                            ) : hasClaims ? (
+                              <span>{txn.matched_claims.length} claim{txn.matched_claims.length > 1 ? 's' : ''} — {txn.matched_claims[0].employee_name}</span>
                             ) : txn.notes ? (
                               <span className="text-[#8E9196] italic">{txn.notes}</span>
                             ) : '—'}
@@ -482,10 +552,30 @@ export default function ReconciliationWorkspacePage() {
                             )}
                           </td>
                         </tr>
-                        {isExpanded && mp && (
+                        {isExpanded && hasExpandable && (
                           <tr className="bg-blue-50/30">
                             <td colSpan={8} className="px-5 py-4">
-                              <div className="grid grid-cols-3 gap-4 mb-3">
+                              {/* Matched Claims */}
+                              {hasClaims && (
+                                <div className="mb-3">
+                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
+                                  {txn.matched_claims.map((claim) => (
+                                    <div key={claim.id} className="bg-white rounded-lg border border-amber-100 p-3 mb-2 last:mb-0">
+                                      <p className="text-body-sm font-semibold text-[#191C1E]">{claim.employee_name} — {claim.merchant}</p>
+                                      <p className="text-body-sm text-[#434654]">{claim.category_name} · {formatDate(claim.claim_date)}</p>
+                                      <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(claim.amount)}</p>
+                                      {claim.file_url && (
+                                        <a href={claim.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                                          className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
+                                          View Receipt &rarr;
+                                        </a>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {mp && (<><div className="grid grid-cols-3 gap-4 mb-3">
                                 <div>
                                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Payment To</p>
                                   <p className="text-body-md font-medium text-[#191C1E]">{mp.supplier_name}</p>
@@ -585,6 +675,7 @@ export default function ReconciliationWorkspacePage() {
                                   </div>
                                 );
                               })()}
+                              </>)}
                             </td>
                           </tr>
                         )}
@@ -633,39 +724,228 @@ export default function ReconciliationWorkspacePage() {
           {/* Match modal */}
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
-              <div className="bg-white rounded-lg shadow-xl p-6 w-[560px] max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">Match Transaction</h2>
-                <div className="bg-gray-50 rounded-lg p-3 mb-4 text-body-sm">
-                  <p className="font-medium text-[#191C1E]">{matchingTxn.description.split(' | ')[0]}</p>
-                  <p className="text-[#434654] mt-1">
-                    {formatDate(matchingTxn.transaction_date)} — {matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}
-                  </p>
+              <div className="bg-white rounded-xl shadow-xl w-[720px] max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 pb-0">
+                  <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">
+                    {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
+                  </h2>
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <p className="text-body-md font-medium text-[#191C1E]">{matchingTxn.description.split(' | ')[0]}</p>
+                    <div className="flex items-center gap-4 mt-1.5 text-body-sm text-[#434654]">
+                      <span>{formatDate(matchingTxn.transaction_date)}</span>
+                      <span className="font-semibold text-[#191C1E]">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
+                      {matchingTxn.reference && <span>Ref: {matchingTxn.reference}</span>}
+                    </div>
+                  </div>
+
+                  {/* Tabs — only show for debit (outgoing) which has both invoices and claims */}
+                  {matchingTxn.debit && (
+                    <div className="flex border-b border-gray-200">
+                      {(() => {
+                        const invoiceCount = outstandingItems.filter((i: { type: string }) => i.type !== 'claim').length;
+                        const claimCount = outstandingItems.filter((i: { type: string }) => i.type === 'claim').length;
+                        return (
+                          <>
+                            <button
+                              onClick={() => { setMatchTab('invoices'); setSelectedClaimIds(new Set()); }}
+                              className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
+                                matchTab === 'invoices' ? 'border-blue-600 text-blue-600' : 'border-transparent text-[#8E9196] hover:text-[#434654]'
+                              }`}
+                            >
+                              Invoices ({invoiceCount})
+                            </button>
+                            <button
+                              onClick={() => { setMatchTab('claims'); setSelectedItem(null); }}
+                              className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
+                                matchTab === 'claims' ? 'border-blue-600 text-blue-600' : 'border-transparent text-[#8E9196] hover:text-[#434654]'
+                              }`}
+                            >
+                              Claims ({claimCount})
+                            </button>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
-                <p className="text-body-sm font-medium text-[#434654] mb-2">Select a payment to match:</p>
+
+                <div className="flex-1 overflow-y-auto px-6 py-4">
                 {loadingCandidates ? (
-                  <p className="text-sm text-[#8E9196] py-4 text-center">Loading...</p>
-                ) : candidates.length === 0 ? (
-                  <p className="text-sm text-[#8E9196] py-4 text-center">No matching payments found.</p>
+                  <p className="text-sm text-[#8E9196] py-8 text-center">Loading...</p>
+                ) : outstandingItems.length === 0 && candidates.length === 0 ? (
+                  <p className="text-sm text-[#8E9196] py-8 text-center">No outstanding items found.</p>
                 ) : (
-                  <div className="space-y-1">
-                    {candidates.map((p) => (
-                      <div
-                        key={p.id}
-                        onClick={() => doMatch(p.id)}
-                        className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
-                      >
-                        <div>
-                          <p className="text-body-sm font-medium text-[#191C1E]">{p.supplier_name}</p>
-                          <p className="text-label-sm text-[#8E9196]">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
-                        </div>
-                        <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(p.amount)}</p>
-                      </div>
-                    ))}
+                  <div className="space-y-1.5">
+                    {(() => {
+                      const invoiceItems = outstandingItems.filter((i: { type: string }) => i.type !== 'claim');
+                      const claimItems = outstandingItems.filter((i: { type: string }) => i.type === 'claim');
+
+                      // Group claims by employee
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const employeeGroups = new Map<string, { employeeName: string; claims: any[]; total: number }>();
+                      for (const c of claimItems) {
+                        const key = c.employeeId || c.name;
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const group = employeeGroups.get(key) ?? { employeeName: c.employeeName || c.name, claims: [] as any[], total: 0 };
+                        group.claims.push(c);
+                        group.total += c.remaining;
+                        employeeGroups.set(key, group);
+                      }
+
+                      // For credit (incoming), show only sales invoices (no tabs)
+                      const showInvoices = !matchingTxn.debit || matchTab === 'invoices';
+                      const showClaims = matchingTxn.debit && matchTab === 'claims';
+
+                      return (
+                        <>
+                          {/* Invoice / Sales Invoice items */}
+                          {showInvoices && invoiceItems.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string }) => {
+                            const isSelected = selectedItem?.id === item.id;
+                            return (
+                              <div
+                                key={`${item.type}-${item.id}`}
+                                onClick={() => { setSelectedItem(isSelected ? null : { type: item.type, id: item.id }); setSelectedClaimIds(new Set()); }}
+                                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                                  isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-300 hover:bg-blue-50/50'
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                      item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                                    }`}>
+                                      {item.type === 'invoice' ? 'INV' : 'SALES'}
+                                    </span>
+                                    <p className="text-body-sm font-medium text-[#191C1E] truncate">{item.name}</p>
+                                  </div>
+                                  <p className="text-label-sm text-[#8E9196] mt-0.5">
+                                    {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
+                                  </p>
+                                </div>
+                                <div className="text-right flex-shrink-0 ml-3">
+                                  <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(String(item.remaining))}</p>
+                                  {item.remaining !== item.totalAmount && (
+                                    <p className="text-label-sm text-[#8E9196]">of {formatRM(String(item.totalAmount))}</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {showInvoices && invoiceItems.length === 0 && (
+                            <p className="text-sm text-[#8E9196] py-4 text-center">No outstanding invoices.</p>
+                          )}
+
+                          {/* Claims grouped by employee */}
+                          {showClaims && Array.from(employeeGroups.entries()).map(([empKey, group]) => {
+                            const allIds = new Set(group.claims.map((c: { id: string }) => c.id));
+                            const allSelected = group.claims.every((c: { id: string }) => selectedClaimIds.has(c.id));
+                            const someSelected = group.claims.some((c: { id: string }) => selectedClaimIds.has(c.id));
+
+                            const toggleAll = () => {
+                              setSelectedItem(null);
+                              setSelectedClaimIds(prev => {
+                                const next = new Set(prev);
+                                if (allSelected) { allIds.forEach(id => next.delete(id)); }
+                                else { allIds.forEach(id => next.add(id)); }
+                                return next;
+                              });
+                            };
+
+                            const toggleOne = (claimId: string) => {
+                              setSelectedItem(null);
+                              setSelectedClaimIds(prev => {
+                                const next = new Set(prev);
+                                if (next.has(claimId)) next.delete(claimId); else next.add(claimId);
+                                return next;
+                              });
+                            };
+
+                            return (
+                              <div key={empKey} className="border border-gray-100 rounded-lg overflow-hidden">
+                                <div
+                                  onClick={toggleAll}
+                                  className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
+                                    allSelected ? 'bg-blue-50' : someSelected ? 'bg-blue-50/50' : 'hover:bg-blue-50/50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <input type="checkbox" checked={allSelected} onChange={() => {}} className="rounded border-gray-300 text-blue-600" onClick={e => e.stopPropagation()} />
+                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">CLAIMS</span>
+                                    <p className="text-body-sm font-medium text-[#191C1E]">{group.employeeName}</p>
+                                    <span className="text-label-sm text-[#8E9196]">({group.claims.length})</span>
+                                  </div>
+                                  <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(String(group.total))}</p>
+                                </div>
+                                <div className="border-t border-gray-50">
+                                  {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null }) => (
+                                    <div
+                                      key={c.id}
+                                      onClick={() => toggleOne(c.id)}
+                                      className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-gray-50 first:border-t-0 ${
+                                        selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="rounded border-gray-300 text-blue-600" onClick={e => e.stopPropagation()} />
+                                        <div className="min-w-0">
+                                          <p className="text-body-sm text-[#191C1E] truncate">{c.merchant}</p>
+                                          <p className="text-label-sm text-[#8E9196]">
+                                            {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
+                                            {c.categoryName ? ` · ${c.categoryName}` : ''}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <p className="text-body-sm font-medium tabular-nums text-[#191C1E] ml-3">{formatRM(String(c.remaining))}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                          {showClaims && employeeGroups.size === 0 && (
+                            <p className="text-sm text-[#8E9196] py-4 text-center">No outstanding claims.</p>
+                          )}
+
+                          {/* Legacy payment candidates */}
+                          {showInvoices && candidates.length > 0 && outstandingItems.filter((i: { type: string }) => i.type !== 'claim').length === 0 && candidates.map((p) => (
+                            <div
+                              key={p.id}
+                              onClick={() => doMatch(p.id)}
+                              className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/50 cursor-pointer transition-colors"
+                            >
+                              <div>
+                                <p className="text-body-sm font-medium text-[#191C1E]">{p.supplier_name}</p>
+                                <p className="text-label-sm text-[#8E9196]">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
+                              </div>
+                              <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(p.amount)}</p>
+                            </div>
+                          ))}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
+                </div>
 
-                {/* Official receipt option — debit (money received) transactions only */}
-                {matchingTxn.debit && (
+                <div className="px-6 pb-6 pt-2">
+                {/* Match error */}
+                {matchError && <p className="text-sm text-red-600 mb-2">{matchError}</p>}
+
+                {/* Confirm match button */}
+                {(selectedItem || selectedClaimIds.size > 0) && (
+                  <button
+                    onClick={() => doMatchItem(selectedItem ?? undefined)}
+                    disabled={matchSubmitting}
+                    className="btn-approve w-full py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+                  >
+                    {matchSubmitting ? 'Matching...' : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create JV'}
+                  </button>
+                )}
+
+                {/* Official receipt option — credit (money coming in) transactions only */}
+                {matchingTxn.credit && (
                   <>
                     <div className="flex items-center gap-3 my-4">
                       <div className="flex-1 h-px bg-gray-200" />
@@ -750,8 +1030,8 @@ export default function ReconciliationWorkspacePage() {
                   </>
                 )}
 
-                {/* Payment voucher option — credit (outgoing) transactions only */}
-                {matchingTxn.credit && (
+                {/* Payment voucher option — debit (money going out) transactions only */}
+                {matchingTxn.debit && (
                   <>
                     <div className="flex items-center gap-3 my-4">
                       <div className="flex-1 h-px bg-gray-200" />
@@ -839,6 +1119,7 @@ export default function ReconciliationWorkspacePage() {
                 <button onClick={closeMatchModal} className="mt-4 w-full px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
                   Cancel
                 </button>
+                </div>
               </div>
             </div>
           )}

@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Transaction not found' }, { status: 404 });
   }
 
+  // Clear any claims linked to this txn
+  await prisma.claim.updateMany({ where: { matched_bank_txn_id: bankTransactionId }, data: { matched_bank_txn_id: null, payment_status: 'unpaid' } });
+
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
     data: {
@@ -31,7 +34,6 @@ export async function POST(request: NextRequest) {
       matched_payment_id: null,
       matched_invoice_id: null,
       matched_sales_invoice_id: null,
-      matched_claim_id: null,
       notes: notes || null,
       matched_at: new Date(),
       matched_by: session.user.id,

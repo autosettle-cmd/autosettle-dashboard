@@ -16,6 +16,14 @@ interface CategoryRow {
   claims_count: number;
   is_active: boolean;
   is_global: boolean;
+  gl_account_id: string | null;
+  gl_account_label: string | null;
+}
+
+interface GLAccountOption {
+  id: string;
+  account_code: string;
+  name: string;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -29,10 +37,14 @@ export default function CategoriesPage() {
   const [loading, setLoading]       = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // GL accounts for dropdown
+  const [glAccounts, setGlAccounts] = useState<GLAccountOption[]>([]);
+
   // Modal
   const [showModal, setShowModal]       = useState(false);
   const [modalName, setModalName]       = useState('');
   const [modalTaxCode, setModalTaxCode] = useState('');
+  const [modalGlAccountId, setModalGlAccountId] = useState('');
   const [modalError, setModalError]     = useState('');
   const [modalSaving, setModalSaving]   = useState(false);
 
@@ -40,6 +52,7 @@ export default function CategoriesPage() {
   const [editingId, setEditingId]       = useState<string | null>(null);
   const [editName, setEditName]         = useState('');
   const [editTaxCode, setEditTaxCode]   = useState('');
+  const [editGlAccountId, setEditGlAccountId] = useState('');
   const [editSaving, setEditSaving]     = useState(false);
 
   // Delete
@@ -62,6 +75,17 @@ export default function CategoriesPage() {
 
     return () => { cancelled = true; };
   }, [firmId, refreshKey, firmsLoaded]);
+
+  // Load GL accounts when firm changes
+  useEffect(() => {
+    if (!firmId) { setGlAccounts([]); return; }
+    let cancelled = false;
+    fetch(`/api/gl-accounts?firmId=${firmId}`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) setGlAccounts(j.data ?? []); })
+      .catch((e) => console.error(e));
+    return () => { cancelled = true; };
+  }, [firmId]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
@@ -89,6 +113,7 @@ export default function CategoriesPage() {
   const openAddModal = () => {
     setModalName('');
     setModalTaxCode('');
+    setModalGlAccountId('');
     setModalError('');
     setModalSaving(false);
     setShowModal(true);
@@ -126,6 +151,15 @@ export default function CategoriesPage() {
         return;
       }
 
+      // If GL account selected, save it via PATCH (creates override)
+      if (modalGlAccountId && json.data?.id) {
+        await fetch(`/api/categories/${json.data.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ gl_account_id: modalGlAccountId, firmId }),
+        });
+      }
+
       setShowModal(false);
       refresh();
     } catch {
@@ -138,22 +172,30 @@ export default function CategoriesPage() {
     setEditingId(cat.id);
     setEditName(cat.name);
     setEditTaxCode(cat.tax_code ?? '');
+    setEditGlAccountId(cat.gl_account_id ?? '');
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName('');
     setEditTaxCode('');
+    setEditGlAccountId('');
   };
 
   const saveEdit = async () => {
     if (!editingId || !editName.trim()) return;
     setEditSaving(true);
     try {
+      const patchBody: Record<string, unknown> = {
+        name: editName.trim(),
+        tax_code: editTaxCode.trim() || null,
+        gl_account_id: editGlAccountId || null,
+      };
+      if (firmId) patchBody.firmId = firmId;
       const res = await fetch(`/api/categories/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim(), tax_code: editTaxCode.trim() || null }),
+        body: JSON.stringify(patchBody),
       });
       if (res.ok) {
         cancelEdit();
@@ -287,6 +329,7 @@ export default function CategoriesPage() {
                           <th className="px-6 py-2.5">Category Name</th>
                           <th className="px-6 py-2.5">Type</th>
                           <th className="px-6 py-2.5">Tax Code</th>
+                          <th className="px-6 py-2.5">GL Account</th>
                           <th className="px-6 py-2.5 text-right">Claims</th>
                           <th className="px-6 py-2.5">Status</th>
                           <th className="px-6 py-2.5">Actions</th>
@@ -305,6 +348,16 @@ export default function CategoriesPage() {
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
+                            </td>
+                            <td className="px-6 py-3 text-[#434654]">
+                              {editingId === cat.id ? (
+                                <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-field w-full text-body-md">
+                                  <option value="">No GL assigned</option>
+                                  {glAccounts.map((gl) => (
+                                    <option key={gl.id} value={gl.id}>{gl.account_code} — {gl.name}</option>
+                                  ))}
+                                </select>
+                              ) : (cat.gl_account_label ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
@@ -360,6 +413,7 @@ export default function CategoriesPage() {
                           <th className="px-6 py-2.5">Category Name</th>
                           <th className="px-6 py-2.5">Type</th>
                           <th className="px-6 py-2.5">Tax Code</th>
+                          <th className="px-6 py-2.5">GL Account</th>
                           <th className="px-6 py-2.5 text-right">Claims</th>
                           <th className="px-6 py-2.5">Status</th>
                           <th className="px-6 py-2.5">Actions</th>
@@ -378,6 +432,16 @@ export default function CategoriesPage() {
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
+                            </td>
+                            <td className="px-6 py-3 text-[#434654]">
+                              {editingId === cat.id ? (
+                                <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-field w-full text-body-md">
+                                  <option value="">No GL assigned</option>
+                                  {glAccounts.map((gl) => (
+                                    <option key={gl.id} value={gl.id}>{gl.account_code} — {gl.name}</option>
+                                  ))}
+                                </select>
+                              ) : (cat.gl_account_label ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
@@ -484,6 +548,19 @@ export default function CategoriesPage() {
                   className="input-field w-full"
                   placeholder="Optional"
                 />
+              </div>
+              <div>
+                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">GL Account</label>
+                <select
+                  value={modalGlAccountId}
+                  onChange={(e) => setModalGlAccountId(e.target.value)}
+                  className="input-field w-full"
+                >
+                  <option value="">No GL assigned</option>
+                  {glAccounts.map((gl) => (
+                    <option key={gl.id} value={gl.id}>{gl.account_code} — {gl.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

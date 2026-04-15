@@ -38,10 +38,26 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Find claims matched to these transactions (many claims → one txn)
+  const txnIds = txns.map(t => t.id);
+  const matchedClaims = await prisma.claim.findMany({
+    where: { matched_bank_txn_id: { in: txnIds } },
+    select: { id: true, amount: true, merchant: true, category_id: true, gl_account_id: true, matched_bank_txn_id: true,
+      employee: { select: { name: true } }, category: { select: { name: true } } },
+  });
+  // Group claims by their matched bank txn
+  const claimsByTxnId = new Map<string, typeof matchedClaims>();
+  for (const claim of matchedClaims) {
+    const list = claimsByTxnId.get(claim.matched_bank_txn_id!) ?? [];
+    list.push(claim);
+    claimsByTxnId.set(claim.matched_bank_txn_id!, list);
+  }
+
   // Validate — each txn must have a matched item
   const errors: string[] = [];
   for (const txn of txns) {
-    if (!txn.matched_invoice_id && !txn.matched_sales_invoice_id && !txn.matched_claim_id && !txn.matched_payment_id) {
+    const hasClaims = claimsByTxnId.has(txn.id);
+    if (!txn.matched_invoice_id && !txn.matched_sales_invoice_id && !hasClaims && !txn.matched_payment_id) {
       errors.push(`Transaction ${txn.description} has no matched payment.`);
     }
   }
@@ -52,7 +68,6 @@ export async function POST(request: NextRequest) {
   // ─── Batch pre-fetch all related data ────────────────────────────────
   const invoiceIds = txns.map(t => t.matched_invoice_id).filter(Boolean) as string[];
   const salesInvoiceIds = txns.map(t => t.matched_sales_invoice_id).filter(Boolean) as string[];
-  const claimIds = txns.map(t => t.matched_claim_id).filter(Boolean) as string[];
   const uniqueFirmIds = Array.from(new Set(txns.map(t => t.bankStatement.firm_id)));
 
   // Build unique bank account keys
@@ -61,7 +76,7 @@ export async function POST(request: NextRequest) {
     return [key, { firm_id: t.bankStatement.firm_id, bank_name: t.bankStatement.bank_name, account_number: t.bankStatement.account_number ?? '' }] as const;
   })).values());
 
-  const [invoices, salesInvoices, claims, firms, bankAccounts] = await Promise.all([
+  const [invoices, salesInvoices, firms, bankAccounts] = await Promise.all([
     invoiceIds.length > 0
       ? prisma.invoice.findMany({
           where: { id: { in: invoiceIds } },
@@ -73,13 +88,6 @@ export async function POST(request: NextRequest) {
       ? prisma.salesInvoice.findMany({
           where: { id: { in: salesInvoiceIds } },
           select: { id: true, total_amount: true, amount_paid: true, buyer: { select: { name: true } } },
-        })
-      : [],
-    claimIds.length > 0
-      ? prisma.claim.findMany({
-          where: { id: { in: claimIds } },
-          select: { id: true, amount: true, merchant: true, category_id: true, gl_account_id: true,
-            employee: { select: { name: true } }, category: { select: { name: true } } },
         })
       : [],
     prisma.firm.findMany({
@@ -97,12 +105,11 @@ export async function POST(request: NextRequest) {
   // Build lookup maps
   const invoiceMap = new Map(invoices.map(i => [i.id, i]));
   const salesInvoiceMap = new Map(salesInvoices.map(s => [s.id, s]));
-  const claimMap = new Map(claims.map(c => [c.id, c]));
   const firmMap = new Map(firms.map(f => [f.id, f]));
   const bankGlMap = new Map(bankAccounts.filter(Boolean).map(b => [`${b!.firm_id}|${b!.bank_name}|${b!.account_number}`, b!.gl_account_id]));
 
   // Pre-fetch category overrides for claims that need them
-  const claimsNeedingOverride = claims.filter(c => !c.gl_account_id && c.category_id);
+  const claimsNeedingOverride = matchedClaims.filter(c => !c.gl_account_id && c.category_id);
   const categoryOverrides = claimsNeedingOverride.length > 0
     ? await prisma.categoryFirmOverride.findMany({
         where: {
@@ -187,27 +194,51 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ─── Confirm claim match ─────────────────────────────────────────────
-    if (txn.matched_claim_id) {
-      const claim = claimMap.get(txn.matched_claim_id);
-      if (!claim) continue;
-
-      let expenseGlId = claim.gl_account_id;
-      if (!expenseGlId && claim.category_id) {
-        expenseGlId = catOverrideMap.get(`${claim.category_id}|${firmId}`) ?? null;
+    // ─── Confirm claim match (many claims → one txn) ──────────────────────
+    const txnClaims = claimsByTxnId.get(txn.id);
+    if (txnClaims && txnClaims.length > 0) {
+      // Resolve GL for each claim
+      const expenseLines: { glAccountId: string; debitAmount: number; creditAmount: number; description: string }[] = [];
+      let claimGlError = false;
+      for (const claim of txnClaims) {
+        let expenseGlId = claim.gl_account_id;
+        if (!expenseGlId && claim.category_id) {
+          expenseGlId = catOverrideMap.get(`${claim.category_id}|${firmId}`) ?? null;
+        }
+        if (!expenseGlId) {
+          errors.push(`No GL for claim: ${claim.merchant}`);
+          claimGlError = true;
+          break;
+        }
+        expenseLines.push({
+          glAccountId: expenseGlId,
+          debitAmount: Number(claim.amount),
+          creditAmount: 0,
+          description: `${claim.category?.name} — ${claim.merchant}`,
+        });
       }
-      if (!expenseGlId) { errors.push(`No GL for claim: ${claim.merchant}`); continue; }
+      if (claimGlError) continue;
 
-      await prisma.claim.update({ where: { id: claim.id }, data: { payment_status: 'paid' } });
+      // Mark all matched claims as paid
+      await prisma.claim.updateMany({
+        where: { id: { in: txnClaims.map(c => c.id) } },
+        data: { payment_status: 'paid' },
+      });
+
+      // Build description from all claims
+      const claimEmployees = Array.from(new Set(txnClaims.map(c => c.employee?.name).filter(Boolean)));
+      const description = txnClaims.length === 1
+        ? `${txnClaims[0].category?.name} — ${txnClaims[0].merchant} (${txnClaims[0].employee?.name})`
+        : `${txnClaims.length} claims (${claimEmployees.join(', ')})`;
 
       await createJournalEntry({
         firmId,
         postingDate: txn.transaction_date,
-        description: `${claim.category?.name} — ${claim.merchant} (${claim.employee?.name})`,
+        description: `Bank recon — ${description}`,
         sourceType: 'bank_recon',
         sourceId: txn.id,
         lines: [
-          { glAccountId: expenseGlId, debitAmount: txnAmount, creditAmount: 0, description: `${claim.category?.name} — ${claim.merchant}` },
+          ...expenseLines,
           { glAccountId: bankGlId, debitAmount: 0, creditAmount: txnAmount, description: txn.bankStatement.bank_name },
         ],
         createdBy: session.user.id,
@@ -215,7 +246,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Legacy: confirm old Payment-based match ─────────────────────────
-    if (txn.matched_payment_id && !txn.matched_invoice_id && !txn.matched_sales_invoice_id && !txn.matched_claim_id) {
+    if (txn.matched_payment_id && !txn.matched_invoice_id && !txn.matched_sales_invoice_id && (!txnClaims || txnClaims.length === 0)) {
       const { createBankReconJV } = await import('@/lib/bank-recon-jv');
       await createBankReconJV(txn.id, txn.matched_payment_id, firmId, session.user.id);
     }

@@ -100,6 +100,7 @@ export async function GET(request: NextRequest) {
       id: c.id,
       reference: c.receipt_number,
       name: `${c.employee.name} — ${c.merchant}`,
+      employeeId: c.employee.id,
       employeeName: c.employee.name,
       merchant: c.merchant,
       totalAmount: Number(c.amount),

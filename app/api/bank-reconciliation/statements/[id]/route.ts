@@ -39,8 +39,8 @@ export async function GET(
           matchedSalesInvoice: {
             select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, buyer: { select: { name: true } } },
           },
-          matchedClaim: {
-            select: { id: true, merchant: true, amount: true, claim_date: true, receipt_number: true, file_url: true, thumbnail_url: true, employee: { select: { name: true } }, category: { select: { name: true } } },
+          matchedClaims: {
+            select: { id: true, merchant: true, amount: true, claim_date: true, receipt_number: true, file_url: true, thumbnail_url: true, employee: { select: { id: true, name: true } }, category: { select: { name: true } } },
           },
         },
         orderBy: { transaction_date: 'asc' },
@@ -142,12 +142,12 @@ export async function GET(
             total_amount: t.matchedSalesInvoice.total_amount.toString(), amount_paid: t.matchedSalesInvoice.amount_paid.toString(),
             issue_date: t.matchedSalesInvoice.issue_date, buyer_name: t.matchedSalesInvoice.buyer?.name ?? 'Unknown',
           } : null,
-          matched_claim: t.matchedClaim ? {
-            id: t.matchedClaim.id, merchant: t.matchedClaim.merchant, amount: t.matchedClaim.amount.toString(),
-            claim_date: t.matchedClaim.claim_date, receipt_number: t.matchedClaim.receipt_number,
-            file_url: t.matchedClaim.file_url, thumbnail_url: t.matchedClaim.thumbnail_url,
-            employee_name: t.matchedClaim.employee.name, category_name: t.matchedClaim.category.name,
-          } : null,
+          matched_claims: t.matchedClaims.length > 0 ? t.matchedClaims.map(c => ({
+            id: c.id, merchant: c.merchant, amount: c.amount.toString(),
+            claim_date: c.claim_date, receipt_number: c.receipt_number,
+            file_url: c.file_url, thumbnail_url: c.thumbnail_url,
+            employee_id: c.employee.id, employee_name: c.employee.name, category_name: c.category.name,
+          })) : [],
           matched_payment: t.matchedPayment ? {
             id: t.matchedPayment.id, reference: t.matchedPayment.reference, payment_date: t.matchedPayment.payment_date,
             amount: t.matchedPayment.amount.toString(), direction: t.matchedPayment.direction, notes: t.matchedPayment.notes,

@@ -45,9 +45,8 @@ export async function POST(request: NextRequest) {
       await prisma.salesInvoice.update({ where: { id: txn.matched_sales_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
     }
   }
-  if (txn.matched_claim_id) {
-    await prisma.claim.update({ where: { id: txn.matched_claim_id }, data: { payment_status: 'unpaid' } });
-  }
+  // Revert claims linked via matched_bank_txn_id
+  await prisma.claim.updateMany({ where: { matched_bank_txn_id: bankTransactionId }, data: { matched_bank_txn_id: null, payment_status: 'unpaid' } });
 
   // Clean up legacy auto-created Payment
   if (txn.matched_payment_id) {
@@ -60,7 +59,7 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
-    data: { matched_payment_id: null, matched_invoice_id: null, matched_sales_invoice_id: null, matched_claim_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
+    data: { matched_payment_id: null, matched_invoice_id: null, matched_sales_invoice_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
   });
 
   return NextResponse.json({
