@@ -43,7 +43,11 @@ export async function POST(request: NextRequest) {
     include: { bankStatement: { select: { firm_id: true, bank_name: true, account_number: true } } },
   });
   if (!txn) return NextResponse.json({ data: null, error: 'Bank transaction not found' }, { status: 404 });
-  if (txn.recon_status === 'manually_matched') return NextResponse.json({ data: null, error: 'Transaction already confirmed' }, { status: 400 });
+  const isConfirmed = txn.recon_status === 'manually_matched';
+  // Allow adding more invoices to confirmed transactions (multi-invoice allocation)
+  if (isConfirmed && !invoiceId) {
+    return NextResponse.json({ data: null, error: 'Transaction already confirmed. Can only add invoices.' }, { status: 400 });
+  }
 
   const firmId = txn.bankStatement.firm_id;
 
@@ -92,28 +96,40 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ data: null, error: 'No Trade Payables GL configured for this supplier.' }, { status: 400 });
       }
 
-      const payAmount = txnAmount;
+      // Calculate allocation amount — remaining unallocated for this txn, capped at invoice balance
+      const existingAllocations = await prisma.bankTransactionInvoice.findMany({
+        where: { bank_transaction_id: bankTransactionId },
+        select: { amount: true },
+      });
+      const alreadyAllocated = existingAllocations.reduce((s, a) => s + Number(a.amount), 0);
+      const invoiceBalance = Number(invoice.total_amount) - Number(invoice.amount_paid);
+      const payAmount = Math.min(txnAmount - alreadyAllocated, invoiceBalance > 0 ? invoiceBalance : Number(invoice.total_amount));
+
+      if (payAmount <= 0) {
+        return NextResponse.json({ data: null, error: 'No remaining amount to allocate' }, { status: 400 });
+      }
 
       // Link bank transaction to invoice via join table + update status
-      await prisma.$transaction([
-        prisma.bankTransaction.update({
-          where: { id: bankTransactionId },
-          data: {
-            recon_status: 'manually_matched',
-            matched_at: new Date(),
-            matched_by: session.user.id,
-          },
-        }),
-        prisma.bankTransactionInvoice.create({
+      await prisma.$transaction(async (tx) => {
+        await tx.bankTransactionInvoice.create({
           data: {
             bank_transaction_id: bankTransactionId,
             invoice_id: invoiceId,
             amount: payAmount,
           },
-        }),
-      ]);
+        });
+        if (!isConfirmed) {
+          await tx.bankTransaction.update({
+            where: { id: bankTransactionId },
+            data: {
+              recon_status: 'manually_matched',
+              matched_at: new Date(),
+              matched_by: session.user.id,
+            },
+          });
+        }
+      });
 
-      // Recalculate invoice payment via recalcInvoicePaid
       await recalcInvoicePaid(invoiceId);
 
       // JV: DR Trade Payables / CR Bank
@@ -130,7 +146,7 @@ export async function POST(request: NextRequest) {
         createdBy: session.user.id,
       });
 
-      return NextResponse.json({ data: { matched: true }, error: null });
+      return NextResponse.json({ data: { matched: true, amount: payAmount }, error: null });
     }
 
     // ─── Match to Sales Invoice (CREDIT / incoming) ──────────────────────

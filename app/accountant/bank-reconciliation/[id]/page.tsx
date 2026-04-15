@@ -115,6 +115,8 @@ export default function AccountantReconciliationWorkspacePage() {
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<PaymentAllocation | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [previewClaim, setPreviewClaim] = useState<any | null>(null);
   const [_candidates, _setCandidates] = useState<CandidatePayment[]>([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -574,11 +576,6 @@ export default function AccountantReconciliationWorkspacePage() {
                                 </div>
                                 {/* Matched invoice/claim block */}
                                 {txn.matched_invoice && (() => {
-                                  const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-                                  const allocatedTotal = txn.matched_invoice_allocations
-                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.amount), 0)
-                                    : Number(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount);
-                                  const unallocated = txnAmount - allocatedTotal;
                                   return (
                                   <div>
                                     <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
@@ -586,7 +583,9 @@ export default function AccountantReconciliationWorkspacePage() {
                                       ? txn.matched_invoice_allocations
                                       : [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }]
                                     ).map((alloc, idx) => (
-                                      <div key={idx} className="bg-white rounded-lg border border-blue-100 p-3 mb-2 last:mb-0">
+                                      <div key={idx}
+                                        onClick={(e) => { e.stopPropagation(); setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.amount) }); }}
+                                        className="bg-white rounded-lg border border-blue-100 p-3 mb-2 last:mb-0 cursor-pointer hover:border-blue-300 transition-colors">
                                         <p className="text-body-sm font-semibold text-[#191C1E]">{alloc.vendor_name}</p>
                                         <p className="text-body-sm text-[#434654]">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
                                         <div className="flex items-center gap-2 mt-1">
@@ -595,13 +594,6 @@ export default function AccountantReconciliationWorkspacePage() {
                                         </div>
                                       </div>
                                     ))}
-                                    {unallocated > 0.01 && (
-                                      <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                                        <p className="text-label-sm text-amber-700 font-medium">
-                                          {formatRM(String(unallocated))} of {formatRM(String(txnAmount))} unallocated — match additional invoices to fully allocate this transaction
-                                        </p>
-                                      </div>
-                                    )}
                                     {txn.matched_invoice.file_url && (
                                       <a href={txn.matched_invoice.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
                                         className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
@@ -625,20 +617,39 @@ export default function AccountantReconciliationWorkspacePage() {
                                   <div>
                                     <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
                                     {txn.matched_claims.map((claim) => (
-                                      <div key={claim.id} className="bg-white rounded-lg border border-amber-100 p-3 mb-2 last:mb-0">
+                                      <div key={claim.id}
+                                        onClick={(e) => { e.stopPropagation(); setPreviewClaim(claim); }}
+                                        className="bg-white rounded-lg border border-amber-100 p-3 mb-2 last:mb-0 cursor-pointer hover:border-amber-300 transition-colors">
                                         <p className="text-body-sm font-semibold text-[#191C1E]">{claim.employee_name} — {claim.merchant}</p>
                                         <p className="text-body-sm text-[#434654]">{claim.category_name} · {formatDate(claim.claim_date)}</p>
                                         <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(claim.amount)}</p>
-                                        {claim.file_url && (
-                                          <a href={claim.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                                            className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
-                                            View Receipt &rarr;
-                                          </a>
-                                        )}
                                       </div>
                                     ))}
                                   </div>
                                 )}
+                                {/* Add more items block — shown when transaction not fully allocated */}
+                                {(() => {
+                                  const txnAmt = Number(txn.debit ?? txn.credit ?? 0);
+                                  const invAllocated = txn.matched_invoice_allocations
+                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.amount), 0)
+                                    : txn.matched_invoice ? Number(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount) : 0;
+                                  const claimAllocated = txn.matched_claims
+                                    ? txn.matched_claims.reduce((s, c) => s + Number(c.amount), 0) : 0;
+                                  const remaining = txnAmt - invAllocated - claimAllocated;
+                                  if (remaining <= 0.01) return null;
+                                  return (
+                                    <div
+                                      onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }}
+                                      className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
+                                    >
+                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8E9196]">
+                                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                                      </svg>
+                                      <p className="text-label-sm text-[#8E9196] mt-1">{formatRM(String(remaining))} unallocated</p>
+                                    </div>
+                                  );
+                                })()}
+
                                 {mp && (
                                 <div>
                                   <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Payment</p>
@@ -1203,6 +1214,42 @@ export default function AccountantReconciliationWorkspacePage() {
                 style={{ backgroundColor: 'var(--sidebar)' }}
               >
                 Open in Invoices
+              </button>
+            </div>
+          </div>
+          </div>
+        </>
+      )}
+
+      {/* === Claim Preview Modal === */}
+      {previewClaim && (
+        <>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <h2 className="text-white font-semibold text-sm">Claim Details</h2>
+              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <dl className="grid grid-cols-2 gap-3">
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Employee</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewClaim.employee_name}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-[#191C1E]">{previewClaim.merchant}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Category</dt><dd className="text-body-md text-[#191C1E]">{previewClaim.category_name}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewClaim.claim_date)}</dd></div>
+                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewClaim.amount)}</dd></div>
+                {previewClaim.receipt_number && <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Receipt #</dt><dd className="text-body-md text-[#191C1E]">{previewClaim.receipt_number}</dd></div>}
+              </dl>
+              {previewClaim.file_url && (
+                <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-body-sm text-blue-600 hover:text-blue-800">
+                  View Receipt Document &rarr;
+                </a>
+              )}
+            </div>
+            <div className="p-4 flex-shrink-0">
+              <button onClick={() => setPreviewClaim(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                Close
               </button>
             </div>
           </div>

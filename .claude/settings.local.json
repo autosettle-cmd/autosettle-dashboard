@@ -129,7 +129,8 @@
       "Bash(source .env)",
       "Bash(npx create-next-app@latest richera-dashboard --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --use-npm)",
       "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.ts ~/richera-dashboard/tailwind.config.ts)",
-      "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.js ~/richera-dashboard/tailwind.config.js)"
+      "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.js ~/richera-dashboard/tailwind.config.js)",
+      "Bash(curl -s http://localhost:3000/api/suppliers)"
     ]
   }
 }
