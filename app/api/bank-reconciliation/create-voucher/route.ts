@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   }
   const firmIds = await getAccountantFirmIds(session.user.id);
 
-  const { bankTransactionId, supplier_id, category_id, reference } = await request.json();
+  const { bankTransactionId, supplier_id, new_supplier_name, category_id, gl_account_id, reference, notes } = await request.json();
   if (!bankTransactionId || !category_id) {
     return NextResponse.json({ data: null, error: 'bankTransactionId and category_id are required' }, { status: 400 });
   }
@@ -37,40 +37,61 @@ export async function POST(request: NextRequest) {
   const amount = Number(txn.debit);
   const merchant = txn.description.includes(' | ') ? txn.description.split(' | ')[0].trim() : txn.description.trim();
 
-  // Resolve GL from category mapping
-  const catOverride = await prisma.categoryFirmOverride.findUnique({
-    where: { category_id_firm_id: { category_id, firm_id: firmId } },
-    select: { gl_account_id: true },
-  });
-  const category = await prisma.category.findUnique({ where: { id: category_id }, select: { name: true } });
-  if (!catOverride?.gl_account_id) {
-    return NextResponse.json({ data: null, error: `No GL account mapped for category "${category?.name ?? category_id}". Set it up in Chart of Accounts.` }, { status: 400 });
+  // Resolve supplier — create inline if new_supplier_name provided
+  let resolvedSupplierId = supplier_id;
+  if (!resolvedSupplierId && new_supplier_name?.trim()) {
+    const newSupplier = await prisma.supplier.create({
+      data: { firm_id: firmId, name: new_supplier_name.trim() },
+    });
+    resolvedSupplierId = newSupplier.id;
   }
-  const expenseGlId = catOverride.gl_account_id;
-
-  // Resolve bank GL
-  const bankAccount = await prisma.bankAccount.findUnique({
-    where: {
-      firm_id_bank_name_account_number: {
-        firm_id: firmId,
-        bank_name: txn.bankStatement.bank_name,
-        account_number: txn.bankStatement.account_number ?? '',
-      },
-    },
-    select: { gl_account_id: true },
-  });
-  if (!bankAccount?.gl_account_id) {
-    return NextResponse.json({ data: null, error: `Bank account "${txn.bankStatement.bank_name}" has no GL mapping.` }, { status: 400 });
-  }
-  const bankGlId = bankAccount.gl_account_id;
-
-  // Validate supplier if provided
-  if (supplier_id) {
-    const supplier = await prisma.supplier.findUnique({ where: { id: supplier_id }, select: { firm_id: true } });
-    if (!supplier || supplier.firm_id !== firmId) {
-      return NextResponse.json({ data: null, error: 'Supplier not found in this firm' }, { status: 404 });
+  // Default to "Walk-in Customer" if no supplier specified
+  if (!resolvedSupplierId) {
+    const walkIn = await prisma.supplier.findFirst({ where: { firm_id: firmId, name: 'Walk-in Customer' } });
+    if (walkIn) {
+      resolvedSupplierId = walkIn.id;
+    } else {
+      const newWalkIn = await prisma.supplier.create({ data: { firm_id: firmId, name: 'Walk-in Customer' } });
+      resolvedSupplierId = newWalkIn.id;
     }
   }
+  const supplier = await prisma.supplier.findUnique({ where: { id: resolvedSupplierId }, select: { firm_id: true, name: true } });
+  if (!supplier || supplier.firm_id !== firmId) {
+    return NextResponse.json({ data: null, error: 'Supplier not found in this firm' }, { status: 404 });
+  }
+
+  const voucherNumber = reference || `PV-${Date.now()}`;
+
+  // Create Invoice record (accounts payable — money going out to supplier, already paid)
+  const invoice = await prisma.invoice.create({
+    data: {
+      firm_id: firmId,
+      uploaded_by: session.user.employee_id || session.user.id,
+      supplier_id: resolvedSupplierId,
+      vendor_name_raw: supplier.name,
+      invoice_number: voucherNumber,
+      issue_date: txn.transaction_date,
+      total_amount: amount,
+      amount_paid: amount,
+      category_id: category_id,
+      confidence: 'HIGH',
+      status: 'reviewed',
+      payment_status: 'paid',
+      submitted_via: 'dashboard',
+      approval: 'approved',
+      notes: notes || `Payment voucher — ${merchant}`,
+      gl_account_id: gl_account_id || null,
+    },
+  });
+
+  // Link bank transaction to invoice
+  await prisma.bankTransactionInvoice.create({
+    data: {
+      bank_transaction_id: bankTransactionId,
+      invoice_id: invoice.id,
+      amount: amount,
+    },
+  });
 
   // Mark bank txn as matched
   await prisma.bankTransaction.update({
@@ -79,26 +100,64 @@ export async function POST(request: NextRequest) {
       recon_status: 'manually_matched',
       matched_at: new Date(),
       matched_by: session.user.id,
-      notes: `Payment voucher — ${merchant}${reference ? ` (${reference})` : ''}`,
+      notes: `Payment voucher — ${supplier.name}${reference ? ` (${reference})` : ''}`,
     },
   });
 
-  // JV: DR Expense GL / CR Bank GL
-  await createJournalEntry({
-    firmId,
-    postingDate: txn.transaction_date,
-    description: `Payment voucher — ${merchant}`,
-    sourceType: 'bank_recon',
-    sourceId: bankTransactionId,
-    lines: [
-      { glAccountId: expenseGlId, debitAmount: amount, creditAmount: 0, description: `${category?.name ?? 'Expense'} — ${merchant}` },
-      { glAccountId: bankGlId, debitAmount: 0, creditAmount: amount, description: txn.bankStatement.bank_name },
-    ],
-    createdBy: session.user.id,
-  });
+  // Create JV if we can resolve GL accounts
+  let jvWarning: string | undefined;
+  try {
+    // Resolve bank GL
+    const bankAccount = await prisma.bankAccount.findUnique({
+      where: {
+        firm_id_bank_name_account_number: {
+          firm_id: firmId,
+          bank_name: txn.bankStatement.bank_name,
+          account_number: txn.bankStatement.account_number ?? '',
+        },
+      },
+      select: { gl_account_id: true },
+    });
+
+    // Resolve expense GL: user-selected > category mapping > firm default trade payables
+    let expenseGlId: string | null = gl_account_id || null;
+    if (!expenseGlId && category_id) {
+      const catOverride = await prisma.categoryFirmOverride.findUnique({
+        where: { category_id_firm_id: { category_id, firm_id: firmId } },
+        select: { gl_account_id: true },
+      });
+      expenseGlId = catOverride?.gl_account_id ?? null;
+    }
+    if (!expenseGlId) {
+      const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true } });
+      expenseGlId = firm?.default_trade_payables_gl_id ?? null;
+    }
+
+    const category = await prisma.category.findUnique({ where: { id: category_id }, select: { name: true } });
+
+    if (bankAccount?.gl_account_id && expenseGlId) {
+      await createJournalEntry({
+        firmId,
+        postingDate: txn.transaction_date,
+        description: `Payment voucher — ${supplier.name} (${voucherNumber})`,
+        sourceType: 'bank_recon',
+        sourceId: bankTransactionId,
+        lines: [
+          { glAccountId: expenseGlId, debitAmount: amount, creditAmount: 0, description: `${category?.name ?? 'Expense'} — ${supplier.name}` },
+          { glAccountId: bankAccount.gl_account_id, debitAmount: 0, creditAmount: amount, description: txn.bankStatement.bank_name },
+        ],
+        createdBy: session.user.id,
+      });
+    } else {
+      jvWarning = 'Voucher created but no JV — missing GL mapping for bank or expense account.';
+    }
+  } catch (e) {
+    console.error('JV creation failed for voucher:', e);
+    jvWarning = 'Voucher created but JV failed. Check GL mappings.';
+  }
 
   return NextResponse.json({
-    data: { recon_status: 'manually_matched' },
+    data: { recon_status: 'manually_matched', invoice_id: invoice.id, jv_warning: jvWarning },
     error: null,
   });
 }

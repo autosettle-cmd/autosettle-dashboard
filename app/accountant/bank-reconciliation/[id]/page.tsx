@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import HelpTooltip from '@/components/HelpTooltip';
+import GlAccountSelect from '@/components/GlAccountSelect';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
 
@@ -134,9 +135,11 @@ export default function AccountantReconciliationWorkspacePage() {
   const [showReceiptForm, setShowReceiptForm] = useState(false);
   const [voucherSuppliers, setVoucherSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [voucherCategories, setVoucherCategories] = useState<{ id: string; name: string }[]>([]);
-  const [voucherData, setVoucherData] = useState({ supplier_id: '', category_id: '', reference: '', notes: '' });
+  const [voucherData, setVoucherData] = useState({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
   const [creatingVoucher, setCreatingVoucher] = useState(false);
   const [voucherError, setVoucherError] = useState('');
+  const [creatingNewSupplier, setCreatingNewSupplier] = useState(false);
+  const [receiptGlAccounts, setReceiptGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
 
   const loadStatement = () => {
     fetch(`/api/bank-reconciliation/statements/${id}`)
@@ -199,7 +202,7 @@ export default function AccountantReconciliationWorkspacePage() {
     setMatchingTxn(null);
     setShowVoucherForm(false);
     setShowReceiptForm(false);
-    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '' });
+    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
     setVoucherError('');
     setSelectedClaimIds(new Set());
     setMatchTab('invoices');
@@ -277,23 +280,55 @@ export default function AccountantReconciliationWorkspacePage() {
 
   const openVoucherForm = async () => {
     setShowVoucherForm(true);
+    setCreatingNewSupplier(false);
     setVoucherError('');
+    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
     const firmId = statement?.firm_id;
     if (!firmId) return;
-    const [suppRes, catRes] = await Promise.all([
+    const [suppRes, catRes, glRes] = await Promise.all([
       fetch(`/api/suppliers?firmId=${firmId}`).then((r) => r.json()),
       fetch(`/api/categories?firmId=${firmId}`).then((r) => r.json()),
+      receiptGlAccounts.length > 0 ? Promise.resolve({ data: receiptGlAccounts }) : fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()),
     ]);
     const suppliers = (suppRes.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
     setVoucherSuppliers(suppliers);
     setVoucherCategories(catRes.data ?? []);
-    // Pre-select "Walk-in Customer" if it exists
+    if (glRes.data) setReceiptGlAccounts(glRes.data);
     const walkIn = suppliers.find((s: { name: string }) => s.name === 'Walk-in Customer');
-    if (walkIn) setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
+    if (walkIn) {
+      setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
+      fetchNextVoucherNumber('Walk-in Customer', walkIn.id);
+    }
+  };
+
+  const fetchNextVoucherNumber = async (name: string, supplierId?: string) => {
+    if (!statement?.firm_id || !name.trim()) return;
+    const prefix = name.split(/\s+/)[0].toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'PV';
+    // Search existing invoices for PV-PREFIX-NNN pattern
+    try {
+      const res = await fetch(`/api/invoices?search=PV-${prefix}&firmId=${statement.firm_id}&take=50`);
+      const j = await res.json();
+      let maxNum = 0;
+      const regex = new RegExp(`PV-${prefix}-(\\d+)`);
+      for (const inv of j.data ?? []) {
+        const match = inv.invoice_number?.match(regex);
+        if (match) { const n = parseInt(match[1], 10); if (n > maxNum) maxNum = n; }
+      }
+      setVoucherData(prev => ({ ...prev, reference: `PV-${prefix}-${String(maxNum + 1).padStart(3, '0')}` }));
+    } catch { /* ignore */ }
+    // Auto-suggest GL from supplier
+    if (supplierId) {
+      try {
+        const suppRes = await fetch(`/api/suppliers/${supplierId}?`);
+        const suppJ = await suppRes.json();
+        const defaultGl = suppJ.data?.default_gl_account_id;
+        if (defaultGl) { setVoucherData(prev => ({ ...prev, gl_account_id: prev.gl_account_id || defaultGl })); }
+      } catch { /* ignore */ }
+    }
   };
 
   const doCreateVoucher = async () => {
-    if (!matchingTxn || !voucherData.supplier_id || !voucherData.category_id) return;
+    if (!matchingTxn || !voucherData.category_id) return;
     setCreatingVoucher(true);
     setVoucherError('');
     try {
@@ -312,22 +347,51 @@ export default function AccountantReconciliationWorkspacePage() {
 
   const openReceiptForm = async () => {
     setShowReceiptForm(true);
+    setCreatingNewSupplier(false);
     setVoucherError('');
+    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
     const firmId = statement?.firm_id;
     if (!firmId) return;
-    const [suppRes, catRes] = await Promise.all([
+    const [suppRes, glRes] = await Promise.all([
       fetch(`/api/suppliers?firmId=${firmId}`).then((r) => r.json()),
-      fetch(`/api/categories?firmId=${firmId}`).then((r) => r.json()),
+      fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()),
     ]);
     const suppliers = (suppRes.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
     setVoucherSuppliers(suppliers);
-    setVoucherCategories(catRes.data ?? []);
+    setReceiptGlAccounts(glRes.data ?? []);
     const walkIn = suppliers.find((s: { name: string }) => s.name === 'Walk-in Customer');
-    if (walkIn) setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
+    if (walkIn) {
+      setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
+      fetchNextReceiptNumber('Walk-in Customer', walkIn.id);
+    }
+  };
+
+  const fetchNextReceiptNumber = async (name: string, supplierId?: string) => {
+    if (!statement?.firm_id || !name.trim()) return;
+    try {
+      // Fetch next receipt number
+      const res = await fetch(`/api/bank-reconciliation/next-receipt-number?name=${encodeURIComponent(name.trim())}&firmId=${statement.firm_id}`);
+      const j = await res.json();
+      if (j.data) setVoucherData(prev => ({ ...prev, reference: j.data }));
+    } catch { /* ignore */ }
+    // Auto-suggest GL from supplier's default or last receipt
+    if (supplierId) {
+      try {
+        const suppRes = await fetch(`/api/suppliers/${supplierId}?`);
+        const suppJ = await suppRes.json();
+        const defaultGl = suppJ.data?.default_gl_account_id;
+        if (defaultGl) { setVoucherData(prev => ({ ...prev, gl_account_id: prev.gl_account_id || defaultGl })); return; }
+        // Fallback: last SalesInvoice GL for this supplier
+        const invRes = await fetch(`/api/sales-invoices?supplierId=${supplierId}&take=1`);
+        const invJ = await invRes.json();
+        const lastGl = (invJ.data ?? [])[0]?.gl_account_id;
+        if (lastGl) setVoucherData(prev => ({ ...prev, gl_account_id: prev.gl_account_id || lastGl }));
+      } catch { /* ignore */ }
+    }
   };
 
   const doCreateReceipt = async () => {
-    if (!matchingTxn || !voucherData.supplier_id || !voucherData.category_id) return;
+    if (!matchingTxn) return;
     setCreatingVoucher(true);
     setVoucherError('');
     try {
@@ -633,9 +697,10 @@ export default function AccountantReconciliationWorkspacePage() {
                                   const invAllocated = txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
                                     ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.allocation_amount || 0), 0)
                                     : txn.matched_invoice ? Number(txn.matched_invoice.allocation_amount || txn.matched_invoice.total_amount || 0) : 0;
+                                  const salesInvAllocated = txn.matched_sales_invoice ? Number(txn.matched_sales_invoice.total_amount || 0) : 0;
                                   const claimAllocated = txn.matched_claims
                                     ? txn.matched_claims.reduce((s, c) => s + Number(c.amount), 0) : 0;
-                                  const remaining = txnAmt - invAllocated - claimAllocated;
+                                  const remaining = txnAmt - invAllocated - salesInvAllocated - claimAllocated;
                                   if (remaining <= 0.01) return null;
                                   return (
                                     <div
@@ -792,7 +857,7 @@ export default function AccountantReconciliationWorkspacePage() {
           {/* Match modal */}
           {matchingTxn && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
-              <div className="bg-white rounded-xl shadow-xl w-[720px] max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-white rounded-xl shadow-xl w-[720px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="p-6 pb-0">
                   <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">
                     {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
@@ -837,7 +902,7 @@ export default function AccountantReconciliationWorkspacePage() {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 py-4">
+                <div className="px-6 py-4">
                 {loadingCandidates ? (
                   <p className="text-sm text-[#8E9196] py-8 text-center">Loading...</p>
                 ) : outstandingItems.length === 0 ? (
@@ -1017,40 +1082,78 @@ export default function AccountantReconciliationWorkspacePage() {
                       <div className="space-y-3 border border-green-100 rounded-lg p-4 bg-green-50/30">
                         <h3 className="text-body-md font-semibold text-[#191C1E]">Create Official Receipt</h3>
                         <div className="bg-white rounded-lg p-2.5 text-body-sm text-[#434654] flex gap-3">
-                          <span>Amount: <strong>{formatRM(matchingTxn.debit)}</strong></span>
+                          <span>Amount: <strong>{formatRM(matchingTxn.credit)}</strong></span>
                           <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
                         </div>
                         <div>
                           <label className="input-label">Received From</label>
-                          <select
-                            value={voucherData.supplier_id}
-                            onChange={(e) => setVoucherData({ ...voucherData, supplier_id: e.target.value })}
-                            className="input-field w-full"
-                          >
-                            <option value="">Walk-in Customer (default)</option>
-                            {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
+                          {!creatingNewSupplier ? (
+                            <div className="flex gap-2">
+                              <select
+                                value={voucherData.supplier_id}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  setVoucherData({ ...voucherData, supplier_id: id, new_supplier_name: '', gl_account_id: '' });
+                                  const name = voucherSuppliers.find(s => s.id === id)?.name || 'Walk-in Customer';
+                                  fetchNextReceiptNumber(name, id || undefined);
+                                }}
+                                className="input-field flex-1"
+                              >
+                                <option value="">Walk-in Customer (default)</option>
+                                {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => { setCreatingNewSupplier(true); setVoucherData(prev => ({ ...prev, supplier_id: '', new_supplier_name: '' })); }}
+                                className="px-2.5 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 whitespace-nowrap"
+                              >
+                                + New
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={voucherData.new_supplier_name}
+                                onChange={(e) => {
+                                  setVoucherData({ ...voucherData, new_supplier_name: e.target.value, supplier_id: '' });
+                                }}
+                                onBlur={() => { if (voucherData.new_supplier_name.trim()) fetchNextReceiptNumber(voucherData.new_supplier_name); }}
+                                className="input-field flex-1"
+                                placeholder="Enter new supplier name..."
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => { setCreatingNewSupplier(false); setVoucherData(prev => ({ ...prev, new_supplier_name: '' })); }}
+                                className="px-2.5 py-1.5 text-xs font-medium text-[#8E9196] border border-gray-200 rounded-lg hover:bg-gray-50"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </div>
                         <div>
-                          <label className="input-label">Category</label>
-                          <select
-                            value={voucherData.category_id}
-                            onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })}
-                            className="input-field w-full"
-                          >
-                            <option value="">Select category...</option>
-                            {voucherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="input-label">Receipt No. (optional)</label>
+                          <label className="input-label">Receipt No.</label>
                           <input
                             type="text"
                             value={voucherData.reference}
                             onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })}
                             className="input-field w-full"
-                            placeholder="e.g. OR-001"
+                            placeholder="Auto-generated"
                           />
+                        </div>
+                        <div>
+                          <label className="input-label">CR Account (Sales/Income GL)</label>
+                          <GlAccountSelect
+                            value={voucherData.gl_account_id}
+                            onChange={(id) => setVoucherData({ ...voucherData, gl_account_id: id })}
+                            accounts={receiptGlAccounts}
+                            firmId={statement?.firm_id}
+                            placeholder="Select GL account..."
+                            preferredType="Revenue"
+                          />
+                          <p className="text-xs text-[#8E9196] mt-0.5">DR Bank Account (auto) / CR this account</p>
                         </div>
                         <div>
                           <label className="input-label">Notes (optional)</label>
@@ -1066,7 +1169,7 @@ export default function AccountantReconciliationWorkspacePage() {
                         <div className="flex gap-3">
                           <button
                             onClick={doCreateReceipt}
-                            disabled={creatingVoucher || !voucherData.category_id}
+                            disabled={creatingVoucher}
                             className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             {creatingVoucher ? 'Creating...' : 'Create & Match'}
@@ -1103,19 +1206,60 @@ export default function AccountantReconciliationWorkspacePage() {
                       <div className="space-y-3 border border-blue-100 rounded-lg p-4 bg-blue-50/30">
                         <h3 className="text-body-md font-semibold text-[#191C1E]">Create Payment Voucher</h3>
                         <div className="bg-white rounded-lg p-2.5 text-body-sm text-[#434654] flex gap-3">
-                          <span>Amount: <strong>{formatRM(matchingTxn.credit)}</strong></span>
+                          <span>Amount: <strong>{formatRM(matchingTxn.debit)}</strong></span>
                           <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
                         </div>
                         <div>
-                          <label className="input-label">Supplier</label>
-                          <select
-                            value={voucherData.supplier_id}
-                            onChange={(e) => setVoucherData({ ...voucherData, supplier_id: e.target.value })}
+                          <label className="input-label">Paid To</label>
+                          {!creatingNewSupplier ? (
+                            <div className="flex gap-2">
+                              <select
+                                value={voucherData.supplier_id}
+                                onChange={(e) => {
+                                  const id = e.target.value;
+                                  setVoucherData({ ...voucherData, supplier_id: id, new_supplier_name: '', gl_account_id: '' });
+                                  const name = voucherSuppliers.find(s => s.id === id)?.name || 'Walk-in Customer';
+                                  fetchNextVoucherNumber(name, id || undefined);
+                                }}
+                                className="input-field flex-1"
+                              >
+                                <option value="">Walk-in Customer (default)</option>
+                                {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => { setCreatingNewSupplier(true); setVoucherData(prev => ({ ...prev, supplier_id: '', new_supplier_name: '' })); }}
+                                className="px-2.5 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 whitespace-nowrap"
+                              >+ New</button>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={voucherData.new_supplier_name}
+                                onChange={(e) => setVoucherData({ ...voucherData, new_supplier_name: e.target.value, supplier_id: '' })}
+                                onBlur={() => { if (voucherData.new_supplier_name.trim()) fetchNextVoucherNumber(voucherData.new_supplier_name); }}
+                                className="input-field flex-1"
+                                placeholder="Enter new supplier name..."
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => { setCreatingNewSupplier(false); setVoucherData(prev => ({ ...prev, new_supplier_name: '' })); }}
+                                className="px-2.5 py-1.5 text-xs font-medium text-[#8E9196] border border-gray-200 rounded-lg hover:bg-gray-50"
+                              >Cancel</button>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="input-label">Voucher No.</label>
+                          <input
+                            type="text"
+                            value={voucherData.reference}
+                            onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })}
                             className="input-field w-full"
-                          >
-                            <option value="">Walk-in Customer (default)</option>
-                            {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select>
+                            placeholder="Auto-generated"
+                          />
                         </div>
                         <div>
                           <label className="input-label">Category</label>
@@ -1129,14 +1273,16 @@ export default function AccountantReconciliationWorkspacePage() {
                           </select>
                         </div>
                         <div>
-                          <label className="input-label">Reference (optional)</label>
-                          <input
-                            type="text"
-                            value={voucherData.reference}
-                            onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })}
-                            className="input-field w-full"
-                            placeholder="e.g. PV-001"
+                          <label className="input-label">DR Account (Expense GL)</label>
+                          <GlAccountSelect
+                            value={voucherData.gl_account_id}
+                            onChange={(id) => setVoucherData({ ...voucherData, gl_account_id: id })}
+                            accounts={receiptGlAccounts}
+                            firmId={statement?.firm_id}
+                            placeholder="Select GL account..."
+                            preferredType="Expense"
                           />
+                          <p className="text-xs text-[#8E9196] mt-0.5">DR this account / CR Bank Account (auto)</p>
                         </div>
                         <div>
                           <label className="input-label">Notes (optional)</label>
@@ -1145,7 +1291,7 @@ export default function AccountantReconciliationWorkspacePage() {
                             value={voucherData.notes}
                             onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })}
                             className="input-field w-full"
-                            placeholder="e.g. Customer payment for order #123"
+                            placeholder="e.g. Supplier payment for invoice #123"
                           />
                         </div>
                         {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
