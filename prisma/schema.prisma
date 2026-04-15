@@ -152,10 +152,10 @@ model Firm {
   journalEntries         JournalEntry[]
   mileage_rate_per_km    Decimal?  @db.Decimal(4, 2)
 
-  defaultTradePayables    GLAccount? @relation("FirmTradePayables", fields: [default_trade_payables_gl_id], references: [id])
-  defaultStaffClaims      GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id])
-  defaultTradeReceivables GLAccount? @relation("FirmTradeReceivables", fields: [default_trade_receivables_gl_id], references: [id])
-  defaultRetainedEarnings GLAccount? @relation("FirmRetainedEarnings", fields: [default_retained_earnings_gl_id], references: [id])
+  defaultTradePayables    GLAccount? @relation("FirmTradePayables", fields: [default_trade_payables_gl_id], references: [id], onDelete: SetNull)
+  defaultStaffClaims      GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id], onDelete: SetNull)
+  defaultTradeReceivables GLAccount? @relation("FirmTradeReceivables", fields: [default_trade_receivables_gl_id], references: [id], onDelete: SetNull)
+  defaultRetainedEarnings GLAccount? @relation("FirmRetainedEarnings", fields: [default_retained_earnings_gl_id], references: [id], onDelete: SetNull)
 }
 
 model Employee {
@@ -206,8 +206,8 @@ model AccountantFirm {
   firm_id    String
   created_at DateTime @default(now())
 
-  user User @relation(fields: [user_id], references: [id])
-  firm Firm @relation(fields: [firm_id], references: [id])
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  firm Firm @relation(fields: [firm_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, firm_id])
 }
@@ -284,8 +284,8 @@ model Claim {
   category Category @relation(fields: [category_id], references: [id])
   glAccount      GLAccount? @relation("ClaimExpenseGL", fields: [gl_account_id], references: [id])
   contraGlAccount GLAccount? @relation("ClaimContraGL", fields: [contra_gl_account_id], references: [id])
-  taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id])
-  matchedBankTxn BankTransaction? @relation(fields: [matched_bank_txn_id], references: [id])
+  taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id], onDelete: SetNull)
+  matchedBankTxn BankTransaction? @relation(fields: [matched_bank_txn_id], references: [id], onDelete: SetNull)
   paymentReceipts PaymentReceipt[]
   invoiceReceiptLinks InvoiceReceiptLink[]
 
@@ -395,6 +395,7 @@ model Invoice {
   @@index([supplier_id])
   @@index([firm_id, payment_status])
   @@index([firm_id, approval])
+  @@index([uploaded_by])
 }
 
 model Payment {
@@ -490,6 +491,7 @@ model MessageLog {
   employee Employee? @relation(fields: [employee_id], references: [id])
 
   @@index([employee_id])
+  @@index([phone, employee_id])
 }
 
 // ─── Sales Invoicing (Issued) ────────────────────────────────────────────────
@@ -538,6 +540,7 @@ model SalesInvoice {
   @@index([firm_id, issue_date])
   @@index([firm_id, lhdn_status])
   @@index([firm_id, approval])
+  @@index([created_by])
   @@unique([firm_id, invoice_number])
 }
 

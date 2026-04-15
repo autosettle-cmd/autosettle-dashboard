@@ -572,12 +572,12 @@ function AccountantInvoicesPage() {
     }
   }, [previewInvoice]);
 
-  // Fetch categories for edit
+  // Fetch categories for edit (only if not already loaded)
   useEffect(() => {
-    if (editMode) {
+    if (editMode && categories.length === 0) {
       fetch('/api/categories').then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
     }
-  }, [editMode]);
+  }, [editMode, categories.length]);
 
   // Fetch suppliers
   useEffect(() => {

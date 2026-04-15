@@ -17,7 +17,7 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = 'force-dynamic';
 
 const UNREGISTERED_MESSAGE =
-  "Hi there! It looks like your number isn't registered with any of our services yet. To get started, please reach out to us at: jeffrylau@auto-settle.com or +6012-345-8661";
+  `Hi there! It looks like your number isn't registered with any of our services yet. To get started, please reach out to us at: ${process.env.SUPPORT_EMAIL || 'support@auto-settle.com'} or ${process.env.SUPPORT_PHONE || '+6012-345-8661'}`;
 
 // GET — Meta webhook verification (one-time setup)
 export async function GET(request: NextRequest) {
@@ -74,7 +74,7 @@ async function processWebhook(body: Record<string, unknown>) {
   if (messageId) {
     const existing = await prisma.messageLog.findUnique({ where: { message_id: messageId } });
     if (existing) {
-      console.log(`[WhatsApp] Duplicate message ${messageId} — skipping`);
+      console.error(`[WhatsApp] Duplicate message ${messageId} — skipping`);
       return;
     }
     // Record early to prevent race conditions on parallel retries
@@ -82,7 +82,7 @@ async function processWebhook(body: Record<string, unknown>) {
       data: { phone, message_id: messageId, message_type: (message.type as string) || 'unknown' },
     }).catch(() => {
       // Unique constraint violation = another instance is processing this message
-      console.log(`[WhatsApp] Message ${messageId} already being processed — skipping`);
+      console.error(`[WhatsApp] Message ${messageId} already being processed — skipping`);
     });
   }
 
@@ -90,7 +90,7 @@ async function processWebhook(body: Record<string, unknown>) {
   const employee = await lookupEmployeeByPhone(phone);
 
   if (!employee) {
-    console.log(`[WhatsApp] Unregistered phone: ${phone} — sending registration prompt`);
+    console.error(`[WhatsApp] Unregistered phone: ${phone} — sending registration prompt`);
     await sendTextMessage(phone, UNREGISTERED_MESSAGE);
     return;
   }
@@ -121,7 +121,7 @@ async function routeMessage(
 
     case "text": {
       const textBody = (message.text as { body: string })?.body || "";
-      console.log(`[WhatsApp] Text message from ${phone}: "${textBody}"`);
+      console.error(`[WhatsApp] Text message from ${phone}: "${textBody}"`);
       const session = await getSession(phone);
 
       // Bank statement password flow
@@ -174,17 +174,17 @@ async function handleImageMessage(
     return;
   }
 
-  console.log(`[WhatsApp] Image received from ${phone} — starting OCR pipeline`);
+  console.error(`[WhatsApp] Image received from ${phone} — starting OCR pipeline`);
 
   try {
     // Step 1: Download image from WhatsApp
     const imageBuffer = await downloadWhatsAppImage(image.id);
-    console.log(`[WhatsApp] Image downloaded: ${imageBuffer.length} bytes`);
+    console.error(`[WhatsApp] Image downloaded: ${imageBuffer.length} bytes`);
 
     // Step 2: Run OCR
     const rawText = await runOCR(imageBuffer);
     const ocrText = normaliseOCRText(rawText);
-    console.log(`[WhatsApp] OCR text (${ocrText.length} chars):\n${ocrText.slice(0, 500)}`);
+    console.error(`[WhatsApp] OCR text (${ocrText.length} chars):\n${ocrText.slice(0, 500)}`);
 
     // Step 3: Get firm categories
     const categories = await prisma.category.findMany({
@@ -197,27 +197,27 @@ async function handleImageMessage(
       select: { name: true },
     });
     const categoryNames = categories.map((c) => c.name);
-    console.log(`[WhatsApp] Categories for firm ${employee.firmName}: ${categoryNames.join(", ")}`);
+    console.error(`[WhatsApp] Categories for firm ${employee.firmName}: ${categoryNames.join(", ")}`);
 
     // Step 4: Admin → classify document type; Employee → always claim
     const isAdmin = employee.role === "admin";
     const docType = isAdmin ? await classifyDocument(ocrText) : "receipt" as const;
-    console.log(`[WhatsApp] Role: ${employee.role}, Document type: ${docType}`);
+    console.error(`[WhatsApp] Role: ${employee.role}, Document type: ${docType}`);
 
     if (docType === "invoice") {
       // ── Invoice flow (admin only) ──────────────────────────────
       const geminiRaw = await extractWithGeminiInvoice(ocrText, categoryNames);
-      console.log(`[WhatsApp] Gemini invoice raw: ${geminiRaw}`);
+      console.error(`[WhatsApp] Gemini invoice raw: ${geminiRaw}`);
 
       const extracted = parseGeminiInvoiceOutput(geminiRaw);
-      console.log(`[WhatsApp] Invoice extracted: ${JSON.stringify(extracted)}`);
+      console.error(`[WhatsApp] Invoice extracted: ${JSON.stringify(extracted)}`);
 
       if (extracted.confidence === "HIGH" || extracted.confidence === "MEDIUM") {
         if (messageId) await sendReaction(phone, messageId, "\ud83d\udc4d");
 
         const filename = `INV_${employee.name}_${extracted.issueDate}_${extracted.vendor}.jpg`.replace(/\s+/g, "_");
         const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", employee.firmId, employee.firmName, "invoices");
-        console.log(`[WhatsApp] Uploaded invoice to Drive: ${fileId}`);
+        console.error(`[WhatsApp] Uploaded invoice to Drive: ${fileId}`);
 
         await saveInvoice({
           employeeId: employee.id,
@@ -235,7 +235,7 @@ async function handleImageMessage(
           driveFileId: fileId,
           thumbnailUrl,
         });
-        console.log(`[WhatsApp] Invoice saved for ${phone}`);
+        console.error(`[WhatsApp] Invoice saved for ${phone}`);
 
         await sendInvoiceConfirmationMessage(phone, {
           vendor: extracted.vendor,
@@ -285,7 +285,7 @@ async function handleImageMessage(
           employeeName: employee.name,
         };
         await addPendingReceipt(phone, receiptKey, pendingData);
-        console.log(`[WhatsApp] LOW confidence invoice ${receiptKey} added to pending map for ${phone}`);
+        console.error(`[WhatsApp] LOW confidence invoice ${receiptKey} added to pending map for ${phone}`);
       }
 
       logMessage({
@@ -296,11 +296,11 @@ async function handleImageMessage(
     } else {
       // ── Receipt/Claim flow ─────────────────────────────────────
       const geminiRaw = await extractWithGemini(ocrText, categoryNames);
-      console.log(`[WhatsApp] Gemini raw output: ${geminiRaw}`);
+      console.error(`[WhatsApp] Gemini raw output: ${geminiRaw}`);
 
       const extracted = parseGeminiOutput(geminiRaw);
-      console.log(`[WhatsApp] Extracted: ${JSON.stringify(extracted)}`);
-      console.log(`[WhatsApp] Confidence: ${extracted.confidence}`);
+      console.error(`[WhatsApp] Extracted: ${JSON.stringify(extracted)}`);
+      console.error(`[WhatsApp] Confidence: ${extracted.confidence}`);
 
       if (extracted.confidence === "HIGH" || extracted.confidence === "MEDIUM") {
         if (messageId) {
@@ -309,7 +309,7 @@ async function handleImageMessage(
 
         const filename = `${employee.name}_${extracted.date}_${extracted.merchant}.jpg`.replace(/\s+/g, "_");
         const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", employee.firmId, employee.firmName, "claims");
-        console.log(`[WhatsApp] Uploaded to Drive: ${fileId}`);
+        console.error(`[WhatsApp] Uploaded to Drive: ${fileId}`);
 
         await saveClaim({
           employeeId: employee.id,
@@ -323,7 +323,7 @@ async function handleImageMessage(
           driveFileId: fileId,
           thumbnailUrl,
         });
-        console.log(`[WhatsApp] Claim saved for ${phone}`);
+        console.error(`[WhatsApp] Claim saved for ${phone}`);
 
         await sendConfirmationMessage(phone, {
           merchant: extracted.merchant,
@@ -366,7 +366,7 @@ async function handleImageMessage(
           employeeName: employee.name,
         };
         await addPendingReceipt(phone, receiptKey, pendingData);
-        console.log(`[WhatsApp] LOW confidence receipt ${receiptKey} added to pending map for ${phone}`);
+        console.error(`[WhatsApp] LOW confidence receipt ${receiptKey} added to pending map for ${phone}`);
       }
 
       logMessage({
@@ -413,12 +413,12 @@ async function handleDocumentMessage(
     return;
   }
 
-  console.log(`[WhatsApp] PDF received from ${phone} (${doc.filename ?? "unknown"}) — processing with Gemini`);
+  console.error(`[WhatsApp] PDF received from ${phone} (${doc.filename ?? "unknown"}) — processing with Gemini`);
 
   try {
     // Step 1: Download PDF
     const pdfBuffer = await downloadWhatsAppMedia(doc.id);
-    console.log(`[WhatsApp] PDF downloaded: ${pdfBuffer.length} bytes`);
+    console.error(`[WhatsApp] PDF downloaded: ${pdfBuffer.length} bytes`);
 
     // Step 2: Get firm categories
     const categories = await prisma.category.findMany({
@@ -434,7 +434,7 @@ async function handleDocumentMessage(
 
     // Step 3: Send PDF directly to Gemini — classify + extract in one call
     const { documentType, raw } = await extractInvoiceFromPDF(pdfBuffer, categoryNames);
-    console.log(`[WhatsApp] PDF classified as: ${documentType}`);
+    console.error(`[WhatsApp] PDF classified as: ${documentType}`);
 
     // ── Bank statement handling ──
     if (documentType === "bank_statement") {
@@ -562,7 +562,7 @@ async function handleDocumentMessage(
 
     if (documentType === "invoice") {
       const extracted = parseGeminiInvoiceOutput(raw);
-      console.log(`[WhatsApp] Invoice extracted: ${JSON.stringify(extracted)}`);
+      console.error(`[WhatsApp] Invoice extracted: ${JSON.stringify(extracted)}`);
 
       if (extracted.confidence === "HIGH" || extracted.confidence === "MEDIUM") {
         if (messageId) await sendReaction(phone, messageId, "\ud83d\udc4d");
@@ -586,7 +586,7 @@ async function handleDocumentMessage(
           driveFileId: fileId,
           thumbnailUrl,
         });
-        console.log(`[WhatsApp] Invoice saved for ${phone}`);
+        console.error(`[WhatsApp] Invoice saved for ${phone}`);
 
         await sendInvoiceConfirmationMessage(phone, {
           vendor: extracted.vendor,
@@ -633,7 +633,7 @@ async function handleDocumentMessage(
           firmId: employee.firmId,
           employeeName: employee.name,
         });
-        console.log(`[WhatsApp] LOW confidence invoice ${receiptKey} added to pending map`);
+        console.error(`[WhatsApp] LOW confidence invoice ${receiptKey} added to pending map`);
       }
 
       logMessage({
@@ -644,7 +644,7 @@ async function handleDocumentMessage(
     } else {
       // PDF classified as receipt
       const extracted = parseGeminiOutput(raw);
-      console.log(`[WhatsApp] Receipt extracted from PDF: ${JSON.stringify(extracted)}`);
+      console.error(`[WhatsApp] Receipt extracted from PDF: ${JSON.stringify(extracted)}`);
 
       if (extracted.confidence === "HIGH" || extracted.confidence === "MEDIUM") {
         if (messageId) await sendReaction(phone, messageId, "\ud83d\udc4d");
@@ -664,7 +664,7 @@ async function handleDocumentMessage(
           driveFileId: fileId,
           thumbnailUrl,
         });
-        console.log(`[WhatsApp] Claim saved from PDF for ${phone}`);
+        console.error(`[WhatsApp] Claim saved from PDF for ${phone}`);
 
         await sendConfirmationMessage(phone, {
           merchant: extracted.merchant,
@@ -705,7 +705,7 @@ async function handleDocumentMessage(
           firmId: employee.firmId,
           employeeName: employee.name,
         });
-        console.log(`[WhatsApp] LOW confidence receipt (PDF) ${receiptKey} added to pending map`);
+        console.error(`[WhatsApp] LOW confidence receipt (PDF) ${receiptKey} added to pending map`);
       }
 
       logMessage({
@@ -833,11 +833,11 @@ async function handleInteractiveMessage(
   const buttonId = buttonReply?.id || listReply?.id;
 
   if (!buttonId) {
-    console.log(`[WhatsApp] Interactive message from ${phone} — no button/list ID found`);
+    console.error(`[WhatsApp] Interactive message from ${phone} — no button/list ID found`);
     return;
   }
 
-  console.log(`[WhatsApp] Button pressed: ${buttonId} from ${phone}`);
+  console.error(`[WhatsApp] Button pressed: ${buttonId} from ${phone}`);
 
   if (buttonId.startsWith("confirm_yes:")) {
     const receiptKey = buttonId.split(":")[1];
@@ -863,7 +863,7 @@ async function handleInteractiveMessage(
         // Invoice confirmation
         const filename = `INV_${pending.employeeName}_${pending.issueDate}_${pending.vendor}.jpg`.replace(/\s+/g, "_");
         const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", pendingFirmId, pendingFirmName, "invoices");
-        console.log(`[WhatsApp] Uploaded invoice to Drive: ${fileId}`);
+        console.error(`[WhatsApp] Uploaded invoice to Drive: ${fileId}`);
 
         await saveInvoice({
           employeeId: pending.employeeId as string,
@@ -881,7 +881,7 @@ async function handleInteractiveMessage(
           driveFileId: fileId,
           thumbnailUrl,
         });
-        console.log(`[WhatsApp] Invoice saved for ${phone} (key ${receiptKey})`);
+        console.error(`[WhatsApp] Invoice saved for ${phone} (key ${receiptKey})`);
 
         await removePendingReceipt(phone, receiptKey);
 
@@ -897,7 +897,7 @@ async function handleInteractiveMessage(
         // Receipt/Claim → Claim table
         const filename = `${pending.employeeName}_${pending.date}_${pending.merchant}.jpg`.replace(/\s+/g, "_");
         const { fileId, thumbnailUrl } = await uploadToDriveForFirm(imageBuffer, filename, "image/jpeg", pendingFirmId, pendingFirmName, "claims");
-        console.log(`[WhatsApp] Uploaded to Drive: ${fileId}`);
+        console.error(`[WhatsApp] Uploaded to Drive: ${fileId}`);
 
         await saveClaim({
           employeeId: pending.employeeId as string,
@@ -911,7 +911,7 @@ async function handleInteractiveMessage(
           driveFileId: fileId,
           thumbnailUrl,
         });
-        console.log(`[WhatsApp] Claim saved for ${phone} (receipt ${receiptKey})`);
+        console.error(`[WhatsApp] Claim saved for ${phone} (receipt ${receiptKey})`);
 
         await removePendingReceipt(phone, receiptKey);
 
@@ -960,7 +960,7 @@ async function handleInteractiveMessage(
       phone,
       "What needs to be corrected? Type the correction and I'll update it."
     );
-    console.log(`[WhatsApp] Receipt ${receiptKey} set to AWAITING_CORRECTION for ${phone}`);
+    console.error(`[WhatsApp] Receipt ${receiptKey} set to AWAITING_CORRECTION for ${phone}`);
   } else if (buttonId === "mileage_yes") {
     await confirmMileageClaim(phone);
   } else if (buttonId === "mileage_no") {

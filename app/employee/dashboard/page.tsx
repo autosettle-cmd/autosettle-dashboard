@@ -110,14 +110,13 @@ export default function EmployeeDashboard() {
 
   useEffect(() => { setEditMode(false); setEditData(null); }, [previewClaim]);
 
+  // Load categories once on mount (needed for OCR + edit mode)
   useEffect(() => {
-    if (editMode && categories.length === 0) {
-      fetch('/api/employee/categories')
-        .then((r) => r.json())
-        .then((j) => setCategories(j.data ?? []))
-        .catch(console.error);
-    }
-  }, [editMode, categories.length]);
+    fetch('/api/employee/categories')
+      .then((r) => r.json())
+      .then((j) => setCategories(j.data ?? []))
+      .catch(console.error);
+  }, []);
 
   const saveEdit = async () => {
     if (!previewClaim || !editData) return;
@@ -195,22 +194,12 @@ export default function EmployeeDashboard() {
     setModalSaving(false);
     setShowModal(true);
 
-    // Load categories if needed
-    if (categories.length === 0) {
-      try {
-        const catRes = await fetch('/api/employee/categories');
-        const catJson = await catRes.json();
-        if (catJson.data) setCategories(catJson.data);
-      } catch { /* ignore */ }
-    }
-
     // Trigger OCR scan
     setOcrScanning(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const cats = categories.length > 0 ? categories : (await fetch('/api/employee/categories').then(r => r.json())).data ?? [];
-      fd.append('categories', JSON.stringify(cats.map((c: { name: string }) => c.name)));
+      fd.append('categories', JSON.stringify(categories.map((c: { name: string }) => c.name)));
         fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
@@ -231,7 +220,7 @@ export default function EmployeeDashboard() {
         }
         if (f.notes) setModalDesc(f.notes);
         if (f.category) {
-          const match = cats.find((c: { id: string; name: string }) => c.name.toLowerCase() === f.category.toLowerCase());
+          const match = categories.find((c: { id: string; name: string }) => c.name.toLowerCase() === f.category.toLowerCase());
           if (match) setModalCategory(match.id);
         }
       }

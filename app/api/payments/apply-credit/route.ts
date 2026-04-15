@@ -9,6 +9,7 @@ import { auditLog } from '@/lib/audit';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'accountant') {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
@@ -120,4 +121,8 @@ export async function POST(request: NextRequest) {
     data: { applied: totalApplied, remaining: totalCredit - totalApplied },
     error: null,
   });
+  } catch (error) {
+    console.error('Error applying credit:', error);
+    return NextResponse.json({ data: null, error: 'Failed to apply credit' }, { status: 500 });
+  }
 }

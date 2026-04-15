@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 403 });
   }
 
-  console.log('[GL Suggest] Request:', { firmId, categoryId, merchant, description: description?.slice(0, 80) });
+  console.error('[GL Suggest] Request:', { firmId, categoryId, merchant, description: description?.slice(0, 80) });
 
   const baseWhere = {
     firm_id: firmId,
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
             select: { id: true, account_code: true, name: true },
           });
           if (gl) {
-            console.log('[GL Suggest] Hit: description token', token, '->', gl.account_code);
+            console.error('[GL Suggest] Hit: description token', token, '->', gl.account_code);
             return NextResponse.json({ data: { gl_account_id: gl.id, account_code: gl.account_code, account_name: gl.name, match_type: 'description' }, error: null });
           }
         }
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         select: { id: true, account_code: true, name: true },
       });
       if (gl) {
-        console.log('[GL Suggest] Hit: merchant ->', gl.account_code);
+        console.error('[GL Suggest] Hit: merchant ->', gl.account_code);
         return NextResponse.json({ data: { gl_account_id: gl.id, account_code: gl.account_code, account_name: gl.name, match_type: 'merchant' }, error: null });
       }
     }
@@ -98,11 +98,11 @@ export async function GET(request: NextRequest) {
       select: { id: true, account_code: true, name: true },
     });
     if (gl) {
-      console.log('[GL Suggest] Hit: category ->', gl.account_code);
+      console.error('[GL Suggest] Hit: category ->', gl.account_code);
       return NextResponse.json({ data: { gl_account_id: gl.id, account_code: gl.account_code, account_name: gl.name, match_type: 'category' }, error: null });
     }
   }
 
-  console.log('[GL Suggest] No match found');
+  console.error('[GL Suggest] No match found');
   return NextResponse.json({ data: null, error: null });
 }

@@ -42,11 +42,11 @@ export async function POST(req: NextRequest) {
     // Convert HEIC/HEIF to JPEG for OCR compatibility
     const isHEIC = fileName.endsWith(".heic") || fileName.endsWith(".heif") || file.type === "image/heic" || file.type === "image/heif";
     if (isHEIC) {
-      console.log('[OCR] Converting HEIC:', { fileName, type: file.type, size: buffer.length });
+      console.error('[OCR] Converting HEIC:', { fileName, type: file.type, size: buffer.length });
       try {
         const result = await heicConvert({ buffer, format: 'JPEG', quality: 0.9 });
         buffer = Buffer.from(result);
-        console.log('[OCR] HEIC converted to JPEG, new size:', buffer.length);
+        console.error('[OCR] HEIC converted to JPEG, new size:', buffer.length);
       } catch (err) {
         console.error('[OCR] HEIC conversion failed:', err);
         return NextResponse.json({ error: 'Failed to convert HEIC image. Try converting to JPEG first.' }, { status: 400 });

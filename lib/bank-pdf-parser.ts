@@ -572,7 +572,7 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
 
     // Primary: use Gemini text extraction (reliable, works for any bank)
     try {
-      console.log(`[BankParser] Using Gemini text extraction for ${bank} statement`);
+      console.error(`[BankParser] Using Gemini text extraction for ${bank} statement`);
       const geminiResult = await extractWithGeminiBankStatement(fullText, bank);
       if (geminiResult.transactions.length > 0) {
         // Use detectBank() for consistent bank name (Gemini returns variable names like "OCBC Bank (Malaysia) Berhad")
@@ -581,7 +581,7 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
         const normalizedAccount = geminiResult.accountNumber?.replace(/[-\s]/g, '') || null;
         return { ...geminiResult, bankName: normalizedBankName, accountNumber: normalizedAccount, fileHash };
       }
-      console.log(`[BankParser] Gemini returned 0 transactions — falling back to regex`);
+      console.error(`[BankParser] Gemini returned 0 transactions — falling back to regex`);
     } catch (geminiErr) {
       console.error('[BankParser] Gemini extraction failed, falling back to regex:', geminiErr);
     }

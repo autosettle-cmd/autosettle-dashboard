@@ -403,13 +403,7 @@ function AdminInvoicesPage() {
   // Reset edit mode when preview changes
   useEffect(() => { setEditMode(false); setEditData(null); setCreatingSupplier(false); }, [previewInvoice]);
 
-  // Fetch categories + suppliers for edit
-  useEffect(() => {
-    if (editMode) {
-      fetch('/api/admin/categories').then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
-    }
-  }, [editMode]);
-
+  // Fetch suppliers (categories already loaded on mount)
   useEffect(() => {
     fetch('/api/admin/suppliers').then((r) => r.json()).then((j) => setSuppliers((j.data ?? []).map((s: SupplierOption) => ({ id: s.id, name: s.name })))).catch(console.error);
   }, [refreshKey]);
