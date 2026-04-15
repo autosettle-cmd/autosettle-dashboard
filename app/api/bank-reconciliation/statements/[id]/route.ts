@@ -33,8 +33,13 @@ export async function GET(
               receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true, gl_account_id: true, glAccount: { select: { account_code: true, name: true } }, contra_gl_account_id: true, contraGlAccount: { select: { account_code: true, name: true } } } } } },
             },
           },
-          matchedInvoice: {
-            select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true },
+          invoiceAllocations: {
+            select: {
+              amount: true,
+              invoice: {
+                select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true },
+              },
+            },
           },
           matchedSalesInvoice: {
             select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, buyer: { select: { name: true } } },
@@ -132,11 +137,18 @@ export async function GET(
           id: t.id, transaction_date: t.transaction_date, description: t.description, reference: t.reference,
           cheque_number: t.cheque_number, debit: t.debit?.toString() ?? null, credit: t.credit?.toString() ?? null,
           balance: t.balance?.toString() ?? null, recon_status: t.recon_status, matched_at: t.matched_at, notes: t.notes,
-          matched_invoice: t.matchedInvoice ? {
-            id: t.matchedInvoice.id, invoice_number: t.matchedInvoice.invoice_number, vendor_name: t.matchedInvoice.vendor_name_raw,
-            total_amount: t.matchedInvoice.total_amount.toString(), amount_paid: t.matchedInvoice.amount_paid.toString(),
-            issue_date: t.matchedInvoice.issue_date, file_url: t.matchedInvoice.file_url, thumbnail_url: t.matchedInvoice.thumbnail_url,
+          matched_invoice: t.invoiceAllocations.length > 0 ? {
+            id: t.invoiceAllocations[0].invoice.id, invoice_number: t.invoiceAllocations[0].invoice.invoice_number, vendor_name: t.invoiceAllocations[0].invoice.vendor_name_raw,
+            total_amount: t.invoiceAllocations[0].invoice.total_amount.toString(), amount_paid: t.invoiceAllocations[0].invoice.amount_paid.toString(),
+            issue_date: t.invoiceAllocations[0].invoice.issue_date, file_url: t.invoiceAllocations[0].invoice.file_url, thumbnail_url: t.invoiceAllocations[0].invoice.thumbnail_url,
+            allocation_amount: t.invoiceAllocations[0].amount.toString(),
           } : null,
+          matched_invoice_allocations: t.invoiceAllocations.map(a => ({
+            invoice_id: a.invoice.id, invoice_number: a.invoice.invoice_number, vendor_name: a.invoice.vendor_name_raw,
+            total_amount: a.invoice.total_amount.toString(), amount_paid: a.invoice.amount_paid.toString(),
+            issue_date: a.invoice.issue_date, file_url: a.invoice.file_url, thumbnail_url: a.invoice.thumbnail_url,
+            allocation_amount: a.amount.toString(),
+          })),
           matched_sales_invoice: t.matchedSalesInvoice ? {
             id: t.matchedSalesInvoice.id, invoice_number: t.matchedSalesInvoice.invoice_number,
             total_amount: t.matchedSalesInvoice.total_amount.toString(), amount_paid: t.matchedSalesInvoice.amount_paid.toString(),

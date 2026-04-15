@@ -54,7 +54,8 @@ interface BankTxn {
   matched_at: string | null;
   notes: string | null;
   matched_payment: MatchedPayment | null;
-  matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null } | null;
+  matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null; allocation_amount?: string } | null;
+  matched_invoice_allocations?: { invoice_id: string; invoice_number: string; vendor_name: string; total_amount: string; amount: string; issue_date: string }[];
   matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string } | null;
   matched_claims: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_id: string; employee_name: string; category_name: string }[];
 }
@@ -572,22 +573,44 @@ export default function AccountantReconciliationWorkspacePage() {
                                   {txn.matched_at && <p className="text-label-sm text-[#8E9196]">Matched: {formatDate(txn.matched_at)}</p>}
                                 </div>
                                 {/* Matched invoice/claim block */}
-                                {txn.matched_invoice && (
+                                {txn.matched_invoice && (() => {
+                                  const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
+                                  const allocatedTotal = txn.matched_invoice_allocations
+                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.amount), 0)
+                                    : Number(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount);
+                                  const unallocated = txnAmount - allocatedTotal;
+                                  return (
                                   <div>
-                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Invoice</p>
-                                    <div className="bg-white rounded-lg border border-blue-100 p-3">
-                                      <p className="text-body-sm font-semibold text-[#191C1E]">{txn.matched_invoice.vendor_name}</p>
-                                      <p className="text-body-sm text-[#434654]">{txn.matched_invoice.invoice_number} · {formatDate(txn.matched_invoice.issue_date)}</p>
-                                      <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(txn.matched_invoice.total_amount)}</p>
-                                      {txn.matched_invoice.file_url && (
-                                        <a href={txn.matched_invoice.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                                          className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
-                                          View Invoice PDF &rarr;
-                                        </a>
-                                      )}
-                                    </div>
+                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
+                                    {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1
+                                      ? txn.matched_invoice_allocations
+                                      : [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }]
+                                    ).map((alloc, idx) => (
+                                      <div key={idx} className="bg-white rounded-lg border border-blue-100 p-3 mb-2 last:mb-0">
+                                        <p className="text-body-sm font-semibold text-[#191C1E]">{alloc.vendor_name}</p>
+                                        <p className="text-body-sm text-[#434654]">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
+                                        <div className="flex items-center gap-2 mt-1">
+                                          <p className="text-body-sm font-medium text-[#191C1E]">Allocated: {formatRM(String(alloc.amount))}</p>
+                                          <span className="text-label-sm text-[#8E9196]">of {formatRM(alloc.total_amount)} invoice</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {unallocated > 0.01 && (
+                                      <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                        <p className="text-label-sm text-amber-700 font-medium">
+                                          {formatRM(String(unallocated))} of {formatRM(String(txnAmount))} unallocated — match additional invoices to fully allocate this transaction
+                                        </p>
+                                      </div>
+                                    )}
+                                    {txn.matched_invoice.file_url && (
+                                      <a href={txn.matched_invoice.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
+                                        className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
+                                        View Invoice PDF &rarr;
+                                      </a>
+                                    )}
                                   </div>
-                                )}
+                                  );
+                                })()}
                                 {txn.matched_sales_invoice && (
                                   <div>
                                     <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Sales Invoice</p>

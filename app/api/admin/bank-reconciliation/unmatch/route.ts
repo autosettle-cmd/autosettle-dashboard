@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { reverseBankReconJV } from '@/lib/bank-recon-jv';
+import { recalcInvoicePaid } from '@/lib/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,14 +29,19 @@ export async function POST(request: NextRequest) {
   const jvResult = await reverseBankReconJV(bankTransactionId, session.user.id);
   const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
 
-  // Revert direct invoice/claim matches
-  if (txn.matched_invoice_id) {
-    const inv = await prisma.invoice.findUnique({ where: { id: txn.matched_invoice_id }, select: { amount_paid: true } });
-    if (inv) {
-      const newPaid = Math.max(0, Number(inv.amount_paid) - txnAmount);
-      await prisma.invoice.update({ where: { id: txn.matched_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
+  // Revert invoice allocations via join table
+  const invoiceAllocs = await prisma.bankTransactionInvoice.findMany({
+    where: { bank_transaction_id: bankTransactionId },
+    select: { invoice_id: true },
+  });
+  const affectedInvoiceIds = invoiceAllocs.map(a => a.invoice_id);
+  if (affectedInvoiceIds.length > 0) {
+    await prisma.bankTransactionInvoice.deleteMany({ where: { bank_transaction_id: bankTransactionId } });
+    for (const invoiceId of affectedInvoiceIds) {
+      await recalcInvoicePaid(invoiceId);
     }
   }
+
   if (txn.matched_sales_invoice_id) {
     const inv = await prisma.salesInvoice.findUnique({ where: { id: txn.matched_sales_invoice_id }, select: { amount_paid: true } });
     if (inv) {
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.bankTransaction.update({
     where: { id: bankTransactionId },
-    data: { matched_payment_id: null, matched_invoice_id: null, matched_sales_invoice_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
+    data: { matched_payment_id: null, matched_sales_invoice_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
   });
 
   return NextResponse.json({

@@ -287,6 +287,7 @@ model Claim {
   taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id])
   matchedBankTxn BankTransaction? @relation(fields: [matched_bank_txn_id], references: [id])
   paymentReceipts PaymentReceipt[]
+  invoiceReceiptLinks InvoiceReceiptLink[]
 
   @@index([firm_id, type, claim_date])
   @@index([firm_id, type, status])
@@ -386,7 +387,8 @@ model Invoice {
   category            Category             @relation(fields: [category_id], references: [id])
   glAccount           GLAccount?           @relation(fields: [gl_account_id], references: [id])
   paymentAllocations  PaymentAllocation[]
-  bankTransactions    BankTransaction[]
+  bankTxnAllocations  BankTransactionInvoice[]
+  receiptLinks        InvoiceReceiptLink[]
 
   @@index([firm_id, status])
   @@index([firm_id, issue_date])
@@ -445,6 +447,22 @@ model PaymentReceipt {
 
   @@unique([payment_id, claim_id])
   @@index([claim_id])
+}
+
+model InvoiceReceiptLink {
+  id          String   @id @default(uuid())
+  invoice_id  String
+  claim_id    String
+  amount      Decimal  @db.Decimal(10, 2)
+  linked_at   DateTime @default(now())
+  linked_by   String?
+
+  invoice Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  claim   Claim   @relation(fields: [claim_id], references: [id], onDelete: Cascade)
+
+  @@unique([invoice_id, claim_id])
+  @@index([claim_id])
+  @@index([invoice_id])
 }
 
 model Session {
@@ -643,7 +661,6 @@ model BankTransaction {
   balance            Decimal?    @db.Decimal(12, 2)
   recon_status       ReconStatus @default(unmatched)
   matched_payment_id       String?
-  matched_invoice_id       String?
   matched_sales_invoice_id String?
   matched_at               DateTime?
   matched_by               String?
@@ -652,15 +669,27 @@ model BankTransaction {
 
   bankStatement      BankStatement @relation(fields: [bank_statement_id], references: [id], onDelete: Cascade)
   matchedPayment     Payment?      @relation(fields: [matched_payment_id], references: [id])
-  matchedInvoice     Invoice?      @relation(fields: [matched_invoice_id], references: [id])
   matchedSalesInvoice SalesInvoice? @relation(fields: [matched_sales_invoice_id], references: [id])
   matchedClaims      Claim[]
+  invoiceAllocations BankTransactionInvoice[]
 
   @@index([bank_statement_id, recon_status])
   @@index([bank_statement_id, transaction_date])
-  @@index([matched_invoice_id])
   @@index([matched_sales_invoice_id])
   @@index([matched_payment_id])
+}
+
+model BankTransactionInvoice {
+  id                  String   @id @default(uuid())
+  bank_transaction_id String
+  invoice_id          String
+  amount              Decimal  @db.Decimal(12, 2)
+
+  bankTransaction BankTransaction @relation(fields: [bank_transaction_id], references: [id], onDelete: Cascade)
+  invoice         Invoice         @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+
+  @@unique([bank_transaction_id, invoice_id])
+  @@index([invoice_id])
 }
 
 // ─── Chart of Accounts ──────────────────────────────────────────────────────

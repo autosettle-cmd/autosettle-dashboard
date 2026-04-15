@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { recalcInvoicePaid } from '@/lib/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export async function DELETE(request: NextRequest) {
     // Revert all direct invoice/claim matches
     const allTxns = await prisma.bankTransaction.findMany({
       where: { bank_statement_id: statementId },
-      select: { id: true, debit: true, credit: true, matched_payment_id: true, matched_invoice_id: true, matched_sales_invoice_id: true },
+      select: { id: true, debit: true, credit: true, matched_payment_id: true, matched_sales_invoice_id: true },
     });
 
     // Collect txn IDs that have claims linked (before we clear them)
@@ -39,15 +40,19 @@ export async function DELETE(request: NextRequest) {
         .map(c => c.matched_bank_txn_id!)
     );
 
+    // Revert invoice allocations via join table
+    const invoiceAllocs = await prisma.bankTransactionInvoice.findMany({
+      where: { bank_transaction_id: { in: txnIds } },
+      select: { bank_transaction_id: true, invoice_id: true },
+    });
+    const affectedInvoiceIds = Array.from(new Set(invoiceAllocs.map(a => a.invoice_id)));
+    const txnIdsWithInvoiceAllocs = new Set(invoiceAllocs.map(a => a.bank_transaction_id));
+    if (invoiceAllocs.length > 0) {
+      await prisma.bankTransactionInvoice.deleteMany({ where: { bank_transaction_id: { in: txnIds } } });
+    }
+
     for (const t of allTxns) {
       const txnAmount = Number(t.debit ?? t.credit ?? 0);
-      if (t.matched_invoice_id) {
-        const inv = await prisma.invoice.findUnique({ where: { id: t.matched_invoice_id }, select: { amount_paid: true } });
-        if (inv) {
-          const newPaid = Math.max(0, Number(inv.amount_paid) - txnAmount);
-          await prisma.invoice.update({ where: { id: t.matched_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
-        }
-      }
       if (t.matched_sales_invoice_id) {
         const inv = await prisma.salesInvoice.findUnique({ where: { id: t.matched_sales_invoice_id }, select: { amount_paid: true } });
         if (inv) {
@@ -57,6 +62,11 @@ export async function DELETE(request: NextRequest) {
       }
       // Revert claims linked via matched_bank_txn_id
       await prisma.claim.updateMany({ where: { matched_bank_txn_id: t.id }, data: { matched_bank_txn_id: null, payment_status: 'unpaid' } });
+    }
+
+    // Recalculate payment for affected invoices
+    for (const invoiceId of affectedInvoiceIds) {
+      await recalcInvoicePaid(invoiceId);
     }
 
     // Clean up legacy Payment-based matches
@@ -75,7 +85,7 @@ export async function DELETE(request: NextRequest) {
     const { reverseJVsForSource } = await import('@/lib/journal-entries');
     const reversalErrors: string[] = [];
     for (const t of allTxns) {
-      if (t.matched_invoice_id || t.matched_sales_invoice_id || t.matched_payment_id || claimLinkedTxnIds.has(t.id)) {
+      if (txnIdsWithInvoiceAllocs.has(t.id) || t.matched_sales_invoice_id || t.matched_payment_id || claimLinkedTxnIds.has(t.id)) {
         try {
           await reverseJVsForSource('bank_recon', t.id, session.user.id);
         } catch (err) {

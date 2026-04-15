@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { createJournalEntry } from '@/lib/journal-entries';
+import { recalcInvoicePaid } from '@/lib/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,27 +94,27 @@ export async function POST(request: NextRequest) {
 
       const payAmount = txnAmount;
 
-      // Link bank transaction directly to invoice
-      await prisma.bankTransaction.update({
-        where: { id: bankTransactionId },
-        data: {
-          matched_invoice_id: invoiceId,
-          recon_status: 'manually_matched',
-          matched_at: new Date(),
-          matched_by: session.user.id,
-        },
-      });
+      // Link bank transaction to invoice via join table + update status
+      await prisma.$transaction([
+        prisma.bankTransaction.update({
+          where: { id: bankTransactionId },
+          data: {
+            recon_status: 'manually_matched',
+            matched_at: new Date(),
+            matched_by: session.user.id,
+          },
+        }),
+        prisma.bankTransactionInvoice.create({
+          data: {
+            bank_transaction_id: bankTransactionId,
+            invoice_id: invoiceId,
+            amount: payAmount,
+          },
+        }),
+      ]);
 
-      // Update invoice payment
-      const newPaid = Number(invoice.amount_paid) + payAmount;
-      const total = Number(invoice.total_amount);
-      await prisma.invoice.update({
-        where: { id: invoiceId },
-        data: {
-          amount_paid: newPaid,
-          payment_status: newPaid >= total ? 'paid' : 'partially_paid',
-        },
-      });
+      // Recalculate invoice payment via recalcInvoicePaid
+      await recalcInvoicePaid(invoiceId);
 
       // JV: DR Trade Payables / CR Bank
       await createJournalEntry({

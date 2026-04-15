@@ -65,15 +65,17 @@ export async function GET(
       _sum: { amount: true },
     }),
     invIds.length > 0
-      ? prisma.bankTransaction.aggregate({
+      ? prisma.bankTransactionInvoice.aggregate({
           where: {
-            matched_invoice_id: { in: invIds },
-            recon_status: 'manually_matched',
-            transaction_date: { lt: from },
+            invoice_id: { in: invIds },
+            bankTransaction: {
+              recon_status: 'manually_matched',
+              transaction_date: { lt: from },
+            },
           },
-          _sum: { debit: true },
+          _sum: { amount: true },
         })
-      : { _sum: { debit: null } },
+      : { _sum: { amount: null } },
     sInvIds.length > 0
       ? prisma.bankTransaction.aggregate({
           where: {
@@ -90,7 +92,7 @@ export async function GET(
   const openingBalance =
     Number(invoicesBefore._sum.total_amount ?? 0)
     - Number(outPaymentsBefore._sum.amount ?? 0)
-    - Number(bankReconOutBefore._sum.debit ?? 0)
+    - Number(bankReconOutBefore._sum.amount ?? 0)
     - Number(salesInvoicesBefore._sum.total_amount ?? 0)
     + Number(inPaymentsBefore._sum.amount ?? 0)
     + Number(bankReconInBefore._sum.credit ?? 0);
@@ -118,18 +120,23 @@ export async function GET(
       orderBy: { payment_date: 'asc' },
     }),
     invIds.length > 0
-      ? prisma.bankTransaction.findMany({
+      ? prisma.bankTransactionInvoice.findMany({
           where: {
-            matched_invoice_id: { in: invIds },
-            recon_status: 'manually_matched',
-            transaction_date: { gte: from, lte: to },
+            invoice_id: { in: invIds },
+            bankTransaction: {
+              recon_status: 'manually_matched',
+              transaction_date: { gte: from, lte: to },
+            },
           },
           select: {
-            id: true, transaction_date: true, description: true, debit: true,
-            matchedInvoice: { select: { invoice_number: true, vendor_name_raw: true } },
-            bankStatement: { select: { bank_name: true, account_number: true } },
+            amount: true,
+            invoice: { select: { invoice_number: true, vendor_name_raw: true } },
+            bankTransaction: {
+              select: { id: true, transaction_date: true, description: true, debit: true,
+                bankStatement: { select: { bank_name: true, account_number: true } } },
+            },
           },
-          orderBy: { transaction_date: 'asc' },
+          orderBy: { bankTransaction: { transaction_date: 'asc' } },
         })
       : [],
     sInvIds.length > 0
@@ -198,15 +205,15 @@ export async function GET(
     });
   }
 
-  // Bank recon outgoing payments (matched to supplier invoices)
-  for (const txn of bankReconOut) {
-    const invRef = txn.matchedInvoice?.invoice_number ?? '-';
+  // Bank recon outgoing payments (matched to supplier invoices via join table)
+  for (const alloc of bankReconOut) {
+    const invRef = alloc.invoice?.invoice_number ?? '-';
     entries.push({
-      date: txn.transaction_date.toISOString(),
+      date: alloc.bankTransaction.transaction_date.toISOString(),
       type: 'bank_recon_payment',
       reference: invRef,
-      description: `Payment — ${txn.matchedInvoice?.vendor_name_raw ?? txn.description} (${txn.bankStatement.bank_name})`,
-      debit: Number(txn.debit ?? 0),
+      description: `Payment — ${alloc.invoice?.vendor_name_raw ?? alloc.bankTransaction.description} (${alloc.bankTransaction.bankStatement.bank_name})`,
+      debit: Number(alloc.amount),
       credit: 0,
       balance: 0,
     });

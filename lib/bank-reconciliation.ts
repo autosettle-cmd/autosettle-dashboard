@@ -32,7 +32,7 @@ export async function autoMatchTransactions(
       approval: 'approved',
       payment_status: { in: ['unpaid', 'partially_paid'] },
       // Exclude invoices already linked to a bank transaction
-      bankTransactions: { none: {} },
+      bankTxnAllocations: { none: {} },
     },
     select: {
       id: true, invoice_number: true, total_amount: true, amount_paid: true,
@@ -76,7 +76,7 @@ export async function autoMatchTransactions(
   const matchedInvoiceIds = new Set<string>();
   const matchedSalesInvoiceIds = new Set<string>();
   const matchedClaimIds = new Set<string>();
-  const updates: { txnId: string; data: { matched_invoice_id?: string; matched_sales_invoice_id?: string; notes?: string } }[] = [];
+  const updates: { txnId: string; data: { matched_sales_invoice_id?: string; notes?: string }; invoiceId?: string; invoiceAmount?: number }[] = [];
   const claimUpdates: { txnId: string; claimId: string; notes: string }[] = [];
 
   // Helper: get remaining amount for an invoice
@@ -104,7 +104,8 @@ export async function autoMatchTransactions(
         const rem = remaining(inv.total_amount, inv.amount_paid);
         if (Math.abs(rem - txnAmount) > 0.01) continue;
         if (descLower.includes(inv.invoice_number.toLowerCase())) {
-          updates.push({ txnId: txn.id, data: { matched_invoice_id: inv.id, notes: `Pass 1: invoice# ${inv.invoice_number}` } });
+          const rem = remaining(inv.total_amount, inv.amount_paid);
+          updates.push({ txnId: txn.id, data: { notes: `Pass 1: invoice# ${inv.invoice_number}` }, invoiceId: inv.id, invoiceAmount: rem });
           matchedTxnIds.add(txn.id);
           matchedInvoiceIds.add(inv.id);
           break;
@@ -142,7 +143,8 @@ export async function autoMatchTransactions(
         return Math.abs(inv.issue_date.getTime() - txnDate) <= DAY3;
       });
       if (candidates.length === 1) {
-        updates.push({ txnId: txn.id, data: { matched_invoice_id: candidates[0].id, notes: `Pass 2: amount+date` } });
+        const rem = remaining(candidates[0].total_amount, candidates[0].amount_paid);
+        updates.push({ txnId: txn.id, data: { notes: `Pass 2: amount+date` }, invoiceId: candidates[0].id, invoiceAmount: rem });
         matchedTxnIds.add(txn.id);
         matchedInvoiceIds.add(candidates[0].id);
       }
@@ -189,7 +191,8 @@ export async function autoMatchTransactions(
         return nameInDesc([inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])], descLower);
       });
       if (candidates.length === 1) {
-        updates.push({ txnId: txn.id, data: { matched_invoice_id: candidates[0].id, notes: `Pass 3: name+amount` } });
+        const rem = remaining(candidates[0].total_amount, candidates[0].amount_paid);
+        updates.push({ txnId: txn.id, data: { notes: `Pass 3: name+amount` }, invoiceId: candidates[0].id, invoiceAmount: rem });
         matchedTxnIds.add(txn.id);
         matchedInvoiceIds.add(candidates[0].id);
       }
@@ -240,7 +243,8 @@ export async function autoMatchTransactions(
       const total = invCandidates.length + claimCandidates.length;
       if (total === 1) {
         if (invCandidates.length === 1) {
-          updates.push({ txnId: txn.id, data: { matched_invoice_id: invCandidates[0].id, notes: `Pass 4: amount only` } });
+          const rem = remaining(invCandidates[0].total_amount, invCandidates[0].amount_paid);
+          updates.push({ txnId: txn.id, data: { notes: `Pass 4: amount only` }, invoiceId: invCandidates[0].id, invoiceAmount: rem });
           matchedTxnIds.add(txn.id);
           matchedInvoiceIds.add(invCandidates[0].id);
         } else {
@@ -272,6 +276,16 @@ export async function autoMatchTransactions(
         data: { ...u.data, recon_status: 'matched', matched_at: now },
       })
     );
+    // Create BankTransactionInvoice records for invoice matches
+    const invoiceAllocOps = updates
+      .filter(u => u.invoiceId)
+      .map(u => prisma.bankTransactionInvoice.create({
+        data: {
+          bank_transaction_id: u.txnId,
+          invoice_id: u.invoiceId!,
+          amount: u.invoiceAmount!,
+        },
+      }));
     // For claim matches: update bank txn status + set matched_bank_txn_id on claim
     const claimTxnOps = claimUpdates.flatMap((u) => [
       prisma.bankTransaction.update({
@@ -283,7 +297,7 @@ export async function autoMatchTransactions(
         data: { matched_bank_txn_id: u.txnId },
       }),
     ]);
-    await prisma.$transaction([...txnOps, ...claimTxnOps]);
+    await prisma.$transaction([...txnOps, ...invoiceAllocOps, ...claimTxnOps]);
   }
 
   return {

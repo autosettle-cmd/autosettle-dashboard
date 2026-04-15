@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { createJournalEntry } from '@/lib/journal-entries';
+import { recalcInvoicePaid } from '@/lib/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,11 +54,24 @@ export async function POST(request: NextRequest) {
     claimsByTxnId.set(claim.matched_bank_txn_id!, list);
   }
 
+  // Pre-fetch invoice allocations for these transactions
+  const invoiceAllocations = await prisma.bankTransactionInvoice.findMany({
+    where: { bank_transaction_id: { in: txnIds } },
+    select: { bank_transaction_id: true, invoice_id: true, amount: true },
+  });
+  const allocationsByTxnId = new Map<string, typeof invoiceAllocations>();
+  for (const alloc of invoiceAllocations) {
+    const list = allocationsByTxnId.get(alloc.bank_transaction_id) ?? [];
+    list.push(alloc);
+    allocationsByTxnId.set(alloc.bank_transaction_id, list);
+  }
+
   // Validate — each txn must have a matched item
   const errors: string[] = [];
   for (const txn of txns) {
     const hasClaims = claimsByTxnId.has(txn.id);
-    if (!txn.matched_invoice_id && !txn.matched_sales_invoice_id && !hasClaims && !txn.matched_payment_id) {
+    const hasInvoiceAllocs = allocationsByTxnId.has(txn.id);
+    if (!hasInvoiceAllocs && !txn.matched_sales_invoice_id && !hasClaims && !txn.matched_payment_id) {
       errors.push(`Transaction ${txn.description} has no matched payment.`);
     }
   }
@@ -66,7 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ─── Batch pre-fetch all related data ────────────────────────────────
-  const invoiceIds = txns.map(t => t.matched_invoice_id).filter(Boolean) as string[];
+  const invoiceIds = Array.from(new Set(invoiceAllocations.map(a => a.invoice_id)));
   const salesInvoiceIds = txns.map(t => t.matched_sales_invoice_id).filter(Boolean) as string[];
   const uniqueFirmIds = Array.from(new Set(txns.map(t => t.bankStatement.firm_id)));
 
@@ -136,33 +150,51 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    // ─── Confirm supplier invoice match ──────────────────────────────────
-    if (txn.matched_invoice_id) {
-      const invoice = invoiceMap.get(txn.matched_invoice_id);
-      if (!invoice) continue;
+    // ─── Confirm supplier invoice match(es) via BankTransactionInvoice ───
+    const txnAllocations = allocationsByTxnId.get(txn.id);
+    if (txnAllocations && txnAllocations.length > 0) {
+      const jvLines: { glAccountId: string; debitAmount: number; creditAmount: number; description: string }[] = [];
+      let invoiceGlError = false;
+      let totalAllocated = 0;
+      const invoiceDescs: string[] = [];
 
-      const firm = firmMap.get(firmId);
-      const contraGlId = invoice.supplier?.default_contra_gl_account_id || firm?.default_trade_payables_gl_id;
-      if (!contraGlId) { errors.push(`No Trade Payables GL for ${invoice.vendor_name_raw}`); continue; }
+      for (const alloc of txnAllocations) {
+        const invoice = invoiceMap.get(alloc.invoice_id);
+        if (!invoice) continue;
 
-      const newPaid = Number(invoice.amount_paid) + txnAmount;
-      await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { amount_paid: newPaid, payment_status: newPaid >= Number(invoice.total_amount) ? 'paid' : 'partially_paid' },
-      });
+        const firm = firmMap.get(firmId);
+        const contraGlId = invoice.supplier?.default_contra_gl_account_id || firm?.default_trade_payables_gl_id;
+        if (!contraGlId) { errors.push(`No Trade Payables GL for ${invoice.vendor_name_raw}`); invoiceGlError = true; break; }
+
+        const allocAmount = Number(alloc.amount);
+        totalAllocated += allocAmount;
+        invoiceDescs.push(invoice.vendor_name_raw ?? 'Supplier');
+
+        jvLines.push({ glAccountId: contraGlId, debitAmount: allocAmount, creditAmount: 0, description: `Trade Payables — ${invoice.vendor_name_raw}` });
+      }
+
+      if (invoiceGlError) continue;
+
+      jvLines.push({ glAccountId: bankGlId, debitAmount: 0, creditAmount: totalAllocated, description: txn.bankStatement.bank_name });
+
+      const description = txnAllocations.length === 1
+        ? `Bank recon — ${invoiceDescs[0]}`
+        : `Bank recon — ${txnAllocations.length} invoices (${invoiceDescs.join(', ')})`.slice(0, 255);
 
       await createJournalEntry({
         firmId,
         postingDate: txn.transaction_date,
-        description: `Bank recon — ${invoice.vendor_name_raw}`,
+        description,
         sourceType: 'bank_recon',
         sourceId: txn.id,
-        lines: [
-          { glAccountId: contraGlId, debitAmount: txnAmount, creditAmount: 0, description: 'Trade Payables' },
-          { glAccountId: bankGlId, debitAmount: 0, creditAmount: txnAmount, description: txn.bankStatement.bank_name },
-        ],
+        lines: jvLines,
         createdBy: session.user.id,
       });
+
+      // Recalculate payment for each invoice
+      for (const alloc of txnAllocations) {
+        await recalcInvoicePaid(alloc.invoice_id);
+      }
     }
 
     // ─── Confirm sales invoice match ─────────────────────────────────────
@@ -246,7 +278,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ─── Legacy: confirm old Payment-based match ─────────────────────────
-    if (txn.matched_payment_id && !txn.matched_invoice_id && !txn.matched_sales_invoice_id && (!txnClaims || txnClaims.length === 0)) {
+    if (txn.matched_payment_id && (!txnAllocations || txnAllocations.length === 0) && !txn.matched_sales_invoice_id && (!txnClaims || txnClaims.length === 0)) {
       const { createBankReconJV } = await import('@/lib/bank-recon-jv');
       await createBankReconJV(txn.id, txn.matched_payment_id, firmId, session.user.id);
     }
