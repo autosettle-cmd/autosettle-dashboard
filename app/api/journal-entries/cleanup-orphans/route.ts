@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!exists) {
-      // Source document deleted — delete the JV (original or reversal, doesn't matter)
+      // Source document deleted — delete the JV
       orphans.push({
         id: jv.id,
         voucher: jv.voucher_number,
@@ -97,14 +97,14 @@ export async function POST(request: NextRequest) {
         reason: 'Source document deleted',
         action: 'delete',
       });
-    } else if (!statusOk && !jv.reversed_by_id && !jv.reversal_of_id) {
-      // Source exists but status wrong, and JV not already reversed — reverse it
+    } else if (!statusOk) {
+      // Source exists but status wrong — delete the JV (clean slate)
       orphans.push({
         id: jv.id,
         voucher: jv.voucher_number,
         description: jv.description ?? '',
-        reason: 'Source document no longer approved/matched',
-        action: 'reverse',
+        reason: 'Source no longer valid (not approved/matched or linked entity deleted)',
+        action: 'delete',
       });
     }
   }
