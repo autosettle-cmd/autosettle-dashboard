@@ -18,16 +18,24 @@ export async function POST(request: NextRequest) {
   const { firmId, dryRun } = body as { firmId?: string; dryRun?: boolean };
   const isDryRun = dryRun !== false;
 
-  if (!firmId) {
-    return NextResponse.json({ data: null, error: 'firmId required' }, { status: 400 });
-  }
-  if (firmIds && !firmIds.includes(firmId)) {
-    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 403 });
+  // Build firm scope — support "All Firms" (no firmId)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let firmScope: any;
+  if (firmId) {
+    if (firmIds && !firmIds.includes(firmId)) {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 403 });
+    }
+    firmScope = { firm_id: firmId };
+  } else if (firmIds) {
+    firmScope = { firm_id: { in: firmIds } };
+  } else {
+    // Super admin — all firms
+    firmScope = {};
   }
 
   // Find ALL posted JVs with source references
   const allJVs = await prisma.journalEntry.findMany({
-    where: { firm_id: firmId, status: 'posted', source_id: { not: null } },
+    where: { ...firmScope, status: 'posted', source_id: { not: null } },
     select: { id: true, source_id: true, source_type: true, voucher_number: true, description: true },
   });
 

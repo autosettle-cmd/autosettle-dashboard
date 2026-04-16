@@ -183,14 +183,14 @@ export default function JournalEntriesPage() {
                 <button
                   onClick={async () => {
                     try {
-                      const res = await fetch('/api/journal-entries/cleanup-orphans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firmId: firmFilter, dryRun: true }) });
+                      const res = await fetch('/api/journal-entries/cleanup-orphans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firmId: firmFilter || undefined, dryRun: true }) });
                       if (!res.ok) { alert('Failed: ' + res.status); return; }
                       const json = await res.json();
                       const count = json.data?.orphans?.length ?? 0;
                       if (count === 0) { alert('No orphaned JVs found.'); return; }
                       const list = json.data.orphans.map((o: { voucher: string; reason: string }) => `${o.voucher}: ${o.reason}`).join('\n');
                       if (confirm(`Found ${count} orphaned JVs:\n\n${list}\n\nReverse them all?`)) {
-                        const res2 = await fetch('/api/journal-entries/cleanup-orphans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firmId: firmFilter, dryRun: false }) });
+                        const res2 = await fetch('/api/journal-entries/cleanup-orphans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firmId: firmFilter || undefined, dryRun: false }) });
                         if (!res2.ok) { alert('Reversal failed: ' + res2.status); return; }
                         const json2 = await res2.json();
                         alert(json2.data?.message || 'Done');
