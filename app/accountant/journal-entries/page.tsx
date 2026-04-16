@@ -179,7 +179,7 @@ export default function JournalEntriesPage() {
           <div className="h-16 flex items-center justify-between px-6">
             <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Journal Entries</h1>
             <div className="flex items-center gap-3">
-              {firmFilter && (
+              {(
                 <button
                   onClick={async () => {
                     try {
