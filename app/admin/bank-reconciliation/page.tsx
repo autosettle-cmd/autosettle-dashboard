@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import { formatRM } from '@/lib/formatters';
+
 interface StatementRow {
   id: string;
   bank_name: string;
@@ -22,12 +24,11 @@ interface StatementRow {
 
 function formatDate(val: string) {
   const d = new Date(val);
-  return [d.getUTCDate().toString().padStart(2, '0'), (d.getUTCMonth() + 1).toString().padStart(2, '0'), d.getUTCFullYear()].join('/');
-}
-
-function formatRM(val: string | number | null) {
-  if (val === null) return '-';
-  return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return [
+    d.getUTCFullYear(),
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCDate().toString().padStart(2, '0'),
+  ].join('.');
 }
 
 export default function BankReconciliationPage() {
@@ -252,7 +253,7 @@ export default function BankReconciliationPage() {
   };
 
   return (
-    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
+    <div className="flex h-screen overflow-hidden paper-texture">
       <Sidebar role="admin" />
 
       <div
@@ -264,19 +265,19 @@ export default function BankReconciliationPage() {
       >
         {/* Drop overlay */}
         {isDragging && (
-          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
-            <div className="bg-white rounded-xl shadow-lg px-8 py-6 text-center">
+          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 flex items-center justify-center pointer-events-none">
+            <div className="bg-white shadow-lg px-8 py-6 text-center">
               <svg className="w-10 h-10 text-blue-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              <p className="text-sm font-semibold text-[#191C1E]">Drop PDF files to upload</p>
-              <p className="text-xs text-[#8E9196] mt-1">Bank statements will be parsed automatically</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Drop PDF files to upload</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Bank statements will be parsed automatically</p>
             </div>
           </div>
         )}
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Bank Reconciliation</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
             <div className="relative">
               <input
@@ -290,12 +291,12 @@ export default function BankReconciliationPage() {
                 }}
                 className="input-field w-64 text-body-sm pr-8"
               />
-              {searchLoading && <span className="absolute right-2.5 top-2.5 text-xs text-[#8E9196]">...</span>}
+              {searchLoading && <span className="absolute right-2.5 top-2.5 text-xs text-[var(--text-secondary)]">...</span>}
               {searchQuery && !searchLoading && (
-                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="absolute right-2.5 top-2 text-[#8E9196] hover:text-[#434654] text-sm">&times;</button>
+                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="absolute right-2.5 top-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm">&times;</button>
               )}
             </div>
-            <button onClick={() => setShowUpload(true)} className="btn-primary px-3 py-1.5 bg-blue-600 text-white text-body-md font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <button onClick={() => setShowUpload(true)} className="btn-thick-navy px-3 py-1.5 text-body-md font-medium">
               Upload Statement
             </button>
           </div>
@@ -303,40 +304,40 @@ export default function BankReconciliationPage() {
 
         {/* Search results */}
         {searchResults.length > 0 && (
-          <div className="mx-6 mb-4 bg-white border border-gray-200 rounded-lg shadow-sm max-h-96 overflow-y-auto">
-            <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50">
-              <p className="text-body-sm font-semibold text-[#434654]">{searchResults.length} unmatched transaction{searchResults.length !== 1 ? 's' : ''} found</p>
+          <div className="mx-6 mb-4 bg-white border border-[var(--surface-header)] shadow-sm max-h-96 overflow-y-auto">
+            <div className="px-4 py-2.5 border-b border-[var(--surface-header)] bg-[var(--surface-low)]">
+              <p className="text-body-sm font-semibold text-[var(--text-secondary)]">{searchResults.length} unmatched transaction{searchResults.length !== 1 ? 's' : ''} found</p>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-[var(--surface-low)]">
               {searchResults.map(txn => (
                 <div
                   key={txn.id}
-                  className="px-4 py-3 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                  className="px-4 py-3 hover:bg-[var(--surface-low)] cursor-pointer transition-colors"
                   onClick={() => router.push(`/admin/bank-reconciliation/${txn.statement_id}`)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-body-sm font-semibold tabular-nums ${txn.type === 'debit' ? 'text-red-600' : 'text-green-600'}`}>
+                        <span className={`text-body-sm font-semibold tabular-nums ${txn.type === 'debit' ? 'text-[var(--reject-red)]' : 'text-[var(--match-green)]'}`}>
                           {txn.type === 'debit' ? '-' : '+'}RM {txn.amount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
                         </span>
-                        <span className="text-xs text-[#8E9196]">{new Date(txn.transaction_date).toLocaleDateString('en-GB')}</span>
-                        <span className="text-xs text-[#8E9196]">{txn.bank_name} {txn.account_number}</span>
+                        <span className="text-xs text-[var(--text-secondary)]">{formatDate(txn.transaction_date)}</span>
+                        <span className="text-xs text-[var(--text-secondary)]">{txn.bank_name} {txn.account_number}</span>
                       </div>
-                      <p className="text-body-sm text-[#434654] truncate">{txn.description}</p>
-                      {txn.reference && <p className="text-xs text-[#8E9196]">Ref: {txn.reference}</p>}
+                      <p className="text-body-sm text-[var(--text-secondary)] truncate">{txn.description}</p>
+                      {txn.reference && <p className="text-xs text-[var(--text-secondary)]">Ref: {txn.reference}</p>}
                     </div>
                     {txn.matching_invoices.length > 0 && (
                       <div className="flex-shrink-0 text-right space-y-0.5">
-                        <p className="text-xs text-[#8E9196] font-medium">Possible invoice match:</p>
+                        <p className="text-xs text-[var(--text-secondary)] font-medium">Possible invoice match:</p>
                         {txn.matching_invoices.map(inv => (
                           <div key={inv.id} className="text-xs">
-                            <span className={`font-medium ${inv.exact_match ? 'text-green-700' : 'text-[#434654]'}`}>
+                            <span className={`font-medium ${inv.exact_match ? 'text-[var(--match-green)]' : 'text-[var(--text-secondary)]'}`}>
                               {inv.invoice_number || 'No #'}
                             </span>
-                            <span className="text-[#8E9196] ml-1">{inv.vendor_name}</span>
-                            <span className="text-[#8E9196] ml-1 tabular-nums">Bal: RM {inv.balance.toLocaleString('en-MY', { minimumFractionDigits: 2 })}</span>
-                            {inv.exact_match && <span className="ml-1 text-green-600 font-medium">exact</span>}
+                            <span className="text-[var(--text-secondary)] ml-1">{inv.vendor_name}</span>
+                            <span className="text-[var(--text-secondary)] ml-1 tabular-nums">Bal: RM {inv.balance.toLocaleString('en-MY', { minimumFractionDigits: 2 })}</span>
+                            {inv.exact_match && <span className="ml-1 text-[var(--match-green)] font-medium">exact</span>}
                           </div>
                         ))}
                       </div>
@@ -348,44 +349,44 @@ export default function BankReconciliationPage() {
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto p-6 animate-in">
+        <main className="flex-1 overflow-y-auto p-8 pl-14 animate-in ledger-binding">
           {/* Upload modal */}
           {showUpload && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setShowUpload(false)}>
-              <div className="bg-white rounded-lg shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
+            <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={() => setShowUpload(false)}>
+              <div className="bg-white shadow-xl p-6 w-[420px]" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-title-md font-semibold text-[#191C1E]">Upload Bank Statement</h2>
-                  <button onClick={() => setShowUpload(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
+                  <h2 className="text-title-md font-bold text-[var(--text-primary)] uppercase tracking-widest">Upload Bank Statement</h2>
+                  <button onClick={() => setShowUpload(false)} className="w-8 h-8 bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-header)] transition-colors">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </button>
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-body-sm font-medium text-[#434654] mb-1 block">PDF File</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">PDF File</label>
                     <input ref={fileRef} type="file" accept=".pdf" multiple className="input-field w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); setBatchProgress(null); }} />
                   </div>
                   {needsPassword && (
                     <div>
-                      <label className="text-body-sm font-medium text-[#434654] mb-1 block">PDF Password</label>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">PDF Password</label>
                       <input type="password" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} placeholder="Enter PDF password" className="input-field w-full text-body-md" autoFocus />
                     </div>
                   )}
-                  {uploadError && <p className="text-body-sm text-red-600">{uploadError}</p>}
+                  {uploadError && <p className="text-body-sm text-[var(--reject-red)]">{uploadError}</p>}
 
                   {/* Batch progress */}
                   {batchProgress && (
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs text-[#8E9196]">
+                      <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
                         <span>Processing {batchProgress.current} of {batchProgress.total}</span>
-                        <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
+                        <span className="tabular-nums">{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                      <div className="w-full bg-[var(--surface-header)] h-2">
+                        <div className="bg-[var(--primary)] h-2 transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
                       </div>
                       {batchProgress.results.length > 0 && (
                         <div className="max-h-[200px] overflow-y-auto space-y-1">
                           {batchProgress.results.map((r, i) => (
-                            <div key={i} className={`text-xs px-2 py-1 rounded ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                            <div key={i} className={`text-xs px-2 py-1 ${r.ok ? 'bg-green-50 text-[var(--match-green)]' : 'bg-red-50 text-[var(--reject-red)]'}`}>
                               <span className="font-medium">{r.name}</span>: {r.msg}
                             </div>
                           ))}
@@ -395,11 +396,11 @@ export default function BankReconciliationPage() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => { setShowUpload(false); setBatchProgress(null); }} className={`flex-1 px-3 py-2 text-body-md rounded-lg ${batchProgress && !uploading ? 'btn-approve text-white' : 'text-[#434654] border border-gray-200 hover:bg-gray-50'}`}>
+                    <button onClick={() => { setShowUpload(false); setBatchProgress(null); }} className={`flex-1 px-3 py-2 text-body-md ${batchProgress && !uploading ? 'btn-thick-green text-white' : 'btn-thick-white'}`}>
                       {batchProgress && !uploading ? 'Done' : 'Cancel'}
                     </button>
                     {!batchProgress && (
-                      <button onClick={handleUpload} disabled={uploading} className="btn-primary flex-1 px-3 py-2 text-body-md text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                      <button onClick={handleUpload} disabled={uploading} className="btn-thick-navy flex-1 px-3 py-2 text-body-md disabled:opacity-50">
                         {uploading ? 'Processing...' : 'Upload & Parse'}
                       </button>
                     )}
@@ -413,11 +414,11 @@ export default function BankReconciliationPage() {
           <input ref={reuploadRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleReuploadPdf(f); e.target.value = ''; }} />
 
           {loading ? (
-            <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
+            <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
           ) : statements.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-sm text-[#8E9196]">No bank statements uploaded yet</p>
-              <p className="text-xs text-[#8E9196] mt-1">Upload a PDF bank statement to get started.</p>
+              <p className="text-sm text-[var(--text-secondary)]">No bank statements uploaded yet</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Upload a PDF bank statement to get started.</p>
             </div>
           ) : (() => {
             const groups = new Map<string, { bank: string; account: string; statements: StatementRow[] }>();
@@ -435,74 +436,74 @@ export default function BankReconciliationPage() {
                 const latestBalance = group.statements[0]?.closing_balance;
                 const totalUnmatched = group.statements.reduce((s, st) => s + st.unmatched, 0);
                 return (
-                  <div key={key} className={`bg-white rounded-lg ${needsAttention ? 'border border-amber-200' : ''}`}>
-                    <div className={`flex items-center justify-between px-6 py-3.5 cursor-pointer transition-colors ${isOpen ? 'bg-gray-50' : 'hover:bg-gray-50/50'}`}
+                  <div key={key} className={`bg-white card-popped ${needsAttention ? 'border border-amber-200' : ''}`}>
+                    <div className={`flex items-center justify-between px-6 py-3.5 cursor-pointer transition-colors ${isOpen ? 'bg-[var(--surface-low)]' : 'hover:bg-[var(--surface-low)]'}`}
                       onClick={() => setExpandedAccount(isOpen ? null : key)}>
                       <div className="flex items-center gap-3">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
+                          className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}>
                           <path d="M9 18l6-6-6-6" />
                         </svg>
                         <div>
                           <div className="flex items-center gap-2">
-                            <p className="text-title-sm font-semibold text-[#191C1E]">{group.bank}</p>
-                            <span className="text-body-md text-[#434654] tabular-nums">{group.account}</span>
+                            <p className="text-title-sm font-semibold text-[var(--text-primary)]">{group.bank}</p>
+                            <span className="text-body-md text-[var(--text-secondary)] tabular-nums">{group.account}</span>
                           </div>
-                          <p className="text-label-sm text-[#8E9196] mt-0.5">
-                            {totalStmts} statement{totalStmts !== 1 ? 's' : ''} · Latest balance: {formatRM(latestBalance)}
+                          <p className="text-label-sm text-[var(--text-secondary)] mt-0.5">
+                            {totalStmts} statement{totalStmts !== 1 ? 's' : ''} · Latest balance: <span className="tabular-nums">{formatRM(latestBalance)}</span>
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
                         {needsAttention ? (
-                          <span className="text-label-sm font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">{totalUnmatched} unmatched</span>
+                          <span className="text-label-sm font-medium text-amber-600 bg-amber-50 px-2 py-0.5">{totalUnmatched} unmatched</span>
                         ) : (
-                          <span className="text-label-sm font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded">All reconciled</span>
+                          <span className="text-label-sm font-medium text-[var(--match-green)] bg-green-50 px-2 py-0.5">All reconciled</span>
                         )}
                       </div>
                     </div>
                     {isOpen && (
                       <table className="w-full">
                         <thead>
-                          <tr className="ds-table-header">
-                            <th className="px-6 py-2 text-left">Period</th>
-                            <th className="px-6 py-2 text-right">Closing Balance</th>
-                            <th className="px-6 py-2 text-center">Txns</th>
-                            <th className="px-6 py-2 text-left">Progress</th>
-                            <th className="px-6 py-2 text-center">Unmatched</th>
-                            <th className="px-6 py-2 text-center">PDF</th>
+                          <tr className="bg-[var(--surface-header)]">
+                            <th className="px-6 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Period</th>
+                            <th className="px-6 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Closing Balance</th>
+                            <th className="px-6 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Txns</th>
+                            <th className="px-6 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Progress</th>
+                            <th className="px-6 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Unmatched</th>
+                            <th className="px-6 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">PDF</th>
                             <th className="px-3 py-2 text-center w-10"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          {group.statements.map((s) => {
+                          {group.statements.map((s, idx) => {
                             const resolved = s.matched + s.excluded;
                             const pct = s.total > 0 ? Math.round((resolved / s.total) * 100) : 0;
                             const isComplete = s.unmatched === 0;
                             return (
                               <tr key={s.id} onClick={() => router.push(`/admin/bank-reconciliation/${s.id}`)}
-                                className={`group transition-colors cursor-pointer ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40 bg-amber-50/20'}`}>
+                                className={`group transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40'}`}>
                                 <td className="px-6 py-2.5">
-                                  <p className="text-body-md font-medium text-[#191C1E]">{formatDate(s.statement_date)}</p>
+                                  <p className="text-body-md font-medium text-[var(--text-primary)] tabular-nums">{formatDate(s.statement_date)}</p>
                                   {!isComplete && <p className="text-label-sm text-amber-600 font-medium">Needs attention</p>}
                                 </td>
-                                <td className="px-6 py-2.5 text-body-md text-right tabular-nums text-[#191C1E]">{formatRM(s.closing_balance)}</td>
-                                <td className="px-6 py-2.5 text-body-md text-center text-[#434654]">{s.total}</td>
+                                <td className="px-6 py-2.5 text-body-md text-right tabular-nums text-[var(--text-primary)]">{formatRM(s.closing_balance)}</td>
+                                <td className="px-6 py-2.5 text-body-md text-center text-[var(--text-secondary)] tabular-nums">{s.total}</td>
                                 <td className="px-6 py-2.5">
                                   <div className="flex items-center gap-2">
-                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                      <div className={`h-full rounded-full ${isComplete ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
+                                    <div className="flex-1 h-1.5 bg-[var(--surface-header)] overflow-hidden">
+                                      <div className={`h-full ${isComplete ? 'bg-[var(--match-green)]' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
                                     </div>
-                                    <span className={`text-label-sm font-medium tabular-nums ${isComplete ? 'text-green-600' : 'text-amber-600'}`}>{pct}%</span>
+                                    <span className={`text-label-sm font-medium tabular-nums ${isComplete ? 'text-[var(--match-green)]' : 'text-amber-600'}`}>{pct}%</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-2.5 text-center">
-                                  {s.unmatched > 0 ? <span className="text-body-sm font-semibold text-red-600">{s.unmatched}</span> : <span className="text-body-sm text-green-600">0</span>}
+                                  {s.unmatched > 0 ? <span className="text-body-sm font-semibold text-[var(--reject-red)] tabular-nums">{s.unmatched}</span> : <span className="text-body-sm text-[var(--match-green)] tabular-nums">0</span>}
                                 </td>
                                 <td className="px-6 py-2.5 text-center">
                                   {s.file_url ? (
                                     <a href={s.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1 px-2 py-1 text-label-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors" title="Download PDF">
+                                      className="btn-thick-navy px-2 py-1 text-[10px] gap-1" title="Download PDF">
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                                       </svg>
@@ -510,7 +511,7 @@ export default function BankReconciliationPage() {
                                     </a>
                                   ) : (
                                     <button onClick={(e) => { e.stopPropagation(); setReuploadId(s.id); reuploadRef.current?.click(); }}
-                                      className="inline-flex items-center gap-1 px-2 py-1 text-label-sm font-medium text-[#434654] border border-gray-200 rounded hover:bg-gray-50 transition-colors" title="Re-upload PDF">
+                                      className="btn-thick-white px-2 py-1 text-[10px] gap-1" title="Re-upload PDF">
                                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" />
                                       </svg>
@@ -520,7 +521,7 @@ export default function BankReconciliationPage() {
                                 </td>
                                 <td className="px-3 py-2.5 text-center">
                                   <button onClick={(e) => { e.stopPropagation(); handleDeleteStatement(s.id); }}
-                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-[#8E9196] hover:text-red-500 hover:bg-red-50 transition-colors" title="Delete statement">
+                                    className="btn-thick-red w-7 h-7 !p-0 text-[10px]" title="Delete statement">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                       <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
                                     </svg>

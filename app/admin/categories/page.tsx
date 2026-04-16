@@ -177,60 +177,59 @@ export default function AdminCategoriesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
 
       {/* === SIDEBAR === */}
       <Sidebar role="admin" />
 
       {/* === MAIN === */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Categories</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Categories</h1>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture animate-in">
 
           {/* ── Add button ── */}
           <div className="flex items-center justify-end">
             <button
               onClick={openAddModal}
-              className="btn-primary text-sm px-4 py-2 rounded-lg font-medium text-white transition-opacity hover:opacity-85"
-              style={{ backgroundColor: 'var(--primary)' }}
+              className="btn-thick-navy text-sm px-4 py-2 font-medium"
             >
               Add Custom Category
             </button>
           </div>
 
           {loading ? (
-            <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-5 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : (
             <>
               {/* ── Default Categories ── */}
               <section>
-                <h2 className="text-body-md font-semibold text-[#434654] uppercase tracking-wide mb-3">Default Categories</h2>
-                <div className="bg-white rounded-lg overflow-hidden">
+                <h2 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Default Categories</h2>
+                <div className="bg-white overflow-hidden">
                   {defaultCats.length === 0 ? (
-                    <div className="px-5 py-8 text-center text-sm text-[#8E9196]">No default categories available.</div>
+                    <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">No default categories available.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="ds-table-header text-left">
-                          <th className="px-6 py-2.5">Category Name</th>
-                          <th className="px-6 py-2.5">Type</th>
-                          <th className="px-6 py-2.5">Tax Code</th>
-                          <th className="px-6 py-2.5 text-right">Claims</th>
-                          <th className="px-6 py-2.5">Status</th>
-                          <th className="px-6 py-2.5">Actions</th>
+                        <tr className="bg-[var(--surface-header)] text-left">
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Claims</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {defaultCats.map((cat) => (
-                          <tr key={cat.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                            <td className="px-6 py-3 text-[#191C1E] font-medium">{cat.name}</td>
+                        {defaultCats.map((cat, idx) => (
+                          <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{cat.name}</td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
-                            <td className="px-6 py-3 text-[#434654]">{cat.tax_code ?? '---'}</td>
-                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                            <td className="px-6 py-3 text-[var(--text-secondary)]">{cat.tax_code ?? '---'}</td>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
                               {cat.is_active ? (
                                 <span className="badge-green">Active</span>
@@ -241,7 +240,7 @@ export default function AdminCategoriesPage() {
                             <td className="px-6 py-3">
                               <button
                                 onClick={() => toggleActive(cat)}
-                                className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                                className="btn-thick-white text-xs font-medium px-3 py-1.5"
                               >
                                 {cat.is_active ? 'Disable' : 'Enable'}
                               </button>
@@ -256,37 +255,37 @@ export default function AdminCategoriesPage() {
 
               {/* ── Custom Categories ── */}
               <section>
-                <h2 className="text-body-md font-semibold text-[#434654] uppercase tracking-wide mb-3">Custom Categories</h2>
-                <div className="bg-white rounded-lg overflow-hidden">
+                <h2 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Custom Categories</h2>
+                <div className="bg-white overflow-hidden">
                   {customCats.length === 0 ? (
-                    <div className="px-5 py-8 text-center text-sm text-[#8E9196]">No custom categories yet. Add one above.</div>
+                    <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">No custom categories yet. Add one above.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="ds-table-header text-left">
-                          <th className="px-6 py-2.5">Category Name</th>
-                          <th className="px-6 py-2.5">Type</th>
-                          <th className="px-6 py-2.5">Tax Code</th>
-                          <th className="px-6 py-2.5 text-right">Claims</th>
-                          <th className="px-6 py-2.5">Status</th>
-                          <th className="px-6 py-2.5">Actions</th>
+                        <tr className="bg-[var(--surface-header)] text-left">
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Claims</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {customCats.map((cat) => (
-                          <tr key={cat.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                            <td className="px-6 py-3 text-[#191C1E] font-medium">
+                        {customCats.map((cat, idx) => (
+                          <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
                                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
-                            <td className="px-6 py-3 text-[#434654]">
+                            <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
                               {cat.is_active ? (
                                 <span className="badge-green">Active</span>
@@ -301,15 +300,14 @@ export default function AdminCategoriesPage() {
                                     <button
                                       onClick={saveEdit}
                                       disabled={editSaving}
-                                      className="btn-primary text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-85 disabled:opacity-40"
-                                      style={{ backgroundColor: 'var(--primary)' }}
+                                      className="btn-thick-navy text-xs font-medium px-3 py-1.5 disabled:opacity-40"
                                     >
                                       {editSaving ? 'Saving...' : 'Save'}
                                     </button>
                                     <button
                                       onClick={cancelEdit}
                                       disabled={editSaving}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                                      className="btn-thick-white text-xs font-medium px-3 py-1.5"
                                     >
                                       Cancel
                                     </button>
@@ -318,13 +316,13 @@ export default function AdminCategoriesPage() {
                                   <>
                                     <button
                                       onClick={() => toggleActive(cat)}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                                      className="btn-thick-white text-xs font-medium px-3 py-1.5"
                                     >
                                       {cat.is_active ? 'Deactivate' : 'Activate'}
                                     </button>
                                     <button
                                       onClick={() => startEdit(cat)}
-                                      className="p-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#434654] transition-colors"
+                                      className="btn-thick-white p-1.5"
                                       title="Edit"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -334,7 +332,7 @@ export default function AdminCategoriesPage() {
                                     </button>
                                     <button
                                       onClick={() => confirmDelete(cat)}
-                                      className="p-1.5 rounded-md border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                      className="btn-thick-red p-1.5"
                                       title="Delete"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -361,93 +359,100 @@ export default function AdminCategoriesPage() {
 
       {/* === ADD CATEGORY MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-semibold text-[#191C1E]">Add Custom Category</h3>
-                <p className="text-sm text-[#434654] mt-1">Create a new category for your firm.</p>
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60]" onClick={() => setShowModal(false)} />
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider">Add Custom Category</h3>
+                <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
 
-            {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{modalError}</p>
-              </div>
-            )}
+              <div className="p-5 space-y-3">
+                <p className="text-sm text-[var(--text-secondary)]">Create a new category for your firm.</p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
-                <input
-                  type="text"
-                  value={modalName}
-                  onChange={(e) => setModalName(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Category name"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Tax Code</label>
-                <input
-                  type="text"
-                  value={modalTaxCode}
-                  onChange={(e) => setModalTaxCode(e.target.value)}
-                  className="input-field w-full"
-                  placeholder="Optional"
-                />
-              </div>
-            </div>
+                {modalError && (
+                  <div className="bg-[var(--error-container)] p-3">
+                    <p className="text-sm text-[var(--on-error-container)]">{modalError}</p>
+                  </div>
+                )}
 
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={submitCategory}
-                disabled={modalSaving}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--primary)' }}
-              >
-                {modalSaving ? 'Creating...' : 'Create Category'}
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
-                Cancel
-              </button>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
+                  <input
+                    type="text"
+                    value={modalName}
+                    onChange={(e) => setModalName(e.target.value)}
+                    className="input-field w-full"
+                    placeholder="Category name"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Tax Code</label>
+                  <input
+                    type="text"
+                    value={modalTaxCode}
+                    onChange={(e) => setModalTaxCode(e.target.value)}
+                    className="input-field w-full"
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-5 bg-[var(--surface-low)]">
+                <button
+                  onClick={submitCategory}
+                  disabled={modalSaving}
+                  className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {modalSaving ? 'Creating...' : 'Create Category'}
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  disabled={modalSaving}
+                  className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* === DELETE CONFIRMATION MODAL === */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-[#191C1E]">Delete Category</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={executeDelete}
-                disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-[var(--accent)] hover:opacity-85 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-              <button
-                onClick={() => setDeleteId(null)}
-                disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
-                Cancel
-              </button>
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60]" onClick={() => setDeleteId(null)} />
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-sm flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider">Delete Category</h3>
+                <button onClick={() => setDeleteId(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              </div>
+              <div className="p-5">
+                <p className="text-sm text-[var(--text-secondary)] mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
+              </div>
+              <div className="flex gap-3 p-5 bg-[var(--surface-low)]">
+                <button
+                  onClick={executeDelete}
+                  disabled={deleting}
+                  className="btn-thick-red flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteId(null)}
+                  disabled={deleting}
+                  className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
     </div>

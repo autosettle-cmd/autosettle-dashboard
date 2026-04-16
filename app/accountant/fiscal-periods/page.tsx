@@ -33,7 +33,11 @@ const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 
 function formatDate(iso: string) {
   const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return [
+    d.getFullYear(),
+    (d.getMonth() + 1).toString().padStart(2, '0'),
+    d.getDate().toString().padStart(2, '0'),
+  ].join('.');
 }
 
 function formatPeriodLabel(iso: string) {
@@ -60,7 +64,7 @@ export default function FiscalPeriodsPage() {
   // Create modal
   const [showModal, setShowModal] = useState(false);
   const [modalLabel, setModalLabel] = useState('');
-  const [modalMonth, setModalMonth] = useState(0); // 0 = January
+  const [modalMonth, setModalMonth] = useState(0);
   const [modalYear, setModalYear] = useState(new Date().getFullYear());
   const [modalError, setModalError] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
@@ -112,7 +116,6 @@ export default function FiscalPeriodsPage() {
         if (!cancelled) {
           const data = j.data ?? [];
           setFiscalYears(data);
-          // Expand the first (most recent) FY by default
           if (data.length > 0) setExpandedFY(new Set([data[0].id]));
           setLoading(false);
         }
@@ -220,31 +223,31 @@ export default function FiscalPeriodsPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F6F8]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Fiscal Periods</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Fiscal Periods</h1>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture ledger-binding animate-in">
           {/* Filter bar */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             {firmId && (
-              <button onClick={openCreateModal} className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-semibold">
+              <button onClick={openCreateModal} className="ml-auto btn-thick-navy text-sm px-4 py-2 font-semibold">
                 Create Fiscal Year
               </button>
             )}
           </div>
 
           {!firmId ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Select a firm to manage fiscal periods.</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Select a firm to manage fiscal periods.</div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : fiscalYears.length === 0 ? (
-            <div className="bg-white rounded-lg p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+            <div className="bg-white p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 flex items-center justify-center">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                   <line x1="16" y1="2" x2="16" y2="6" />
@@ -252,9 +255,9 @@ export default function FiscalPeriodsPage() {
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
               </div>
-              <h3 className="text-base font-semibold text-[#191C1E] mb-1">No Fiscal Years</h3>
-              <p className="text-sm text-[#8E9196] mb-6">Create your first fiscal year to define accounting periods.</p>
-              <button onClick={openCreateModal} className="btn-primary text-sm px-6 py-2.5 rounded-lg font-semibold">
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">No Fiscal Years</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">Create your first fiscal year to define accounting periods.</p>
+              <button onClick={openCreateModal} className="btn-thick-navy text-sm px-6 py-2.5 font-semibold">
                 Create Fiscal Year
               </button>
             </div>
@@ -267,25 +270,25 @@ export default function FiscalPeriodsPage() {
                 const lockedCount = fy.periods.filter((p) => p.status === 'locked').length;
 
                 return (
-                  <div key={fy.id} className="bg-white rounded-lg overflow-hidden">
+                  <div key={fy.id} className="bg-white overflow-hidden">
                     {/* FY Header */}
                     <div
-                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[#F2F4F6] transition-colors"
+                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[var(--surface-header)] transition-colors"
                       onClick={() => toggleExpandFY(fy.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E9196" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          className={`text-[var(--text-secondary)] transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                         >
                           <polyline points="9 18 15 12 9 6" />
                         </svg>
                         <div>
-                          <span className="font-semibold text-[#191C1E] text-[15px]">{fy.year_label}</span>
-                          <span className="ml-3 text-sm text-[#8E9196]">{formatDate(fy.start_date)} — {formatDate(fy.end_date)}</span>
+                          <span className="font-semibold text-[var(--text-primary)] text-[15px]">{fy.year_label}</span>
+                          <span className="ml-3 text-sm text-[var(--text-secondary)] tabular-nums">{formatDate(fy.start_date)} — {formatDate(fy.end_date)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 text-xs text-[#8E9196]">
+                        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
                           {openCount > 0 && <span>{openCount} open</span>}
                           {closedCount > 0 && <span>{closedCount} closed</span>}
                           {lockedCount > 0 && <span>{lockedCount} locked</span>}
@@ -293,13 +296,13 @@ export default function FiscalPeriodsPage() {
                         <span className={STATUS_BADGE[fy.status].class}>{STATUS_BADGE[fy.status].label}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditModal(fy); }}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                          className="btn-thick-white text-xs font-medium px-3 py-1.5"
                         >
                           Edit
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleFYStatus(fy); }}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                          className="btn-thick-white text-xs font-medium px-3 py-1.5"
                         >
                           {fy.status === 'open' ? 'Close Year' : 'Reopen Year'}
                         </button>
@@ -312,7 +315,7 @@ export default function FiscalPeriodsPage() {
                               else { const j = await res.json(); alert(j.error || 'Failed to delete'); }
                             });
                           }}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                          className="btn-thick-red text-xs font-medium px-3 py-1.5"
                         >
                           Delete
                         </button>
@@ -321,44 +324,44 @@ export default function FiscalPeriodsPage() {
 
                     {/* Periods table */}
                     {isExpanded && (
-                      <div className="border-t border-gray-100">
+                      <div>
                         <table className="w-full">
                           <thead>
-                            <tr className="ds-table-header text-left">
-                              <th className="px-5 py-2.5 w-16">#</th>
-                              <th className="px-3 py-2.5">Period</th>
-                              <th className="px-3 py-2.5">Start Date</th>
-                              <th className="px-3 py-2.5">End Date</th>
-                              <th className="px-3 py-2.5 w-[100px]">Status</th>
-                              <th className="px-3 py-2.5 w-[200px]">Actions</th>
+                            <tr className="bg-[var(--surface-header)] text-left">
+                              <th className="px-5 py-2.5 w-16 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">#</th>
+                              <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Period</th>
+                              <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Start Date</th>
+                              <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">End Date</th>
+                              <th className="px-3 py-2.5 w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                              <th className="px-3 py-2.5 w-[200px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {fy.periods.map((p) => (
-                              <tr key={p.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
-                                <td className="px-5 py-3 text-[#8E9196] tabular-nums">{p.period_number}</td>
-                                <td className="px-3 py-3 text-[#191C1E] font-medium">{formatPeriodLabel(p.start_date)}</td>
-                                <td className="px-3 py-3 text-[#434654] tabular-nums">{formatDate(p.start_date)}</td>
-                                <td className="px-3 py-3 text-[#434654] tabular-nums">{formatDate(p.end_date)}</td>
+                            {fy.periods.map((p, i) => (
+                              <tr key={p.id} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                                <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{p.period_number}</td>
+                                <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{formatPeriodLabel(p.start_date)}</td>
+                                <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.start_date)}</td>
+                                <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.end_date)}</td>
                                 <td className="px-3 py-3">
                                   <span className={STATUS_BADGE[p.status].class}>{STATUS_BADGE[p.status].label}</span>
                                 </td>
                                 <td className="px-3 py-3">
                                   {p.status === 'locked' ? (
-                                    <span className="text-xs text-[#8E9196]">Permanently locked</span>
+                                    <span className="text-xs text-[var(--text-secondary)]">Permanently locked</span>
                                   ) : (
                                     <div className="flex items-center gap-1.5">
                                       {p.status === 'open' && (
                                         <>
                                           <button
                                             onClick={() => changePeriodStatus(fy.id, p, 'closed')}
-                                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                                            className="btn-thick-white text-xs font-medium px-3 py-1.5"
                                           >
                                             Close
                                           </button>
                                           <button
                                             onClick={() => changePeriodStatus(fy.id, p, 'locked')}
-                                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                            className="btn-thick-red text-xs font-medium px-3 py-1.5"
                                           >
                                             Lock
                                           </button>
@@ -368,13 +371,13 @@ export default function FiscalPeriodsPage() {
                                         <>
                                           <button
                                             onClick={() => changePeriodStatus(fy.id, p, 'open')}
-                                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                                            className="btn-thick-white text-xs font-medium px-3 py-1.5"
                                           >
                                             Reopen
                                           </button>
                                           <button
                                             onClick={() => changePeriodStatus(fy.id, p, 'locked')}
-                                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors"
+                                            className="btn-thick-red text-xs font-medium px-3 py-1.5"
                                           >
                                             Lock
                                           </button>
@@ -399,92 +402,92 @@ export default function FiscalPeriodsPage() {
 
       {/* === CREATE FISCAL YEAR MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowModal(false)} />
-      )}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[480px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <span className="text-white font-semibold text-sm">Create Fiscal Year</span>
-              <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {modalError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-700">{modalError}</p>
-                </div>
-              )}
-
-              <div>
-                <label className="input-label">Label *</label>
-                <input type="text" value={modalLabel} onChange={(e) => setModalLabel(e.target.value)} className="input-field w-full" placeholder="e.g. FY2026" autoFocus />
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setShowModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowModal(false)}>
+            <div className="bg-white shadow-2xl w-full max-w-[480px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 bg-[var(--primary)]">
+                <span className="text-white font-bold text-sm uppercase tracking-widest">Create Fiscal Year</span>
+                <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {modalError && (
+                  <div className="bg-[var(--error-container)] p-3">
+                    <p className="text-sm text-[var(--on-error-container)]">{modalError}</p>
+                  </div>
+                )}
+
                 <div>
-                  <label className="input-label">Start Month</label>
-                  <select value={modalMonth} onChange={(e) => setModalMonth(Number(e.target.value))} className="input-field w-full">
-                    {FULL_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                  </select>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Label *</label>
+                  <input type="text" value={modalLabel} onChange={(e) => setModalLabel(e.target.value)} className="input-field w-full" placeholder="e.g. FY2026" autoFocus />
                 </div>
-                <div>
-                  <label className="input-label">Start Year</label>
-                  <input type="number" value={modalYear} onChange={(e) => setModalYear(Number(e.target.value))} className="input-field w-full" min={2020} max={2040} />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Start Month</label>
+                    <select value={modalMonth} onChange={(e) => setModalMonth(Number(e.target.value))} className="input-field w-full">
+                      {FULL_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Start Year</label>
+                    <input type="number" value={modalYear} onChange={(e) => setModalYear(Number(e.target.value))} className="input-field w-full" min={2020} max={2040} />
+                  </div>
+                </div>
+
+                <div className="bg-[var(--surface-low)] p-3 text-sm text-[var(--text-secondary)]">
+                  <span className="font-medium">Preview:</span> {FULL_MONTHS[modalMonth]} {modalYear} — {FULL_MONTHS[(modalMonth + 11) % 12]} {modalMonth === 0 ? modalYear : modalYear + 1}
+                  <br />
+                  <span className="text-xs text-[var(--text-secondary)]">12 monthly periods will be created automatically.</span>
                 </div>
               </div>
 
-              <div className="bg-[#F5F6F8] rounded-lg p-3 text-sm text-[#434654]">
-                <span className="font-medium">Preview:</span> {FULL_MONTHS[modalMonth]} {modalYear} — {FULL_MONTHS[(modalMonth + 11) % 12]} {modalMonth === 0 ? modalYear : modalYear + 1}
-                <br />
-                <span className="text-xs text-[#8E9196]">12 monthly periods will be created automatically.</span>
+              <div className="p-4 flex-shrink-0 flex gap-3 bg-[var(--surface-low)]">
+                <button onClick={submitCreate} disabled={modalSaving} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40">
+                  {modalSaving ? 'Creating...' : 'Create Fiscal Year'}
+                </button>
+                <button onClick={() => setShowModal(false)} disabled={modalSaving} className="btn-thick-white flex-1 py-2 text-sm font-semibold disabled:opacity-40">
+                  Cancel
+                </button>
               </div>
-            </div>
-
-            <div className="p-4 flex-shrink-0 flex gap-3 border-t border-gray-100">
-              <button onClick={submitCreate} disabled={modalSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-                {modalSaving ? 'Creating...' : 'Create Fiscal Year'}
-              </button>
-              <button onClick={() => setShowModal(false)} disabled={modalSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40">
-                Cancel
-              </button>
             </div>
           </div>
-        </div>
+        </>
       )}
       {/* === EDIT FISCAL YEAR MODAL === */}
       {editFY && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setEditFY(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setEditFY(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setEditFY(null)}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[480px] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-              <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-                <span className="text-white font-semibold text-sm">Edit Fiscal Year</span>
+            <div className="bg-white shadow-2xl w-full max-w-[480px] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 bg-[var(--primary)]">
+                <span className="text-white font-bold text-sm uppercase tracking-widest">Edit Fiscal Year</span>
                 <button onClick={() => setEditFY(null)} className="text-white/70 hover:text-white text-xl">&times;</button>
               </div>
               <div className="p-5 space-y-4">
-                {editError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{editError}</p>}
+                {editError && <p className="text-sm text-[var(--on-error-container)] bg-[var(--error-container)] px-3 py-2">{editError}</p>}
                 <div>
-                  <label className="input-label">Label</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Label</label>
                   <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="input-field w-full" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="input-label">Start Date</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Start Date</label>
                     <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">End Date</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">End Date</label>
                     <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="input-field w-full" />
                   </div>
                 </div>
-                <p className="text-xs text-[#8E9196]">Monthly periods will be regenerated based on the new dates.</p>
+                <p className="text-xs text-[var(--text-secondary)]">Monthly periods will be regenerated based on the new dates.</p>
               </div>
-              <div className="p-4 flex gap-3 border-t border-gray-100">
-                <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
+              <div className="p-4 flex gap-3 bg-[var(--surface-low)]">
+                <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40">
                   {editSaving ? 'Saving...' : 'Save Changes'}
                 </button>
-                <button onClick={() => setEditFY(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                <button onClick={() => setEditFY(null)} className="btn-thick-white flex-1 py-2 text-sm font-semibold">
                   Cancel
                 </button>
               </div>

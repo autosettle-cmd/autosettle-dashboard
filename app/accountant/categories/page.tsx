@@ -94,7 +94,6 @@ export default function CategoriesPage() {
   const toggleActive = async (cat: CategoryRow) => {
     try {
       const body: Record<string, unknown> = { is_active: !cat.is_active };
-      // For global categories, include firmId so the API creates/updates an override
       if (cat.is_global && firmId) {
         body.firmId = firmId;
       }
@@ -151,7 +150,6 @@ export default function CategoriesPage() {
         return;
       }
 
-      // If GL account selected, save it via PATCH (creates override)
       if (modalGlAccountId && json.data?.id) {
         await fetch(`/api/categories/${json.data.id}`, {
           method: 'PATCH',
@@ -241,25 +239,25 @@ export default function CategoriesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
 
       <Sidebar role="accountant" />
 
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Categories</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Categories</h1>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture ledger-binding animate-in">
 
           {/* ── Filter bar ── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             {hasFirmSelected && (
               <button
                 onClick={openAddModal}
-                className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-medium"
+                className="ml-auto btn-thick-navy text-sm px-4 py-2 font-medium"
               >
                 Add Custom Category
               </button>
@@ -267,38 +265,37 @@ export default function CategoriesPage() {
           </div>
 
           {!hasFirmSelected ? (
-            /* ── No firm selected: flat list of all categories ── */
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div className="bg-white overflow-hidden">
               {loading ? (
-                <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+                <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
               ) : categories.length === 0 ? (
-                <div className="px-6 py-12 text-center text-sm text-[#8E9196]">No categories found.</div>
+                <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">No categories found.</div>
               ) : (
                 <div className="overflow-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
-                        <th className="px-6 py-2.5">Category Name</th>
-                        <th className="px-6 py-2.5">Type</th>
-                        <th className="px-6 py-2.5">Firm</th>
-                        <th className="px-6 py-2.5">Tax Code</th>
-                        <th className="px-6 py-2.5 text-right">Claims</th>
-                        <th className="px-6 py-2.5">Status</th>
+                      <tr className="bg-[var(--surface-header)] text-left">
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Firm</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Claims</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {categories.map((cat) => (
-                        <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
-                          <td className="px-6 py-3 text-[#191C1E] font-medium">{cat.name}</td>
+                      {categories.map((cat, i) => (
+                        <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                          <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{cat.name}</td>
                           <td className="px-6 py-3">
                             {cat.is_global
                               ? <span className="badge-blue">Default</span>
                               : <span className="badge-purple">Custom</span>
                             }
                           </td>
-                          <td className="px-6 py-3 text-[#434654]">{cat.firm_name ?? 'Global'}</td>
-                          <td className="px-6 py-3 text-[#434654]">{cat.tax_code ?? '---'}</td>
-                          <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                          <td className="px-6 py-3 text-[var(--text-secondary)]">{cat.firm_name ?? 'Global'}</td>
+                          <td className="px-6 py-3 text-[var(--text-secondary)]">{cat.tax_code ?? '---'}</td>
+                          <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                           <td className="px-6 py-3">
                             {cat.is_active
                               ? <span className="badge-green">Active</span>
@@ -313,43 +310,43 @@ export default function CategoriesPage() {
               )}
             </div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : (
             <>
               {/* ── Default Categories ── */}
               <section>
-                <h2 className="text-body-md font-semibold text-[#434654] uppercase tracking-wide mb-3">Default Categories</h2>
-                <div className="bg-white rounded-lg overflow-hidden">
+                <h2 className="text-xs font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Default Categories</h2>
+                <div className="bg-white overflow-hidden">
                   {defaultCats.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-sm text-[#8E9196]">No default categories available.</div>
+                    <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">No default categories available.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="ds-table-header text-left">
-                          <th className="px-6 py-2.5">Category Name</th>
-                          <th className="px-6 py-2.5">Type</th>
-                          <th className="px-6 py-2.5">Tax Code</th>
-                          <th className="px-6 py-2.5">GL Account</th>
-                          <th className="px-6 py-2.5 text-right">Claims</th>
-                          <th className="px-6 py-2.5">Status</th>
-                          <th className="px-6 py-2.5">Actions</th>
+                        <tr className="bg-[var(--surface-header)] text-left">
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">GL Account</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Claims</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {defaultCats.map((cat) => (
-                          <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
-                            <td className="px-6 py-3 text-[#191C1E] font-medium">
+                        {defaultCats.map((cat, i) => (
+                          <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
                                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
-                            <td className="px-6 py-3 text-[#434654]">
+                            <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-[#434654]">
+                            <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
                                 <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-field w-full text-body-md">
                                   <option value="">No GL assigned</option>
@@ -359,7 +356,7 @@ export default function CategoriesPage() {
                                 </select>
                               ) : (cat.gl_account_label ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
                               {cat.is_active
                                 ? <span className="badge-green">Active</span>
@@ -370,19 +367,19 @@ export default function CategoriesPage() {
                               <div className="flex items-center gap-1.5">
                                 {editingId === cat.id ? (
                                   <>
-                                    <button onClick={saveEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-lg btn-primary disabled:opacity-40">
+                                    <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy text-xs font-medium px-3 py-1.5 disabled:opacity-40">
                                       {editSaving ? 'Saving...' : 'Save'}
                                     </button>
-                                    <button onClick={cancelEdit} disabled={editSaving} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                                    <button onClick={cancelEdit} disabled={editSaving} className="btn-thick-white text-xs font-medium px-3 py-1.5">
                                       Cancel
                                     </button>
                                   </>
                                 ) : (
                                   <>
-                                    <button onClick={() => toggleActive(cat)} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors">
+                                    <button onClick={() => toggleActive(cat)} className="btn-thick-white text-xs font-medium px-3 py-1.5">
                                       {cat.is_active ? 'Disable' : 'Enable'}
                                     </button>
-                                    <button onClick={() => startEdit(cat)} className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#434654] transition-colors" title="Edit">
+                                    <button onClick={() => startEdit(cat)} className="btn-thick-white p-1.5" title="Edit">
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                                         <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -402,38 +399,38 @@ export default function CategoriesPage() {
 
               {/* ── Custom Categories ── */}
               <section>
-                <h2 className="text-body-md font-semibold text-[#434654] uppercase tracking-wide mb-3">Custom Categories</h2>
-                <div className="bg-white rounded-lg overflow-hidden">
+                <h2 className="text-xs font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Custom Categories</h2>
+                <div className="bg-white overflow-hidden">
                   {customCats.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-sm text-[#8E9196]">No custom categories yet. Add one above.</div>
+                    <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">No custom categories yet. Add one above.</div>
                   ) : (
                     <table className="w-full">
                       <thead>
-                        <tr className="ds-table-header text-left">
-                          <th className="px-6 py-2.5">Category Name</th>
-                          <th className="px-6 py-2.5">Type</th>
-                          <th className="px-6 py-2.5">Tax Code</th>
-                          <th className="px-6 py-2.5">GL Account</th>
-                          <th className="px-6 py-2.5 text-right">Claims</th>
-                          <th className="px-6 py-2.5">Status</th>
-                          <th className="px-6 py-2.5">Actions</th>
+                        <tr className="bg-[var(--surface-header)] text-left">
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">GL Account</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Claims</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                          <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {customCats.map((cat) => (
-                          <tr key={cat.id} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors`}>
-                            <td className="px-6 py-3 text-[#191C1E] font-medium">
+                        {customCats.map((cat, i) => (
+                          <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
                                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
-                            <td className="px-6 py-3 text-[#434654]">
+                            <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
                                 <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-[#434654]">
+                            <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
                                 <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-field w-full text-body-md">
                                   <option value="">No GL assigned</option>
@@ -443,7 +440,7 @@ export default function CategoriesPage() {
                                 </select>
                               ) : (cat.gl_account_label ?? '---')}
                             </td>
-                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{cat.claims_count}</td>
+                            <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{cat.claims_count}</td>
                             <td className="px-6 py-3">
                               {cat.is_active
                                 ? <span className="badge-green">Active</span>
@@ -457,14 +454,14 @@ export default function CategoriesPage() {
                                     <button
                                       onClick={saveEdit}
                                       disabled={editSaving}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-lg btn-primary disabled:opacity-40"
+                                      className="btn-thick-navy text-xs font-medium px-3 py-1.5 disabled:opacity-40"
                                     >
                                       {editSaving ? 'Saving...' : 'Save'}
                                     </button>
                                     <button
                                       onClick={cancelEdit}
                                       disabled={editSaving}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                                      className="btn-thick-white text-xs font-medium px-3 py-1.5"
                                     >
                                       Cancel
                                     </button>
@@ -473,13 +470,13 @@ export default function CategoriesPage() {
                                   <>
                                     <button
                                       onClick={() => toggleActive(cat)}
-                                      className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                                      className="btn-thick-white text-xs font-medium px-3 py-1.5"
                                     >
                                       {cat.is_active ? 'Deactivate' : 'Activate'}
                                     </button>
                                     <button
                                       onClick={() => startEdit(cat)}
-                                      className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#434654] transition-colors"
+                                      className="btn-thick-white p-1.5"
                                       title="Edit"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -489,7 +486,7 @@ export default function CategoriesPage() {
                                     </button>
                                     <button
                                       onClick={() => confirmDelete(cat)}
-                                      className="p-1.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                      className="btn-thick-red p-1.5"
                                       title="Delete"
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -516,20 +513,22 @@ export default function CategoriesPage() {
 
       {/* === ADD CUSTOM CATEGORY MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-[#191C1E]">Add Custom Category</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-4">Create a new category for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-md flex flex-col">
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Add Custom Category</h3>
+              <p className="text-xs text-white/70 mt-1">Create a new category for {firms.find((f) => f.id === firmId)?.name ?? 'the selected firm'}.</p>
+            </div>
 
-            {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{modalError}</p>
-              </div>
-            )}
+            <div className="p-6 space-y-3">
+              {modalError && (
+                <div className="bg-[var(--error-container)] p-3">
+                  <p className="text-sm text-[var(--on-error-container)]">{modalError}</p>
+                </div>
+              )}
 
-            <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
@@ -540,7 +539,7 @@ export default function CategoriesPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Tax Code</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Tax Code</label>
                 <input
                   type="text"
                   value={modalTaxCode}
@@ -550,7 +549,7 @@ export default function CategoriesPage() {
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">GL Account</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">GL Account</label>
                 <select
                   value={modalGlAccountId}
                   onChange={(e) => setModalGlAccountId(e.target.value)}
@@ -564,18 +563,18 @@ export default function CategoriesPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
               <button
                 onClick={submitCategory}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 text-sm font-semibold btn-thick-navy disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Creating...' : 'Create Category'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 text-sm font-semibold btn-thick-white disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -586,22 +585,26 @@ export default function CategoriesPage() {
 
       {/* === DELETE CONFIRMATION MODAL === */}
       {deleteId && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-sm p-6">
-            <h3 className="text-base font-semibold text-[#191C1E]">Delete Category</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-5">Are you sure you want to delete this category? This action cannot be undone.</p>
-            <div className="flex gap-3">
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-sm flex flex-col">
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Delete Category</h3>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-[var(--text-secondary)]">Are you sure you want to delete this category? This action cannot be undone.</p>
+            </div>
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
               <button
                 onClick={executeDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 py-2.5 text-sm font-semibold btn-thick-red disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {deleting ? 'Deleting...' : 'Delete'}
               </button>
               <button
                 onClick={() => setDeleteId(null)}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 text-sm font-semibold btn-thick-white disabled:opacity-40"
               >
                 Cancel
               </button>

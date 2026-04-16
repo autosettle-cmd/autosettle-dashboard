@@ -63,7 +63,7 @@ function formatRM(val: string | number) {
 function formatDate(val: string) {
   if (!val) return '';
   const d = new Date(val);
-  return [d.getUTCDate().toString().padStart(2, '0'), (d.getUTCMonth() + 1).toString().padStart(2, '0'), d.getUTCFullYear()].join('/');
+  return [d.getUTCFullYear(), (d.getUTCMonth() + 1).toString().padStart(2, '0'), d.getUTCDate().toString().padStart(2, '0')].join('.');
 }
 
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
@@ -228,16 +228,16 @@ export default function GeneralLedgerPage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 flex-shrink-0">
-          <h1 className="text-[22px] font-bold text-[#191C1E] tracking-tight">General Ledger</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">General Ledger</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 px-6 pb-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
           {/* ── Filters ── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -259,15 +259,15 @@ export default function GeneralLedgerPage() {
                 {dateRange === 'custom' && (
                   <>
                     <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
-                    <span className="text-[#8E9196] text-sm">–</span>
+                    <span className="text-[var(--text-muted)] text-sm">--</span>
                     <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
                   </>
                 )}
               </>
             )}
 
-            <label className="flex items-center gap-1.5 text-sm text-[#434654] cursor-pointer select-none">
-              <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} className="accent-blue-600" />
+            <label className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] cursor-pointer select-none">
+              <input type="checkbox" checked={hideZero} onChange={(e) => setHideZero(e.target.checked)} className="accent-[var(--primary)]" />
               Hide zero-balance
             </label>
           </div>
@@ -275,61 +275,61 @@ export default function GeneralLedgerPage() {
           {/* ── Summary strip ── */}
           {summary && (
             <div className="flex items-center gap-4 flex-shrink-0">
-              <div className="bg-white rounded-lg px-4 py-2 border border-gray-100">
-                <span className="text-label-sm text-[#8E9196] uppercase tracking-wide">Total Debit</span>
-                <p className="text-sm font-bold text-[#191C1E] tabular-nums">{formatRM(summary.total_debit)}</p>
+              <div className="bg-white card-popped px-4 py-2">
+                <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Debit</span>
+                <p className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{formatRM(summary.total_debit)}</p>
               </div>
-              <div className="bg-white rounded-lg px-4 py-2 border border-gray-100">
-                <span className="text-label-sm text-[#8E9196] uppercase tracking-wide">Total Credit</span>
-                <p className="text-sm font-bold text-[#191C1E] tabular-nums">{formatRM(summary.total_credit)}</p>
+              <div className="bg-white card-popped px-4 py-2">
+                <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Credit</span>
+                <p className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{formatRM(summary.total_credit)}</p>
               </div>
               {Math.abs(summary.total_debit - summary.total_credit) > 0.01 && (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-                  <span className="text-label-sm text-red-600 font-semibold">Out of balance by {formatRM(Math.abs(summary.total_debit - summary.total_credit))}</span>
+                <div className="bg-[var(--error-container)] px-4 py-2" style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>
+                  <span className="text-[10px] font-label font-bold uppercase tracking-widest text-[var(--on-error-container)]">Out of balance by {formatRM(Math.abs(summary.total_debit - summary.total_credit))}</span>
                 </div>
               )}
               {Math.abs(summary.total_debit - summary.total_credit) <= 0.01 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-                  <span className="text-label-sm text-green-700 font-semibold">Balanced</span>
+                <div className="bg-[var(--secondary-container)] px-4 py-2" style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>
+                  <span className="text-[10px] font-label font-bold uppercase tracking-widest text-[var(--on-secondary-container)]">Balanced</span>
                 </div>
               )}
             </div>
           )}
 
           {/* ── Content ── */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
+          <div className="flex-1 min-h-0 overflow-auto bg-white">
             {!firmFilter ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Select a firm to view the General Ledger.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Select a firm to view the General Ledger.</div>
             ) : loading ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Loading...</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Loading...</div>
             ) : tree.length === 0 ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">No accounts with activity found.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">No accounts with activity found.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="ds-table-header text-left">
-                    <th className="px-5 py-2.5">Account</th>
-                    <th className="px-3 py-2.5 text-right w-[140px]">Debit</th>
-                    <th className="px-3 py-2.5 text-right w-[140px]">Credit</th>
-                    <th className="px-3 py-2.5 text-right w-[160px]">Balance</th>
+                  <tr className="bg-[var(--surface-header)] text-left">
+                    <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
+                    <th className="px-3 py-2.5 text-right w-[140px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
+                    <th className="px-3 py-2.5 text-right w-[140px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
+                    <th className="px-3 py-2.5 text-right w-[160px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tree.map((node) => {
+                  {tree.map((node, ni) => {
                     const isCollapsed = collapsed.has(node.account.id);
                     const hasChildren = node.children.length > 0;
                     return (
                       <React.Fragment key={node.account.id}>
                         {/* ── Parent row ── */}
                         <tr
-                          className={`border-b border-gray-100 ${hasChildren ? 'cursor-pointer hover:bg-[#F2F4F6]' : 'cursor-pointer hover:bg-[#F2F4F6]'} transition-colors`}
+                          className={`${ni % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} cursor-pointer hover:bg-[var(--surface-header)] transition-colors`}
                           onClick={() => hasChildren ? toggleCollapse(node.account.id) : openDrilldown(node.account.id)}
                         >
-                          <td className="px-5 py-2.5 font-semibold text-[#191C1E]">
+                          <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                             <div className="flex items-center gap-2">
                               {hasChildren ? (
-                                <span className="w-4 h-4 flex items-center justify-center text-[#8E9196] text-xs flex-shrink-0">
-                                  {isCollapsed ? '▶' : '▼'}
+                                <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
+                                  {isCollapsed ? '\u25B6' : '\u25BC'}
                                 </span>
                               ) : (
                                 <span className="w-4 flex-shrink-0" />
@@ -337,37 +337,37 @@ export default function GeneralLedgerPage() {
                               {node.account.account_code} - {node.account.name}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                             {!hasChildren && node.account.total_debit > 0 ? formatRM(node.account.total_debit) : ''}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                             {!hasChildren && node.account.total_credit > 0 ? formatRM(node.account.total_credit) : ''}
                           </td>
-                          <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${hasChildren ? '' : node.totalBalance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                          <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${hasChildren ? '' : node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                             {!hasChildren ? formatRM(node.totalBalance) : ''}
                           </td>
                         </tr>
 
                         {/* ── Child rows ── */}
-                        {hasChildren && !isCollapsed && node.children.map((child) => (
+                        {hasChildren && !isCollapsed && node.children.map((child, ci) => (
                           <tr
                             key={child.id}
-                            className="border-b border-gray-50 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                            className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
                             onClick={() => openDrilldown(child.id)}
                           >
-                            <td className="py-2.5 text-[#434654]">
+                            <td className="py-2.5 text-[var(--text-secondary)]">
                               <div className="flex items-center gap-2 pl-11">
-                                <span className="w-3 h-3 flex items-center justify-center text-[#C4C7CC] text-[10px] flex-shrink-0">◻</span>
+                                <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                                 {child.account_code} - {child.name}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                               {child.total_debit > 0 ? formatRM(child.total_debit) : ''}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                               {child.total_credit > 0 ? formatRM(child.total_credit) : ''}
                             </td>
-                            <td className={`px-3 py-2.5 text-right tabular-nums ${child.balance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                            <td className={`px-3 py-2.5 text-right tabular-nums ${child.balance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(child.balance)}
                             </td>
                           </tr>
@@ -375,17 +375,17 @@ export default function GeneralLedgerPage() {
 
                         {/* ── Total row ── */}
                         {hasChildren && !isCollapsed && (
-                          <tr className="border-b border-gray-200 bg-[#F7F9FB]">
-                            <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+                          <tr className="bg-[var(--surface-base)]">
+                            <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                               <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
                             </td>
-                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(node.totalBalance)}
                             </td>
                           </tr>
@@ -393,17 +393,17 @@ export default function GeneralLedgerPage() {
 
                         {/* ── Collapsed total row ── */}
                         {hasChildren && isCollapsed && (
-                          <tr className="border-b border-gray-200 bg-[#F7F9FB]">
-                            <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+                          <tr className="bg-[var(--surface-base)]">
+                            <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                               <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
                             </td>
-                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(node.totalBalance)}
                             </td>
                           </tr>
@@ -421,12 +421,12 @@ export default function GeneralLedgerPage() {
       {/* ═══ DRILL-DOWN MODAL ═══ */}
       {(drilldown || drilldownLoading) && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => { setDrilldown(null); setDrilldownLoading(false); }} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { setDrilldown(null); setDrilldownLoading(false); }} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { setDrilldown(null); setDrilldownLoading(false); }}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[860px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white shadow-2xl w-full max-w-[860px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
 
               {/* Header */}
-              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
+              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
                 <h2 className="text-white font-semibold text-sm">
                   {drilldown ? `${drilldown.account.account_code} — ${drilldown.account.name}` : 'Loading...'}
                 </h2>
@@ -434,31 +434,31 @@ export default function GeneralLedgerPage() {
               </div>
 
               {drilldownLoading && !drilldown ? (
-                <div className="flex-1 flex items-center justify-center py-12 text-sm text-[#8E9196]">Loading...</div>
+                <div className="flex-1 flex items-center justify-center py-12 text-sm text-[var(--text-muted)]">Loading...</div>
               ) : drilldown && (
                 <>
                   {/* Toggle + Mini T-account summary */}
                   <div className="px-5 pt-3 flex justify-end">
                     <button
                       onClick={() => setHideReversals((v) => !v)}
-                      className={`px-3 py-1 text-xs font-medium rounded-lg border transition-colors ${hideReversals ? 'bg-[#191C1E] text-white border-[#191C1E]' : 'bg-white text-[#434654] border-gray-200 hover:bg-gray-50'}`}
+                      className={`btn-thick-navy px-3 py-1 text-xs font-medium ${hideReversals ? '' : 'btn-thick-white'}`}
                     >
                       {hideReversals ? 'Show Reversals' : 'Hide Reversals'}
                     </button>
                   </div>
                   <div className="px-5 pt-2 pb-2">
                     <div className="grid grid-cols-3 gap-3">
-                      <div className="bg-gray-50 rounded-lg p-3 text-center">
-                        <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide">Total Debit</p>
-                        <p className="text-base font-bold text-[#191C1E] tabular-nums mt-0.5">{formatRM(drilldown.total_debit)}</p>
+                      <div className="bg-[var(--surface-low)] p-3 text-center">
+                        <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Debit</p>
+                        <p className="text-base font-bold text-[var(--text-primary)] tabular-nums mt-0.5">{formatRM(drilldown.total_debit)}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-3 text-center">
-                        <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide">Total Credit</p>
-                        <p className="text-base font-bold text-[#191C1E] tabular-nums mt-0.5">{formatRM(drilldown.total_credit)}</p>
+                      <div className="bg-[var(--surface-low)] p-3 text-center">
+                        <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Credit</p>
+                        <p className="text-base font-bold text-[var(--text-primary)] tabular-nums mt-0.5">{formatRM(drilldown.total_credit)}</p>
                       </div>
-                      <div className={`rounded-lg p-3 text-center ${drilldown.balance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide">Balance</p>
-                        <p className={`text-base font-bold tabular-nums mt-0.5 ${drilldown.balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      <div className={`p-3 text-center ${drilldown.balance >= 0 ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}`}>
+                        <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Balance</p>
+                        <p className={`text-base font-bold tabular-nums mt-0.5 ${drilldown.balance >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                           {formatRM(Math.abs(drilldown.balance))} {drilldown.balance >= 0 ? (drilldown.account.normal_balance === 'Debit' ? 'Dr' : 'Cr') : (drilldown.account.normal_balance === 'Debit' ? 'Cr' : 'Dr')}
                         </p>
                       </div>
@@ -484,56 +484,56 @@ export default function GeneralLedgerPage() {
                       const filteredBalance = isDebitNormal ? filteredDebit - filteredCredit : filteredCredit - filteredDebit;
 
                       if (linesWithBalance.length === 0) {
-                        return <div className="text-center py-8 text-sm text-[#8E9196]">No journal lines for this account in the selected period.</div>;
+                        return <div className="text-center py-8 text-sm text-[var(--text-muted)]">No journal lines for this account in the selected period.</div>;
                       }
 
                       return (
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="ds-table-header text-left">
-                              <th className="px-3 py-2">Date</th>
-                              <th className="px-3 py-2">Voucher #</th>
-                              <th className="px-3 py-2">Description</th>
-                              <th className="px-3 py-2">Source</th>
-                              <th className="px-3 py-2 text-right">Debit</th>
-                              <th className="px-3 py-2 text-right">Credit</th>
-                              <th className="px-3 py-2 text-right">Balance</th>
+                            <tr className="bg-[var(--surface-header)] text-left">
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Voucher #</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Source</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
                             </tr>
                           </thead>
                           <tbody>
                             {(drilldown.opening_balance ?? 0) !== 0 && (
-                              <tr className="bg-[#F7F9FB] border-b border-gray-200">
-                                <td className="px-3 py-2 text-[#8E9196] italic" colSpan={1}></td>
-                                <td className="px-3 py-2 text-[#8E9196] italic" colSpan={1}></td>
-                                <td className="px-3 py-2 text-[#434654] font-medium italic">Balance B/F</td>
-                                <td className="px-3 py-2 text-[#8E9196] italic text-xs">----</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]"></td>
-                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]"></td>
-                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${(drilldown.opening_balance ?? 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                              <tr className="bg-[var(--surface-base)]">
+                                <td className="px-3 py-2 text-[var(--text-muted)] italic" colSpan={1}></td>
+                                <td className="px-3 py-2 text-[var(--text-muted)] italic" colSpan={1}></td>
+                                <td className="px-3 py-2 text-[var(--text-secondary)] font-medium italic">Balance B/F</td>
+                                <td className="px-3 py-2 text-[var(--text-muted)] italic text-xs">----</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]"></td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]"></td>
+                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${(drilldown.opening_balance ?? 0) >= 0 ? 'text-[var(--match-green)]' : 'text-[var(--reject-red)]'}`}>
                                   {formatRM(Math.abs(drilldown.opening_balance))}
                                 </td>
                               </tr>
                             )}
-                            {linesWithBalance.map((line) => (
-                              <tr key={line.id} className={`hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 ${line.reversal_of_id ? 'opacity-50' : ''}`}>
-                                <td className="px-3 py-2 text-[#434654] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
-                                <td className="px-3 py-2 text-[#434654] font-mono text-xs">{line.voucher_number}</td>
-                                <td className="px-3 py-2 text-[#434654] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
-                                <td className="px-3 py-2 text-[#8E9196] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
-                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                            {linesWithBalance.map((line, li) => (
+                              <tr key={line.id} className={`hover:bg-[var(--surface-header)] transition-colors ${li % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${line.reversal_of_id ? 'opacity-50' : ''}`}>
+                                <td className="px-3 py-2 text-[var(--text-secondary)] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
+                                <td className="px-3 py-2 text-[var(--text-secondary)] font-mono text-xs">{line.voucher_number}</td>
+                                <td className="px-3 py-2 text-[var(--text-secondary)] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
+                                <td className="px-3 py-2 text-[var(--text-muted)] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
+                                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
+                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-[var(--match-green)]' : 'text-[var(--reject-red)]'}`}>
                                   {formatRM(Math.abs(line.running_balance))}
                                 </td>
                               </tr>
                             ))}
                           </tbody>
                           <tfoot>
-                            <tr className="border-t-2 border-gray-200 font-semibold">
-                              <td colSpan={4} className="px-3 py-2 text-[#191C1E]">Total</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{formatRM(filteredDebit)}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#191C1E]">{formatRM(filteredCredit)}</td>
-                              <td className={`px-3 py-2 text-right tabular-nums font-bold ${filteredBalance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                            <tr className="border-t-2 border-[var(--surface-highest)] font-semibold">
+                              <td colSpan={4} className="px-3 py-2 text-[var(--text-primary)]">Total</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{formatRM(filteredDebit)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{formatRM(filteredCredit)}</td>
+                              <td className={`px-3 py-2 text-right tabular-nums font-bold ${filteredBalance >= 0 ? 'text-[var(--match-green)]' : 'text-[var(--reject-red)]'}`}>
                                 {formatRM(Math.abs(filteredBalance))}
                               </td>
                             </tr>
@@ -544,8 +544,8 @@ export default function GeneralLedgerPage() {
                   </div>
 
                   {/* Footer */}
-                  <div className="p-4 flex-shrink-0 border-t">
-                    <button onClick={() => setDrilldown(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                  <div className="p-4 flex-shrink-0 bg-[var(--surface-low)]">
+                    <button onClick={() => setDrilldown(null)} className="btn-thick-white w-full py-2 text-sm font-semibold">
                       Close
                     </button>
                   </div>

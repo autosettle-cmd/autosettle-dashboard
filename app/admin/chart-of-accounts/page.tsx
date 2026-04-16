@@ -146,62 +146,62 @@ export default function AdminChartOfAccountsPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F6F8]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="admin" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Chart of Accounts</h1>
+      <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Chart of Accounts</h1>
           <button
             onClick={importSqlAccounting}
             disabled={importing}
-            className="text-xs px-4 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+            className="btn-thick-white text-xs px-4 py-2 font-medium disabled:opacity-40"
           >
             {importing ? 'Importing...' : 'Import SQL Accounting COA'}
           </button>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture animate-in">
           {loading ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : accounts.length === 0 ? (
-            <div className="bg-white rounded-lg p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <div className="bg-white p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 flex items-center justify-center">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 7V4a2 2 0 012-2h8.5L20 7.5V20a2 2 0 01-2 2H6a2 2 0 01-2-2v-3" />
                   <polyline points="14 2 14 8 20 8" />
                   <line x1="2" y1="15" x2="12" y2="15" />
                   <polyline points="9 18 12 15 9 12" />
                 </svg>
               </div>
-              <h3 className="text-base font-semibold text-[#191C1E] mb-1">No Chart of Accounts</h3>
-              <p className="text-sm text-[#8E9196] mb-6">Your firm doesn&apos;t have a Chart of Accounts yet. Seed the default Malaysian SME template to get started.</p>
-              <button onClick={seedDefault} disabled={seeding} className="btn-primary text-sm px-6 py-2.5 rounded-lg font-semibold disabled:opacity-40">
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">No Chart of Accounts</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">Your firm doesn&apos;t have a Chart of Accounts yet. Seed the default Malaysian SME template to get started.</p>
+              <button onClick={seedDefault} disabled={seeding} className="btn-thick-navy text-sm px-6 py-2.5 font-semibold disabled:opacity-40">
                 {seeding ? 'Seeding...' : 'Seed Default Template'}
               </button>
             </div>
           ) : (
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-5 py-2.5 w-[280px]">Account Code</th>
-                      <th className="px-3 py-2.5">Account Name</th>
-                      <th className="px-3 py-2.5 w-[100px]">Type</th>
-                      <th className="px-3 py-2.5 w-[80px]">Balance</th>
-                      <th className="px-3 py-2.5 w-[80px]">Status</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-5 py-2.5 w-[280px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Code</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Name</th>
+                      <th className="px-3 py-2.5 w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                      <th className="px-3 py-2.5 w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
+                      <th className="px-3 py-2.5 w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {flatRows.map((row) => (
-                      <tr key={row.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 cursor-pointer" onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
+                    {flatRows.map((row, idx) => (
+                      <tr key={row.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`} onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
                         <td className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (
                               <button
                                 onClick={() => toggleExpand(row.id)}
-                                className="w-5 h-5 flex items-center justify-center mr-1.5 text-[#8E9196] hover:text-[#191C1E] transition-colors"
+                                className="w-5 h-5 flex items-center justify-center mr-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                               >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                                   className={`transition-transform ${expandedSet.has(row.id) ? 'rotate-90' : ''}`}
@@ -212,14 +212,14 @@ export default function AdminChartOfAccountsPage() {
                             ) : (
                               <span className="w-5 mr-1.5" />
                             )}
-                            <span className="font-mono text-[13px] font-semibold text-[#191C1E]">{row.account_code}</span>
+                            <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)] tabular-nums">{row.account_code}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-[#434654] font-medium">{row.name}</td>
+                        <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{row.name}</td>
                         <td className="px-3 py-3">
                           <span className={TYPE_BADGES[row.account_type] ?? 'badge-gray'}>{row.account_type}</span>
                         </td>
-                        <td className="px-3 py-3 text-[#8E9196] text-xs">{row.normal_balance}</td>
+                        <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{row.normal_balance}</td>
                         <td className="px-3 py-3">
                           {row.is_active
                             ? <span className="badge-green">Active</span>
@@ -231,8 +231,8 @@ export default function AdminChartOfAccountsPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="px-5 py-3 border-t border-gray-100">
-                <p className="text-body-sm text-[#8E9196]">{accounts.length} accounts</p>
+              <div className="px-5 py-3">
+                <p className="text-body-sm text-[var(--text-secondary)] tabular-nums">{accounts.length} accounts</p>
               </div>
             </div>
           )}

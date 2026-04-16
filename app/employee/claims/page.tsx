@@ -55,7 +55,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dt className="text-[10px] font-label font-medium text-[#444650] uppercase tracking-widest">{label}</dt>
       <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );
@@ -65,10 +65,10 @@ function formatDate(val: string) {
   if (!val) return '';
   const d = new Date(val);
   return [
-    d.getUTCDate().toString().padStart(2, '0'),
-    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
     d.getUTCFullYear(),
-  ].join('/');
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCDate().toString().padStart(2, '0'),
+  ].join('.');
 }
 
 function formatRM(val: string | number) {
@@ -474,92 +474,107 @@ export default function EmployeeClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-[#F7F9FB]`}>
+    <div className="flex h-screen overflow-hidden bg-surface">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="employee" />
 
       {/* ═══ MAIN ═══ */}
       <div
-        className="flex-1 flex flex-col overflow-hidden relative"
+        className="flex-1 flex flex-col overflow-hidden relative ledger-binding"
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={(e) => { if (e.currentTarget.contains(e.relatedTarget as Node)) return; setDragOver(false); }}
         onDrop={handleDrop}
       >
 
-        <header className="h-14 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+        {/* ── Top Header ── */}
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-8 pl-14 bg-white border-b border-[#E0E3E5]">
           <div>
-            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">My Claims</h1>
-            <p className="text-body-sm text-[#8E9196]">{formatDisplayDate()}</p>
+            <h1 className="text-xl font-bold tracking-tighter text-[#0D1B2A]">My Claims</h1>
+            <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest">{formatDisplayDate()}</p>
           </div>
         </header>
 
+        {/* ── Drag overlay ── */}
         {dragOver && (
-          <div className="absolute inset-0 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-lg z-30 flex items-center justify-center pointer-events-none">
-            <p className="text-blue-600 font-semibold text-lg">Drop receipt to submit claim</p>
+          <div className="absolute inset-0 bg-[#234B6E]/10 border-2 border-dashed border-[#234B6E] z-30 flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <span className="text-[#0D1B2A] font-bold text-sm uppercase tracking-wider">Drop receipt to submit claim</span>
+            </div>
           </div>
         )}
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-6 p-8 pl-14 paper-texture animate-in">
 
-          {/* ── Success toast ─────────────────────────────── */}
+          {/* ── Success toast ── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-sm text-green-700">{successMsg}</p>
+            <div className="flex-shrink-0 bg-[#D6E0F1] p-3 inset-shadow">
+              <p className="text-sm font-medium text-[#0D1B2A]">{successMsg}</p>
             </div>
           )}
 
-          {/* ── Top bar ───────────────────────────────────── */}
+          {/* ── Top bar ── */}
           <div className="flex items-center justify-between flex-shrink-0">
-            <h2 className="text-body-md font-semibold text-[#191C1E]">All Claims</h2>
+            <div>
+              <h2 className="text-4xl font-extrabold text-[#0D1B2A] tracking-tight">Expense Claims</h2>
+              <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest mt-1">{claims.length} total entries</p>
+            </div>
             <button
               onClick={openModal}
-              className="btn-primary text-sm px-4 py-2 rounded-lg font-medium"
+              className="btn-thick-navy px-5 py-3 flex items-center gap-2"
             >
-              Submit New Claim
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              New Claim
             </button>
           </div>
 
-          {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
+          {/* ── Table ── */}
+          <div className="bg-white overflow-hidden flex-1 min-h-0 flex flex-col border border-[#C5C6D2]/30">
             {loading ? (
-              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+              <div className="px-6 py-12 text-center text-sm text-[#444650]">Loading...</div>
             ) : claims.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">No claims submitted yet.</div>
+              <div className="px-6 py-12 text-center text-sm text-[#444650]">No claims submitted yet.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
-                <table className="w-full">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-6 py-2.5">Date</th>
-                      <th className="px-6 py-2.5">Merchant</th>
-                      <th className="px-6 py-2.5">Category</th>
-                      <th className="px-6 py-2.5 text-right">Amount</th>
-                      <th className="px-6 py-2.5">Status</th>
-                      <th className="px-6 py-2.5">Reimbursed</th>
+                    <tr className="bg-[#E6E8EA] border-b border-[#C5C6D2]/30">
+                      <th className="px-6 py-4 text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
+                      <th className="px-6 py-4 text-xs font-label uppercase tracking-widest text-[#444650]">Description</th>
+                      <th className="px-6 py-4 text-xs font-label uppercase tracking-widest text-[#444650]">Category</th>
+                      <th className="px-6 py-4 text-xs font-label uppercase tracking-widest text-[#444650] text-right">Amount</th>
+                      <th className="px-6 py-4 text-xs font-label uppercase tracking-widest text-[#444650] text-center">Status</th>
+                      <th className="px-6 py-4 text-xs font-label uppercase tracking-widest text-[#444650] text-center">Reimbursed</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {claims.map((c) => {
+                  <tbody className="text-sm">
+                    {claims.map((c, i) => {
                       const sCfg = STATUS_CFG[c.status];
                       const _aCfg = APPROVAL_CFG[c.approval];
                       return (
-                        <tr key={c.id} onClick={() => setPreviewClaim(c)} className="group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer">
-                          <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
-                          <td className="px-6 py-3 text-[#191C1E] font-medium group-hover:text-[var(--accent)] transition-colors duration-200">
+                        <tr
+                          key={c.id}
+                          onClick={() => setPreviewClaim(c)}
+                          className={`group hover:bg-[#E6E8EA] transition-colors cursor-pointer align-middle border-b border-[#C5C6D2]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F2F4F6]'}`}
+                        >
+                          <td className="px-6 py-5 tabular-nums text-[#444650]">{formatDate(c.claim_date)}</td>
+                          <td className="px-6 py-5 font-medium text-[#0D1B2A]">
                             {c.type === 'mileage' ? (
                               <span className="flex items-center gap-1.5">
-                                <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 text-label-sm font-bold flex-shrink-0">M</span>
+                                <span className="inline-flex items-center justify-center w-5 h-5 bg-[#D6E0F1] text-[#0D1B2A] text-[10px] font-bold flex-shrink-0">M</span>
                                 {c.from_location} &rarr; {c.to_location}
                               </span>
                             ) : c.merchant}
                           </td>
-                          <td className="px-6 py-3 text-[#434654]">{c.category_name}</td>
-                          <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
-                          <td className="px-6 py-3">
+                          <td className="px-6 py-5 text-[#444650]">{c.category_name}</td>
+                          <td className="px-6 py-5 font-medium text-right tabular-nums text-[#0D1B2A]">{formatRM(c.amount)}</td>
+                          <td className="px-6 py-5 text-center">
                             {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                           </td>
-                          <td className="px-6 py-3">
+                          <td className="px-6 py-5 text-center">
                             <span className={c.payment_status === 'paid' ? 'badge-green' : 'badge-amber'}>
                               {c.payment_status === 'paid' ? 'Reimbursed' : 'Pending'}
                             </span>
@@ -571,6 +586,14 @@ export default function EmployeeClaimsPage() {
                 </table>
               </div>
             )}
+            {/* Table footer */}
+            {!loading && claims.length > 0 && (
+              <div className="px-6 py-4 bg-[#E6E8EA] border-t border-[#C5C6D2]/30 flex justify-between items-center">
+                <span className="text-[10px] font-label text-[#444650] uppercase tracking-widest">
+                  Showing {claims.length} entries
+                </span>
+              </div>
+            )}
           </div>
 
         </main>
@@ -578,253 +601,266 @@ export default function EmployeeClaimsPage() {
 
       {/* ═══ SUBMIT CLAIM MODAL ═══ */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-semibold text-[#191C1E]">Submit New Claim</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-4">Fill in the details below to submit a new expense claim.</p>
-
-            {/* Document preview */}
-            {selectedFile && (() => {
-              const url = URL.createObjectURL(selectedFile);
-              const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
-              return (
-                <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50 mb-4">
-                  {isPdf ? (
-                    <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
-                  ) : (
-                    <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* ── Type Toggle ── */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
-              <button
-                onClick={() => setClaimType('receipt')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'receipt' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
-              >
-                Receipt Claim
-              </button>
-              <button
-                onClick={() => setClaimType('mileage')}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${claimType === 'mileage' ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
-              >
-                Mileage Claim
-              </button>
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-lg max-h-[90vh] flex flex-col">
+            {/* Modal header */}
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[#234B6E]">
+              <h3 className="text-white font-bold text-sm uppercase tracking-wider">Submit New Claim</h3>
+              <button onClick={() => setShowModal(false)} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
-            {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{modalError}</p>
-              </div>
-            )}
+            <div className="flex-1 overflow-y-auto p-6">
+              <p className="text-sm text-[#444650] mb-4">Fill in the details below to submit a new expense claim.</p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Claim Date *</label>
-                <input
-                  type="date"
-                  value={modalDate}
-                  onChange={(e) => setModalDate(e.target.value)}
-                  className="input-field w-full"
-                  required
-                />
-              </div>
-
-              {claimType === 'mileage' ? (
-                <>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">From *</label>
-                    <input
-                      type="text"
-                      value={mileageFrom}
-                      onChange={(e) => setMileageFrom(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="e.g. PJ Office"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">To *</label>
-                    <input
-                      type="text"
-                      value={mileageTo}
-                      onChange={(e) => setMileageTo(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="e.g. Shah Alam client office"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Distance (km) *</label>
-                    <input
-                      type="number"
-                      value={mileageDistance}
-                      onChange={(e) => setMileageDistance(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="e.g. 25"
-                      step="0.1"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Purpose *</label>
-                    <input
-                      type="text"
-                      value={mileagePurpose}
-                      onChange={(e) => setMileagePurpose(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="e.g. Client meeting with ABC Sdn Bhd"
-                    />
-                  </div>
-                  {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-800 font-medium">
-                        Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-xs text-blue-600 mt-0.5">
-                        {mileageDistance} km x RM {mileageRate.toFixed(2)}/km
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant Name *</label>
-                    <input
-                      type="text"
-                      value={modalMerchant}
-                      onChange={(e) => setModalMerchant(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="e.g. Petronas, Grab, etc."
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM) *</label>
-                    <input
-                      type="number"
-                      value={modalAmount}
-                      onChange={(e) => setModalAmount(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category *</label>
-                    <select
-                      value={modalCategory}
-                      onChange={(e) => setModalCategory(e.target.value)}
-                      className="input-field w-full"
-                    >
-                      <option value="">Select a category</option>
-                      {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt Number</label>
-                    <input
-                      type="text"
-                      value={modalReceipt}
-                      onChange={(e) => setModalReceipt(e.target.value)}
-                      className="input-field w-full"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
-                    <textarea
-                      value={modalDesc}
-                      onChange={(e) => setModalDesc(e.target.value)}
-                      className="input-field w-full"
-                      rows={2}
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt *</label>
-                    <div
-                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
-                      onDragOver={(e) => e.preventDefault()}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        const file = Array.from(e.dataTransfer.files).find((f) => {
-                          const ext = '.' + f.name.split('.').pop()?.toLowerCase();
-                          return accepted.includes(ext) || f.type.startsWith('image/') || f.type === 'application/pdf';
-                        });
-                        if (file) {
-                          const dt = new DataTransfer();
-                          dt.items.add(file);
-                          if (fileInputRef.current) {
-                            fileInputRef.current.files = dt.files;
-                            fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
-                          }
-                        }
-                      }}
-                    >
-                      {selectedFile ? (
-                        <div className="space-y-2">
-                          {selectedFile.type === 'application/pdf' ? (
-                            <div className="mx-auto w-16 h-20 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center">
-                              <span className="text-red-500 font-bold text-xs">PDF</span>
-                            </div>
-                          ) : previewUrl ? (
-                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded-lg" />
-                          ) : null}
-                          <p className="text-sm text-[#434654]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); clearFile(); }}
-                            className="text-xs text-red-500 hover:text-red-700"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="text-sm text-[#434654]">Click or drag to upload receipt</p>
-                          <p className="text-xs text-[#8E9196] mt-1">JPG, PNG, PDF up to 10MB</p>
-                        </div>
-                      )}
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        onChange={handleFileChange}
-                        className="hidden"
-                        ref={fileInputRef}
-                      />
-                    </div>
-                    {ocrScanning && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Scanning document... fields will auto-fill shortly
-                      </div>
+              {/* Document preview */}
+              {selectedFile && (() => {
+                const url = URL.createObjectURL(selectedFile);
+                const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+                return (
+                  <div className="overflow-hidden bg-[#F2F4F6] mb-4 inset-shadow">
+                    {isPdf ? (
+                      <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
+                    ) : (
+                      <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
                     )}
                   </div>
-                </>
+                );
+              })()}
+
+              {/* ── Type Toggle ── */}
+              <div className="flex overflow-hidden mb-4 gap-2">
+                <button
+                  onClick={() => setClaimType('receipt')}
+                  className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${claimType === 'receipt' ? 'btn-thick-navy' : 'btn-thick-white'}`}
+                >
+                  Receipt Claim
+                </button>
+                <button
+                  onClick={() => setClaimType('mileage')}
+                  className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${claimType === 'mileage' ? 'btn-thick-navy' : 'btn-thick-white'}`}
+                >
+                  Mileage Claim
+                </button>
+              </div>
+
+              {modalError && (
+                <div className="mb-4 bg-[#FFDAD6] p-3 inset-shadow">
+                  <p className="text-sm font-medium text-[#93000A]">{modalError}</p>
+                </div>
               )}
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Claim Date *</label>
+                  <input
+                    type="date"
+                    value={modalDate}
+                    onChange={(e) => setModalDate(e.target.value)}
+                    className="input-field w-full"
+                    required
+                  />
+                </div>
+
+                {claimType === 'mileage' ? (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">From *</label>
+                      <input
+                        type="text"
+                        value={mileageFrom}
+                        onChange={(e) => setMileageFrom(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="e.g. PJ Office"
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">To *</label>
+                      <input
+                        type="text"
+                        value={mileageTo}
+                        onChange={(e) => setMileageTo(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="e.g. Shah Alam client office"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Distance (km) *</label>
+                      <input
+                        type="number"
+                        value={mileageDistance}
+                        onChange={(e) => setMileageDistance(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="e.g. 25"
+                        step="0.1"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Purpose *</label>
+                      <input
+                        type="text"
+                        value={mileagePurpose}
+                        onChange={(e) => setMileagePurpose(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="e.g. Client meeting with ABC Sdn Bhd"
+                      />
+                    </div>
+                    {mileageDistance && parseFloat(mileageDistance) > 0 && (
+                      <div className="bg-[#D6E0F1] p-3 inset-shadow">
+                        <p className="text-sm font-bold text-[#0D1B2A] tabular-nums">
+                          Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest mt-0.5">
+                          {mileageDistance} km x RM {mileageRate.toFixed(2)}/km
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Merchant Name *</label>
+                      <input
+                        type="text"
+                        value={modalMerchant}
+                        onChange={(e) => setModalMerchant(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="e.g. Petronas, Grab, etc."
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Amount (RM) *</label>
+                      <input
+                        type="number"
+                        value={modalAmount}
+                        onChange={(e) => setModalAmount(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Category *</label>
+                      <select
+                        value={modalCategory}
+                        onChange={(e) => setModalCategory(e.target.value)}
+                        className="input-field w-full"
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt Number</label>
+                      <input
+                        type="text"
+                        value={modalReceipt}
+                        onChange={(e) => setModalReceipt(e.target.value)}
+                        className="input-field w-full"
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Description</label>
+                      <textarea
+                        value={modalDesc}
+                        onChange={(e) => setModalDesc(e.target.value)}
+                        className="input-field w-full"
+                        rows={2}
+                        placeholder="Optional"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt *</label>
+                      <div
+                        className="border-2 border-dashed border-[#C5C6D2] p-6 text-center cursor-pointer hover:border-[#234B6E] transition-all group"
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = Array.from(e.dataTransfer.files).find((f) => {
+                            const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+                            return accepted.includes(ext) || f.type.startsWith('image/') || f.type === 'application/pdf';
+                          });
+                          if (file) {
+                            const dt = new DataTransfer();
+                            dt.items.add(file);
+                            if (fileInputRef.current) {
+                              fileInputRef.current.files = dt.files;
+                              fileInputRef.current.dispatchEvent(new Event('change', { bubbles: true }));
+                            }
+                          }
+                        }}
+                      >
+                        {selectedFile ? (
+                          <div className="space-y-2">
+                            {selectedFile.type === 'application/pdf' ? (
+                              <div className="mx-auto w-16 h-20 bg-[#FFDAD6] flex items-center justify-center inset-shadow">
+                                <span className="text-[#93000A] font-bold text-xs">PDF</span>
+                              </div>
+                            ) : previewUrl ? (
+                              <img src={previewUrl} alt="Preview" className="mx-auto max-h-32" />
+                            ) : null}
+                            <p className="text-sm text-[#444650]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); clearFile(); }}
+                              className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <div>
+                            <svg className="mx-auto mb-2 text-[#234B6E] group-hover:scale-110 transition-transform" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="17 8 12 3 7 8" />
+                              <line x1="12" y1="3" x2="12" y2="15" />
+                            </svg>
+                            <p className="text-xs font-bold text-[#234B6E] uppercase tracking-wider">Upload Receipt</p>
+                            <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest mt-1">JPG, PNG, PDF up to 10MB</p>
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*,application/pdf"
+                          onChange={handleFileChange}
+                          className="hidden"
+                          ref={fileInputRef}
+                        />
+                      </div>
+                      {ocrScanning && (
+                        <div className="mt-2 flex items-center gap-2 text-sm text-[#0D1B2A]">
+                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                          </svg>
+                          Scanning document... fields will auto-fill shortly
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
+            {/* Modal footer */}
+            <div className="p-4 flex-shrink-0 flex gap-3 bg-[#F2F4F6]">
               <button
                 onClick={submitClaim}
                 disabled={modalSaving || ocrScanning}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-thick-green flex-1 py-3 text-sm"
               >
-                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage Claim' : 'Submit Claim'}
+                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : claimType === 'mileage' ? 'Submit Mileage' : 'Submit Claim'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="btn-thick-white flex-1 py-3 text-sm"
               >
                 Cancel
               </button>
@@ -835,49 +871,49 @@ export default function EmployeeClaimsPage() {
 
       {/* ═══ BATCH REVIEW MODAL ═══ */}
       {showBatchReview && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 rounded-t-lg" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[#234B6E]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-wider">
                 Review {batchItems.length} Receipts
-                <span className="ml-2 text-white/60 font-normal">from 1 image</span>
+                <span className="ml-2 text-white/50 font-normal normal-case tracking-normal">from 1 image</span>
               </h2>
-              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {batchItems.map((item, idx) => (
-                <div key={idx} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                <div key={idx} className="bg-[#F2F4F6] p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#191C1E]">Receipt {idx + 1}</span>
-                    <button onClick={() => setBatchItems(batchItems.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                    <span className="text-xs font-label font-bold text-[#0D1B2A] uppercase tracking-widest">Receipt {idx + 1}</span>
+                    <button onClick={() => setBatchItems(batchItems.filter((_, i) => i !== idx))} className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider">Remove</button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date</label>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Date</label>
                       <input type="date" value={item.claim_date} onChange={(e) => { const items = [...batchItems]; items[idx].claim_date = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
                     </div>
                     <div>
-                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM)</label>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Amount (RM)</label>
                       <input type="number" step="0.01" value={item.amount} onChange={(e) => { const items = [...batchItems]; items[idx].amount = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant</label>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Merchant</label>
                       <input type="text" value={item.merchant} onChange={(e) => { const items = [...batchItems]; items[idx].merchant = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
                     </div>
                     <div>
-                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category</label>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Category</label>
                       <select value={item.category_id} onChange={(e) => { const items = [...batchItems]; items[idx].category_id = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm">
                         <option value="">Select</option>
                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt No.</label>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt No.</label>
                       <input type="text" value={item.receipt_number} onChange={(e) => { const items = [...batchItems]; items[idx].receipt_number = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
+                      <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Description</label>
                       <input type="text" value={item.description} onChange={(e) => { const items = [...batchItems]; items[idx].description = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" placeholder="Optional" />
                     </div>
                   </div>
@@ -885,18 +921,18 @@ export default function EmployeeClaimsPage() {
               ))}
             </div>
 
-            <div className="p-4 flex-shrink-0 flex gap-3 border-t">
+            <div className="p-4 flex-shrink-0 flex gap-3 bg-[#F2F4F6]">
               <button
                 onClick={submitBatchClaims}
                 disabled={batchSubmitting || batchItems.length === 0}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40"
+                className="btn-thick-green flex-1 py-3 text-sm"
               >
                 {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
               </button>
               <button
                 onClick={() => { setShowBatchReview(false); setBatchItems([]); }}
                 disabled={batchSubmitting}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                className="btn-thick-white flex-1 py-3 text-sm"
               >
                 Cancel
               </button>
@@ -908,11 +944,12 @@ export default function EmployeeClaimsPage() {
       {/* ═══ CLAIM PREVIEW ═══ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">
+          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[#234B6E]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-wider">
                 {previewClaim.type === 'mileage' ? 'Mileage Claim' : 'Claim Details'}
               </h2>
               <div className="flex items-center gap-2">
@@ -933,63 +970,63 @@ export default function EmployeeClaimsPage() {
                       });
                     }
                   }}
-                  className={`text-sm px-2.5 py-1 rounded-md transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                  className={`text-xs font-bold uppercase tracking-wider px-3 py-1 transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white hover:bg-white/10'}`}
                 >
                   {editMode ? 'Cancel' : 'Edit'}
                 </button>
-                <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+                <button onClick={() => setPreviewClaim(null)} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.type === 'mileage' ? (
-                <div className="w-full rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-1.5">
-                  <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Mileage Claim</p>
-                  <p className="text-sm text-blue-900">{previewClaim.from_location} &rarr; {previewClaim.to_location}</p>
-                  <p className="text-sm text-blue-800">{previewClaim.distance_km} km</p>
-                  {previewClaim.trip_purpose && <p className="text-xs text-blue-600">{previewClaim.trip_purpose}</p>}
+                <div className="w-full bg-[#D6E0F1] p-4 space-y-1.5 inset-shadow">
+                  <p className="text-[10px] font-label font-bold text-[#0D1B2A] uppercase tracking-widest">Mileage Claim</p>
+                  <p className="text-sm font-medium text-[#0D1B2A]">{previewClaim.from_location} &rarr; {previewClaim.to_location}</p>
+                  <p className="text-sm tabular-nums text-[#0D1B2A]">{previewClaim.distance_km} km</p>
+                  {previewClaim.trip_purpose && <p className="text-xs text-[#596372]">{previewClaim.trip_purpose}</p>}
                 </div>
               ) : previewClaim.thumbnail_url ? (
                 previewClaim.file_url ? (
                   <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain bg-[#F2F4F6] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain bg-[#F2F4F6]" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
+                <div className="w-full h-40 bg-[#F2F4F6] flex items-center justify-center text-[#444650] text-sm inset-shadow">No image available</div>
               )}
 
               {editMode && editData ? (
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Date</dt>
+                    <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Date</dt>
                     <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Merchant</dt>
+                    <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Merchant</dt>
                     <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Amount (RM)</dt>
+                    <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Amount (RM)</dt>
                     <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Category</dt>
+                    <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Category</dt>
                     <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full mt-0.5">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Receipt No.</dt>
+                    <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Receipt No.</dt>
                     <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Description</dt>
+                    <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Description</dt>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full mt-0.5" />
                   </div>
-                  <div className="flex items-start gap-2.5 bg-[#FFF3E0] rounded-lg px-4 py-3">
+                  <div className="flex items-start gap-2.5 bg-[#FFF3E0] px-4 py-3 inset-shadow">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E65100" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
                       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                       <line x1="12" y1="9" x2="12" y2="13" />
@@ -999,7 +1036,7 @@ export default function EmployeeClaimsPage() {
                       Saving will reset status to Pending Review and approval to Pending.
                     </p>
                   </div>
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary w-full py-2.5 rounded-lg text-sm font-semibold">
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-thick-green w-full py-3 text-sm">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </dl>
@@ -1019,13 +1056,13 @@ export default function EmployeeClaimsPage() {
                     ))}
                   </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-[#FFEBEE] rounded-lg p-4">
-                      <p className="text-label-md text-[#B71C1C] uppercase mb-1.5">Rejection Reason</p>
-                      <p className="text-body-md text-[#B71C1C] leading-relaxed">{previewClaim.rejection_reason}</p>
+                    <div className="bg-[#FFDAD6] p-4 inset-shadow">
+                      <p className="text-[10px] font-label font-bold text-[#93000A] uppercase tracking-widest mb-1.5">Rejection Reason</p>
+                      <p className="text-body-md text-[#93000A] leading-relaxed">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
                   {previewClaim.file_url && (
-                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-label-md text-primary hover:opacity-80">
+                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-label-md text-[#234B6E] font-bold hover:opacity-80">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                         <polyline points="15 3 21 3 21 9" />

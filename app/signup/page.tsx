@@ -96,16 +96,16 @@ export default function SignupPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--primary-rgb),0.4)] focus:border-[rgba(var(--primary-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
-    "block text-white/40 text-label-sm font-semibold uppercase tracking-[0.15em] mb-2.5";
+    "block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2.5";
 
   return (
     <div>
       <main
         className="min-h-screen flex items-center justify-center relative overflow-hidden"
-        style={{ backgroundColor: "#0D1B2A" }}
+        style={{ backgroundColor: "var(--primary)" }}
       >
         {/* Subtle grid background */}
         <div
@@ -118,8 +118,8 @@ export default function SignupPage() {
 
         {/* Gradient glow */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-20 blur-[120px]"
-          style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] opacity-20 blur-[120px]"
+          style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }}
         />
 
         <div
@@ -136,7 +136,7 @@ export default function SignupPage() {
 
           {/* Card */}
           <div
-            className="rounded-2xl p-8 sm:p-10"
+            className="p-8 sm:p-10"
             style={{
               backgroundColor: "rgba(255, 255, 255, 0.02)",
               border: "1px solid rgba(255, 255, 255, 0.06)",
@@ -147,13 +147,13 @@ export default function SignupPage() {
               <div className="form-stagger" key="success">
                 <div className="text-center py-6">
                   <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                    className="w-16 h-16 flex items-center justify-center mx-auto mb-6"
                     style={{
-                      backgroundColor: "rgba(34, 197, 94, 0.08)",
-                      border: "1px solid rgba(34, 197, 94, 0.15)",
+                      backgroundColor: "rgba(var(--match-green-rgb, 10, 153, 129), 0.08)",
+                      border: "1px solid rgba(var(--match-green-rgb, 10, 153, 129), 0.15)",
                     }}
                   >
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
@@ -334,9 +334,9 @@ export default function SignupPage() {
                       />
                       {showDropdown && filteredFirms.length > 0 && (
                         <div
-                          className="absolute z-20 w-full mt-1.5 max-h-48 overflow-y-auto rounded-lg border shadow-2xl"
+                          className="absolute z-20 w-full mt-1.5 max-h-48 overflow-y-auto border shadow-2xl"
                           style={{
-                            backgroundColor: "var(--sidebar)",
+                            backgroundColor: "var(--primary)",
                             borderColor: "rgba(255, 255, 255, 0.08)",
                             boxShadow: "0 12px 40px rgba(0, 0, 0, 0.4)",
                           }}
@@ -346,7 +346,7 @@ export default function SignupPage() {
                               key={firm.id}
                               type="button"
                               onClick={() => selectFirm(firm)}
-                              className="w-full text-left px-4 py-3 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white transition-colors duration-200 first:rounded-t-xl last:rounded-b-xl"
+                              className="w-full text-left px-4 py-3 text-sm text-white/70 hover:bg-white/[0.06] hover:text-white transition-colors duration-200"
                             >
                               {firm.name}
                             </button>
@@ -355,9 +355,9 @@ export default function SignupPage() {
                       )}
                       {showDropdown && firmSearch && filteredFirms.length === 0 && (
                         <div
-                          className="absolute z-20 w-full mt-1.5 rounded-lg border px-4 py-3"
+                          className="absolute z-20 w-full mt-1.5 border px-4 py-3"
                           style={{
-                            backgroundColor: "var(--sidebar)",
+                            backgroundColor: "var(--primary)",
                             borderColor: "rgba(255, 255, 255, 0.08)",
                           }}
                         >
@@ -372,29 +372,29 @@ export default function SignupPage() {
 
                   {error && (
                     <div
-                      className="flex items-center gap-2.5 px-4 py-3 rounded-lg border"
+                      className="flex items-center gap-2.5 px-4 py-3 border"
                       style={{
-                        backgroundColor: "rgba(var(--accent-rgb), 0.08)",
-                        borderColor: "rgba(var(--accent-rgb), 0.2)",
+                        backgroundColor: "rgba(var(--reject-red-rgb, 242, 53, 69), 0.08)",
+                        borderColor: "var(--reject-red)",
                       }}
                     >
                       <div
-                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ backgroundColor: "rgba(var(--accent-rgb), 0.2)" }}
+                        className="w-5 h-5 flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: "rgba(var(--reject-red-rgb, 242, 53, 69), 0.2)" }}
                       >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--reject-red)" strokeWidth="3" strokeLinecap="round">
                           <line x1="18" y1="6" x2="6" y2="18" />
                           <line x1="6" y1="6" x2="18" y2="18" />
                         </svg>
                       </div>
-                      <p className="text-[#E8A0A0] text-sm">{error}</p>
+                      <p style={{ color: "var(--reject-red)" }} className="text-sm">{error}</p>
                     </div>
                   )}
 
                   <button
                     type="submit"
                     disabled={pageState === "loading"}
-                    className="w-full py-3 rounded-lg text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed btn-primary mt-1"
+                    className="w-full py-3 text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed btn-thick-navy mt-1"
                   >
                     {pageState === "loading" ? (
                       <span className="flex items-center justify-center gap-2.5">

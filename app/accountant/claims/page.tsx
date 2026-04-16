@@ -9,7 +9,7 @@ import Field from '@/components/forms/Field';
 import { StatusCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
-import { todayStr, formatDate, formatRM, getDateRange } from '@/lib/formatters';
+import { todayStr, formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
 import { STATUS_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 import FilterBar from '@/components/filters/FilterBar';
@@ -54,6 +54,17 @@ interface ClaimRow {
 interface Category {
   id: string;
   name: string;
+}
+
+/** Dot-notation date: YYYY.MM.DD */
+function formatDateDot(val: string | null | undefined): string {
+  if (!val) return '';
+  const d = new Date(val);
+  return [
+    d.getUTCFullYear(),
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCDate().toString().padStart(2, '0'),
+  ].join('.');
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -924,7 +935,7 @@ function ClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface-base)]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -939,22 +950,25 @@ function ClaimsPage() {
       >
 
         {isDragging && (
-          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
-            <div className="bg-white rounded-xl shadow-lg px-8 py-6 text-center">
-              <svg className="w-10 h-10 text-blue-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+          <div className="absolute inset-0 z-50 bg-[var(--primary)]/10 border-2 border-dashed border-[var(--primary)] flex items-center justify-center pointer-events-none">
+            <div className="bg-white shadow-lg px-8 py-6 text-center">
+              <svg className="w-10 h-10 text-[var(--primary)] mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              <p className="text-sm font-semibold text-[#191C1E]">Drop files to upload</p>
-              <p className="text-xs text-[#8E9196] mt-1">Files will be processed with OCR automatically</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Drop files to upload</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">Files will be processed with OCR automatically</p>
             </div>
           </div>
         )}
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
+          <div>
+            <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
+            <p className="text-[10px] font-label text-[var(--text-secondary)] uppercase tracking-widest">{formatDateDot(todayStr())}</p>
+          </div>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
 
 
@@ -978,24 +992,24 @@ function ClaimsPage() {
 
           {/* ── Success message ──────────────────────────── */}
           {successMsg && (
-            <div className="flex-shrink-0 bg-green-50 border border-green-200 rounded-lg p-3">
-              <p className="text-sm text-green-700">{successMsg}</p>
+            <div className="flex-shrink-0 bg-[var(--match-green)]/10 p-3">
+              <p className="text-sm text-[var(--match-green)]">{successMsg}</p>
             </div>
           )}
 
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
           {/* ── Table ───────────────────────────────────── */}
-          <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-gray-200 bg-white">
+          <div className="flex-1 min-h-0 overflow-auto bg-white">
             {loading ? (
-              <div className="flex items-center justify-center h-full text-sm text-[#8E9196]">Loading...</div>
+              <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">Loading...</div>
             ) : claims.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-sm text-[#8E9196]">{claimTab === 'receipt' ? 'No receipts' : claimTab === 'mileage' ? 'No mileage claims' : 'No claims'} found for the selected filters.</div>
+              <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">{claimTab === 'receipt' ? 'No receipts' : claimTab === 'mileage' ? 'No mileage claims' : 'No claims'} found for the selected filters.</div>
             ) : (
               <table className="w-full">
                 <thead>
                   {claimTab === 'claim' && (
-                    <tr className="ds-table-header text-left">
+                    <tr className="bg-[var(--surface-header)] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>
@@ -1009,7 +1023,7 @@ function ClaimsPage() {
                     </tr>
                   )}
                   {claimTab === 'receipt' && (
-                    <tr className="ds-table-header text-left">
+                    <tr className="bg-[var(--surface-header)] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       {showFirm && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
@@ -1023,7 +1037,7 @@ function ClaimsPage() {
                     </tr>
                   )}
                   {claimTab === 'mileage' && (
-                    <tr className="ds-table-header text-left">
+                    <tr className="bg-[var(--surface-header)] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>
@@ -1038,46 +1052,47 @@ function ClaimsPage() {
                   )}
                 </thead>
                 <tbody>
-                  {pagedClaims.map((c) => {
+                  {pagedClaims.map((c, idx) => {
                     const isSelected = selectedRows.some((r) => r.id === c.id);
+                    const rowBg = idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white';
                     if (claimTab === 'claim') return (
-                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50">
+                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
-                        <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
-                        <td className="px-5 py-3 text-[#434654]">{c.employee_name}</td>
-                        {showFirm && <td className="px-5 py-3 text-[#434654]">{c.firm_name}</td>}
-                        <td className="px-5 py-3 text-[#434654]">{c.merchant}</td>
-                        <td className="px-5 py-3 text-[#434654]">{c.category_name}</td>
-                        <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
+                        {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.merchant}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.category_name}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
                         <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                         <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                       </tr>
                     );
                     if (claimTab === 'mileage') return (
-                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50">
+                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
-                        <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
-                        <td className="px-5 py-3 text-[#434654]">{c.employee_name}</td>
-                        {showFirm && <td className="px-5 py-3 text-[#434654]">{c.firm_name}</td>}
-                        <td className="px-5 py-3 text-[#434654]">{c.from_location}</td>
-                        <td className="px-5 py-3 text-[#434654]">{c.to_location}</td>
-                        <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{c.distance_km}</td>
-                        <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
+                        {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.from_location}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.to_location}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{c.distance_km}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
                         <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                       </tr>
                     );
                     // receipt tab
                     return (
-                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className="text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50">
+                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
-                        <td className="px-5 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
-                        {showFirm && <td className="px-5 py-3 text-[#434654]">{c.firm_name}</td>}
-                        <td className="px-5 py-3 text-[#434654]">{c.merchant}</td>
-                        <td className="px-5 py-3 text-[#434654]">{c.receipt_number}</td>
-                        <td className="px-5 py-3 text-[#434654]">{c.category_name}</td>
-                        <td className="px-5 py-3 text-[#434654] text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
+                        {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.merchant}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.receipt_number}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.category_name}</td>
+                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-5 py-3"><StatusCell value={c.status} /></td>
                         <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                         <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>
@@ -1091,20 +1106,20 @@ function ClaimsPage() {
 
           {/* ── Pagination ───────────────────────────────── */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between flex-shrink-0 text-sm text-[#434654]">
+            <div className="flex items-center justify-between flex-shrink-0 text-sm text-[var(--text-secondary)]">
               <span>Page {page + 1} of {totalPages} ({sorted.length} total)</span>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-thick-white px-3 py-1.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-thick-white px-3 py-1.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -1117,17 +1132,21 @@ function ClaimsPage() {
 
       {/* ═══════════════════════ SUBMIT MODAL ═══════════════════════ */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-scroll">
-            <h3 className="text-base font-semibold text-[#191C1E]">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-4">Fill in the details below.</p>
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h3 className="text-white font-bold text-sm uppercase tracking-widest">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
+              <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+
+            <div className="flex-1 overflow-y-scroll p-6 space-y-3">
 
             {/* Document preview */}
             {selectedFile && (() => {
               const url = URL.createObjectURL(selectedFile);
               const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
               return (
-                <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50 mb-4">
+                <div className="overflow-hidden bg-[var(--surface-low)] mb-4">
                   {isPdf ? (
                     <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
                   ) : (
@@ -1138,12 +1157,12 @@ function ClaimsPage() {
             })()}
 
             {/* ── Type Toggle ── */}
-            <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
+            <div className="flex overflow-hidden mb-4">
               {(['claim', 'receipt', 'mileage'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => setModalType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--sidebar)] text-white' : 'bg-white text-[#434654] hover:bg-gray-50'}`}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--primary)] text-white' : 'bg-white text-[var(--text-secondary)] hover:bg-[var(--surface-low)]'}`}
                 >
                   {t === 'claim' ? 'Claim' : t === 'receipt' ? 'Receipt' : 'Mileage'}
                 </button>
@@ -1151,14 +1170,14 @@ function ClaimsPage() {
             </div>
 
             {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{modalError}</p>
+              <div className="mb-4 bg-[var(--reject-red)]/10 p-3">
+                <p className="text-sm text-[var(--reject-red)]">{modalError}</p>
               </div>
             )}
 
             <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Firm *</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Firm *</label>
                 <select
                   value={modalFirmId}
                   onChange={(e) => setModalFirmId(e.target.value)}
@@ -1170,7 +1189,7 @@ function ClaimsPage() {
               </div>
               {modalEmployees.length > 0 && modalType !== 'receipt' && (
                 <div>
-                  <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Employee *</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Employee *</label>
                   <select
                     value={modalEmployeeId}
                     onChange={(e) => setModalEmployeeId(e.target.value)}
@@ -1182,91 +1201,91 @@ function ClaimsPage() {
                 </div>
               )}
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Date *</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Date *</label>
                 <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className={`${inputCls} w-full`} required />
               </div>
 
               {modalType === 'mileage' ? (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">From *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">From *</label>
                     <input type="text" value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. PJ Office" autoFocus />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">To *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">To *</label>
                     <input type="text" value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Shah Alam client office" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Distance (km) *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Distance (km) *</label>
                     <input type="number" value={mileageDistance} onChange={(e) => setMileageDistance(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. 25" step="0.1" min="0" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Purpose *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Purpose *</label>
                     <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Client meeting with ABC Sdn Bhd" />
                   </div>
                   {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-800 font-medium">
+                    <div className="bg-[var(--primary)]/10 p-3">
+                      <p className="text-sm text-[var(--primary)] font-medium tabular-nums">
                         Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
-                      <p className="text-xs text-blue-600 mt-0.5">{mileageDistance} km x RM {mileageRate.toFixed(2)}/km</p>
+                      <p className="text-xs text-[var(--primary)]/70 mt-0.5 tabular-nums">{mileageDistance} km x RM {mileageRate.toFixed(2)}/km</p>
                     </div>
                   )}
                 </>
               ) : (
                 <>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Merchant Name *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Merchant Name *</label>
                     <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className={`${inputCls} w-full`} placeholder="e.g. Petronas, Grab, etc." autoFocus />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Amount (RM) *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Amount (RM) *</label>
                     <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className={`${inputCls} w-full`} placeholder="0.00" step="0.01" min="0" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Category *</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Category *</label>
                     <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className={`${inputCls} w-full`}>
                       <option value="">Select a category</option>
                       {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt Number</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Receipt Number</label>
                     <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className={`${inputCls} w-full`} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Description</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description</label>
                     <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className={`${inputCls} w-full`} rows={2} placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Receipt</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Receipt</label>
                     <div
-                      className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 transition-colors"
+                      className="border-2 border-dashed border-[var(--outline-ghost)] p-4 text-center cursor-pointer hover:border-[var(--outline)] transition-colors"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       {selectedFile ? (
                         <div className="space-y-2">
                           {selectedFile.type === 'application/pdf' ? (
-                            <div className="mx-auto w-16 h-20 rounded-lg bg-red-50 border border-red-200 flex items-center justify-center">
-                              <span className="text-red-500 font-bold text-xs">PDF</span>
+                            <div className="mx-auto w-16 h-20 bg-[var(--reject-red)]/10 flex items-center justify-center">
+                              <span className="text-[var(--reject-red)] font-bold text-xs">PDF</span>
                             </div>
                           ) : previewUrl ? (
-                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32 rounded" />
+                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32" />
                           ) : null}
-                          <p className="text-sm text-[#434654]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
-                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                          <p className="text-sm text-[var(--text-secondary)]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
+                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80">Remove</button>
                         </div>
                       ) : (
                         <div>
-                          <p className="text-sm text-[#434654]">Click or drag to upload receipt</p>
-                          <p className="text-xs text-[#8E9196] mt-1">JPG, PNG, PDF up to 10MB</p>
+                          <p className="text-sm text-[var(--text-secondary)]">Click or drag to upload receipt</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">JPG, PNG, PDF up to 10MB</p>
                         </div>
                       )}
                       <input type="file" accept="image/*,application/pdf" multiple onChange={handleFileChange} className="hidden" ref={fileInputRef} />
                     </div>
-                    <p className="text-xs text-[#8E9196] mt-1">Select multiple files to batch upload with auto OCR</p>
+                    <p className="text-xs text-[var(--text-muted)] mt-1">Select multiple files to batch upload with auto OCR</p>
                     {ocrScanning && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                      <div className="mt-2 flex items-center gap-2 text-sm text-[var(--primary)]">
                         <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1279,20 +1298,20 @@ function ClaimsPage() {
               )}
 
             </div>
+            </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 px-5 py-3 bg-[var(--surface-low)]">
               <button
                 onClick={submitClaim}
                 disabled={modalSaving || ocrScanning}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--accent)' }}
+                className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -1304,11 +1323,11 @@ function ClaimsPage() {
       {/* ═══ BATCH REVIEW MODAL ═══ */}
       {showBatchReview && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">
+          <div className="bg-white shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">
                 Batch Review — {batchItems.length} claims
                 {batchScanning && ` (Scanning ${batchScanProgress.current}/${batchScanProgress.total}...)`}
               </h2>
@@ -1316,18 +1335,18 @@ function ClaimsPage() {
             </div>
             {batchScanning && (
               <div className="px-5 pt-3">
-                <div className="flex items-center justify-between text-xs text-[#8E9196] mb-1">
+                <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-1">
                   <span>Scanning files with OCR...</span>
                   <span>{Math.round((batchScanProgress.current / batchScanProgress.total) * 100)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchScanProgress.current / batchScanProgress.total) * 100}%` }} />
+                <div className="w-full bg-[var(--surface-low)] h-2">
+                  <div className="bg-[var(--primary)] h-2 transition-all" style={{ width: `${(batchScanProgress.current / batchScanProgress.total) * 100}%` }} />
                 </div>
               </div>
             )}
             {modalEmployees.length > 0 && (
               <div className="px-5 pt-3">
-                <label className="text-[10px] text-[#8E9196] uppercase font-semibold">Employee for all claims</label>
+                <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Employee for all claims</label>
                 <select value={modalEmployeeId} onChange={(e) => setModalEmployeeId(e.target.value)} className="input-field w-full text-xs mt-1">
                   <option value="">Select employee</option>
                   {modalEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
@@ -1336,40 +1355,40 @@ function ClaimsPage() {
             )}
             <div className="flex-1 overflow-y-scroll p-5 space-y-3">
               {batchItems.map((item, idx) => (
-                <div key={idx} className={`border rounded-lg p-4 ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-gray-200') : 'border-gray-100 bg-gray-50 opacity-60'}`}>
+                <div key={idx} className={`p-4 ${item.ocrDone ? (item.ocrError ? 'bg-[var(--reject-red)]/5' : 'bg-white') : 'bg-[var(--surface-low)] opacity-60'}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-[#191C1E] truncate flex-1">{item.file.name}</p>
-                    {!item.ocrDone && <span className="text-xs text-[#8E9196] ml-2">Scanning...</span>}
-                    {item.ocrError && <span className="text-xs text-red-600 ml-2">{item.ocrError}</span>}
-                    <button onClick={() => setBatchItems(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-red-500 hover:text-red-700 ml-2">Remove</button>
+                    <p className="text-sm font-medium text-[var(--text-primary)] truncate flex-1">{item.file.name}</p>
+                    {!item.ocrDone && <span className="text-xs text-[var(--text-muted)] ml-2">Scanning...</span>}
+                    {item.ocrError && <span className="text-xs text-[var(--reject-red)] ml-2">{item.ocrError}</span>}
+                    <button onClick={() => setBatchItems(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80 ml-2">Remove</button>
                   </div>
                   {item.ocrDone && (
                     <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <label className="text-[10px] text-[#8E9196] uppercase">Merchant</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Merchant</label>
                         <input value={item.merchant} onChange={(e) => { const next = [...batchItems]; next[idx].merchant = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-[#8E9196] uppercase">Amount (RM)</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</label>
                         <input value={item.amount} onChange={(e) => { const next = [...batchItems]; next[idx].amount = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-[#8E9196] uppercase">Date</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</label>
                         <input type="date" value={item.claim_date} onChange={(e) => { const next = [...batchItems]; next[idx].claim_date = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-[#8E9196] uppercase">Receipt #</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt #</label>
                         <input value={item.receipt_number} onChange={(e) => { const next = [...batchItems]; next[idx].receipt_number = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-[#8E9196] uppercase">Category</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
                         <select value={item.category_id} onChange={(e) => { const next = [...batchItems]; next[idx].category_id = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs">
                           <option value="">Select...</option>
                           {modalCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div className="col-span-3">
-                        <label className="text-[10px] text-[#8E9196] uppercase">Description / Notes</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Description / Notes</label>
                         <input value={item.description} onChange={(e) => { const next = [...batchItems]; next[idx].description = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" placeholder="Phone number, account details, etc." />
                       </div>
                     </div>
@@ -1377,13 +1396,13 @@ function ClaimsPage() {
                 </div>
               ))}
             </div>
-            <div className="px-5 py-3 border-t flex gap-2 flex-shrink-0">
+            <div className="px-5 py-3 flex gap-2 flex-shrink-0 bg-[var(--surface-low)]">
               <button onClick={() => { setShowBatchReview(false); setBatchItems([]); }} disabled={batchScanning || batchSubmitting}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40">
+                className="btn-thick-white flex-1 py-2 text-sm font-semibold disabled:opacity-40">
                 Cancel
               </button>
               <button onClick={submitBatchClaims} disabled={batchScanning || batchSubmitting || batchItems.length === 0}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40">
+                className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40">
                 {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
               </button>
             </div>
@@ -1394,14 +1413,14 @@ function ClaimsPage() {
 
       {/* ═══════════════════════ BATCH BAR ═══════════════════════ */}
       {selectedRows.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 rounded-full shadow-2xl text-white" style={{ backgroundColor: 'var(--sidebar)' }}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-3 shadow-2xl text-white bg-[var(--primary)]">
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedRows.length} claim{selectedRows.length !== 1 ? 's' : ''} selected
           </span>
           <span className="w-px h-5 bg-white/20" />
           <button
             onClick={() => deleteClaims(selectedRows.map((r) => r.id))}
-            className="text-sm px-4 py-1.5 rounded-full font-medium bg-red-600 hover:bg-red-700 text-white transition-colors"
+            className="btn-thick-red text-sm px-4 py-1.5 font-medium"
           >
             Delete
           </button>
@@ -1417,11 +1436,11 @@ function ClaimsPage() {
       {/* ═══════════════════════ RECEIPT PREVIEW ═══════════════════════ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[800px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">
+          <div className="bg-white shadow-2xl w-full max-w-[800px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">
                 {previewClaim.type === 'mileage' ? 'Mileage Claim' : previewClaim.type === 'receipt' ? 'Receipt Details' : 'Claim Details'}
               </h2>
               <div className="flex items-center gap-2">
@@ -1443,7 +1462,7 @@ function ClaimsPage() {
                       });
                     }
                   }}
-                  className={`text-sm px-2.5 py-1 rounded-md transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+                  className={`text-sm px-2.5 py-1 transition-colors ${editMode ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
                 >
                   {editMode ? 'Cancel' : 'Edit'}
                 </button>
@@ -1455,13 +1474,13 @@ function ClaimsPage() {
               {previewClaim.thumbnail_url ? (
                 previewClaim.file_url ? (
                   <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--outline-ghost)] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--outline-ghost)]" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">
+                <div className="w-full h-40 border border-[var(--outline-ghost)] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-muted)] text-sm">
                   No image available
                 </div>
               )}
@@ -1469,52 +1488,52 @@ function ClaimsPage() {
               {editMode && editData ? (
                 <dl className="space-y-3">
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Date</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</dt>
                     <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Merchant</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Merchant</dt>
                     <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Amount (RM)</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</dt>
                     <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Category</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</dt>
                     <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className={`${inputCls} w-full mt-0.5`}>
                       <option value="">Select category</option>
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Receipt Number</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt Number</dt>
                     <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Description</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Description</dt>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className={`${inputCls} w-full mt-0.5`} />
                   </div>
                   <div>
-                    <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Employee</dt>
+                    <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Employee</dt>
                     <select value={editData.employee_id} onChange={(e) => setEditData({ ...editData, employee_id: e.target.value })} className={`${inputCls} w-full mt-0.5`}>
                       {modalEmployees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                     </select>
                   </div>
                   <Field label="Firm" value={previewClaim.firm_name} />
                   {previewClaim.type === 'receipt' && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
-                      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Linked Invoices</dt>
+                    <div className="bg-[var(--surface-low)] p-3 space-y-2">
+                      <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Linked Invoices</dt>
                       {linkedInvoices.length > 0 && (
                         <div className="space-y-1.5">
                           {linkedInvoices.map(li => (
-                            <div key={li.id} className="flex items-center justify-between bg-white rounded px-2.5 py-1.5 border border-gray-100">
+                            <div key={li.id} className="flex items-center justify-between bg-white px-2.5 py-1.5">
                               <div className="text-sm">
-                                <span className="font-medium text-[#434654]">{li.invoice_number || 'No number'}</span>
-                                <span className="text-[#8E9196] ml-1.5">{li.vendor_name}</span>
+                                <span className="font-medium text-[var(--text-secondary)]">{li.invoice_number || 'No number'}</span>
+                                <span className="text-[var(--text-muted)] ml-1.5">{li.vendor_name}</span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-[#434654] tabular-nums">{formatRM(li.amount)}</span>
+                                <span className="text-xs font-medium text-[var(--text-secondary)] tabular-nums">{formatRM(li.amount)}</span>
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -1531,7 +1550,7 @@ function ClaimsPage() {
                                       }
                                     } catch (e) { console.error(e); }
                                   }}
-                                  className="text-xs text-red-500 hover:text-red-700"
+                                  className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80"
                                 >&times;</button>
                               </div>
                             </div>
@@ -1566,7 +1585,7 @@ function ClaimsPage() {
                         if (displayList.length === 0) return null;
                         return (
                           <div>
-                            {invoiceLinkSearch.length < 2 && <p className="text-xs text-[#8E9196] mb-1">Suggested matches:</p>}
+                            {invoiceLinkSearch.length < 2 && <p className="text-xs text-[var(--text-muted)] mb-1">Suggested matches:</p>}
                             <div className="max-h-36 overflow-y-auto space-y-1">
                               {displayList.map(inv => (
                                 <button
@@ -1597,13 +1616,13 @@ function ClaimsPage() {
                                       }
                                     } catch (e) { console.error(e); }
                                   }}
-                                  className="w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 border border-gray-100 transition-colors"
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-[var(--primary)]/5 transition-colors"
                                 >
                                   <div className="flex justify-between items-center">
-                                    <span className="text-sm font-medium text-[#434654]">{inv.invoice_number || 'No number'}</span>
-                                    <span className="text-xs text-[#8E9196] tabular-nums">{formatRM(inv.total_amount)}</span>
+                                    <span className="text-sm font-medium text-[var(--text-secondary)]">{inv.invoice_number || 'No number'}</span>
+                                    <span className="text-xs text-[var(--text-muted)] tabular-nums">{formatRM(inv.total_amount)}</span>
                                   </div>
-                                  <p className="text-xs text-[#8E9196]">
+                                  <p className="text-xs text-[var(--text-muted)]">
                                     {inv.vendor_name_raw} &middot; Balance: {formatRM(Number(inv.total_amount) - Number(inv.amount_paid))}
                                     {'match_reason' in inv && inv.match_reason ? ` · ${inv.match_reason}` : ''}
                                   </p>
@@ -1618,7 +1637,7 @@ function ClaimsPage() {
                 </dl>
               ) : (
                 <dl className="space-y-3">
-                  <Field label="Date"        value={formatDate(previewClaim.claim_date)} />
+                  <Field label="Date"        value={formatDateDot(previewClaim.claim_date)} />
                   <Field label="Merchant"    value={previewClaim.merchant} />
                   <Field label="Employee"    value={previewClaim.employee_name} />
                   <Field label="Firm"        value={previewClaim.firm_name} />
@@ -1634,20 +1653,20 @@ function ClaimsPage() {
                   STATUS_CFG[previewClaim.status],
                   PAYMENT_CFG[previewClaim.payment_status],
                 ].filter(Boolean).map((cfg) => (
-                  <span key={cfg!.label} className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${cfg!.cls}`}>
+                  <span key={cfg!.label} className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${cfg!.cls}`} style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>
                     {cfg!.label}
                   </span>
                 ))}
               </div>
 
               {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
-                  <p className="text-label-sm font-semibold text-blue-700 uppercase tracking-wide">Linked Payment</p>
+                <div className="bg-[var(--primary)]/10 p-3 space-y-2">
+                  <p className="text-[10px] font-label font-bold text-[var(--primary)] uppercase tracking-widest">Linked Payment</p>
                   {previewClaim.linked_payments.map((lp) => (
-                    <div key={lp.payment_id} className="text-sm text-blue-800">
+                    <div key={lp.payment_id} className="text-sm text-[var(--primary)]">
                       <p className="font-medium">{lp.supplier_name}</p>
-                      <p className="text-xs text-blue-600">
-                        {formatRM(lp.amount)} &middot; {formatDate(lp.payment_date)}
+                      <p className="text-xs text-[var(--primary)]/70 tabular-nums">
+                        {formatRM(lp.amount)} &middot; {formatDateDot(lp.payment_date)}
                         {lp.reference ? ` · ${lp.reference}` : ''}
                       </p>
                     </div>
@@ -1663,7 +1682,7 @@ function ClaimsPage() {
                         }
                       } catch (e) { console.error(e); }
                     }}
-                    className="text-xs text-red-600 hover:text-red-800 font-medium"
+                    className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80 font-medium"
                   >
                     Unlink from Payment
                   </button>
@@ -1672,18 +1691,18 @@ function ClaimsPage() {
 
               {/* Invoice Linking for receipts */}
               {previewClaim.type === 'receipt' && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
-                  <p className="text-label-sm font-semibold text-[#434654] uppercase tracking-wide">Linked Invoices</p>
+                <div className="bg-[var(--surface-low)] p-3 space-y-2">
+                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Linked Invoices</p>
                   {linkedInvoices.length > 0 ? (
                     <div className="space-y-1.5">
                       {linkedInvoices.map(li => (
-                        <div key={li.id} className="flex items-center justify-between bg-white rounded px-2.5 py-1.5 border border-gray-100">
+                        <div key={li.id} className="flex items-center justify-between bg-white px-2.5 py-1.5">
                           <div className="text-sm">
-                            <span className="font-medium text-[#434654]">{li.invoice_number || 'No number'}</span>
-                            <span className="text-[#8E9196] ml-1.5">{li.vendor_name}</span>
+                            <span className="font-medium text-[var(--text-secondary)]">{li.invoice_number || 'No number'}</span>
+                            <span className="text-[var(--text-muted)] ml-1.5">{li.vendor_name}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-[#434654] tabular-nums">{formatRM(li.amount)}</span>
+                            <span className="text-xs font-medium text-[var(--text-secondary)] tabular-nums">{formatRM(li.amount)}</span>
                             <button
                               onClick={async () => {
                                 if (!confirm('Unlink this receipt from the invoice?')) return;
@@ -1699,7 +1718,7 @@ function ClaimsPage() {
                                   }
                                 } catch (e) { console.error(e); }
                               }}
-                              className="text-xs text-red-500 hover:text-red-700"
+                              className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80"
                             >
                               &times;
                             </button>
@@ -1708,7 +1727,7 @@ function ClaimsPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-[#8E9196]">No invoices linked yet.</p>
+                    <p className="text-xs text-[var(--text-muted)]">No invoices linked yet.</p>
                   )}
                   {/* Search & link */}
                   <div className="relative">
@@ -1732,7 +1751,7 @@ function ClaimsPage() {
                       }}
                       className="input-field w-full text-sm"
                     />
-                    {invoiceLinkLoading && <span className="absolute right-2 top-2 text-xs text-[#8E9196]">Searching...</span>}
+                    {invoiceLinkLoading && <span className="absolute right-2 top-2 text-xs text-[var(--text-muted)]">Searching...</span>}
                   </div>
                   {/* Show search results when typing, or auto-suggestions when idle */}
                   {(() => {
@@ -1743,7 +1762,7 @@ function ClaimsPage() {
                     if (displayList.length === 0) return null;
                     return (
                       <div>
-                        {invoiceLinkSearch.length < 2 && <p className="text-xs text-[#8E9196] mb-1">Suggested matches:</p>}
+                        {invoiceLinkSearch.length < 2 && <p className="text-xs text-[var(--text-muted)] mb-1">Suggested matches:</p>}
                         <div className="max-h-48 overflow-y-auto space-y-1">
                           {displayList.map(inv => (
                             <button
@@ -1773,13 +1792,13 @@ function ClaimsPage() {
                                   }
                                 } catch (e) { console.error(e); }
                               }}
-                              className="w-full text-left px-2.5 py-1.5 rounded hover:bg-blue-50 border border-gray-100 transition-colors"
+                              className="w-full text-left px-2.5 py-1.5 hover:bg-[var(--primary)]/5 transition-colors"
                             >
                               <div className="flex justify-between items-center">
-                                <span className="text-sm font-medium text-[#434654]">{inv.invoice_number || 'No number'}</span>
-                                <span className="text-xs text-[#8E9196] tabular-nums">{formatRM(inv.total_amount)}</span>
+                                <span className="text-sm font-medium text-[var(--text-secondary)]">{inv.invoice_number || 'No number'}</span>
+                                <span className="text-xs text-[var(--text-muted)] tabular-nums">{formatRM(inv.total_amount)}</span>
                               </div>
-                              <p className="text-xs text-[#8E9196]">
+                              <p className="text-xs text-[var(--text-muted)]">
                                 {inv.vendor_name_raw} &middot; Balance: {formatRM(Number(inv.total_amount) - Number(inv.amount_paid))}
                                 {'match_reason' in inv && inv.match_reason ? ` · ${inv.match_reason}` : ''}
                               </p>
@@ -1793,49 +1812,48 @@ function ClaimsPage() {
               )}
 
               <div className="flex items-center gap-1.5">
-                <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
+                <span className="text-[10px] font-label text-[var(--text-secondary)] uppercase tracking-widest font-bold">Confidence</span>
                 <span className={`text-xs font-semibold ${
-                  previewClaim.confidence === 'HIGH'   ? 'text-green-600' :
-                  previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
+                  previewClaim.confidence === 'HIGH'   ? 'text-[var(--match-green)]' :
+                  previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'
                 }`}>{previewClaim.confidence}</span>
               </div>
 
               {previewClaim.rejection_reason && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
-                  <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
+                <div className="bg-[var(--reject-red)]/10 p-3">
+                  <p className="text-[10px] font-label font-bold text-[var(--reject-red)] uppercase tracking-widest mb-1">Rejection Reason</p>
+                  <p className="text-sm text-[var(--reject-red)]">{previewClaim.rejection_reason}</p>
                 </div>
               )}
 
               {previewClaim.file_url && (
                 <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline block">
+                  className="text-xs text-[var(--primary)] hover:underline block">
                   View full document &rarr;
                 </a>
               )}
             </div>
 
-            <div className="p-4 flex gap-3 flex-shrink-0">
+            <div className="p-4 flex gap-3 flex-shrink-0 bg-[var(--surface-low)]">
               {editMode ? (
                 <button
                   onClick={saveEdit}
                   disabled={editSaving}
-                  className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                  style={{ backgroundColor: 'var(--accent)' }}
+                  className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {editSaving ? 'Saving...' : 'Save Changes'}
                 </button>
               ) : (
                 <button
                   onClick={() => setPreviewClaim(null)}
-                  className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                  className="btn-thick-white flex-1 py-2 text-sm font-semibold"
                 >
                   Close
                 </button>
               )}
               <button
                 onClick={() => deleteClaims([previewClaim.id])}
-                className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                className="text-xs text-[var(--reject-red)]/60 hover:text-[var(--reject-red)] transition-colors"
               >
                 Delete
               </button>

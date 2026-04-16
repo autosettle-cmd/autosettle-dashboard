@@ -8,7 +8,7 @@ import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadg
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
-import { formatDate, formatRM, getDateRange } from '@/lib/formatters';
+import { formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
 import { STATUS_CFG, PAYMENT_CFG, LINK_CFG, APPROVAL_CFG } from '@/lib/badge-config';
 import FilterBar from '@/components/filters/FilterBar';
@@ -62,6 +62,16 @@ interface SupplierOption {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatDateDot(val: string | null | undefined): string {
+  if (!val) return '';
+  const d = new Date(val);
+  return [
+    d.getUTCFullYear(),
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCDate().toString().padStart(2, '0'),
+  ].join('.');
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -650,7 +660,7 @@ function AccountantInvoicesPage() {
         }),
       });
       if (res.ok) {
-        const json = await res.json();
+        await res.json();
         setEditMode(false);
         setEditData(null);
         // Stay in preview with updated data
@@ -794,7 +804,7 @@ function AccountantInvoicesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="accountant" />
@@ -809,32 +819,32 @@ function AccountantInvoicesPage() {
       >
 
         {isDragging && (
-          <div className="absolute inset-0 z-50 bg-blue-600/10 border-2 border-dashed border-blue-500 rounded-lg flex items-center justify-center pointer-events-none">
-            <div className="bg-white rounded-xl shadow-lg px-8 py-6 text-center">
-              <svg className="w-10 h-10 text-blue-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+          <div className="absolute inset-0 z-50 bg-[var(--primary)]/10 border-2 border-dashed border-[var(--primary)] flex items-center justify-center pointer-events-none">
+            <div className="bg-white shadow-lg px-8 py-6 text-center">
+              <svg className="w-10 h-10 mx-auto mb-2" style={{ color: 'var(--primary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
-              <p className="text-sm font-semibold text-[#191C1E]">Drop files to upload</p>
-              <p className="text-xs text-[#8E9196] mt-1">Files will be processed with OCR automatically</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Drop files to upload</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Files will be processed with OCR automatically</p>
             </div>
           </div>
         )}
 
-        <header className="flex-shrink-0 bg-white">
-          <div className="h-16 flex items-center justify-between px-6">
-            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Invoices</h1>
-            <p className="text-[#8E9196] text-xs">
+        <header className="flex-shrink-0 bg-white border-b border-[#E0E3E5]">
+          <div className="h-16 flex items-center justify-between pl-14 pr-6">
+            <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Invoices</h1>
+            <p className="text-[var(--text-secondary)] text-xs">
               {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
         </header>
 
         {activeTab === 'issued' ? (
-          <main className="flex-1 overflow-hidden flex flex-col p-6 animate-in">
+          <main className="flex-1 overflow-hidden flex flex-col p-8 pl-14 animate-in paper-texture ledger-binding">
             <SalesInvoicesContent role="accountant" />
           </main>
         ) : (
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 animate-in paper-texture ledger-binding">
 
           {/* ── Filter bar ────────────────────────────────── */}
           <FilterBar
@@ -856,12 +866,12 @@ function AccountantInvoicesPage() {
             showSearch
             searchValue={search}
             onSearchChange={setSearch}
-            searchPlaceholder="Search vendor or invoice #…"
+            searchPlaceholder="Search vendor or invoice #..."
           >
             <div className="ml-auto">
               <button
                 onClick={() => { setShowNewInvoice(true); setBatchProgress(null); if (firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: firms[0].id })); }}
-                className="btn-primary px-4 py-2 rounded-lg text-sm font-semibold"
+                className="btn-thick-navy px-4 py-2 text-sm font-semibold"
               >
                 + Submit New Invoice
               </button>
@@ -873,23 +883,23 @@ function AccountantInvoicesPage() {
 
           {/* ── Batch action bar ────────────────────────────── */}
           {selectedRows.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-[#1B2559]/5 rounded-lg flex-shrink-0">
-              <span className="text-body-sm font-medium text-[#191C1E]">{selectedRows.length} selected</span>
+            <div className="flex items-center gap-3 px-4 py-2 bg-[var(--primary)]/5 flex-shrink-0">
+              <span className="text-body-sm font-medium text-[var(--text-primary)]">{selectedRows.length} selected</span>
               <button
                 onClick={() => batchAction(selectedRows.map((r) => r.id), 'approve')}
-                className="btn-approve text-sm px-4 py-1.5 rounded-full"
+                className="btn-thick-green text-sm px-4 py-1.5"
               >
                 Approve
               </button>
               <button
                 onClick={() => setRejectModal({ open: true, invoiceIds: selectedRows.map((r) => r.id), reason: '' })}
-                className="btn-reject text-sm px-4 py-1.5 rounded-full"
+                className="btn-thick-red text-sm px-4 py-1.5"
               >
                 Reject
               </button>
               <button
                 onClick={() => setSelectedRows([])}
-                className="text-sm text-[#8E9196] hover:text-[#191C1E] transition-colors"
+                className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
               >
                 Clear
               </button>
@@ -897,48 +907,48 @@ function AccountantInvoicesPage() {
           )}
 
           {/* ── Invoice Table ────────────────────────────── */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
+          <div className="flex-1 min-h-0 overflow-auto bg-white">
             {loading ? (
-              <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
+              <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
             ) : invoices.length === 0 ? (
-              <div className="text-center text-sm text-[#8E9196] py-12">No invoices found for the selected filters.</div>
+              <div className="text-center text-sm text-[var(--text-secondary)] py-12">No invoices found for the selected filters.</div>
             ) : (
               <>
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-3 py-2.5 w-10"><input type="checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('vendor_name_raw')}>Vendor{sortIndicator('vendor_name_raw')}</th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
-                      {!firmFilter && <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('due_date')}>Due Date{sortIndicator('due_date')}</th>
-                      <th className="px-3 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleSort('total_amount')}>Amount (RM){sortIndicator('total_amount')}</th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
-                      <th className="px-3 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('supplier_link_status')}>Supplier{sortIndicator('supplier_link_status')}</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-10"><input type="checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('vendor_name_raw')}>Vendor{sortIndicator('vendor_name_raw')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
+                      {!firmFilter && <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('due_date')}>Due Date{sortIndicator('due_date')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right cursor-pointer select-none" onClick={() => toggleSort('total_amount')}>Amount (RM){sortIndicator('total_amount')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('status')}>Status{sortIndicator('status')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('approval')}>Approval{sortIndicator('approval')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('payment_status')}>Payment{sortIndicator('payment_status')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('supplier_link_status')}>Supplier{sortIndicator('supplier_link_status')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pagedInvoices.map((inv) => {
+                    {pagedInvoices.map((inv, idx) => {
                       const isSelected = selectedRows.some((r) => r.id === inv.id);
                       const approvalCfg = APPROVAL_CFG[inv.approval];
                       return (
                       <tr
                         key={inv.id}
                         onClick={() => setPreviewInvoice(inv)}
-                        className={`text-body-sm hover:bg-[#F2F4F6] transition-colors cursor-pointer border-b border-gray-50 ${isSelected ? 'bg-blue-50/40' : ''}`}
+                        className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
                         </td>
-                        <td className="px-3 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
-                        <td className="px-3 py-3 text-[#191C1E] font-medium">{inv.vendor_name_raw}</td>
-                        <td className="px-3 py-3 text-[#434654]">{inv.invoice_number ?? '-'}</td>
-                        {!firmFilter && <td className="px-3 py-3 text-[#434654]">{inv.firm_name}</td>}
-                        <td className="px-3 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                        <td className="px-3 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                        <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(inv.issue_date)}</td>
+                        <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{inv.vendor_name_raw}</td>
+                        <td className="px-3 py-3 text-[var(--text-secondary)]">{inv.invoice_number ?? '-'}</td>
+                        {!firmFilter && <td className="px-3 py-3 text-[var(--text-secondary)]">{inv.firm_name}</td>}
+                        <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{inv.due_date ? formatDateDot(inv.due_date) : '-'}</td>
+                        <td className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
                         <td className="px-3 py-3"><StatusCell value={inv.status} /></td>
                         <td className="px-3 py-3">{approvalCfg && <span className={approvalCfg.cls}>{approvalCfg.label}</span>}</td>
                         <td className="px-3 py-3"><PaymentCell value={inv.payment_status} /></td>
@@ -949,13 +959,13 @@ function AccountantInvoicesPage() {
                   </tbody>
                 </table>
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-                    <p className="text-body-sm text-[#8E9196]">
-                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sortedInvoices.length)} of {sortedInvoices.length}
+                  <div className="flex items-center justify-between px-5 py-3 border-t border-[#E0E3E5]">
+                    <p className="text-body-sm text-[var(--text-secondary)]">
+                      {page * PAGE_SIZE + 1}--{Math.min((page + 1) * PAGE_SIZE, sortedInvoices.length)} of {sortedInvoices.length}
                     </p>
                     <div className="flex gap-1.5">
-                      <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
-                      <button onClick={() => setPage(page + 1)} disabled={page + 1 >= totalPages} className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                      <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed">Previous</button>
+                      <button onClick={() => setPage(page + 1)} disabled={page + 1 >= totalPages} className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
                     </div>
                   </div>
                 )}
@@ -970,11 +980,11 @@ function AccountantInvoicesPage() {
       {/* ═══ SUBMIT NEW INVOICE MODAL ═══ */}
       {showNewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50" onClick={() => setShowNewInvoice(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowNewInvoice(false)}>
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-[800px] max-h-[90vh] overflow-y-scroll" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ backgroundColor: 'var(--sidebar)' }}>
-                <h2 className="text-white font-semibold text-sm">Submit New Invoice</h2>
+            <div className="bg-white shadow-2xl w-full max-w-[800px] max-h-[90vh] overflow-y-scroll" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: 'var(--primary)' }}>
+                <h2 className="text-white font-bold text-sm uppercase tracking-widest">Submit New Invoice</h2>
                 <button onClick={() => setShowNewInvoice(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
 
@@ -985,7 +995,7 @@ function AccountantInvoicesPage() {
                   const url = URL.createObjectURL(newInvFile);
                   const isPdf = newInvFile.type === 'application/pdf' || newInvFile.name.toLowerCase().endsWith('.pdf');
                   return (
-                    <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <div className="border border-[#E0E3E5] overflow-hidden bg-[var(--surface-low)]">
                       {isPdf ? (
                         <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Invoice preview" />
                       ) : (
@@ -996,7 +1006,7 @@ function AccountantInvoicesPage() {
                 })()}
 
                 <div>
-                  <label className="input-label">Firm *</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Firm *</label>
                   <select value={newInv.firm_id} onChange={(e) => setNewInv({ ...newInv, firm_id: e.target.value })} className="input-field w-full">
                     <option value="">Select firm</option>
                     {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
@@ -1004,7 +1014,7 @@ function AccountantInvoicesPage() {
                 </div>
 
                 <div className="relative">
-                  <label className="input-label">Vendor Name *</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor Name *</label>
                   <input
                     ref={vendorInputRef}
                     type="text"
@@ -1027,12 +1037,12 @@ function AccountantInvoicesPage() {
                     const firmSuppliers = newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
                     const filtered = firmSuppliers.filter((s) => s.name.toLowerCase().includes(q));
                     if (filtered.length === 0) return (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-                        <p className="text-xs text-[#8E9196]">No matching suppliers — a new one will be created</p>
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#E0E3E5] shadow-lg p-3">
+                        <p className="text-xs text-[var(--text-secondary)]">No matching suppliers -- a new one will be created</p>
                       </div>
                     );
                     return (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#E0E3E5] shadow-lg max-h-40 overflow-y-auto">
                         {filtered.slice(0, 8).map((s) => (
                           <button
                             key={s.id}
@@ -1042,7 +1052,7 @@ function AccountantInvoicesPage() {
                               setNewInv({ ...newInv, vendor_name: s.name, supplier_id: s.id });
                               setVendorDropdownOpen(false);
                             }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors first:rounded-t-xl last:rounded-b-xl"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--surface-low)] transition-colors"
                           >
                             {s.name}
                           </button>
@@ -1053,31 +1063,31 @@ function AccountantInvoicesPage() {
                 </div>
 
                 <div>
-                  <label className="input-label">Invoice Number</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Number</label>
                   <input type="text" value={newInv.invoice_number} onChange={(e) => setNewInv({ ...newInv, invoice_number: e.target.value })} className="input-field w-full" placeholder="Optional" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="input-label">Issue Date *</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Issue Date *</label>
                     <input type="date" value={newInv.issue_date} onChange={(e) => setNewInv({ ...newInv, issue_date: e.target.value })} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">Due Date</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
                     <input type="date" value={newInv.due_date} onChange={(e) => setNewInv({ ...newInv, due_date: e.target.value })} className="input-field w-full" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="input-label">Total Amount (RM) *</label>
-                    <input type="number" step="0.01" value={newInv.total_amount} onChange={(e) => setNewInv({ ...newInv, total_amount: e.target.value })} className="input-field w-full" placeholder="0.00" />
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Amount (RM) *</label>
+                    <input type="number" step="0.01" value={newInv.total_amount} onChange={(e) => setNewInv({ ...newInv, total_amount: e.target.value })} className="input-field w-full tabular-nums" placeholder="0.00" />
                     {parseFloat(newInv.total_amount) < 0 && (
-                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-1">Credit Note — negative amount will offset against this supplier</p>
+                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 mt-1">Credit Note -- negative amount will offset against this supplier</p>
                     )}
                   </div>
                   <div>
-                    <label className="input-label">Payment Terms</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Payment Terms</label>
                     <input type="text" value={newInv.payment_terms} onChange={(e) => setNewInv({ ...newInv, payment_terms: e.target.value })} className="input-field w-full" placeholder="e.g. Net 30" />
                   </div>
                 </div>
@@ -1086,7 +1096,7 @@ function AccountantInvoicesPage() {
                 {newInvGlAccounts.length > 0 && (
                   <>
                     <div>
-                      <label className="input-label">Expense GL (Debit)</label>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Expense GL (Debit)</label>
                       <GlAccountSelect
                         value={newInvExpenseGlId}
                         onChange={setNewInvExpenseGlId}
@@ -1099,7 +1109,7 @@ function AccountantInvoicesPage() {
                       />
                     </div>
                     <div>
-                      <label className="input-label">Contra GL (Credit — Trade Payables)</label>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Contra GL (Credit -- Trade Payables)</label>
                       <GlAccountSelect
                         value={newInvContraGlId}
                         onChange={setNewInvContraGlId}
@@ -1116,7 +1126,7 @@ function AccountantInvoicesPage() {
                 )}
 
                 <div>
-                  <label className="input-label">Notes</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes</label>
                   <textarea
                     value={newInv.notes}
                     onChange={(e) => setNewInv({ ...newInv, notes: e.target.value })}
@@ -1127,9 +1137,9 @@ function AccountantInvoicesPage() {
                 </div>
 
                 <div>
-                  <label className="input-label">Invoice Image(s)</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Image(s)</label>
                   {newInvFile ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200">
                       <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <span className="text-sm text-blue-700 truncate flex-1">{newInvFile.name}</span>
                       <button type="button" onClick={() => setNewInvFile(null)} className="text-xs text-blue-500 hover:text-blue-700">Remove</button>
@@ -1141,13 +1151,13 @@ function AccountantInvoicesPage() {
                         accept="image/*,application/pdf"
                         multiple
                         onChange={handleInvFileChange}
-                        className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-gray-100 file:text-[#434654] hover:file:bg-gray-200"
+                        className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-[var(--surface-low)] file:text-[var(--text-secondary)] hover:file:bg-[var(--surface-header)]"
                       />
-                      <p className="text-xs text-[#8E9196] mt-1">Select multiple files to batch upload with auto OCR</p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">Select multiple files to batch upload with auto OCR</p>
                     </>
                   )}
                   {ocrScanning && (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-blue-600">
+                    <div className="mt-2 flex items-center gap-2 text-sm" style={{ color: 'var(--primary)' }}>
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1159,17 +1169,17 @@ function AccountantInvoicesPage() {
 
                 {batchProgress && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-[#8E9196]">
+                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
                       <span>Processing {batchProgress.current} of {batchProgress.total}</span>
                       <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-blue-600 h-2 rounded-full transition-all" style={{ width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
+                    <div className="w-full bg-[var(--surface-low)] h-2">
+                      <div className="h-2 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
                     </div>
                     {batchProgress.results.length > 0 && (
                       <div className="max-h-[200px] overflow-y-auto space-y-1">
                         {batchProgress.results.map((r, i) => (
-                          <div key={i} className={`text-xs px-2 py-1 rounded ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                          <div key={i} className={`text-xs px-2 py-1 ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                             <span className="font-medium">{r.name}</span>: {r.msg}
                           </div>
                         ))}
@@ -1179,21 +1189,21 @@ function AccountantInvoicesPage() {
                 )}
               </div>
 
-              {depositWarning && <div className="px-5 pt-3"><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">{depositWarning}</p></div>}
-              {newInvError && <div className="px-5 pt-3"><p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{newInvError}</p></div>}
-              <div className="flex gap-3 px-5 py-4 border-t">
+              {depositWarning && <div className="px-5 pt-3"><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">{depositWarning}</p></div>}
+              {newInvError && <div className="px-5 pt-3"><p className="text-sm text-[var(--reject-red)] bg-red-50 border border-red-200 px-3 py-2">{newInvError}</p></div>}
+              <div className="flex gap-3 px-5 py-4 bg-[var(--surface-low)]">
                 {!batchProgress && (
                   <button
                     onClick={submitNewInvoice}
                     disabled={newInvSubmitting || ocrScanning}
-                    className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
                   </button>
                 )}
                 <button
                   onClick={() => { setShowNewInvoice(false); setBatchProgress(null); }}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                  className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
                 >
                   {batchProgress && !newInvSubmitting ? 'Done' : 'Cancel'}
                 </button>
@@ -1206,11 +1216,11 @@ function AccountantInvoicesPage() {
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[800px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[800px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
@@ -1218,69 +1228,69 @@ function AccountantInvoicesPage() {
               {previewInvoice.file_url ? (
                 <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block">
                   {previewInvoice.thumbnail_url && !previewInvoice.file_url.includes('.pdf') ? (
-                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain border border-[#E0E3E5] cursor-pointer hover:opacity-90 transition-opacity" />
                   ) : (
-                    <div className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-gray-100 transition-colors">
-                      <div className="w-10 h-12 rounded bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0">
+                    <div className="w-full border border-[#E0E3E5] bg-[var(--surface-low)] px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-header)] transition-colors">
+                      <div className="w-10 h-12 bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0">
                         <span className="text-red-500 font-bold text-xs">PDF</span>
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-blue-600 truncate">View document</p>
-                        <p className="text-xs text-[#8E9196]">Opens in Google Drive</p>
+                        <p className="text-sm font-medium truncate" style={{ color: 'var(--primary)' }}>View document</p>
+                        <p className="text-xs text-[var(--text-secondary)]">Opens in Google Drive</p>
                       </div>
                     </div>
                   )}
                 </a>
               ) : (
-                <div className="w-full h-20 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No document attached</div>
+                <div className="w-full h-20 border border-[#E0E3E5] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] text-sm">No document attached</div>
               )}
 
               {editMode && editData ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="input-label">Vendor</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
                     <input type="text" value={editData.vendor_name_raw} onChange={(e) => setEditData({ ...editData, vendor_name_raw: e.target.value })} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">Invoice Number</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Number</label>
                     <input type="text" value={editData.invoice_number} onChange={(e) => setEditData({ ...editData, invoice_number: e.target.value })} className="input-field w-full" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="input-label">Issue Date</label>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Issue Date</label>
                       <input type="date" value={editData.issue_date} onChange={(e) => setEditData({ ...editData, issue_date: e.target.value })} className="input-field w-full" />
                     </div>
                     <div>
-                      <label className="input-label">Due Date</label>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
                       <input type="date" value={editData.due_date} onChange={(e) => setEditData({ ...editData, due_date: e.target.value })} className="input-field w-full" />
                     </div>
                   </div>
                   <div>
-                    <label className="input-label">Payment Terms</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Payment Terms</label>
                     <input type="text" value={editData.payment_terms} onChange={(e) => setEditData({ ...editData, payment_terms: e.target.value })} className="input-field w-full" placeholder="e.g. Net 30" />
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="input-label">Subtotal</label>
-                      <input type="number" step="0.01" value={editData.subtotal} onChange={(e) => setEditData({ ...editData, subtotal: e.target.value })} className="input-field w-full" />
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Subtotal</label>
+                      <input type="number" step="0.01" value={editData.subtotal} onChange={(e) => setEditData({ ...editData, subtotal: e.target.value })} className="input-field w-full tabular-nums" />
                     </div>
                     <div>
-                      <label className="input-label">Tax</label>
-                      <input type="number" step="0.01" value={editData.tax_amount} onChange={(e) => setEditData({ ...editData, tax_amount: e.target.value })} className="input-field w-full" />
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Tax</label>
+                      <input type="number" step="0.01" value={editData.tax_amount} onChange={(e) => setEditData({ ...editData, tax_amount: e.target.value })} className="input-field w-full tabular-nums" />
                     </div>
                     <div>
-                      <label className="input-label">Total</label>
-                      <input type="number" step="0.01" value={editData.total_amount} onChange={(e) => setEditData({ ...editData, total_amount: e.target.value })} className="input-field w-full" />
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total</label>
+                      <input type="number" step="0.01" value={editData.total_amount} onChange={(e) => setEditData({ ...editData, total_amount: e.target.value })} className="input-field w-full tabular-nums" />
                     </div>
                   </div>
                   <div>
-                    <label className="input-label">Category</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
                     <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="input-label">Supplier Account</label>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier Account</label>
                     {creatingSupplier ? (
                       <div className="flex gap-2">
                         <input
@@ -1309,28 +1319,28 @@ function AccountantInvoicesPage() {
                               }
                             } catch (e) { console.error(e); }
                           }}
-                          className="btn-approve px-3 py-1.5 rounded-lg text-sm font-medium"
+                          className="btn-thick-green px-3 py-1.5 text-sm font-medium"
                         >
                           Create
                         </button>
-                        <button onClick={() => { setCreatingSupplier(false); setNewSupplierName(''); }} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 text-[#434654]">
+                        <button onClick={() => { setCreatingSupplier(false); setNewSupplierName(''); }} className="btn-thick-white px-3 py-1.5 text-sm">
                           Cancel
                         </button>
                       </div>
                     ) : (
                       <>
                         <select value={editData.supplier_id} onChange={(e) => setEditData({ ...editData, supplier_id: e.target.value })} className="input-field w-full">
-                          <option value="">— Not assigned —</option>
+                          <option value="">-- Not assigned --</option>
                           {suppliers.filter(s => s.firm_id === previewInvoice.firm_id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
-                        <button onClick={() => setCreatingSupplier(true)} className="text-xs text-blue-600 hover:text-blue-700 mt-1">+ Create new supplier</button>
+                        <button onClick={() => setCreatingSupplier(true)} className="text-xs hover:underline mt-1" style={{ color: 'var(--primary)' }}>+ Create new supplier</button>
                       </>
                     )}
                   </div>
                   {glAccounts.length > 0 && (
                     <>
                       <div>
-                        <label className="input-label">Expense GL (Debit)</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Expense GL (Debit)</label>
                         <GlAccountSelect
                           value={selectedGlAccountId}
                           onChange={setSelectedGlAccountId}
@@ -1343,7 +1353,7 @@ function AccountantInvoicesPage() {
                         />
                       </div>
                       <div>
-                        <label className="input-label">Contra GL (Credit)</label>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Contra GL (Credit)</label>
                         <GlAccountSelect
                           value={selectedContraGlId}
                           onChange={setSelectedContraGlId}
@@ -1364,8 +1374,8 @@ function AccountantInvoicesPage() {
                   <dl className="grid grid-cols-2 gap-3">
                     <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
                     <Field label="Invoice No."   value={previewInvoice.invoice_number} />
-                    <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
-                    <Field label="Due Date"      value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
+                    <Field label="Issue Date"    value={formatDateDot(previewInvoice.issue_date)} />
+                    <Field label="Due Date"      value={previewInvoice.due_date ? formatDateDot(previewInvoice.due_date) : null} />
                     <Field label="Payment Terms" value={previewInvoice.payment_terms} />
                     <Field label="Subtotal"      value={previewInvoice.subtotal ? formatRM(previewInvoice.subtotal) : null} />
                     <Field label="Tax"           value={previewInvoice.tax_amount ? formatRM(previewInvoice.tax_amount) : null} />
@@ -1377,7 +1387,7 @@ function AccountantInvoicesPage() {
                   </dl>
 
                   {previewInvoice.notes && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2">
+                    <div className="bg-amber-50 border border-amber-200 px-3 py-2 mt-2">
                       <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Notes</p>
                       <p className="text-sm text-amber-900 whitespace-pre-line">{previewInvoice.notes}</p>
                     </div>
@@ -1395,22 +1405,21 @@ function AccountantInvoicesPage() {
                   </div>
 
                   {/* Supplier link */}
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <div className="bg-[var(--surface-low)] p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Supplier Account</span>
+                      <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier Account</span>
                       {(() => {
                         const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                         return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
                       })()}
                     </div>
-                    <p className="text-sm font-medium text-[#191C1E]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
                     {previewInvoice.supplier_link_status !== 'confirmed' && (
                       <div className="flex gap-2 pt-1">
                         {previewInvoice.supplier_id && (
                           <button
                             onClick={() => confirmSupplier(previewInvoice.id, previewInvoice.supplier_id!)}
-                            className="text-xs px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85"
-                            style={{ backgroundColor: '#22C55E' }}
+                            className="btn-thick-green text-xs px-3 py-1.5 font-medium"
                           >
                             Confirm
                           </button>
@@ -1441,10 +1450,10 @@ function AccountantInvoicesPage() {
                               className="input-field flex-1 text-xs"
                               placeholder="Supplier name"
                             />
-                            <button onClick={createAndAssignSupplier} className="text-xs px-3 py-1.5 rounded-md font-medium text-white transition-opacity hover:opacity-85" style={{ backgroundColor: '#22C55E' }}>
+                            <button onClick={createAndAssignSupplier} className="btn-thick-green text-xs px-3 py-1.5 font-medium">
                               Create
                             </button>
-                            <button onClick={() => setCreatingSupplier(false)} className="text-xs px-2 py-1.5 rounded-md font-medium text-[#434654] hover:text-[#434654] border border-gray-200">
+                            <button onClick={() => setCreatingSupplier(false)} className="btn-thick-white text-xs px-2 py-1.5 font-medium">
                               Cancel
                             </button>
                           </div>
@@ -1454,15 +1463,15 @@ function AccountantInvoicesPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Confidence</span>
                     <span className={`text-xs font-semibold ${
-                      previewInvoice.confidence === 'HIGH' ? 'text-green-600' :
-                      previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
+                      previewInvoice.confidence === 'HIGH' ? 'text-[var(--match-green)]' :
+                      previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'
                     }`}>{previewInvoice.confidence}</span>
                   </div>
 
                   {previewInvoice.file_url && (
-                    <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                    <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline block" style={{ color: 'var(--primary)' }}>
                       View full document &rarr;
                     </a>
                   )}
@@ -1474,13 +1483,13 @@ function AccountantInvoicesPage() {
             {!editMode && glAccounts.length > 0 && (
               <div className="px-5 pb-2 space-y-2">
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
                   {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5]">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
+                      <span className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
                     </div>
                   ) : (
                     <GlAccountSelect
@@ -1496,13 +1505,13 @@ function AccountantInvoicesPage() {
                   )}
                 </div>
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
                   {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5]">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{(() => {
+                      <span className="text-sm font-medium text-[var(--text-primary)]">{(() => {
                         if (previewInvoice.contra_gl_account_label) return previewInvoice.contra_gl_account_label;
                         const gl = glAccounts.find(a => a.id === selectedContraGlId);
                         return gl ? `${gl.account_code} — ${gl.name}` : 'Not assigned';
@@ -1525,13 +1534,13 @@ function AccountantInvoicesPage() {
               </div>
             )}
 
-            <div className="p-4 flex-shrink-0 space-y-2">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] space-y-2">
               {editMode ? (
                 <div className="flex gap-3">
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 py-2 text-sm font-semibold">
                     Cancel
                   </button>
                 </div>
@@ -1543,19 +1552,19 @@ function AccountantInvoicesPage() {
                       <>
                         <button
                           onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                          className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
+                          className="btn-thick-navy flex-1 py-2 text-sm font-semibold"
                         >
                           Mark as Reviewed
                         </button>
                         <button
                           onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                          className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                          className="btn-thick-green flex-1 py-2 text-sm"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                          className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                          className="btn-thick-red flex-1 py-2 text-sm"
                         >
                           Reject
                         </button>
@@ -1565,25 +1574,25 @@ function AccountantInvoicesPage() {
                       <>
                         <button
                           onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                          className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                          className="btn-thick-green flex-1 py-2 text-sm"
                         >
                           Approve
                         </button>
                         <button
                           onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                          className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                          className="btn-thick-red flex-1 py-2 text-sm"
                         >
                           Reject
                         </button>
                       </>
                     )}
                     {previewInvoice.approval === 'approved' && (
-                      <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-sm font-semibold text-green-700 bg-green-50 border border-green-200">
+                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-[var(--match-green)] bg-green-50 border border-green-200">
                         Approved
                       </div>
                     )}
                     {previewInvoice.approval === 'not_approved' && (
-                      <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-sm font-semibold text-red-700 bg-red-50 border border-red-200">
+                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-[var(--reject-red)] bg-red-50 border border-red-200">
                         Rejected
                       </div>
                     )}
@@ -1607,7 +1616,7 @@ function AccountantInvoicesPage() {
                           supplier_id: previewInvoice.supplier_id ?? '',
                         });
                       }}
-                      className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                      className="btn-thick-white flex-1 py-2 text-sm font-semibold"
                     >
                       Edit
                     </button>
@@ -1627,7 +1636,7 @@ function AccountantInvoicesPage() {
                             }
                           } catch (e) { console.error(e); }
                         }}
-                        className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                        className="btn-thick-white flex-1 py-2 text-sm font-semibold"
                       >
                         Revert Review
                       </button>
@@ -1641,9 +1650,9 @@ function AccountantInvoicesPage() {
                             batchAction([previewInvoice.id], 'revert');
                           }}
                           disabled={hasBankRecon}
-                          title={hasBankRecon ? 'Cannot revert — invoice has bank reconciliation payments. Unmatch in Bank Recon first.' : ''}
-                          className={`flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 transition-colors ${
-                            hasBankRecon ? 'text-[#8E9196] bg-gray-100 cursor-not-allowed opacity-60' : 'text-[#434654] hover:bg-gray-50'
+                          title={hasBankRecon ? 'Cannot revert -- invoice has bank reconciliation payments. Unmatch in Bank Recon first.' : ''}
+                          className={`btn-thick-white flex-1 py-2 text-sm font-semibold ${
+                            hasBankRecon ? 'opacity-60 cursor-not-allowed' : ''
                           }`}
                         >
                           Revert Approval
@@ -1654,10 +1663,10 @@ function AccountantInvoicesPage() {
                 </>
               )}
             </div>
-            <div className="px-5 py-3 border-t flex-shrink-0">
+            <div className="px-5 py-3 border-t border-[#E0E3E5] flex-shrink-0">
               <button
                 onClick={() => deleteInvoice(previewInvoice.id)}
-                className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                className="btn-thick-red text-xs px-3 py-1 font-medium"
               >
                 Delete
               </button>
@@ -1669,23 +1678,27 @@ function AccountantInvoicesPage() {
 
       {/* ═══ REJECT MODAL ═══ */}
       {rejectModal.open && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-[#191C1E] mb-3">
-              Reject {rejectModal.invoiceIds.length} Invoice{rejectModal.invoiceIds.length !== 1 ? 's' : ''}
-            </h3>
-            <textarea
-              value={rejectModal.reason}
-              onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
-              placeholder="Enter rejection reason..."
-              rows={3}
-              className="input-field w-full resize-none"
-            />
-            <div className="flex gap-3 mt-4">
-              <button onClick={confirmReject} disabled={!rejectModal.reason.trim()} className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
-                Confirm
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })}>
+          <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4" style={{ backgroundColor: 'var(--primary)' }}>
+              <h3 className="text-white font-bold text-sm uppercase tracking-widest">
+                Reject {rejectModal.invoiceIds.length} Invoice{rejectModal.invoiceIds.length !== 1 ? 's' : ''}
+              </h3>
+            </div>
+            <div className="p-5">
+              <textarea
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder="Enter rejection reason..."
+                rows={3}
+                className="input-field w-full resize-none"
+              />
+            </div>
+            <div className="flex gap-3 px-5 py-4 bg-[var(--surface-low)]">
+              <button onClick={confirmReject} disabled={!rejectModal.reason.trim()} className="btn-thick-red flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                Confirm Reject
               </button>
-              <button onClick={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+              <button onClick={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
                 Cancel
               </button>
             </div>
@@ -1696,4 +1709,3 @@ function AccountantInvoicesPage() {
     </div>
   );
 }
-

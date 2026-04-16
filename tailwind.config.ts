@@ -9,10 +9,12 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-inter)", "Inter", "ui-sans-serif", "system-ui"],
+        sans: ["var(--font-lato)", "Lato", "var(--font-inter)", "Inter", "ui-sans-serif", "system-ui"],
+        mono: ["var(--font-lato)", "Lato", "var(--font-inter)", "Inter", "monospace"],
+        label: ["var(--font-lato)", "Lato", "var(--font-inter)", "Inter", "sans-serif"],
       },
 
-      // ── Design System Colors ────────────────────────────────────────────
+      // ── Design System Colors (The Precision Ledger) ────────────────────
       colors: {
         primary: {
           DEFAULT: "var(--primary)",
@@ -23,6 +25,7 @@ const config: Config = {
           low: "var(--surface-low)",
           card: "var(--surface-card)",
           header: "var(--surface-header)",
+          highest: "var(--surface-highest)",
         },
         ds: {
           text: "var(--text-primary)",
@@ -32,6 +35,8 @@ const config: Config = {
           "outline-ghost": "var(--outline-ghost)",
           sidebar: "var(--sidebar)",
         },
+        "match-green": "var(--match-green)",
+        "reject-red": "var(--reject-red)",
         // Legacy aliases
         background: "var(--background)",
         foreground: "var(--foreground)",
@@ -56,20 +61,22 @@ const config: Config = {
         "label-sm": ["0.6875rem", { lineHeight: "1.3", fontWeight: "700", letterSpacing: "0.05em" }],
       },
 
-      // ── Border Radius (restrained, architectural) ──────────────────────
+      // ── Border Radius (sharp corners — The Precision Ledger) ───────────
       borderRadius: {
         "ds-none": "0px",
-        "ds-sm": "0.25rem",     // Small elements
-        "ds-md": "0.375rem",    // Buttons, inputs
-        "ds-lg": "0.5rem",      // Cards, containers
-        "ds-full": "9999px",    // Status chips
+        "ds-sm": "0px",        // Sharp corners
+        "ds-md": "0px",        // Sharp corners
+        "ds-lg": "0px",        // Sharp corners
+        "ds-full": "9999px",   // Status chips only
       },
 
-      // ── Shadows (ambient only — no drop shadows on cards) ──────────────
+      // ── Shadows (ambient + punchy 3D) ─────────────────────────────────
       boxShadow: {
-        "ds-ambient": "0 2px 24px rgba(25, 28, 30, 0.06)",  // Modals, dropdowns
-        "ds-subtle": "0 1px 8px rgba(25, 28, 30, 0.04)",    // Slight lift
+        "ds-ambient": "0px 24px 48px rgba(26, 50, 87, 0.08)",  // Modals, dropdowns (tinted navy)
+        "ds-subtle": "0 1px 8px rgba(25, 28, 30, 0.04)",       // Slight lift
         "ds-none": "none",
+        "card-popped": "2px 2px 4px rgba(0,0,0,0.03)",         // Directional card lift
+        "inset": "inset 1px 1px 3px rgba(0,0,0,0.05)",         // Engraved badges
       },
     },
   },

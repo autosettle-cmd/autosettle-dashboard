@@ -95,33 +95,33 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "w-full px-4 py-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--accent-rgb),0.4)] focus:border-[rgba(var(--accent-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
+    "w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--primary-rgb),0.4)] focus:border-[rgba(var(--primary-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
-    "block text-white/40 text-label-sm font-semibold uppercase tracking-[0.15em] mb-2.5";
+    "block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2.5";
 
   const primaryBtnClass =
-    "w-full py-3 rounded-lg text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group";
+    "w-full py-3 text-white font-bold text-title-md transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed relative overflow-hidden group";
 
   function ErrorBanner({ message }: { message: string }) {
     return (
       <div
-        className="flex items-center gap-2.5 px-4 py-3 rounded-lg border"
+        className="flex items-center gap-2.5 px-4 py-3 border"
         style={{
-          backgroundColor: "rgba(var(--accent-rgb), 0.08)",
-          borderColor: "rgba(var(--accent-rgb), 0.2)",
+          backgroundColor: "rgba(var(--reject-red-rgb, 242, 53, 69), 0.08)",
+          borderColor: "var(--reject-red)",
         }}
       >
         <div
-          className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: "rgba(var(--accent-rgb), 0.2)" }}
+          className="w-5 h-5 flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: "rgba(var(--reject-red-rgb, 242, 53, 69), 0.2)" }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--reject-red)" strokeWidth="3" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
         </div>
-        <p className="text-[#E8A0A0] text-sm">{message}</p>
+        <p style={{ color: "var(--reject-red)" }} className="text-sm">{message}</p>
       </div>
     );
   }
@@ -137,8 +137,8 @@ export default function LoginPage() {
 
   return (
     <div>
-      <main className="flex min-h-screen" style={{ backgroundColor: "#0D1B2A" }}>
-        {/* ── Left Panel: Logo ─────────────────────────────────────── */}
+      <main className="flex min-h-screen" style={{ backgroundColor: "var(--surface-base)" }}>
+        {/* -- Left Panel: Logo ----------------------------------------- */}
         <div
           className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative overflow-hidden items-center justify-center"
           style={{ backgroundColor: "var(--surface-base)" }}
@@ -159,12 +159,12 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* ── Right Panel: Form ──────────────────────────────────── */}
-        <div className="flex-1 flex items-center justify-center px-6 py-12 relative">
+        {/* -- Right Panel: Form ---------------------------------------- */}
+        <div className="flex-1 flex items-center justify-center px-6 py-12 relative" style={{ backgroundColor: "var(--primary)" }}>
           {/* Mobile background effects */}
           <div
-            className="lg:hidden absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full opacity-15 blur-[100px]"
-            style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 70%)" }}
+            className="lg:hidden absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] opacity-15 blur-[100px]"
+            style={{ background: "radial-gradient(circle, var(--primary) 0%, transparent 70%)" }}
           />
 
           <div
@@ -182,16 +182,16 @@ export default function LoginPage() {
             {/* Desktop heading */}
             <div className="hidden lg:block mb-10">
               <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "var(--accent)" }} />
+                <div className="w-1.5 h-1.5" style={{ backgroundColor: "var(--on-primary, #FFFFFF)" }} />
                 <span className="text-white/30 text-label-sm font-semibold uppercase tracking-[0.2em]">
                   {brand.portalTitle}
                 </span>
               </div>
             </div>
 
-            {/* ── Card ─────────────────────────────────────────────── */}
+            {/* -- Card ------------------------------------------------- */}
             <div
-              className="rounded-2xl p-8 sm:p-10"
+              className="p-8 sm:p-10"
               style={{
                 backgroundColor: "rgba(255, 255, 255, 0.02)",
                 border: "1px solid rgba(255, 255, 255, 0.06)",
@@ -263,7 +263,7 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className={`${primaryBtnClass} btn-primary mt-1`}
+                      className={`${primaryBtnClass} btn-thick-navy mt-1`}
                     >
                       {loading ? (
                         <span className="flex items-center justify-center gap-2.5">
@@ -343,7 +343,7 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className={`${primaryBtnClass} btn-primary mt-1`}
+                      className={`${primaryBtnClass} btn-thick-navy mt-1`}
                     >
                       {loading ? (
                         <span className="flex items-center justify-center gap-2.5">
@@ -425,7 +425,7 @@ export default function LoginPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className={`${primaryBtnClass} btn-primary mt-1`}
+                      className={`${primaryBtnClass} btn-thick-navy mt-1`}
                     >
                       {loading ? (
                         <span className="flex items-center justify-center gap-2.5">
@@ -444,13 +444,13 @@ export default function LoginPage() {
                 <div className="form-stagger" key="forgot-done">
                   <div className="text-center py-6">
                     <div
-                      className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6"
+                      className="w-16 h-16 flex items-center justify-center mx-auto mb-6"
                       style={{
-                        backgroundColor: "rgba(34, 197, 94, 0.08)",
-                        border: "1px solid rgba(34, 197, 94, 0.15)",
+                        backgroundColor: "rgba(var(--match-green-rgb, 10, 153, 129), 0.08)",
+                        border: "1px solid rgba(var(--match-green-rgb, 10, 153, 129), 0.15)",
                       }}
                     >
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
                     </div>
@@ -462,7 +462,7 @@ export default function LoginPage() {
                     </p>
                     <button
                       onClick={goBackToLogin}
-                      className={`${primaryBtnClass} btn-primary`}
+                      className={`${primaryBtnClass} btn-thick-navy`}
                     >
                       <span className="flex items-center justify-center gap-2">
                         Sign in now

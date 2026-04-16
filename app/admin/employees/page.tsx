@@ -42,7 +42,10 @@ interface AdminRow {
 function formatDate(val: string) {
   if (!val) return '';
   const d = new Date(val);
-  return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd}`;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -289,23 +292,23 @@ export default function AdminEmployeesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="admin" />
 
       {/* ═══ MAIN ═══ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Employees</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Employees</h1>
         </header>
 
-        <main className="flex-1 overflow-auto flex flex-col gap-4 p-6 animate-in">
+        <main className="flex-1 overflow-auto flex flex-col gap-4 p-8 pl-14 paper-texture animate-in">
 
           {/* ════════════════════ SECTION 1: PENDING APPROVAL ════════════════════ */}
           {!pendingLoading && pending.length > 0 && (
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div className="bg-white overflow-hidden">
               <div className="px-6 py-3 flex items-center gap-2">
                 <h2 className="text-body-md font-semibold text-amber-700">Pending Approval</h2>
                 <span className="badge-amber">{pending.length}</span>
@@ -313,31 +316,31 @@ export default function AdminEmployeesPage() {
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-6 py-2.5">Name</th>
-                      <th className="px-6 py-2.5">Email</th>
-                      <th className="px-6 py-2.5">Phone</th>
-                      <th className="px-6 py-2.5">Date Requested</th>
-                      <th className="px-6 py-2.5">Actions</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Name</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Email</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Phone</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date Requested</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {pending.map((row) => (
-                      <tr key={row.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-[#191C1E] font-medium">{row.name}</td>
-                        <td className="px-6 py-3 text-[#434654]">{row.email}</td>
-                        <td className="px-6 py-3 text-[#434654]">{row.phone || '—'}</td>
-                        <td className="px-6 py-3 text-[#434654]">{formatDate(row.created_at)}</td>
+                    {pending.map((row, idx) => (
+                      <tr key={row.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{row.name}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)]">{row.email}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)]">{row.phone || '\u2014'}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(row.created_at)}</td>
                         <td className="px-6 py-3 flex items-center gap-3">
                           <button
                             onClick={() => handleApprove(row.id)}
-                            className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+                            className="btn-thick-green text-xs font-medium px-3 py-1.5"
                           >
                             Approve
                           </button>
                           <button
                             onClick={() => handleReject(row.id)}
-                            className="text-xs font-medium text-red-600 hover:text-red-700 transition-colors"
+                            className="btn-thick-red text-xs font-medium px-3 py-1.5"
                           >
                             Reject
                           </button>
@@ -351,36 +354,35 @@ export default function AdminEmployeesPage() {
           )}
 
           {/* ════════════════════ SECTION 2: ADMINS ════════════════════ */}
-          <div className="bg-white rounded-lg overflow-hidden">
+          <div className="bg-white overflow-hidden">
             <div className="px-6 py-3 flex items-center justify-between">
-              <h2 className="text-body-md font-semibold text-[#191C1E]">Admins</h2>
+              <h2 className="text-body-md font-semibold text-[var(--text-primary)]">Admins</h2>
               <button
                 onClick={openAdminModal}
-                className="btn-primary text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--primary)' }}
+                className="btn-thick-navy text-xs px-3 py-1.5 font-medium"
               >
                 Add Admin
               </button>
             </div>
             {adminsLoading ? (
-              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">Loading...</div>
+              <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
             ) : admins.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">No admins found.</div>
+              <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
             ) : (
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleAdminSort('is_active')}>Status{adminSortIndicator('is_active')}</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('is_active')}>Status{adminSortIndicator('is_active')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedAdmins.map((admin) => (
-                      <tr key={admin.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-[#191C1E] font-medium">{admin.name}</td>
-                        <td className="px-6 py-3 text-[#434654]">{admin.email}</td>
+                    {sortedAdmins.map((admin, idx) => (
+                      <tr key={admin.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
                         <td className="px-6 py-3">
                           {admin.is_active ? (
                             <span className="badge-green">Active</span>
@@ -397,10 +399,10 @@ export default function AdminEmployeesPage() {
           </div>
 
           {/* ════════════════════ SECTION 3: EMPLOYEES ════════════════════ */}
-          <div className="bg-white rounded-lg overflow-hidden flex flex-col">
+          <div className="bg-white overflow-hidden flex flex-col">
             <div className="px-6 py-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <h2 className="text-body-md font-semibold text-[#191C1E]">Employees</h2>
+                <h2 className="text-body-md font-semibold text-[var(--text-primary)]">Employees</h2>
                 <input
                   type="text"
                   placeholder="Search name or phone..."
@@ -411,44 +413,43 @@ export default function AdminEmployeesPage() {
               </div>
               <button
                 onClick={openEmpModal}
-                className="btn-primary text-xs px-3 py-1.5 rounded-lg font-medium text-white transition-opacity hover:opacity-85 flex-shrink-0"
-                style={{ backgroundColor: 'var(--primary)' }}
+                className="btn-thick-navy text-xs px-3 py-1.5 font-medium flex-shrink-0"
               >
                 Add Employee
               </button>
             </div>
             {empLoading ? (
-              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+              <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
             ) : employees.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-[#8E9196]">No employees found.</div>
+              <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">No employees found.</div>
             ) : (
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
-                      <th className="px-6 py-2.5 text-right cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
-                      <th className="px-6 py-2.5 text-right cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
-                      <th className="px-6 py-2.5 cursor-pointer select-none hover:text-[#191C1E] transition-colors" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
-                      <th className="px-6 py-2.5">Actions</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right cursor-pointer select-none" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right cursor-pointer select-none" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
+                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedEmployees.map((emp) => (
-                      <tr key={emp.id} className="group text-body-md hover:bg-[#F2F4F6] transition-colors">
-                        <td className="px-6 py-3 text-[#191C1E] font-medium">{emp.name}</td>
-                        <td className="px-6 py-3 text-[#434654]">{emp.phone}</td>
-                        <td className="px-6 py-3 text-[#434654]">{emp.email ?? '—'}</td>
-                        <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{emp.claims_count}</td>
+                    {sortedEmployees.map((emp, idx) => (
+                      <tr key={emp.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{emp.name}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)]">{emp.phone}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)]">{emp.email ?? '\u2014'}</td>
+                        <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{emp.claims_count}</td>
                         <td className="px-6 py-3 text-right tabular-nums">
                           {Number(emp.outstanding) > 0 ? (
-                            <Link href={`/admin/employees/${emp.id}/claims-account`} className="text-red-600 font-semibold hover:underline">
+                            <Link href={`/admin/employees/${emp.id}/claims-account`} className="text-[var(--reject-red)] font-semibold hover:underline">
                               RM {Number(emp.outstanding).toLocaleString('en-MY', { minimumFractionDigits: 2 })}
                             </Link>
                           ) : (
-                            <span className="text-[#8E9196]">—</span>
+                            <span className="text-[var(--text-secondary)]">\u2014</span>
                           )}
                         </td>
                         <td className="px-6 py-3">
@@ -465,13 +466,13 @@ export default function AdminEmployeesPage() {
                         <td className="px-6 py-3 flex items-center gap-2">
                           <button
                             onClick={() => openEditPanel(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                            className="btn-thick-white text-xs font-medium px-3 py-1.5"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => toggleActive(emp)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-md border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                            className="btn-thick-white text-xs font-medium px-3 py-1.5"
                           >
                             {emp.is_active ? 'Deactivate' : 'Activate'}
                           </button>
@@ -489,170 +490,169 @@ export default function AdminEmployeesPage() {
 
       {/* ═══ ADD ADMIN MODAL ═══ */}
       {showAdminModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-semibold text-[#191C1E]">Add Admin</h3>
-                <p className="text-sm text-[#434654] mt-1">Create a new admin user for your firm.</p>
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60]" onClick={() => setShowAdminModal(false)} />
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider">Add Admin</h3>
+                <button onClick={() => setShowAdminModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
-              <button onClick={() => setShowAdminModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
 
-            {adminError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{adminError}</p>
-              </div>
-            )}
+              <div className="p-5 space-y-3">
+                <p className="text-sm text-[var(--text-secondary)]">Create a new admin user for your firm.</p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Full Name *</label>
-                <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email *</label>
-                <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone</label>
-                <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Temporary Password *</label>
-                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-field w-full" placeholder="Min 8 characters" />
-              </div>
-            </div>
+                {adminError && (
+                  <div className="bg-[var(--error-container)] p-3">
+                    <p className="text-sm text-[var(--on-error-container)]">{adminError}</p>
+                  </div>
+                )}
 
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={submitAdmin}
-                disabled={adminSaving}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--primary)' }}
-              >
-                {adminSaving ? 'Creating...' : 'Create Admin'}
-              </button>
-              <button
-                onClick={() => setShowAdminModal(false)}
-                disabled={adminSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
-                Cancel
-              </button>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Full Name *</label>
+                  <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email *</label>
+                  <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Phone</label>
+                  <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Temporary Password *</label>
+                  <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-field w-full" placeholder="Min 8 characters" />
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-5 bg-[var(--surface-low)]">
+                <button
+                  onClick={submitAdmin}
+                  disabled={adminSaving}
+                  className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {adminSaving ? 'Creating...' : 'Create Admin'}
+                </button>
+                <button
+                  onClick={() => setShowAdminModal(false)}
+                  disabled={adminSaving}
+                  className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ═══ EDIT EMPLOYEE MODAL ═══ */}
       {editEmp && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditEmp(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-[#191C1E]">Edit Employee</h2>
-              <button onClick={() => setEditEmp(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50" onClick={() => setEditEmp(null)} />
+          <div className="fixed inset-0 z-[51] flex items-center justify-center p-4" onClick={() => setEditEmp(null)}>
+            <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+                <h2 className="text-white font-bold text-sm uppercase tracking-wider">Edit Employee</h2>
+                <button onClick={() => setEditEmp(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              </div>
 
-            <div className="flex-1 overflow-auto p-5 space-y-4">
-              {editError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-700">{editError}</p>
+              <div className="flex-1 overflow-auto p-5 space-y-4">
+                {editError && (
+                  <div className="bg-[var(--error-container)] p-3">
+                    <p className="text-sm text-[var(--on-error-container)]">{editError}</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
                 </div>
-              )}
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Phone *</label>
+                  <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email</label>
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                </div>
+              </div>
 
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
+              <div className="flex-shrink-0 p-4 bg-[var(--surface-low)] flex gap-3">
+                <button
+                  onClick={submitEdit}
+                  disabled={editSaving}
+                  className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {editSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  onClick={() => setEditEmp(null)}
+                  disabled={editSaving}
+                  className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
+                >
+                  Cancel
+                </button>
               </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone *</label>
-                <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email</label>
-                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
-              </div>
-            </div>
-
-            <div className="flex-shrink-0 p-4 border-t border-gray-100 flex gap-3">
-              <button
-                onClick={submitEdit}
-                disabled={editSaving}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-              >
-                {editSaving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
-                onClick={() => setEditEmp(null)}
-                disabled={editSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
-                Cancel
-              </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ═══ ADD EMPLOYEE MODAL ═══ */}
       {showEmpModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-base font-semibold text-[#191C1E]">Add Employee</h3>
-                <p className="text-sm text-[#434654] mt-1">Create a new employee record.</p>
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60]" onClick={() => setShowEmpModal(false)} />
+          <div className="fixed inset-0 z-[61] flex items-center justify-center p-4">
+            <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+                <h3 className="text-white font-bold text-sm uppercase tracking-wider">Add Employee</h3>
+                <button onClick={() => setShowEmpModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
               </div>
-              <button onClick={() => setShowEmpModal(false)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            </div>
 
-            {empError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{empError}</p>
-              </div>
-            )}
+              <div className="p-5 space-y-3">
+                <p className="text-sm text-[var(--text-secondary)]">Create a new employee record.</p>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
-                <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Phone *</label>
-                <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
-              </div>
-              <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Email</label>
-                <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
-              </div>
-            </div>
+                {empError && (
+                  <div className="bg-[var(--error-container)] p-3">
+                    <p className="text-sm text-[var(--on-error-container)]">{empError}</p>
+                  </div>
+                )}
 
-            <div className="flex gap-3 mt-5">
-              <button
-                onClick={submitEmployee}
-                disabled={empSaving}
-                className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--primary)' }}
-              >
-                {empSaving ? 'Creating...' : 'Create Employee'}
-              </button>
-              <button
-                onClick={() => setShowEmpModal(false)}
-                disabled={empSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
-              >
-                Cancel
-              </button>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
+                  <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Phone *</label>
+                  <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email</label>
+                  <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-5 bg-[var(--surface-low)]">
+                <button
+                  onClick={submitEmployee}
+                  disabled={empSaving}
+                  className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {empSaving ? 'Creating...' : 'Create Employee'}
+                </button>
+                <button
+                  onClick={() => setShowEmpModal(false)}
+                  disabled={empSaving}
+                  className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
     </div>

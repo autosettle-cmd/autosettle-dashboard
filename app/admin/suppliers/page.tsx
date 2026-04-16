@@ -8,8 +8,20 @@ import Field from '@/components/forms/Field';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
-import { formatDate, formatRM } from '@/lib/formatters';
+import { formatRM } from '@/lib/formatters';
 import { PAYMENT_CFG } from '@/lib/badge-config';
+
+// ─── Local formatDate: YYYY.MM.DD dot notation ──────────────────────────────
+
+function formatDate(val: string | null | undefined): string {
+  if (!val) return '';
+  const d = new Date(val);
+  return [
+    d.getUTCFullYear(),
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCDate().toString().padStart(2, '0'),
+  ].join('.');
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,9 +126,9 @@ interface AgingSummary {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function AgingCell({ value, warn }: { value: number; warn?: boolean }) {
-  if (value === 0) return <td className="px-3 py-2.5 text-right text-[#8E9196] tabular-nums text-body-sm">-</td>;
+  if (value === 0) return <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums text-body-sm">-</td>;
   return (
-    <td className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+    <td className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
       {formatRM(value)}
     </td>
   );
@@ -409,7 +421,7 @@ export default function AdminSuppliersPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className={"flex h-screen overflow-hidden bg-[#F7F9FB]"}>
+    <div className="flex h-screen overflow-hidden paper-texture">
 
       {/* ═══ SIDEBAR ═══ */}
       <Sidebar role="admin" />
@@ -417,21 +429,21 @@ export default function AdminSuppliersPage() {
       {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Suppliers</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Suppliers</h1>
         </header>
 
         {/* ── Static top section (aging cards + search) ── */}
-        <div className="flex-shrink-0 px-6 pt-4 pb-3 bg-[#F7F9FB]">
+        <div className="flex-shrink-0 px-8 pl-14 pt-4 pb-3">
           {/* ── Aging Report ─────────────────────────────── */}
           {agingSummary && (
             <div className="mb-3">
               {/* Summary cards */}
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-body-md font-semibold text-[#191C1E]">Aging Report — Accounts Payable</h2>
+                <h2 className="text-body-md font-semibold text-[var(--text-primary)]">Aging Report — Accounts Payable</h2>
                 <button
                   onClick={() => setShowAging(!showAging)}
-                  className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200"
+                  className="btn-thick-navy text-label-sm px-3 py-1.5 font-medium"
                 >
                   {showAging ? 'Collapse' : 'Expand'}
                 </button>
@@ -440,14 +452,14 @@ export default function AdminSuppliersPage() {
               {/* Bucket summary cards */}
               <div className="grid grid-cols-5 gap-3">
                 {[
-                  { label: '0-30 Days', value: agingSummary.days0_30, color: agingSummary.days0_30 > 0 ? 'text-amber-600' : 'text-[#191C1E]' },
-                  { label: '31-60 Days', value: agingSummary.days31_60, color: agingSummary.days31_60 > 0 ? 'text-amber-600' : 'text-[#191C1E]' },
-                  { label: '61-90 Days', value: agingSummary.days61_90, color: agingSummary.days61_90 > 0 ? 'text-red-500' : 'text-[#191C1E]' },
-                  { label: '90+ Days', value: agingSummary.days90plus, color: agingSummary.days90plus > 0 ? 'text-red-600' : 'text-[#191C1E]' },
-                  { label: 'Total Payable', value: agingSummary.total, color: 'text-[#191C1E]' },
+                  { label: '0-30 Days', value: agingSummary.days0_30, color: agingSummary.days0_30 > 0 ? 'text-amber-600' : 'text-[var(--text-primary)]' },
+                  { label: '31-60 Days', value: agingSummary.days31_60, color: agingSummary.days31_60 > 0 ? 'text-amber-600' : 'text-[var(--text-primary)]' },
+                  { label: '61-90 Days', value: agingSummary.days61_90, color: agingSummary.days61_90 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]' },
+                  { label: '90+ Days', value: agingSummary.days90plus, color: agingSummary.days90plus > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]' },
+                  { label: 'Total Payable', value: agingSummary.total, color: 'text-[var(--text-primary)]' },
                 ].map((b) => (
-                  <div key={b.label} className="bg-white rounded-lg p-3 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)]">
-                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">{b.label}</p>
+                  <div key={b.label} className="bg-white card-popped p-3">
+                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">{b.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${b.color}`}>{formatRM(b.value)}</p>
                   </div>
                 ))}
@@ -479,50 +491,50 @@ export default function AdminSuppliersPage() {
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto px-6 py-3 animate-in">
+        <main className="flex-1 overflow-y-auto p-8 pl-14 animate-in ledger-binding">
           {/* Aging detail table */}
           {showAging && agingData.length > 0 && agingSummary && (
             <div className="mb-4">
-              <div className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+              <div className="bg-white card-popped overflow-hidden">
                   <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header">
-                        <th className="px-4 py-2.5 text-left">Supplier</th>
-                        <th className="px-3 py-2.5 text-right">0-30</th>
-                        <th className="px-3 py-2.5 text-right">31-60</th>
-                        <th className="px-3 py-2.5 text-right">61-90</th>
-                        <th className="px-3 py-2.5 text-right">90+</th>
-                        <th className="px-3 py-2.5 text-right">Total</th>
+                      <tr className="bg-[var(--surface-header)]">
+                        <th className="px-4 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Supplier</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">0-30</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">31-60</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">61-90</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">90+</th>
+                        <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Total</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {agingData.map((s) => (
+                      {agingData.map((s, idx) => (
                         <React.Fragment key={s.supplier_id}>
                           <tr
                             onClick={() => setAgingExpanded(agingExpanded === s.supplier_id ? null : s.supplier_id)}
-                            className="hover:bg-[#F2F4F6] transition-colors cursor-pointer"
+                            className={`hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           >
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                  className={`text-[#8E9196] transition-transform duration-200 ${agingExpanded === s.supplier_id ? 'rotate-90' : ''}`}
+                                  className={`text-[var(--text-secondary)] transition-transform duration-200 ${agingExpanded === s.supplier_id ? 'rotate-90' : ''}`}
                                 >
                                   <path d="M9 18l6-6-6-6" />
                                 </svg>
-                                <span className="text-body-sm font-semibold text-[#191C1E]">{s.supplier_name}</span>
-                                <span className="text-label-sm text-[#8E9196]">({s.invoices.length})</span>
+                                <span className="text-body-sm font-semibold text-[var(--text-primary)]">{s.supplier_name}</span>
+                                <span className="text-label-sm text-[var(--text-secondary)]">({s.invoices.length})</span>
                               </div>
                             </td>
                             <AgingCell value={s.days0_30} warn />
                             <AgingCell value={s.days31_60} warn />
                             <AgingCell value={s.days61_90} warn />
                             <AgingCell value={s.days90plus} warn />
-                            <td className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-[#191C1E]">{formatRM(s.total)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-[var(--text-primary)]">{formatRM(s.total)}</td>
                           </tr>
                           {agingExpanded === s.supplier_id && s.invoices.map((inv) => (
                             <tr
                               key={inv.id}
-                              className="bg-gray-50/50 text-label-sm cursor-pointer hover:bg-gray-100/60 transition-colors"
+                              className="bg-[var(--surface-low)] text-label-sm cursor-pointer hover:bg-[var(--surface-header)] transition-colors"
                               onClick={() => setPreviewInvoice({
                                 id: inv.id,
                                 invoice_number: inv.invoice_number,
@@ -537,27 +549,27 @@ export default function AdminSuppliersPage() {
                                 vendor_name_raw: s.supplier_name,
                               })}
                             >
-                              <td className="px-4 py-2 pl-10 text-[#434654]">
-                                {formatDate(inv.issue_date)} · <span className="text-[#434654] font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
+                              <td className="px-4 py-2 pl-10 text-[var(--text-secondary)]">
+                                {formatDate(inv.issue_date)} · <span className="text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '31-60' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '61-90' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#8E9196]">{inv.bucket === '90+' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[#434654] font-medium">{formatRM(inv.balance)}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '31-60' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '61-90' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '90+' ? formatRM(inv.balance) : '-'}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)] font-medium">{formatRM(inv.balance)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-gray-200 bg-gray-50 font-bold text-body-sm">
-                        <td className="px-4 py-2.5 text-[#191C1E]">Total</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days0_30)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days31_60)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days61_90)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>{formatRM(agingSummary.days90plus)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">{formatRM(agingSummary.total)}</td>
+                      <tr className="border-t-2 border-[var(--surface-header)] bg-[var(--surface-low)] font-bold text-body-sm">
+                        <td className="px-4 py-2.5 text-[var(--text-primary)]">Total</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days0_30)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days31_60)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days61_90)}</td>
+                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days90plus)}</td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">{formatRM(agingSummary.total)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -570,25 +582,25 @@ export default function AdminSuppliersPage() {
 
           {/* ── Supplier list ─────────────────────────────── */}
           {loading ? (
-            <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
+            <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
           ) : suppliers.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-sm text-[#8E9196]">No suppliers found</p>
-              <p className="text-xs text-[#8E9196] mt-1">Suppliers are auto-created when invoices are uploaded.</p>
+              <p className="text-sm text-[var(--text-secondary)]">No suppliers found</p>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">Suppliers are auto-created when invoices are uploaded.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {sortedSuppliers.map((s) => (
-                <div key={s.id} className="bg-white rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.02)] overflow-hidden">
+                <div key={s.id} className="bg-white card-popped overflow-hidden">
                   {/* Supplier row */}
                   <div
-                    className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-gray-50/50 transition-colors"
+                    className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-low)] transition-colors"
                     onClick={() => toggleExpand(s.id)}
                   >
                     {/* Expand icon */}
                     <svg
                       width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                      className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${expandedId === s.id ? 'rotate-90' : ''}`}
+                      className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${expandedId === s.id ? 'rotate-90' : ''}`}
                     >
                       <path d="M9 18l6-6-6-6" />
                     </svg>
@@ -596,9 +608,9 @@ export default function AdminSuppliersPage() {
                     {/* Name + aliases */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-body-md font-semibold text-[#191C1E] truncate">{s.name}</p>
+                        <p className="text-body-md font-semibold text-[var(--text-primary)] truncate">{s.name}</p>
                       </div>
-                      <p className="text-label-sm text-[#8E9196] truncate">
+                      <p className="text-label-sm text-[var(--text-secondary)] truncate">
                         {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''}
                         {s.invoice_count > 0 && <> · {s.invoice_count} purchase inv</>}
                         {s.sales_invoice_count > 0 && <> · {s.sales_invoice_count} sales inv</>}
@@ -615,20 +627,20 @@ export default function AdminSuppliersPage() {
                         return (
                           <>
                             {payable > 0 && (
-                              <div className="bg-red-50 border border-red-100 rounded-md px-2.5 py-1.5 text-right">
-                                <p className="text-[10px] font-medium text-red-400 uppercase tracking-wide leading-none">Payable</p>
-                                <p className="text-sm font-bold text-red-600 tabular-nums mt-0.5">{formatRM(payable)}</p>
+                              <div className="bg-red-50 border border-red-100 px-2.5 py-1.5 text-right">
+                                <p className="text-[10px] font-label font-bold text-red-400 uppercase tracking-widest leading-none">Payable</p>
+                                <p className="text-sm font-bold text-[var(--reject-red)] tabular-nums mt-0.5">{formatRM(payable)}</p>
                               </div>
                             )}
                             {receivable > 0 && (
-                              <div className="bg-green-50 border border-green-100 rounded-md px-2.5 py-1.5 text-right">
-                                <p className="text-[10px] font-medium text-green-400 uppercase tracking-wide leading-none">Receivable</p>
-                                <p className="text-sm font-bold text-green-600 tabular-nums mt-0.5">{formatRM(receivable)}</p>
+                              <div className="bg-green-50 border border-green-100 px-2.5 py-1.5 text-right">
+                                <p className="text-[10px] font-label font-bold text-green-400 uppercase tracking-widest leading-none">Receivable</p>
+                                <p className="text-sm font-bold text-[var(--match-green)] tabular-nums mt-0.5">{formatRM(receivable)}</p>
                               </div>
                             )}
-                            <div className={`rounded-md px-2.5 py-1.5 text-right ${net > 0 ? 'bg-red-50/60 border border-red-100' : net < 0 ? 'bg-green-50/60 border border-green-100' : 'bg-gray-50 border border-gray-200'}`}>
-                              <p className="text-[10px] font-medium text-[#8E9196] uppercase tracking-wide leading-none">Net</p>
-                              <p className={`text-sm font-bold tabular-nums mt-0.5 ${net > 0 ? 'text-red-600' : net < 0 ? 'text-green-600' : 'text-[#191C1E]'}`}>
+                            <div className={`px-2.5 py-1.5 text-right ${net > 0 ? 'bg-red-50/60 border border-red-100' : net < 0 ? 'bg-green-50/60 border border-green-100' : 'bg-[var(--surface-low)] border border-[var(--surface-header)]'}`}>
+                              <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest leading-none">Net</p>
+                              <p className={`text-sm font-bold tabular-nums mt-0.5 ${net > 0 ? 'text-[var(--reject-red)]' : net < 0 ? 'text-[var(--match-green)]' : 'text-[var(--text-primary)]'}`}>
                                 {formatRM(Math.abs(net))}{net > 0 ? ' owed' : net < 0 ? ' due' : ''}
                               </p>
                             </div>
@@ -640,7 +652,7 @@ export default function AdminSuppliersPage() {
                     {/* Action buttons */}
                     <button
                       onClick={(e) => { e.stopPropagation(); openPayment(s); }}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-dark transition-all duration-200"
+                      className="flex-shrink-0 btn-thick-navy text-label-sm px-3 py-1.5 font-medium"
                     >
                       Pay
                     </button>
@@ -648,13 +660,13 @@ export default function AdminSuppliersPage() {
                       href={`/admin/suppliers/${s.id}/statement`}
                       target="_blank"
                       onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg font-medium border border-[#C0C4CC] text-[#434654] hover:bg-[#F2F4F6] transition-all duration-200"
+                      className="flex-shrink-0 btn-thick-white text-label-sm px-3 py-1.5 font-medium"
                     >
                       Statement
                     </Link>
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(s); }}
-                      className="flex-shrink-0 text-label-sm px-3 py-1.5 rounded-lg shadow-sm font-medium btn-primary"
+                      className="flex-shrink-0 btn-thick-navy text-label-sm px-3 py-1.5 font-medium"
                     >
                       Edit
                     </button>
@@ -662,50 +674,50 @@ export default function AdminSuppliersPage() {
 
                   {/* Expanded invoices */}
                   {expandedId === s.id && (
-                    <div className="bg-gray-50/50">
+                    <div className="bg-[var(--surface-low)]">
                       {loadingInvoices ? (
-                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">Loading...</div>
+                        <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
                       ) : (
                         <>
                       {/* ── Purchase Invoices (Payable) ── */}
                       {expandedInvoices.length > 0 && (
                         <>
                         <div className="bg-red-50/40">
-                        <p className="px-5 pl-14 pt-3 pb-1 text-label-sm font-semibold text-red-600 uppercase tracking-wide">Purchase Invoices — Payable</p>
+                        <p className="px-5 pl-14 pt-3 pb-1 text-[10px] font-label font-bold text-[var(--reject-red)] uppercase tracking-widest">Purchase Invoices — Payable</p>
                         <table className="w-full">
                           <thead>
-                            <tr className="ds-table-header text-left">
-                              <th className="px-5 py-2 pl-14">Issue Date</th>
-                              <th className="px-3 py-2">Invoice #</th>
-                              <th className="px-3 py-2">Due Date</th>
-                              <th className="px-3 py-2">Category</th>
-                              <th className="px-3 py-2 text-right">Amount</th>
-                              <th className="px-3 py-2 text-right">Paid</th>
-                              <th className="px-3 py-2">Payment</th>
-                              <th className="px-3 py-2">Aging</th>
+                            <tr className="bg-[var(--surface-header)] text-left">
+                              <th className="px-5 py-2 pl-14 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Issue Date</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoice #</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Due Date</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Amount</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Paid</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Payment</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Aging</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {expandedInvoices.map((inv) => {
+                            {expandedInvoices.map((inv, idx) => {
                               const pmtCfg = PAYMENT_CFG[inv.payment_status];
                               return (
                                 <React.Fragment key={inv.id}>
                                   <tr
-                                    className="text-body-sm hover:bg-white/60 transition-colors cursor-pointer"
+                                    className={`text-body-sm hover:bg-white/60 transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : ''}`}
                                     onClick={() => setPreviewInvoice(inv)}
                                   >
-                                    <td className="px-5 py-2.5 pl-14 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
-                                    <td className="px-3 py-2.5 text-[#434654] font-medium">{inv.invoice_number ?? '-'}</td>
-                                    <td className="px-3 py-2.5 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                                    <td className="px-3 py-2.5 text-[#434654]">{inv.category_name}</td>
-                                    <td className="px-3 py-2.5 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                                    <td className="px-3 py-2.5 text-[#434654] text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
+                                    <td className="px-5 py-2.5 pl-14 text-[var(--text-secondary)] tabular-nums">{formatDate(inv.issue_date)}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)]">{inv.category_name}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
                                     <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
                                     <td className="px-3 py-2.5">
                                       {inv.payment_status !== 'paid' && (
                                         <span className={`text-label-sm font-medium ${
-                                          agingBucket(inv.due_date) === 'Current' ? 'text-green-600' :
-                                          agingBucket(inv.due_date) === '90+' ? 'text-red-600' :
+                                          agingBucket(inv.due_date) === 'Current' ? 'text-[var(--match-green)]' :
+                                          agingBucket(inv.due_date) === '90+' ? 'text-[var(--reject-red)]' :
                                           'text-amber-600'
                                         }`}>
                                           {agingBucket(inv.due_date)}
@@ -714,8 +726,8 @@ export default function AdminSuppliersPage() {
                                     </td>
                                   </tr>
                                   {inv.allocations && inv.allocations.length > 0 && inv.allocations.map((alloc) => (
-                                    <tr key={alloc.id} className="text-label-sm bg-gray-50/50">
-                                      <td className="px-5 py-1.5 pl-20 text-[#8E9196]" colSpan={3}>
+                                    <tr key={alloc.id} className="text-label-sm bg-[var(--surface-low)]">
+                                      <td className="px-5 py-1.5 pl-20 text-[var(--text-secondary)]" colSpan={3}>
                                         <span>Payment: {formatDate(alloc.payment_date)}{alloc.reference ? ` · ${alloc.reference}` : ''}</span>
                                         {alloc.receipts && alloc.receipts.length > 0 && (
                                           <span className="ml-2">
@@ -723,7 +735,7 @@ export default function AdminSuppliersPage() {
                                               <button
                                                 key={r.id}
                                                 onClick={(e) => { e.stopPropagation(); setPreviewReceipt(r); }}
-                                                className="inline-flex items-center gap-0.5 text-blue-500 hover:text-blue-700 hover:underline"
+                                                className="inline-flex items-center gap-0.5 text-[var(--primary)] hover:underline"
                                               >
                                                 Receipt: {r.receipt_number || r.merchant}
                                               </button>
@@ -731,7 +743,7 @@ export default function AdminSuppliersPage() {
                                           </span>
                                         )}
                                       </td>
-                                      <td colSpan={3} className="px-3 py-1.5 text-right text-[#434654] tabular-nums">
+                                      <td colSpan={3} className="px-3 py-1.5 text-right text-[var(--text-secondary)] tabular-nums">
                                         {formatRM(alloc.amount)}
                                       </td>
                                       <td colSpan={2} className="px-3 py-1.5">
@@ -744,7 +756,7 @@ export default function AdminSuppliersPage() {
                                               if (res.ok) refreshInPlace();
                                             } catch (err) { console.error(err); }
                                           }}
-                                          className="text-red-500 hover:text-red-700 font-medium"
+                                          className="text-[var(--reject-red)] hover:opacity-80 font-medium"
                                         >
                                           Remove
                                         </button>
@@ -763,37 +775,37 @@ export default function AdminSuppliersPage() {
                       {/* ── Sales Invoices (Receivable) ── */}
                       {expandedSalesInvoices.length > 0 && (
                         <>
-                        <div className="bg-green-50/40 border-t border-gray-100">
-                        <p className="px-5 pl-14 pt-3 pb-1 text-label-sm font-semibold text-green-600 uppercase tracking-wide">Sales Invoices — Receivable</p>
+                        <div className="bg-green-50/40 border-t border-[var(--surface-header)]">
+                        <p className="px-5 pl-14 pt-3 pb-1 text-[10px] font-label font-bold text-[var(--match-green)] uppercase tracking-widest">Sales Invoices — Receivable</p>
                         <table className="w-full">
                           <thead>
-                            <tr className="ds-table-header text-left">
-                              <th className="px-5 py-2 pl-14">Issue Date</th>
-                              <th className="px-3 py-2">Invoice #</th>
-                              <th className="px-3 py-2">Due Date</th>
-                              <th className="px-3 py-2 text-right">Amount</th>
-                              <th className="px-3 py-2 text-right">Paid</th>
-                              <th className="px-3 py-2">Payment</th>
-                              <th className="px-3 py-2">Aging</th>
+                            <tr className="bg-[var(--surface-header)] text-left">
+                              <th className="px-5 py-2 pl-14 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Issue Date</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoice #</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Due Date</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Amount</th>
+                              <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Paid</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Payment</th>
+                              <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Aging</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {expandedSalesInvoices.map((sinv) => {
+                            {expandedSalesInvoices.map((sinv, idx) => {
                               const pmtCfg = PAYMENT_CFG[sinv.payment_status];
                               return (
                                 <React.Fragment key={sinv.id}>
-                                  <tr className="text-body-sm hover:bg-white/60 transition-colors">
-                                    <td className="px-5 py-2.5 pl-14 text-[#434654] tabular-nums">{formatDate(sinv.issue_date)}</td>
-                                    <td className="px-3 py-2.5 text-[#434654] font-medium">{sinv.invoice_number}</td>
-                                    <td className="px-3 py-2.5 text-[#434654] tabular-nums">{sinv.due_date ? formatDate(sinv.due_date) : '-'}</td>
-                                    <td className="px-3 py-2.5 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(sinv.total_amount)}</td>
-                                    <td className="px-3 py-2.5 text-[#434654] text-right tabular-nums">{formatRM(sinv.amount_paid)}</td>
+                                  <tr className={`text-body-sm hover:bg-white/60 transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : ''}`}>
+                                    <td className="px-5 py-2.5 pl-14 text-[var(--text-secondary)] tabular-nums">{formatDate(sinv.issue_date)}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{sinv.invoice_number}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)] tabular-nums">{sinv.due_date ? formatDate(sinv.due_date) : '-'}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(sinv.total_amount)}</td>
+                                    <td className="px-3 py-2.5 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(sinv.amount_paid)}</td>
                                     <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
                                     <td className="px-3 py-2.5">
                                       {sinv.payment_status !== 'paid' && (
                                         <span className={`text-label-sm font-medium ${
-                                          agingBucket(sinv.due_date) === 'Current' ? 'text-green-600' :
-                                          agingBucket(sinv.due_date) === '90+' ? 'text-red-600' :
+                                          agingBucket(sinv.due_date) === 'Current' ? 'text-[var(--match-green)]' :
+                                          agingBucket(sinv.due_date) === '90+' ? 'text-[var(--reject-red)]' :
                                           'text-amber-600'
                                         }`}>
                                           {agingBucket(sinv.due_date)}
@@ -802,11 +814,11 @@ export default function AdminSuppliersPage() {
                                     </td>
                                   </tr>
                                   {sinv.allocations && sinv.allocations.length > 0 && sinv.allocations.map((alloc) => (
-                                    <tr key={alloc.id} className="text-label-sm bg-gray-50/50">
-                                      <td className="px-5 py-1.5 pl-20 text-[#8E9196]" colSpan={2}>
+                                    <tr key={alloc.id} className="text-label-sm bg-[var(--surface-low)]">
+                                      <td className="px-5 py-1.5 pl-20 text-[var(--text-secondary)]" colSpan={2}>
                                         <span>Payment: {formatDate(alloc.payment_date)}{alloc.reference ? ` · ${alloc.reference}` : ''}</span>
                                       </td>
-                                      <td colSpan={3} className="px-3 py-1.5 text-right text-[#434654] tabular-nums">
+                                      <td colSpan={3} className="px-3 py-1.5 text-right text-[var(--text-secondary)] tabular-nums">
                                         {formatRM(alloc.amount)}
                                       </td>
                                       <td colSpan={2} />
@@ -822,20 +834,20 @@ export default function AdminSuppliersPage() {
                       )}
 
                       {expandedInvoices.length === 0 && expandedSalesInvoices.length === 0 && (
-                        <div className="px-5 py-6 text-center text-sm text-[#8E9196]">No invoices for this supplier</div>
+                        <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">No invoices for this supplier</div>
                       )}
 
                       {/* Orphaned credit payments */}
                       {orphanedPayments.length > 0 && (
-                        <div className="px-5 py-3 border-t border-gray-100">
-                          <p className="text-label-sm font-semibold text-amber-700 uppercase tracking-wide mb-2">Unallocated Credit</p>
+                        <div className="px-5 py-3 border-t border-[var(--surface-header)]">
+                          <p className="text-[10px] font-label font-bold text-amber-700 uppercase tracking-widest mb-2">Unallocated Credit</p>
                           {orphanedPayments.map((op) => (
                             <div key={op.id} className="flex items-center justify-between py-1.5 text-body-sm">
-                              <div className="text-[#434654]">
+                              <div className="text-[var(--text-secondary)]">
                                 <span className="tabular-nums">{formatDate(op.payment_date)}</span>
-                                {op.reference && <span className="ml-2 text-[#8E9196]">{op.reference}</span>}
+                                {op.reference && <span className="ml-2 text-[var(--text-secondary)]">{op.reference}</span>}
                                 {op.receipts.length > 0 && (
-                                  <span className="ml-2 text-[#8E9196]">
+                                  <span className="ml-2 text-[var(--text-secondary)]">
                                     (Receipt: {op.receipts.map(r => r.receipt_number || r.merchant).join(', ')})
                                   </span>
                                 )}
@@ -851,7 +863,7 @@ export default function AdminSuppliersPage() {
                                       if (res.ok) refreshInPlace();
                                     } catch (err) { console.error(err); }
                                   }}
-                                  className="text-red-500 hover:text-red-700 font-medium text-label-sm"
+                                  className="text-[var(--reject-red)] hover:opacity-80 font-medium text-label-sm"
                                 >
                                   Delete
                                 </button>
@@ -875,27 +887,27 @@ export default function AdminSuppliersPage() {
       {/* ═══ PAYMENT SIDE PANEL ═══ */}
       {paymentSupplier && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPaymentSupplier(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPaymentSupplier(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Record Payment</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Record Payment</h2>
               <button onClick={() => setPaymentSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {/* Supplier name */}
               <div>
-                <label className="input-label">Supplier</label>
-                <p className="text-sm font-semibold text-[#191C1E]">{paymentSupplier.name}</p>
+                <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Supplier</label>
+                <p className="text-sm font-semibold text-[var(--text-primary)]">{paymentSupplier.name}</p>
               </div>
 
               {/* Credit balance */}
               {Number(paymentSupplier.credit_balance) > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center justify-between">
+                <div className="bg-green-50 border border-green-200 px-4 py-3 flex items-center justify-between">
                   <div>
-                    <p className="text-label-sm font-semibold text-green-700 uppercase tracking-wide">Available Credit</p>
-                    <p className="text-lg font-bold text-green-700 tabular-nums">{formatRM(paymentSupplier.credit_balance)}</p>
+                    <p className="text-[10px] font-label font-bold text-[var(--match-green)] uppercase tracking-widest">Available Credit</p>
+                    <p className="text-lg font-bold text-[var(--match-green)] tabular-nums">{formatRM(paymentSupplier.credit_balance)}</p>
                   </div>
                   <button
                     onClick={async () => {
@@ -908,8 +920,7 @@ export default function AdminSuppliersPage() {
                         if (res.ok) { setPaymentSupplier(null); refreshInPlace(); }
                       } catch (e) { console.error(e); }
                     }}
-                    className="text-label-sm px-3 py-1.5 rounded-md font-semibold text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: 'var(--sidebar)' }}
+                    className="btn-thick-green text-label-sm px-3 py-1.5 font-semibold"
                   >
                     Apply Credit
                   </button>
@@ -918,22 +929,22 @@ export default function AdminSuppliersPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="input-label">Payment Amount (RM)</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Payment Amount (RM)</label>
                   <input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="input-field w-full" placeholder="0.00" />
                 </div>
                 <div>
-                  <label className="input-label">Payment Date</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Payment Date</label>
                   <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="input-field w-full" />
                 </div>
               </div>
 
               <div>
-                <label className="input-label">Reference (optional)</label>
+                <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Reference (optional)</label>
                 <input type="text" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} className="input-field w-full" placeholder="e.g. cheque number, transfer ref" />
               </div>
 
               <div>
-                <label className="input-label">Notes (optional)</label>
+                <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Notes (optional)</label>
                 <textarea value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} className="input-field w-full" rows={2} placeholder="Optional notes" />
               </div>
 
@@ -955,38 +966,37 @@ export default function AdminSuppliersPage() {
               {/* Invoice allocation */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide">Allocate to Invoices</h3>
+                  <h3 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Allocate to Invoices</h3>
                   <button
                     onClick={autoAllocate}
                     disabled={!paymentAmount || Number(paymentAmount) <= 0}
-                    className="text-label-sm px-2.5 py-1 rounded-md font-medium text-white disabled:opacity-40 transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: 'var(--sidebar)' }}
+                    className="btn-thick-navy text-label-sm px-2.5 py-1 font-medium disabled:opacity-40"
                   >
                     Auto-allocate
                   </button>
                 </div>
 
                 {loadingPaymentInvoices ? (
-                  <div className="text-center text-sm text-[#8E9196] py-4">Loading invoices...</div>
+                  <div className="text-center text-sm text-[var(--text-secondary)] py-4">Loading invoices...</div>
                 ) : paymentInvoices.length === 0 ? (
-                  <div className="text-center text-sm text-[#8E9196] py-4">No unpaid invoices</div>
+                  <div className="text-center text-sm text-[var(--text-secondary)] py-4">No unpaid invoices</div>
                 ) : (
-                  <div className="rounded-lg overflow-hidden">
+                  <div className="overflow-hidden">
                     <table className="w-full">
                       <thead>
-                        <tr className="ds-table-header">
-                          <th className="px-3 py-2 text-left">Invoice #</th>
-                          <th className="px-3 py-2 text-right">Total</th>
-                          <th className="px-3 py-2 text-right">Balance</th>
-                          <th className="px-3 py-2 text-right">Allocate</th>
+                        <tr className="bg-[var(--surface-header)]">
+                          <th className="px-3 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoice #</th>
+                          <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Total</th>
+                          <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
+                          <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Allocate</th>
                         </tr>
                       </thead>
                       <tbody>
                         {paymentInvoices.map((inv, i) => (
-                          <tr key={inv.id} className="text-body-sm">
-                            <td className="px-3 py-2 text-[#434654] font-medium">{inv.invoice_number ?? '-'}</td>
-                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(inv.total_amount)}</td>
-                            <td className="px-3 py-2 text-right text-[#191C1E] font-semibold tabular-nums">{formatRM(inv.balance)}</td>
+                          <tr key={inv.id} className={`text-body-sm ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                            <td className="px-3 py-2 text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</td>
+                            <td className="px-3 py-2 text-right text-[var(--text-secondary)] tabular-nums">{formatRM(inv.total_amount)}</td>
+                            <td className="px-3 py-2 text-right text-[var(--text-primary)] font-semibold tabular-nums">{formatRM(inv.balance)}</td>
                             <td className="px-3 py-1.5 text-right">
                               <input
                                 type="number"
@@ -1007,11 +1017,11 @@ export default function AdminSuppliersPage() {
                     </table>
 
                     {/* Totals row */}
-                    <div className="flex items-center justify-between px-3 py-2 bg-gray-50 text-body-sm">
-                      <span className="text-[#434654] font-medium">Total allocated</span>
+                    <div className="flex items-center justify-between px-3 py-2 bg-[var(--surface-low)] text-body-sm">
+                      <span className="text-[var(--text-secondary)] font-medium">Total allocated</span>
                       <span className={`font-bold tabular-nums ${
                         paymentInvoices.reduce((sum, inv) => sum + Number(inv.allocation || 0), 0) > Number(paymentAmount || 0)
-                          ? 'text-red-600' : 'text-[#191C1E]'
+                          ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'
                       }`}>
                         {formatRM(paymentInvoices.reduce((sum, inv) => sum + Number(inv.allocation || 0), 0))}
                         {' / '}
@@ -1023,15 +1033,15 @@ export default function AdminSuppliersPage() {
               </div>
             </div>
 
-            <div className="p-4 flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] flex gap-3">
               <button
                 onClick={submitPayment}
                 disabled={paymentSaving || !paymentAmount || Number(paymentAmount) <= 0}
-                className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {paymentSaving ? 'Saving...' : 'Save Payment'}
               </button>
-              <button onClick={() => setPaymentSupplier(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+              <button onClick={() => setPaymentSupplier(null)} className="btn-thick-white flex-1 py-2 text-sm font-semibold">
                 Cancel
               </button>
             </div>
@@ -1042,46 +1052,44 @@ export default function AdminSuppliersPage() {
 
       {/* ═══ EDIT SUPPLIER MODAL ═══ */}
       {editSupplier && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditSupplier(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-[#191C1E]">Edit Supplier</h2>
-              <button onClick={() => setEditSupplier(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditSupplier(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 border-b bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Edit Supplier</h2>
+              <button onClick={() => setEditSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <div className="space-y-3">
                 <div>
-                  <label className="input-label">Supplier Name</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Supplier Name</label>
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" />
                 </div>
                 <div>
-                  <label className="input-label">Email</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Email</label>
                   <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
                 </div>
                 <div>
-                  <label className="input-label">Phone</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Phone</label>
                   <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
                 </div>
                 <div>
-                  <label className="input-label">Notes</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Notes</label>
                   <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input-field w-full" rows={3} placeholder="Optional" />
                 </div>
               </div>
 
               {/* Aliases */}
               <div>
-                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-2">Vendor Name Aliases</h3>
+                <h3 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Vendor Name Aliases</h3>
                 <div className="space-y-1.5">
                   {editSupplier.aliases.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between bg-gray-50 rounded-md px-3 py-2">
+                    <div key={a.id} className="flex items-center justify-between bg-[var(--surface-low)] px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-[#434654]">{a.alias}</span>
+                        <span className="text-sm text-[var(--text-secondary)]">{a.alias}</span>
                         {a.is_confirmed && <span className="badge-green text-label-sm">Confirmed</span>}
                       </div>
-                      <button onClick={() => removeAlias(a.id)} className="text-[#8E9196] hover:text-red-500 text-xs transition-colors">Remove</button>
+                      <button onClick={() => removeAlias(a.id)} className="text-[var(--text-secondary)] hover:text-[var(--reject-red)] text-xs transition-colors">Remove</button>
                     </div>
                   ))}
                 </div>
@@ -1092,16 +1100,16 @@ export default function AdminSuppliersPage() {
                     onChange={(e) => setNewAlias(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') addAlias(); }}
                     className="input-field flex-1"
-                    placeholder="Add alias…"
+                    placeholder="Add alias..."
                   />
-                  <button onClick={addAlias} className="px-3 py-1.5 text-xs font-medium rounded-md text-white transition-opacity hover:opacity-85" style={{ backgroundColor: 'var(--sidebar)' }}>
+                  <button onClick={addAlias} className="btn-thick-navy px-3 py-1.5 text-xs font-medium">
                     Add
                   </button>
                 </div>
               </div>
 
               {/* Summary */}
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+              <div className="bg-[var(--surface-low)] p-3 space-y-2">
                 <Field label="Invoices" value={String(editSupplier.invoice_count)} />
                 <Field label="Outstanding" value={formatRM(editSupplier.total_outstanding)} />
                 {Number(editSupplier.overdue_amount) > 0 && (
@@ -1110,11 +1118,11 @@ export default function AdminSuppliersPage() {
               </div>
             </div>
 
-            <div className="p-4 flex-shrink-0 border-t border-gray-100 flex gap-3">
-              <button onClick={saveSupplier} disabled={editSaving} className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] flex gap-3">
+              <button onClick={saveSupplier} disabled={editSaving} className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditSupplier(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditSupplier(null)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
                 Cancel
               </button>
             </div>
@@ -1125,24 +1133,24 @@ export default function AdminSuppliersPage() {
       {/* ═══ INVOICE PREVIEW ═══ */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
                 previewInvoice.file_url ? (
                   <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain border border-[var(--surface-header)] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain border border-[var(--surface-header)]" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
+                <div className="w-full h-40 border border-[var(--surface-header)] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] text-sm">No image</div>
               )}
               <dl className="grid grid-cols-2 gap-3">
                 <Field label="Vendor" value={previewInvoice.vendor_name_raw} />
@@ -1160,10 +1168,10 @@ export default function AdminSuppliersPage() {
               </div>
               {previewInvoice.allocations && previewInvoice.allocations.length > 0 && (
                 <div>
-                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-2">Payment History</p>
+                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Payment History</p>
                   <div className="space-y-1.5">
                     {previewInvoice.allocations.map((a) => (
-                      <div key={a.id} className="text-xs text-[#434654] bg-gray-50 rounded px-3 py-2 flex justify-between">
+                      <div key={a.id} className="text-xs text-[var(--text-secondary)] bg-[var(--surface-low)] px-3 py-2 flex justify-between">
                         <span>{formatDate(a.payment_date)}{a.reference ? ` · ${a.reference}` : ''}</span>
                         <span className="font-semibold tabular-nums">{formatRM(a.amount)}</span>
                       </div>
@@ -1172,24 +1180,24 @@ export default function AdminSuppliersPage() {
                 </div>
               )}
               {previewInvoice.file_url && (
-                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--primary)] hover:underline block">
                   View full document &rarr;
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0 space-y-2">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] space-y-2">
               {/* ── Primary action ── */}
               <div className="flex gap-3">
                 <button
                   onClick={() => window.open(`/admin/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                  className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
+                  className="btn-thick-navy flex-1 py-2 text-sm font-semibold"
                 >
                   Open in Invoices
                 </button>
               </div>
               {/* ── Secondary actions ── */}
               <div className="flex gap-3">
-                <button onClick={() => setPreviewInvoice(null)} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                <button onClick={() => setPreviewInvoice(null)} className="btn-thick-white flex-1 py-2 text-sm font-semibold">
                   Close
                 </button>
               </div>
@@ -1201,25 +1209,23 @@ export default function AdminSuppliersPage() {
 
       {/* ═══ RECEIPT PREVIEW ═══ */}
       {previewReceipt && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setPreviewReceipt(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-[#191C1E]">Receipt Details</h2>
-              <button onClick={() => setPreviewReceipt(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setPreviewReceipt(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 border-b bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Receipt Details</h2>
+              <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (
                 previewReceipt.file_url ? (
                   <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--surface-header)] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--surface-header)]" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
+                <div className="w-full h-40 border border-[var(--surface-header)] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] text-sm">No image</div>
               )}
               <dl className="space-y-3">
                 <Field label="Merchant" value={previewReceipt.merchant} />
@@ -1228,13 +1234,13 @@ export default function AdminSuppliersPage() {
                 {previewReceipt.claim_date && <Field label="Date" value={formatDate(previewReceipt.claim_date)} />}
               </dl>
               {previewReceipt.file_url && (
-                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--primary)] hover:underline block">
                   View full document &rarr;
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0 border-t border-gray-100">
-              <button onClick={() => setPreviewReceipt(null)} className="w-full py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)]">
+              <button onClick={() => setPreviewReceipt(null)} className="btn-thick-white w-full py-2.5 text-sm font-semibold">
                 Close
               </button>
             </div>

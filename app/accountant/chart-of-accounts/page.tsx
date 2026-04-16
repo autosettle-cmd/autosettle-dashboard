@@ -304,7 +304,6 @@ export default function ChartOfAccountsPage() {
         if (!cancelled) {
           const data = j.data ?? [];
           setAccounts(data);
-          // Start collapsed
           setExpandedSet(new Set());
           setLoading(false);
         }
@@ -347,14 +346,12 @@ export default function ChartOfAccountsPage() {
     const targetAccount = accounts.find(a => a.id === targetId);
     if (!dragAccount || !targetAccount) return;
 
-    // Prevent dropping onto own descendant (would create circular ref)
     const isDescendant = (parentId: string, childId: string): boolean => {
       const children = accounts.filter(a => a.parent_id === parentId);
       return children.some(c => c.id === childId || isDescendant(c.id, childId));
     };
     if (isDescendant(dragId, targetId)) return;
 
-    // Don't move if already under this parent
     if (dragAccount.parent_id === targetId) { setDragId(null); return; }
 
     const oldParent = dragAccount.parent_id ? accounts.find(a => a.id === dragAccount.parent_id) ?? null : null;
@@ -387,11 +384,9 @@ export default function ChartOfAccountsPage() {
         body: JSON.stringify({ parent_id: moveConfirm.newParent?.id ?? null }),
       });
       if (res.ok) {
-        // Update locally to preserve expanded state
         setAccounts(prev => prev.map(a =>
           a.id === moveConfirm.account.id ? { ...a, parent_id: moveConfirm.newParent?.id ?? null } : a
         ));
-        // Auto-expand the new parent so the moved item is visible
         if (moveConfirm.newParent) {
           setExpandedSet(prev => { const next = new Set(Array.from(prev)); next.add(moveConfirm.newParent!.id); return next; });
         }
@@ -542,24 +537,24 @@ export default function ChartOfAccountsPage() {
   const hasAccounts = accounts.length > 0;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F6F8]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Chart of Accounts</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Chart of Accounts</h1>
           {firmId && (
             <button
               onClick={importSqlAccounting}
               disabled={importing}
-              className="text-xs px-4 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+              className="btn-thick-white text-xs px-4 py-2 font-medium disabled:opacity-40"
             >
               {importing ? 'Importing...' : 'Import SQL Accounting COA'}
             </button>
           )}
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture ledger-binding animate-in">
           {/* Filter bar */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
 
@@ -570,14 +565,14 @@ export default function ChartOfAccountsPage() {
                     const allIds = accounts.filter(a => accounts.some(c => c.parent_id === a.id)).map(a => a.id);
                     setExpandedSet(prev => prev.size === allIds.length ? new Set() : new Set(allIds));
                   }}
-                  className="text-sm px-3 py-2 rounded-lg font-medium border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                  className="btn-thick-white text-sm px-3 py-2 font-medium"
                 >
                   {expandedSet.size > 0 ? 'Collapse All' : 'Expand All'}
                 </button>
-                <button onClick={() => openAddModal()} className="btn-primary text-sm px-4 py-2 rounded-lg font-semibold">
+                <button onClick={() => openAddModal()} className="btn-thick-navy text-sm px-4 py-2 font-semibold">
                   Add Account Code
                 </button>
-                <button onClick={openAddTaxModal} className="btn-dark text-sm px-4 py-2 rounded-lg font-semibold">
+                <button onClick={openAddTaxModal} className="btn-thick-navy text-sm px-4 py-2 font-semibold">
                   Add Tax Code
                 </button>
               </div>
@@ -585,13 +580,13 @@ export default function ChartOfAccountsPage() {
           </div>
 
           {!hasFirmSelected ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Select a firm to view its Chart of Accounts.</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Select a firm to view its Chart of Accounts.</div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : !hasAccounts ? (
             /* Empty state — seed prompt */
-            <div className="bg-white rounded-lg p-12 text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+            <div className="bg-white p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 flex items-center justify-center">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M4 7V4a2 2 0 012-2h8.5L20 7.5V20a2 2 0 01-2 2H6a2 2 0 01-2-2v-3" />
                   <polyline points="14 2 14 8 20 8" />
@@ -599,9 +594,9 @@ export default function ChartOfAccountsPage() {
                   <polyline points="9 18 12 15 9 12" />
                 </svg>
               </div>
-              <h3 className="text-base font-semibold text-[#191C1E] mb-1">No Chart of Accounts</h3>
-              <p className="text-sm text-[#8E9196] mb-6">This firm doesn&apos;t have a Chart of Accounts yet. Seed the default Malaysian SME template to get started.</p>
-              <button onClick={seedDefault} disabled={seeding} className="btn-primary text-sm px-6 py-2.5 rounded-lg font-semibold disabled:opacity-40">
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">No Chart of Accounts</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">This firm doesn&apos;t have a Chart of Accounts yet. Seed the default Malaysian SME template to get started.</p>
+              <button onClick={seedDefault} disabled={seeding} className="btn-thick-navy text-sm px-6 py-2.5 font-semibold disabled:opacity-40">
                 {seeding ? 'Seeding...' : 'Seed Default Template'}
               </button>
             </div>
@@ -609,65 +604,65 @@ export default function ChartOfAccountsPage() {
             <>
             {/* ═══ ACCOUNTING SETTINGS ═══ */}
             {settingsMsg && (
-              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2 text-sm text-green-700">{settingsMsg}</div>
+              <div className="bg-green-50 px-4 py-2 text-sm text-green-700">{settingsMsg}</div>
             )}
 
-            <section className="bg-white rounded-lg p-4 space-y-3">
+            <section className="bg-white p-4 space-y-3">
               <div>
-                <h2 className="text-sm font-semibold text-[#191C1E]">GL Defaults</h2>
-                <p className="text-xs text-[#8E9196] mt-0.5">Contra accounts for auto-generated journal entries.</p>
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">GL Defaults</h2>
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">Contra accounts for auto-generated journal entries.</p>
               </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <div>
-                  <label className="input-label">Trade Payables (invoices)</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Trade Payables (invoices)</label>
                   <select value={tradePayablesId} onChange={(e) => setTradePayablesId(e.target.value)} className="input-field w-full text-sm">
                     <option value="">Not configured</option>
                     {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="input-label">Staff Claims Payable (claims)</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Staff Claims Payable (claims)</label>
                   <select value={staffClaimsId} onChange={(e) => setStaffClaimsId(e.target.value)} className="input-field w-full text-sm">
                     <option value="">Not configured</option>
                     {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="input-label">Trade Receivables (sales invoices)</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Trade Receivables (sales invoices)</label>
                   <select value={tradeReceivablesId} onChange={(e) => setTradeReceivablesId(e.target.value)} className="input-field w-full text-sm">
                     <option value="">Not configured</option>
                     {assetAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="input-label">Retained Earnings (year-end close)</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Retained Earnings (year-end close)</label>
                   <select value={retainedEarningsId} onChange={(e) => setRetainedEarningsId(e.target.value)} className="input-field w-full text-sm">
                     <option value="">Not configured</option>
                     {equityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
               </div>
-              <button onClick={saveGlDefaults} disabled={settingsSaving} className="btn-primary px-4 py-1.5 rounded-lg text-sm font-semibold disabled:opacity-40">
+              <button onClick={saveGlDefaults} disabled={settingsSaving} className="btn-thick-navy px-4 py-1.5 text-sm font-semibold disabled:opacity-40">
                 {settingsSaving ? 'Saving...' : 'Save'}
               </button>
             </section>
 
             {/* Accounts tree table */}
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-5 py-2.5 w-[280px]">Account Code</th>
-                      <th className="px-3 py-2.5">Account Name</th>
-                      <th className="px-3 py-2.5 w-[100px]">Type</th>
-                      <th className="px-3 py-2.5 w-[80px]">Balance</th>
-                      <th className="px-3 py-2.5 w-[80px]">Status</th>
-                      <th className="px-3 py-2.5 w-[140px]">Actions</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-5 py-2.5 w-[280px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Code</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Name</th>
+                      <th className="px-3 py-2.5 w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                      <th className="px-3 py-2.5 w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
+                      <th className="px-3 py-2.5 w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                      <th className="px-3 py-2.5 w-[140px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {flatRows.map((row) => (
+                    {flatRows.map((row, i) => (
                       <tr
                         key={row.id}
                         draggable
@@ -676,10 +671,10 @@ export default function ChartOfAccountsPage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, row.id)}
                         onDragEnd={() => { setDragId(null); setDropTargetId(null); }}
-                        className={`text-body-sm transition-colors border-b border-gray-50 cursor-pointer ${
+                        className={`text-body-sm transition-colors cursor-pointer ${
                           dragId === row.id ? 'opacity-40' :
                           dropTargetId === row.id ? 'bg-blue-50 border-blue-300 border-2' :
-                          'hover:bg-[#F2F4F6]'
+                          `hover:bg-[var(--surface-header)] ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`
                         }`}
                         onClick={() => hasChildren(row.id) && toggleExpand(row.id)}
                       >
@@ -688,7 +683,7 @@ export default function ChartOfAccountsPage() {
                             {hasChildren(row.id) ? (
                               <button
                                 onClick={() => toggleExpand(row.id)}
-                                className="w-5 h-5 flex items-center justify-center mr-1.5 text-[#8E9196] hover:text-[#191C1E] transition-colors"
+                                className="w-5 h-5 flex items-center justify-center mr-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                               >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                                   className={`transition-transform ${expandedSet.has(row.id) ? 'rotate-90' : ''}`}
@@ -699,14 +694,14 @@ export default function ChartOfAccountsPage() {
                             ) : (
                               <span className="w-5 mr-1.5" />
                             )}
-                            <span className="font-mono text-[13px] font-semibold text-[#191C1E]">{row.account_code}</span>
+                            <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)]">{row.account_code}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-[#434654] font-medium">{row.name}</td>
+                        <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{row.name}</td>
                         <td className="px-3 py-3">
                           <span className={TYPE_BADGES[row.account_type] ?? 'badge-gray'}>{row.account_type}</span>
                         </td>
-                        <td className="px-3 py-3 text-[#8E9196] text-xs">{row.normal_balance}</td>
+                        <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{row.normal_balance}</td>
                         <td className="px-3 py-3">
                           {row.is_active
                             ? <span className="badge-green">Active</span>
@@ -717,7 +712,7 @@ export default function ChartOfAccountsPage() {
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => openEditModal(row)}
-                              className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                              className="btn-thick-white p-1.5"
                               title="Edit"
                             >
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -727,7 +722,7 @@ export default function ChartOfAccountsPage() {
                             </button>
                             <button
                               onClick={() => toggleActive(row)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                              className="btn-thick-white text-xs font-medium px-3 py-1.5"
                             >
                               {row.is_active ? 'Deactivate' : 'Activate'}
                             </button>
@@ -738,49 +733,49 @@ export default function ChartOfAccountsPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="px-5 py-3 border-t border-gray-100">
-                <p className="text-body-sm text-[#8E9196]">{accounts.length} accounts</p>
+              <div className="px-5 py-3 bg-[var(--surface-low)]">
+                <p className="text-body-sm text-[var(--text-secondary)]">{accounts.length} accounts</p>
               </div>
             </div>
 
             {/* ═══ TAX CODES TABLE ═══ */}
-            <div className="bg-white rounded-lg overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-100">
-                <h2 className="text-sm font-semibold text-[#191C1E]">Tax Codes</h2>
+            <div className="bg-white overflow-hidden">
+              <div className="px-5 py-3">
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">Tax Codes</h2>
               </div>
               {taxCodes.length === 0 ? (
-                <div className="px-5 py-6 text-center text-sm text-[#8E9196]">No tax codes. Click &quot;Add Tax Code&quot; to create one.</div>
+                <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">No tax codes. Click &quot;Add Tax Code&quot; to create one.</div>
               ) : (
                 <div className="overflow-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
-                        <th className="px-5 py-2.5">Code</th>
-                        <th className="px-3 py-2.5">Description</th>
-                        <th className="px-3 py-2.5 text-right w-[80px]">Rate</th>
-                        <th className="px-3 py-2.5">Type</th>
-                        <th className="px-3 py-2.5">GL Account</th>
-                        <th className="px-3 py-2.5 w-[80px]">Status</th>
-                        <th className="px-3 py-2.5 w-[140px]">Actions</th>
+                      <tr className="bg-[var(--surface-header)] text-left">
+                        <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Code</th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right w-[80px]">Rate</th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">GL Account</th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-[80px]">Status</th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-[140px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {taxCodes.map((tc) => (
-                        <tr key={tc.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
-                          <td className="px-5 py-3 font-mono font-semibold text-[#191C1E]">{tc.code}</td>
-                          <td className="px-3 py-3 text-[#434654] font-medium">{tc.description}</td>
-                          <td className="px-3 py-3 text-right tabular-nums text-[#191C1E] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
-                          <td className="px-3 py-3 text-[#8E9196]">{tc.tax_type}</td>
-                          <td className="px-3 py-3 text-[#434654] text-xs">{tc.glAccount ? `${tc.glAccount.account_code} — ${tc.glAccount.name}` : '—'}</td>
+                      {taxCodes.map((tc, i) => (
+                        <tr key={tc.id} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                          <td className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)]">{tc.code}</td>
+                          <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
+                          <td className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
+                          <td className="px-3 py-3 text-[var(--text-secondary)]">{tc.tax_type}</td>
+                          <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{tc.glAccount ? `${tc.glAccount.account_code} — ${tc.glAccount.name}` : '—'}</td>
                           <td className="px-3 py-3">{tc.is_active ? <span className="badge-green">Active</span> : <span className="badge-gray">Inactive</span>}</td>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-1.5">
-                              <button onClick={() => openEditTaxModal(tc)} className="p-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors" title="Edit">
+                              <button onClick={() => openEditTaxModal(tc)} className="btn-thick-white p-1.5" title="Edit">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                                 </svg>
                               </button>
-                              <button onClick={() => toggleTaxActive(tc)} className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                              <button onClick={() => toggleTaxActive(tc)} className="btn-thick-white text-xs font-medium px-3 py-1.5">
                                 {tc.is_active ? 'Deactivate' : 'Activate'}
                               </button>
                             </div>
@@ -791,8 +786,8 @@ export default function ChartOfAccountsPage() {
                   </table>
                 </div>
               )}
-              <div className="px-5 py-3 border-t border-gray-100">
-                <p className="text-body-sm text-[#8E9196]">{taxCodes.length} tax codes</p>
+              <div className="px-5 py-3 bg-[var(--surface-low)]">
+                <p className="text-body-sm text-[var(--text-secondary)]">{taxCodes.length} tax codes</p>
               </div>
             </div>
             </>
@@ -802,107 +797,106 @@ export default function ChartOfAccountsPage() {
 
       {/* === ADD/EDIT ACCOUNT MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowModal(false)} />
-      )}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowModal(false)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <span className="text-white font-semibold text-sm">{editId ? 'Edit Account' : 'Add Account'}</span>
-              <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {modalError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-700">{modalError}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="input-label">Account Code *</label>
-                  <input type="text" value={modalCode} onChange={(e) => setModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. 615-001" autoFocus />
-                </div>
-                <div>
-                  <label className="input-label">Account Name *</label>
-                  <input type="text" value={modalName} onChange={(e) => setModalName(e.target.value)} className="input-field w-full" placeholder="e.g. Fuel Expenses" />
-                </div>
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setShowModal(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowModal(false)}>
+            <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 bg-[var(--primary)]">
+                <span className="text-white font-bold text-sm uppercase tracking-widest">{editId ? 'Edit Account' : 'Add Account'}</span>
+                <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {modalError && (
+                  <div className="bg-[var(--error-container)] p-3">
+                    <p className="text-sm text-[var(--on-error-container)]">{modalError}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Account Code *</label>
+                    <input type="text" value={modalCode} onChange={(e) => setModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. 615-001" autoFocus />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Account Name *</label>
+                    <input type="text" value={modalName} onChange={(e) => setModalName(e.target.value)} className="input-field w-full" placeholder="e.g. Fuel Expenses" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Account Type</label>
+                    <select value={modalType} onChange={(e) => {
+                      setModalType(e.target.value);
+                      if (['Asset', 'Expense'].includes(e.target.value)) setModalBalance('Debit');
+                      else setModalBalance('Credit');
+                    }} className="input-field w-full">
+                      <option value="Asset">Asset</option>
+                      <option value="Liability">Liability</option>
+                      <option value="Equity">Equity</option>
+                      <option value="Revenue">Revenue</option>
+                      <option value="Expense">Expense</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Normal Balance</label>
+                    <select value={modalBalance} onChange={(e) => setModalBalance(e.target.value)} className="input-field w-full">
+                      <option value="Debit">Debit</option>
+                      <option value="Credit">Credit</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="input-label">Account Type</label>
-                  <select value={modalType} onChange={(e) => {
-                    setModalType(e.target.value);
-                    // Auto-set normal balance based on type
-                    if (['Asset', 'Expense'].includes(e.target.value)) setModalBalance('Debit');
-                    else setModalBalance('Credit');
-                  }} className="input-field w-full">
-                    <option value="Asset">Asset</option>
-                    <option value="Liability">Liability</option>
-                    <option value="Equity">Equity</option>
-                    <option value="Revenue">Revenue</option>
-                    <option value="Expense">Expense</option>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Parent Account</label>
+                  <select value={modalParent} onChange={(e) => setModalParent(e.target.value)} className="input-field w-full">
+                    <option value="">None (Top Level)</option>
+                    {accounts
+                      .filter((a) => a.id !== editId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
+                      ))}
                   </select>
                 </div>
+
                 <div>
-                  <label className="input-label">Normal Balance</label>
-                  <select value={modalBalance} onChange={(e) => setModalBalance(e.target.value)} className="input-field w-full">
-                    <option value="Debit">Debit</option>
-                    <option value="Credit">Credit</option>
-                  </select>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description</label>
+                  <input type="text" value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" placeholder="Optional description" />
                 </div>
               </div>
 
-              <div>
-                <label className="input-label">Parent Account</label>
-                <select value={modalParent} onChange={(e) => setModalParent(e.target.value)} className="input-field w-full">
-                  <option value="">None (Top Level)</option>
-                  {accounts
-                    .filter((a) => a.id !== editId)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                    ))}
-                </select>
+              <div className="p-4 flex-shrink-0 flex gap-3 bg-[var(--surface-low)]">
+                <button onClick={submitModal} disabled={modalSaving} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40">
+                  {modalSaving ? 'Saving...' : editId ? 'Save Changes' : 'Create Account'}
+                </button>
+                <button onClick={() => setShowModal(false)} disabled={modalSaving} className="btn-thick-white flex-1 py-2 text-sm font-semibold disabled:opacity-40">
+                  Cancel
+                </button>
               </div>
-
-              <div>
-                <label className="input-label">Description</label>
-                <input type="text" value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" placeholder="Optional description" />
-              </div>
-            </div>
-
-            <div className="p-4 flex-shrink-0 flex gap-3 border-t border-gray-100">
-              <button onClick={submitModal} disabled={modalSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">
-                {modalSaving ? 'Saving...' : editId ? 'Save Changes' : 'Create Account'}
-              </button>
-              <button onClick={() => setShowModal(false)} disabled={modalSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40">
-                Cancel
-              </button>
             </div>
           </div>
-        </div>
+        </>
       )}
       {/* === ADD/EDIT TAX CODE MODAL === */}
       {showTaxModal && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setShowTaxModal(false)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setShowTaxModal(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowTaxModal(false)}>
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-              <div className="h-14 flex items-center justify-between px-5 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-                <span className="text-white font-semibold text-sm">{taxEditId ? 'Edit Tax Code' : 'Add Tax Code'}</span>
+            <div className="bg-white shadow-2xl w-full max-w-[540px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+              <div className="h-14 flex items-center justify-between px-5 bg-[var(--primary)]">
+                <span className="text-white font-bold text-sm uppercase tracking-widest">{taxEditId ? 'Edit Tax Code' : 'Add Tax Code'}</span>
                 <button onClick={() => setShowTaxModal(false)} className="text-white/70 hover:text-white text-xl">&times;</button>
               </div>
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                {taxModalError && <div className="bg-red-50 border border-red-200 rounded-lg p-3"><p className="text-sm text-red-700">{taxModalError}</p></div>}
+                {taxModalError && <div className="bg-[var(--error-container)] p-3"><p className="text-sm text-[var(--on-error-container)]">{taxModalError}</p></div>}
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="input-label">Code *</label><input type="text" value={taxModalCode} onChange={(e) => setTaxModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. SR-6" autoFocus /></div>
-                  <div><label className="input-label">Rate (%)</label><input type="number" value={taxModalRate} onChange={(e) => setTaxModalRate(e.target.value)} className="input-field w-full" step="0.01" min="0" max="100" /></div>
+                  <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Code *</label><input type="text" value={taxModalCode} onChange={(e) => setTaxModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. SR-6" autoFocus /></div>
+                  <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Rate (%)</label><input type="number" value={taxModalRate} onChange={(e) => setTaxModalRate(e.target.value)} className="input-field w-full" step="0.01" min="0" max="100" /></div>
                 </div>
-                <div><label className="input-label">Description *</label><input type="text" value={taxModalDesc} onChange={(e) => setTaxModalDesc(e.target.value)} className="input-field w-full" placeholder="e.g. Standard Rate SST 6%" /></div>
+                <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description *</label><input type="text" value={taxModalDesc} onChange={(e) => setTaxModalDesc(e.target.value)} className="input-field w-full" placeholder="e.g. Standard Rate SST 6%" /></div>
                 <div>
-                  <label className="input-label">Tax Type *</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Tax Type *</label>
                   <select value={taxModalType} onChange={(e) => setTaxModalType(e.target.value)} className="input-field w-full">
                     <option value="">Select type</option>
                     <option value="SST">SST</option>
@@ -913,16 +907,16 @@ export default function ChartOfAccountsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="input-label">GL Account (Tax Payable/Receivable)</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">GL Account (Tax Payable/Receivable)</label>
                   <select value={taxModalGlId} onChange={(e) => setTaxModalGlId(e.target.value)} className="input-field w-full">
                     <option value="">None</option>
                     {taxGlAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="p-4 flex-shrink-0 flex gap-3 border-t border-gray-100">
-                <button onClick={submitTaxModal} disabled={taxModalSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40">{taxModalSaving ? 'Saving...' : taxEditId ? 'Save Changes' : 'Create Tax Code'}</button>
-                <button onClick={() => setShowTaxModal(false)} disabled={taxModalSaving} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40">Cancel</button>
+              <div className="p-4 flex-shrink-0 flex gap-3 bg-[var(--surface-low)]">
+                <button onClick={submitTaxModal} disabled={taxModalSaving} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40">{taxModalSaving ? 'Saving...' : taxEditId ? 'Save Changes' : 'Create Tax Code'}</button>
+                <button onClick={() => setShowTaxModal(false)} disabled={taxModalSaving} className="btn-thick-white flex-1 py-2 text-sm font-semibold disabled:opacity-40">Cancel</button>
               </div>
             </div>
           </div>
@@ -931,31 +925,33 @@ export default function ChartOfAccountsPage() {
 
       {/* ═══ CHANGE CONFIRMATION MODAL ═══ */}
       {confirmModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setConfirmModal(null)}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-[#191C1E] mb-3">Change {confirmModal.label}</h3>
-            <div className="space-y-3 text-sm text-[#434654]">
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setConfirmModal(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Change {confirmModal.label}</h3>
+            </div>
+            <div className="p-6 space-y-3 text-sm text-[var(--text-secondary)]">
+              <div className="bg-[var(--surface-low)] p-3 space-y-2">
                 {confirmModal.changes.map((c, i) => (
                   <div key={i} className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[#8E9196] text-xs font-medium uppercase w-12">From</span>
+                      <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest w-12">From</span>
                       <span className="font-medium">{c.from}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[#8E9196] text-xs font-medium uppercase w-12">To</span>
+                      <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest w-12">To</span>
                       <span className="font-medium">{c.to}</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
+              <div className="bg-amber-50 px-3 py-2 text-sm text-amber-700">
                 Existing journal entries will not be affected. Please review your Journal Entries if any corrections are needed.
               </div>
             </div>
-            <div className="flex gap-3 mt-4">
-              <button onClick={confirmModal.onConfirm} className="btn-reject flex-1 py-2.5 rounded-lg text-sm font-semibold">Confirm Change</button>
-              <button onClick={() => setConfirmModal(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">Cancel</button>
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button onClick={confirmModal.onConfirm} className="btn-thick-red flex-1 py-2.5 text-sm font-semibold">Confirm Change</button>
+              <button onClick={() => setConfirmModal(null)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">Cancel</button>
             </div>
           </div>
         </div>
@@ -963,38 +959,40 @@ export default function ChartOfAccountsPage() {
 
       {/* ═══ MOVE ACCOUNT CONFIRMATION MODAL ═══ */}
       {moveConfirm && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" onClick={() => setMoveConfirm(null)}>
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-semibold text-[#191C1E] mb-3">Move Account</h3>
-            <div className="space-y-3 text-sm text-[#434654]">
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4" onClick={() => setMoveConfirm(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Move Account</h3>
+            </div>
+            <div className="p-6 space-y-3 text-sm text-[var(--text-secondary)]">
+              <div className="bg-[var(--surface-low)] p-3 space-y-2">
                 <div>
-                  <span className="text-[#8E9196] text-xs font-medium uppercase">Account</span>
-                  <p className="font-semibold text-[#191C1E]">{moveConfirm.account.account_code} — {moveConfirm.account.name}</p>
+                  <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Account</span>
+                  <p className="font-semibold text-[var(--text-primary)]">{moveConfirm.account.account_code} — {moveConfirm.account.name}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#8E9196] text-xs font-medium uppercase w-12">From</span>
+                  <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest w-12">From</span>
                   <span className="font-medium">{moveConfirm.oldParent ? `${moveConfirm.oldParent.account_code} — ${moveConfirm.oldParent.name}` : 'Root level'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[#8E9196] text-xs font-medium uppercase w-12">To</span>
+                  <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest w-12">To</span>
                   <span className="font-medium">{moveConfirm.newParent ? `${moveConfirm.newParent.account_code} — ${moveConfirm.newParent.name}` : 'Root level'}</span>
                 </div>
               </div>
               {moveConfirm.crossType && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-700">
+                <div className="bg-amber-50 px-3 py-2 text-sm text-amber-700">
                   <strong>Cross-type move:</strong> You are moving a <span className={TYPE_BADGES[moveConfirm.account.account_type]}>{moveConfirm.account.account_type}</span> account under a <span className={TYPE_BADGES[moveConfirm.newParent!.account_type]}>{moveConfirm.newParent!.account_type}</span> group. The account type will not change — only its position in the tree. This may affect how your financial statements are structured.
                 </div>
               )}
-              <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#8E9196]">
+              <div className="bg-[var(--surface-low)] px-3 py-2 text-sm text-[var(--text-secondary)]">
                 This will change how this account appears in the Chart of Accounts hierarchy and financial reports.
               </div>
             </div>
-            <div className="flex gap-3 mt-4">
-              <button onClick={doMove} disabled={moveSaving} className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40">
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button onClick={doMove} disabled={moveSaving} className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40">
                 {moveSaving ? 'Moving...' : 'Confirm Move'}
               </button>
-              <button onClick={() => setMoveConfirm(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">Cancel</button>
+              <button onClick={() => setMoveConfirm(null)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">Cancel</button>
             </div>
           </div>
         </div>

@@ -88,30 +88,15 @@ Suppliers, Employees, GL Accounts = set `is_active = false`, never hard delete i
 
 ## UI/UX Standards
 
-### Design System
-- **Name:** Editorial Financial Intelligence
-- **Principle:** Tonal layering, no 1px borders for sectioning
-- **Colors:** Use CSS vars from `config/branding.ts` — never hardcode
+See **[`/docs/design.md`](/docs/design.md)** for the full design system spec (The Precision Ledger).
 
-### Components
-| Pattern | Rule |
-|---------|------|
-| **Tables** | HTML `ds-table-header` + `useTableSort` hook. **No AG Grid.** |
-| **Modals** | Centered only. **No slide-in panels.** |
-| **Previews** | Click entity = centered modal preview |
-| **Dropdowns** | Must be searchable (type to filter) AND scrollable |
-
-### Button Colors
-| Action | Color | Class |
-|--------|-------|-------|
-| Approve, confirm, proceed | Green | `btn-approve` |
-| Submit, create | Blue | `btn-primary` |
-| Delete, reject, danger | Red | `btn-reject` |
-
-### Error Feedback
-- Pulse/highlight the button or field user needs to interact with
-- Don't just show error text — visually point to the fix
-- Example: Upload without firm selected = pulse red on firm dropdown
+Key rules that must always be followed:
+- **No hardcoded colors** — ALWAYS use CSS variables (`var(--primary)`, `var(--reject-red)`, `var(--text-primary)`, etc.) or Tailwind aliases (`text-primary`, `bg-surface-base`). All colors flow from `config/branding.ts`
+- **No AG Grid** — use HTML `ds-table-header` + `useTableSort` hook
+- **Modals** — centered only, no slide-in panels
+- **Previews** — click entity = centered modal preview
+- **Dropdowns** — must be searchable (type to filter) AND scrollable
+- **Error Feedback** — pulse/highlight the button or field user needs to interact with, don't just show error text
 
 ---
 

@@ -29,7 +29,10 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 function formatDate(iso: string) {
   const d = new Date(iso);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd}`;
 }
 
 function formatPeriodLabel(iso: string) {
@@ -80,65 +83,65 @@ export default function AdminFiscalPeriodsPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F6F8]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="admin" />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Fiscal Periods</h1>
+      <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Fiscal Periods</h1>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture animate-in">
           {loading ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : fiscalYears.length === 0 ? (
-            <div className="bg-white rounded-lg p-12 text-center">
-              <h3 className="text-base font-semibold text-[#191C1E] mb-1">No Fiscal Years</h3>
-              <p className="text-sm text-[#8E9196]">Your accountant has not set up fiscal periods yet.</p>
+            <div className="bg-white p-12 text-center">
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">No Fiscal Years</h3>
+              <p className="text-sm text-[var(--text-secondary)]">Your accountant has not set up fiscal periods yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {fiscalYears.map((fy) => {
                 const isExpanded = expandedFY.has(fy.id);
                 return (
-                  <div key={fy.id} className="bg-white rounded-lg overflow-hidden">
+                  <div key={fy.id} className="bg-white overflow-hidden">
                     <div
-                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[#F2F4F6] transition-colors"
+                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-[var(--surface-low)] transition-colors"
                       onClick={() => toggleExpandFY(fy.id)}
                     >
                       <div className="flex items-center gap-3">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E9196" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                           className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                         >
                           <polyline points="9 18 15 12 9 6" />
                         </svg>
                         <div>
-                          <span className="font-semibold text-[#191C1E] text-[15px]">{fy.year_label}</span>
-                          <span className="ml-3 text-sm text-[#8E9196]">{formatDate(fy.start_date)} — {formatDate(fy.end_date)}</span>
+                          <span className="font-semibold text-[var(--text-primary)] text-[15px]">{fy.year_label}</span>
+                          <span className="ml-3 text-sm text-[var(--text-secondary)] tabular-nums">{formatDate(fy.start_date)} \u2014 {formatDate(fy.end_date)}</span>
                         </div>
                       </div>
                       <span className={STATUS_BADGE[fy.status].class}>{STATUS_BADGE[fy.status].label}</span>
                     </div>
 
                     {isExpanded && (
-                      <div className="border-t border-gray-100">
+                      <div>
                         <table className="w-full">
                           <thead>
-                            <tr className="ds-table-header text-left">
-                              <th className="px-5 py-2.5 w-16">#</th>
-                              <th className="px-3 py-2.5">Period</th>
-                              <th className="px-3 py-2.5">Start Date</th>
-                              <th className="px-3 py-2.5">End Date</th>
-                              <th className="px-3 py-2.5 w-[100px]">Status</th>
+                            <tr className="bg-[var(--surface-header)] text-left">
+                              <th className="px-5 py-2.5 w-16 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">#</th>
+                              <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Period</th>
+                              <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Start Date</th>
+                              <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">End Date</th>
+                              <th className="px-3 py-2.5 w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {fy.periods.map((p) => (
-                              <tr key={p.id} className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50">
-                                <td className="px-5 py-3 text-[#8E9196] tabular-nums">{p.period_number}</td>
-                                <td className="px-3 py-3 text-[#191C1E] font-medium">{formatPeriodLabel(p.start_date)}</td>
-                                <td className="px-3 py-3 text-[#434654] tabular-nums">{formatDate(p.start_date)}</td>
-                                <td className="px-3 py-3 text-[#434654] tabular-nums">{formatDate(p.end_date)}</td>
+                            {fy.periods.map((p, idx) => (
+                              <tr key={p.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                                <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{p.period_number}</td>
+                                <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{formatPeriodLabel(p.start_date)}</td>
+                                <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.start_date)}</td>
+                                <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.end_date)}</td>
                                 <td className="px-3 py-3">
                                   <span className={STATUS_BADGE[p.status].class}>{STATUS_BADGE[p.status].label}</span>
                                 </td>

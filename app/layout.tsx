@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lato, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
@@ -10,6 +10,24 @@ import { brand } from "@/config/branding";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
+});
+
+const lato = Lato({
+  subsets: ["latin"],
+  variable: "--font-lato",
+  weight: ["300", "400", "700", "900"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  weight: ["400", "500"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  weight: ["500"],
 });
 
 export const metadata: Metadata = {
@@ -33,7 +51,7 @@ export default function RootLayout({
       <head>
         <BrandingStyles />
       </head>
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${lato.variable} ${jetbrainsMono.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
       </body>
     </html>

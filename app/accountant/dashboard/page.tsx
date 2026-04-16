@@ -127,10 +127,10 @@ function formatDate(val: string) {
   if (!val) return '';
   const d = new Date(val);
   return [
-    d.getUTCDate().toString().padStart(2, '0'),
-    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
     d.getUTCFullYear(),
-  ].join('/');
+    (d.getUTCMonth() + 1).toString().padStart(2, '0'),
+    d.getUTCDate().toString().padStart(2, '0'),
+  ].join('.');
 }
 
 function formatRM(val: string | number) {
@@ -368,50 +368,50 @@ export default function AccountantDashboard() {
       <Sidebar role="accountant" />
 
       {/* ═══ MAIN ═══ */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">
+      <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[#191C1E]">
             {getGreeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className="text-[#8E9196] text-xs">
+          <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest">
             {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 animate-in">
+        <main className="flex-1 overflow-y-auto p-8 pl-14 paper-texture animate-in">
 
           {/* ── Stats ─────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
-              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Expense Claims</p>
-              <div className="grid grid-cols-3 gap-2 card-stagger">
+          <div className="grid grid-cols-2 gap-5 mb-6">
+            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Expense Claims</p>
+              <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="This Month"        value={stats?.claims.thisMonth ?? null}        amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}            color="default" href="/accountant/claims?type=claim" />
                 <StatCard label="Pending Review"     value={stats?.claims.pendingReview ?? null}    amount={stats ? formatRM(stats.claims.pendingAmount) : null}              color="amber"   href="/accountant/claims?type=claim&status=pending_review" />
                 <StatCard label="Pending Approval"   value={stats?.claims.pendingApproval ?? null}  amount={stats ? formatRM(stats.claims.pendingApprovalAmount) : null}      color="primary" href="/accountant/claims?type=claim&status=pending_approval" />
               </div>
             </div>
 
-            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
-              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Receipts</p>
-              <div className="grid grid-cols-3 gap-2 card-stagger">
+            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Receipts</p>
+              <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null}   color="default" href="/accountant/claims?type=receipt" />
                 <StatCard label="Unallocated"    value={stats?.receipts.unlinked ?? null}     amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null}    color="amber"   href="/accountant/claims?type=receipt" />
                 <StatCard label="Not Approved"   value={stats?.receipts.notApproved ?? null}  amount={stats ? formatRM(stats.receipts.notApprovedAmount) : null} color="primary" href="/accountant/claims?type=receipt" />
               </div>
             </div>
 
-            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
-              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Invoices</p>
-              <div className="grid grid-cols-3 gap-2 card-stagger">
+            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Invoices</p>
+              <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="This Month"       value={stats?.invoices.thisMonth ?? null}       amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null}           color="default" href="/accountant/invoices?tab=received" />
                 <StatCard label="Pending Review"   value={stats?.invoices.pendingReview ?? null}   amount={stats ? formatRM(stats.invoices.pendingAmount) : null}             color="amber"   href="/accountant/invoices?tab=received&status=pending_review" />
                 <StatCard label="Pending Approval" value={stats?.invoices.pendingApproval ?? null} amount={stats ? formatRM(stats.invoices.pendingApprovalAmount) : null}     color="primary" href="/accountant/invoices?tab=received&status=pending_approval" />
               </div>
             </div>
 
-            <div className="rounded-xl border border-[rgba(var(--primary-rgb),0.12)] bg-[rgba(var(--primary-rgb),0.03)] px-3 py-2.5">
-              <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: 'var(--primary)' }}>Bank Reconciliation</p>
-              <div className="grid grid-cols-3 gap-2 card-stagger">
+            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Bank Reconciliation</p>
+              <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="Statements"           value={bankReconStats?.totalStatements ?? null}  color="default" href="/accountant/bank-reconciliation" />
                 <StatCard label="Unmatched"            value={bankReconStats?.unmatched ?? null}         color={bankReconStats && bankReconStats.unmatched > 0 ? 'amber' : 'green'} href="/accountant/bank-reconciliation" />
                 <StatCard label="Pending Confirmation" value={bankReconStats?.suggestedMatch ?? null}    color={bankReconStats && bankReconStats.suggestedMatch > 0 ? 'primary' : 'green'} href="/accountant/bank-reconciliation" />
@@ -420,10 +420,10 @@ export default function AccountantDashboard() {
           </div>
 
           {/* ── Needs Attention ────────────────────────────── */}
-          <div className="bg-white rounded-lg">
+          <div className="bg-white">
             {/* Tab header */}
             <div className="flex items-center justify-between px-5">
-              <div className="flex gap-0">
+              <div className="flex gap-2 py-3">
                 {([
                   ['claims', 'Claims', pendingClaims.length],
                   ['receipts', 'Receipts', unlinkedReceipts.length],
@@ -432,28 +432,24 @@ export default function AccountantDashboard() {
                   <button
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
-                    className={`relative px-4 py-3 text-body-md font-semibold transition-colors ${
-                      activeTab === key ? 'text-[#191C1E]' : 'text-[#8E9196] hover:text-[#434654]'
+                    className={`px-5 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+                      activeTab === key ? 'btn-thick-navy' : 'btn-thick-white'
                     }`}
                   >
                     {label}
                     {count > 0 && (
-                      <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-label-sm font-bold ${
-                        activeTab === key ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-[#434654]'
+                      <span className={`ml-1.5 px-1.5 py-0.5 text-[10px] font-bold ${
+                        activeTab === key ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
                       }`}>
                         {count}
                       </span>
-                    )}
-                    {activeTab === key && (
-                      <span className="absolute bottom-0 left-4 right-4 h-[2px] rounded-t-full" style={{ backgroundColor: 'var(--accent)' }} />
                     )}
                   </button>
                 ))}
               </div>
               <Link
                 href={activeTab === 'claims' ? '/accountant/claims' : activeTab === 'receipts' ? '/accountant/claims?type=receipt' : '/accountant/invoices'}
-                className="text-body-sm font-medium hover:underline transition-colors"
-                style={{ color: 'var(--primary)' }}
+                className="text-[#234B6E] font-bold hover:opacity-80 text-sm transition-opacity"
               >
                 View all {activeTab} &rarr;
               </Link>
@@ -462,34 +458,34 @@ export default function AccountantDashboard() {
             {/* Claims tab */}
             {activeTab === 'claims' && (
               loadingClaims ? (
-                <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+                <div className="px-5 py-12 text-center text-sm text-[#444650]">Loading...</div>
               ) : pendingClaims.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-[#8E9196]">No claims pending review</p>
-                  <p className="text-xs text-[#8E9196] mt-1">You&apos;re all caught up.</p>
+                  <p className="text-sm text-[#444650]">No claims pending review</p>
+                  <p className="text-xs text-[#444650] mt-1">You&apos;re all caught up.</p>
                 </div>
               ) : (
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
-                        <th className="px-6 py-2.5">Date</th>
-                        <th className="px-6 py-2.5">Employee</th>
-                        <th className="px-6 py-2.5">Merchant</th>
-                        <th className="px-6 py-2.5">Category</th>
-                        <th className="px-6 py-2.5 text-right">Amount</th>
-                        <th className="px-6 py-2.5">Status</th>
+                      <tr className="bg-[#E6E8EA] text-left">
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Employee</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Merchant</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Category</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650] text-right">Amount</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Status</th>
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c) => {
+                      {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c, idx) => {
                         const cfg = STATUS_CFG[c.status];
                         return (
-                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer`}>
-                            <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(c.claim_date)}</td>
+                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
+                            <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-medium">{c.employee_name}</td>
-                            <td className="px-6 py-3 text-[#434654]">{c.merchant}</td>
-                            <td className="px-6 py-3 text-[#434654]">{c.category_name}</td>
+                            <td className="px-6 py-3 text-[#444650]">{c.merchant}</td>
+                            <td className="px-6 py-3 text-[#444650]">{c.category_name}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                             <td className="px-6 py-3">
                               {cfg && <span className={cfg.cls}>{cfg.label}</span>}
@@ -507,32 +503,32 @@ export default function AccountantDashboard() {
             {/* Receipts tab */}
             {activeTab === 'receipts' && (
               loadingReceipts ? (
-                <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+                <div className="px-5 py-12 text-center text-sm text-[#444650]">Loading...</div>
               ) : unlinkedReceipts.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-[#8E9196]">No unlinked receipts</p>
-                  <p className="text-xs text-[#8E9196] mt-1">All receipts have been linked to payments.</p>
+                  <p className="text-sm text-[#444650]">No unlinked receipts</p>
+                  <p className="text-xs text-[#444650] mt-1">All receipts have been linked to payments.</p>
                 </div>
               ) : (
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header">
-                        <th className="px-6 py-2.5 text-left">Date</th>
-                        <th className="px-6 py-2.5 text-left">Merchant</th>
-                        <th className="px-6 py-2.5 text-right">Amount</th>
-                        <th className="px-6 py-2.5 text-left">Status</th>
+                      <tr className="bg-[#E6E8EA]">
+                        <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
+                        <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Merchant</th>
+                        <th className="px-6 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[#444650]">Amount</th>
+                        <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Status</th>
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r) => (
+                      {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => (
                         <tr
                           key={r.id}
-                          className="group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md"
+                          className={`group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}
                           onClick={() => setPreviewClaim(r)}
                         >
-                          <td className="px-6 py-2.5 text-[#434654]">{formatDate(r.claim_date)}</td>
-                          <td className="px-6 py-2.5 text-[#434654] font-medium">{r.merchant}</td>
+                          <td className="px-6 py-2.5 text-[#444650]">{formatDate(r.claim_date)}</td>
+                          <td className="px-6 py-2.5 text-[#444650] font-medium">{r.merchant}</td>
                           <td className="px-6 py-2.5 text-right text-[#191C1E] font-semibold tabular-nums">{formatRM(r.amount)}</td>
                           <td className="px-6 py-2.5"><span className="badge-amber">Unlinked</span></td>
                         </tr>
@@ -547,36 +543,36 @@ export default function AccountantDashboard() {
             {/* Invoices tab */}
             {activeTab === 'invoices' && (
               loadingInvoices ? (
-                <div className="px-5 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+                <div className="px-5 py-12 text-center text-sm text-[#444650]">Loading...</div>
               ) : pendingInvoices.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-[#8E9196]">No invoices pending review</p>
-                  <p className="text-xs text-[#8E9196] mt-1">You&apos;re all caught up.</p>
+                  <p className="text-sm text-[#444650]">No invoices pending review</p>
+                  <p className="text-xs text-[#444650] mt-1">You&apos;re all caught up.</p>
                 </div>
               ) : (
                 <>
                   <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
-                        <th className="px-6 py-2.5">Issue Date</th>
-                        <th className="px-6 py-2.5">Vendor</th>
-                        <th className="px-6 py-2.5">Invoice #</th>
-                        <th className="px-6 py-2.5">Due Date</th>
-                        <th className="px-6 py-2.5 text-right">Amount</th>
-                        <th className="px-6 py-2.5">Payment</th>
-                        <th className="px-6 py-2.5">Supplier</th>
+                      <tr className="bg-[#E6E8EA] text-left">
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Issue Date</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Vendor</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Invoice #</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Due Date</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650] text-right">Amount</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Payment</th>
+                        <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Supplier</th>
                       </tr>
                     </thead>
                     <tbody className="table-stagger">
-                      {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv) => {
+                      {pendingInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((inv, idx) => {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
-                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer`}>
-                            <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
+                            <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(inv.issue_date)}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-medium">{inv.vendor_name_raw}</td>
-                            <td className="px-6 py-3 text-[#434654]">{inv.invoice_number ?? '-'}</td>
-                            <td className="px-6 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                            <td className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>
+                            <td className="px-6 py-3 text-[#444650] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
                             <td className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
                             <td className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
@@ -597,56 +593,56 @@ export default function AccountantDashboard() {
       {/* ═══ CLAIM PREVIEW PANEL ═══ */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Claim Details</h2>
+          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[#234B6E]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-wider">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewClaim.thumbnail_url ? (
                 previewClaim.file_url ? (
                   <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-gray-200" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
+                <div className="w-full h-40 border border-gray-200 bg-gray-50 flex items-center justify-center text-[#444650] text-sm">No image available</div>
               )}
 
               {editMode && editData ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="input-label">Date</label>
+                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Date</label>
                     <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">Merchant</label>
+                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Merchant</label>
                     <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">Amount (RM)</label>
+                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Amount (RM)</label>
                     <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">Category</label>
+                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Category</label>
                     <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="input-label">Receipt Number</label>
+                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Receipt Number</label>
                     <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full" />
                   </div>
                   <div>
-                    <label className="input-label">Description</label>
+                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Description</label>
                     <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
-                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2">
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-3 py-2">
                     Saving will reset status to Pending Review and approval to Pending.
                   </p>
                 </div>
@@ -667,20 +663,20 @@ export default function AccountantDashboard() {
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-label-sm text-[#8E9196] uppercase tracking-wide font-medium">Confidence</span>
+                    <span className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Confidence</span>
                     <span className={`text-xs font-semibold ${
                       previewClaim.confidence === 'HIGH' ? 'text-green-600' :
                       previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
                     }`}>{previewClaim.confidence}</span>
                   </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-label-sm font-semibold text-red-700 uppercase tracking-wide mb-1">Rejection Reason</p>
+                    <div className="bg-red-50 border border-red-200 p-3">
+                      <p className="text-[10px] font-label font-bold text-red-700 uppercase tracking-widest mb-1">Rejection Reason</p>
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
                   {previewClaim.file_url && (
-                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#234B6E] font-bold hover:opacity-80 block">
                       View full document &rarr;
                     </a>
                   )}
@@ -692,9 +688,9 @@ export default function AccountantDashboard() {
             {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
               <div className="px-5 pb-2 space-y-2">
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
                   {previewClaim.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
@@ -714,9 +710,9 @@ export default function AccountantDashboard() {
                   )}
                 </div>
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
                   {previewClaim.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
@@ -739,13 +735,13 @@ export default function AccountantDashboard() {
               </div>
             )}
 
-            <div className="p-4 flex-shrink-0 flex gap-3">
+            <div className="p-4 flex-shrink-0 flex gap-3 bg-[#F2F4F6]">
               {editMode ? (
                 <>
-                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85" style={{ backgroundColor: 'var(--accent)' }}>
+                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-opacity">
                     {editSaving ? 'Saving...' : 'Save Changes'}
                   </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold transition-colors">
                     Cancel
                   </button>
                 </>
@@ -763,22 +759,21 @@ export default function AccountantDashboard() {
                         description: previewClaim.description ?? '',
                       });
                     }}
-                    className="btn-primary py-2 px-3 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                    style={{ backgroundColor: 'var(--accent)' }}
+                    className="btn-thick-navy px-5 py-3 text-sm font-semibold transition-opacity"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => approveClaim(previewClaim.id, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
                     disabled={previewClaim.approval === 'approved'}
-                    className="btn-approve flex-1 py-2 rounded-lg text-sm"
+                    className="btn-thick-green flex-1 px-5 py-3 text-sm"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => rejectClaim(previewClaim.id)}
                     disabled={previewClaim.approval === 'not_approved'}
-                    className="btn-reject flex-1 py-2 rounded-lg text-sm"
+                    className="btn-thick-red flex-1 px-5 py-3 text-sm"
                   >
                     Reject
                   </button>
@@ -793,24 +788,24 @@ export default function AccountantDashboard() {
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
+          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[#234B6E]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-wider">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
                 previewInvoice.file_url ? (
                   <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain border border-gray-200" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image available</div>
+                <div className="w-full h-40 border border-gray-200 bg-gray-50 flex items-center justify-center text-[#444650] text-sm">No image available</div>
               )}
               <dl className="space-y-3">
                 <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
@@ -827,9 +822,9 @@ export default function AccountantDashboard() {
                 ))}
               </div>
               {/* Supplier link */}
-              <div className="bg-gray-50 rounded-lg p-3 space-y-1">
+              <div className="bg-gray-50 p-3 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">Supplier</span>
+                  <span className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Supplier</span>
                   {(() => {
                     const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                     return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
@@ -838,7 +833,7 @@ export default function AccountantDashboard() {
                 <p className="text-sm font-medium text-[#191C1E]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
               </div>
               {previewInvoice.file_url && (
-                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline block">
+                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#234B6E] font-bold hover:opacity-80 block">
                   View full document &rarr;
                 </a>
               )}
@@ -848,9 +843,9 @@ export default function AccountantDashboard() {
             {glAccounts.length > 0 && previewInvoice.approval !== 'not_approved' && (
               <div className="px-5 pb-2 space-y-2">
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Expense GL (Debit)</label>
+                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
                   {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
@@ -870,9 +865,9 @@ export default function AccountantDashboard() {
                   )}
                 </div>
                 <div>
-                  <label className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide block mb-1">Contra GL (Credit)</label>
+                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
                   {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
@@ -895,18 +890,18 @@ export default function AccountantDashboard() {
               </div>
             )}
 
-            <div className="p-4 flex-shrink-0 space-y-2">
+            <div className="p-4 flex-shrink-0 space-y-2 bg-[#F2F4F6]">
               {/* ── Primary action based on status ── */}
               <div className="flex gap-3">
                 {previewInvoice.status === 'pending_review' ? (
                   <button
                     onClick={() => markInvoiceReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                    className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold"
+                    className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold"
                   >
                     Mark as Reviewed
                   </button>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center py-2 rounded-lg text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
+                  <div className="flex-1 flex items-center justify-center py-3 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
                     Reviewed
                   </div>
                 )}
@@ -915,7 +910,7 @@ export default function AccountantDashboard() {
               <div className="flex gap-3">
                 <Link
                   href="/accountant/invoices"
-                  className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors text-center"
+                  className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold text-center"
                 >
                   Open in Invoices
                 </Link>
@@ -934,7 +929,7 @@ export default function AccountantDashboard() {
                         }
                       } catch (e) { console.error(e); }
                     }}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                    className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold transition-colors"
                   >
                     Revert Review
                   </button>
@@ -970,17 +965,17 @@ function StatCard({ label, value, amount, color, href }: {
 
   const card = (
     <div
-      className={`bg-white rounded-lg border px-3 py-2.5 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 ${href ? 'cursor-pointer' : ''} ${isPrimary ? 'border-[rgba(var(--primary-rgb),0.2)]' : 'border-gray-100'}`}
+      className={`bg-white px-4 py-3 transition-all duration-150 card-popped ${href ? 'cursor-pointer hover:shadow-[3px_3px_6px_rgba(0,0,0,0.08)] active:translate-y-[2px]' : ''}`}
     >
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className={`w-1.5 h-1.5 rounded-full ${accent.dot}`} style={isPrimary ? { backgroundColor: 'var(--primary)' } : undefined} />
-        <p className="text-[10px] font-semibold text-[#8E9196] uppercase tracking-wider">{label}</p>
+      <div className="flex items-center gap-1.5 mb-2">
+        <div className={`w-1.5 h-1.5 flex-shrink-0 ${accent.dot}`} style={isPrimary ? { backgroundColor: '#234B6E' } : undefined} />
+        <p className="text-[11px] font-semibold text-[#444650] uppercase tracking-wide">{label}</p>
       </div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className={`text-xl font-bold tracking-tight ${accent.value}`} style={isPrimary ? { color: 'var(--primary)' } : undefined}>
+      <div className="flex items-baseline justify-between gap-3">
+        <p className={`text-2xl font-extrabold tracking-tight tabular-nums ${accent.value}`} style={isPrimary ? { color: '#234B6E' } : undefined}>
           {value ?? <span className="text-gray-200">&mdash;</span>}
         </p>
-        {amount && <p className="text-xs font-medium text-[#434654] tabular-nums">{amount}</p>}
+        {amount && <p className="text-xs font-medium text-[#444650] tabular-nums whitespace-nowrap">{amount}</p>}
       </div>
     </div>
   );
@@ -999,21 +994,21 @@ function Pagination({ total, page, pageSize, onPageChange }: {
   if (total <= pageSize) return null;
   return (
     <div className="flex items-center justify-between px-5 py-3">
-      <p className="text-body-sm text-[#8E9196]">
+      <p className="text-body-sm text-[#444650]">
         Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, total)} of {total}
       </p>
       <div className="flex gap-1.5">
         <button
           onClick={() => onPageChange(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Previous
         </button>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={(page + 1) * pageSize >= total}
-          className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           Next
         </button>
@@ -1028,7 +1023,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   if (!value) return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">{label}</dt>
+      <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">{label}</dt>
       <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>
     </div>
   );

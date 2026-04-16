@@ -88,7 +88,7 @@ interface CandidatePayment {
 
 function formatDate(val: string) {
   const d = new Date(val);
-  return [d.getUTCDate().toString().padStart(2, '0'), (d.getUTCMonth() + 1).toString().padStart(2, '0'), d.getUTCFullYear()].join('/');
+  return [d.getUTCFullYear(), (d.getUTCMonth() + 1).toString().padStart(2, '0'), d.getUTCDate().toString().padStart(2, '0')].join('.');
 }
 
 function formatRM(val: string | number | null) {
@@ -210,7 +210,7 @@ export default function AccountantReconciliationWorkspacePage() {
   };
 
   const openMatchModal = async (txn: BankTxn) => {
-    // Always use the statement's firm — bank statement belongs to exactly one firm
+    // Always use the statement's firm -- bank statement belongs to exactly one firm
     const firmId = statement?.firm_id;
     if (!firmId) return;
     setMatchingTxn(txn);
@@ -450,29 +450,29 @@ export default function AccountantReconciliationWorkspacePage() {
     setTimeout(() => setRematchResult(null), 5000);
   };
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden paper-texture">
       <Sidebar role="accountant" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
+        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[var(--surface-container-highest)]">
           <div className="flex items-center gap-3">
-            <Link href="/accountant/bank-reconciliation" className="text-[#8E9196] hover:text-[#434654] transition-colors">
+            <Link href="/accountant/bank-reconciliation" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M19 12H5M12 19l-7-7 7-7" />
               </svg>
             </Link>
-            <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">
+            <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">
               {statement ? `${statement.bank_name} — ${statement.account_number ?? 'N/A'} — ${formatDate(statement.statement_date)}` : 'Loading...'}
             </h1>
           </div>
           <div className="flex items-center gap-2">
             {rematchResult && (
-              <span className="text-body-sm text-green-600 font-medium">{rematchResult.matched} new match{rematchResult.matched !== 1 ? 'es' : ''} found</span>
+              <span className="text-body-sm text-[var(--match-green)] font-medium">{rematchResult.matched} new match{rematchResult.matched !== 1 ? 'es' : ''} found</span>
             )}
             <button
               onClick={doRematch}
               disabled={rematching}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-blue rounded-lg text-white disabled:opacity-50"
+              className="btn-thick-navy flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium text-white disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -481,7 +481,7 @@ export default function AccountantReconciliationWorkspacePage() {
             </button>
             {statement?.file_url && (
               <a href={statement.file_url} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium btn-primary rounded-lg">
+                className="btn-thick-white flex items-center gap-1.5 px-3 py-1.5 text-body-md font-medium">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
@@ -491,9 +491,9 @@ export default function AccountantReconciliationWorkspacePage() {
           </div>
         </header>
 
-        {/* ── Static summary + filter tabs ── */}
+        {/* -- Static summary + filter tabs -- */}
         {!loading && statement && (
-          <div className="flex-shrink-0 px-6 pt-4 pb-1 bg-[#F7F9FB]">
+          <div className="flex-shrink-0 px-6 pl-14 pt-4 pb-1">
 
               {/* Summary cards */}
               <div className="grid grid-cols-7 gap-3 mb-4">
@@ -501,17 +501,17 @@ export default function AccountantReconciliationWorkspacePage() {
                   const totalDebit = statement.transactions.reduce((s, t) => s + Number(t.debit ?? 0), 0);
                   const totalCredit = statement.transactions.reduce((s, t) => s + Number(t.credit ?? 0), 0);
                   return [
-                    { label: 'Opening Balance', value: formatRM(statement.opening_balance), color: 'text-[#191C1E]' },
-                    { label: 'Total Debit', value: formatRM(totalDebit), color: 'text-red-600' },
-                    { label: 'Total Credit', value: formatRM(totalCredit), color: 'text-green-600' },
-                    { label: 'Closing Balance', value: formatRM(statement.closing_balance), color: 'text-[#191C1E]' },
-                    { label: 'Confirmed', value: `${confirmedCount} / ${statement.summary.total}`, color: 'text-green-600' },
-                    { label: 'Suggested', value: String(suggestedCount), color: suggestedCount > 0 ? 'text-amber-600' : 'text-green-600' },
-                    { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-red-600' : 'text-green-600' },
+                    { label: 'Opening Balance', value: formatRM(statement.opening_balance), color: 'text-[var(--text-primary)]' },
+                    { label: 'Total Debit', value: formatRM(totalDebit), color: 'text-[var(--reject-red)]' },
+                    { label: 'Total Credit', value: formatRM(totalCredit), color: 'text-[var(--match-green)]' },
+                    { label: 'Closing Balance', value: formatRM(statement.closing_balance), color: 'text-[var(--text-primary)]' },
+                    { label: 'Confirmed', value: `${confirmedCount} / ${statement.summary.total}`, color: 'text-[var(--match-green)]' },
+                    { label: 'Suggested', value: String(suggestedCount), color: suggestedCount > 0 ? 'text-amber-600' : 'text-[var(--match-green)]' },
+                    { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--match-green)]' },
                   ];
                 })().map((c) => (
-                  <div key={c.label} className="bg-white rounded-lg p-3">
-                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">{c.label}</p>
+                  <div key={c.label} className="bg-white card-popped p-3">
+                    <p className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">{c.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${c.color}`}>{c.value}</p>
                   </div>
                 ))}
@@ -526,7 +526,7 @@ export default function AccountantReconciliationWorkspacePage() {
                   { key: 'confirmed', label: `Confirmed (${confirmedCount})` },
                 ] as const).map((f) => (
                   <button key={f.key} onClick={() => setFilter(f.key)}
-                    className={`px-3 py-1.5 text-body-sm font-medium rounded-lg transition-colors ${filter === f.key ? 'bg-gray-900 text-white' : 'bg-white text-[#434654] border border-gray-200 hover:bg-gray-50'}`}
+                    className={`px-3 py-1.5 text-body-sm font-medium transition-colors ${filter === f.key ? 'btn-thick-navy text-white' : 'btn-thick-white'}`}
                   >
                     {f.label}
                   </button>
@@ -536,7 +536,7 @@ export default function AccountantReconciliationWorkspacePage() {
                   <button
                     onClick={doConfirmAll}
                     disabled={confirming}
-                    className="ml-auto btn-approve px-4 py-1.5 text-body-sm font-medium rounded-lg disabled:opacity-50"
+                    className="ml-auto btn-thick-green px-4 py-1.5 text-body-sm font-medium disabled:opacity-50"
                   >
                     {confirming ? 'Confirming...' : `Confirm All (${suggestedCount})`}
                   </button>
@@ -544,29 +544,29 @@ export default function AccountantReconciliationWorkspacePage() {
               </div>
 
               {confirmError && (
-                <div className="mb-3 bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700 whitespace-pre-line">{confirmError}</div>
+                <div className="mb-3 bg-[var(--error-container)] px-4 py-2 text-sm text-[var(--on-error-container)] whitespace-pre-line">{confirmError}</div>
               )}
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto px-6 pt-2 pb-6 animate-in">
+        <main className="flex-1 overflow-y-auto px-6 pl-14 pt-2 pb-6 animate-in ledger-binding">
           {loading || !statement ? (
-            <div className="text-center text-sm text-[#8E9196] py-12">Loading...</div>
+            <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
           ) : (
             <>
               {/* Transaction table */}
-              <div className="bg-white rounded-lg overflow-hidden">
+              <div className="bg-white overflow-hidden">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header">
-                      <th className="px-4 py-2.5 text-left w-[70px]">Status</th>
-                      <th className="px-3 py-2.5 text-left w-[80px]">Date</th>
-                      <th className="px-3 py-2.5 text-left">Description</th>
-                      <th className="px-3 py-2.5 text-right w-[110px]">Debit</th>
-                      <th className="px-3 py-2.5 text-right w-[110px]">Credit</th>
-                      <th className="px-3 py-2.5 text-right w-[110px]">Balance</th>
-                      <th className="px-3 py-2.5 text-left">Matched To</th>
-                      <th className="px-3 py-2.5 text-right w-[120px]">
+                    <tr className="bg-[var(--surface-header)]">
+                      <th className="px-4 py-2.5 text-left w-[70px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                      <th className="px-3 py-2.5 text-left w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
+                      <th className="px-3 py-2.5 text-right w-[110px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
+                      <th className="px-3 py-2.5 text-right w-[110px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
+                      <th className="px-3 py-2.5 text-right w-[110px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
+                      <th className="px-3 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Matched To</th>
+                      <th className="px-3 py-2.5 text-right w-[120px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
                         <div className="flex items-center justify-end gap-1.5">
                           Actions
                           <HelpTooltip items={[
@@ -579,54 +579,55 @@ export default function AccountantReconciliationWorkspacePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTxns.map((txn) => {
+                    {filteredTxns.map((txn, idx) => {
                       const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
                       const isExpanded = previewTxn?.id === txn.id;
                       const mp = txn.matched_payment;
+                      const rowBg = isExpanded ? 'bg-blue-50/60' : (txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') ? 'bg-green-50/30' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white';
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`group transition-colors cursor-pointer hover:bg-blue-50/40 ${isExpanded ? 'bg-blue-50/60' : txn.recon_status === 'matched' || txn.recon_status === 'manually_matched' ? 'bg-green-50/30' : ''}`}
+                        <tr className={`group transition-colors cursor-pointer hover:bg-[var(--surface-header)] ${rowBg}`}
                           onClick={() => setPreviewTxn(isExpanded ? null : txn)}
                         >
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-1.5">
                               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                className={`text-[#8E9196] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
+                                className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                 <path d="M9 18l6-6-6-6" />
                               </svg>
                               <span className={cfg.cls}>{cfg.label}</span>
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-body-sm text-[#434654] tabular-nums">{formatDate(txn.transaction_date)}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-[#191C1E] max-w-[250px] truncate" title={txn.description}>
+                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)] tabular-nums">{formatDate(txn.transaction_date)}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate" title={txn.description}>
                             {txn.description.split(' | ')[0]}
-                            {txn.reference && <span className="ml-1 text-[#8E9196] text-label-sm">({txn.reference})</span>}
+                            {txn.reference && <span className="ml-1 text-[var(--text-secondary)] text-label-sm">({txn.reference})</span>}
                           </td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-red-600">{txn.debit ? formatRM(txn.debit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-green-600">{txn.credit ? formatRM(txn.credit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[#434654]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-[#434654]">
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)]">{txn.debit ? formatRM(txn.debit) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)]">{txn.credit ? formatRM(txn.credit) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
+                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">
                             {mp ? (
                               <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
                             ) : txn.notes ? (
-                              <span className="text-[#8E9196] italic">{txn.notes}</span>
+                              <span className="text-[var(--text-secondary)] italic">{txn.notes}</span>
                             ) : '—'}
                           </td>
                           <td className="px-3 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="text-label-sm w-[70px] py-1.5 text-white btn-blue rounded-lg transition-all duration-200 text-center">Match</button>
+                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="btn-thick-navy text-label-sm w-[70px] py-1.5 text-white text-center">Match</button>
                               </div>
                             )}
                             {txn.recon_status === 'matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doConfirm([txn.id]); }} disabled={confirming} className="text-label-sm w-[70px] py-1.5 text-white btn-approve rounded-lg transition-all duration-200 text-center disabled:opacity-50">Confirm</button>
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); doConfirm([txn.id]); }} disabled={confirming} className="btn-thick-green text-label-sm w-[70px] py-1.5 text-white text-center disabled:opacity-50">Confirm</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
                               </div>
                             )}
                             {txn.recon_status === 'manually_matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="text-label-sm w-[70px] py-1.5 text-white btn-danger rounded-lg transition-all duration-200 text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
                               </div>
                             )}
                           </td>
@@ -636,46 +637,46 @@ export default function AccountantReconciliationWorkspacePage() {
                             <td colSpan={8} className="px-6 py-4">
                               <div className={`grid ${mp ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-3`}>
                                 <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Bank Description</p>
+                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Bank Description</p>
                                   {txn.description.split(' | ').map((line, i) => (
-                                    <p key={i} className="text-body-sm text-[#434654]">{line}</p>
+                                    <p key={i} className="text-body-sm text-[var(--text-secondary)]">{line}</p>
                                   ))}
-                                  {txn.reference && <p className="text-label-sm text-[#8E9196] mt-1">Ref: {txn.reference}</p>}
-                                  {txn.cheque_number && <p className="text-label-sm text-[#8E9196]">Cheque: {txn.cheque_number}</p>}
-                                  {txn.notes && <p className="text-label-sm text-[#8E9196] italic mt-1">{txn.notes}</p>}
+                                  {txn.reference && <p className="text-label-sm text-[var(--text-secondary)] mt-1">Ref: {txn.reference}</p>}
+                                  {txn.cheque_number && <p className="text-label-sm text-[var(--text-secondary)]">Cheque: {txn.cheque_number}</p>}
+                                  {txn.notes && <p className="text-label-sm text-[var(--text-secondary)] italic mt-1">{txn.notes}</p>}
                                 </div>
                                 <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Transaction Details</p>
-                                  <p className="text-body-sm text-[#434654]">Date: {formatDate(txn.transaction_date)}</p>
-                                  {txn.debit ? <p className="text-body-sm text-red-600">Debit: {formatRM(txn.debit)}</p> : null}
-                                  {txn.credit ? <p className="text-body-sm text-green-600">Credit: {formatRM(txn.credit)}</p> : null}
-                                  <p className="text-body-sm text-[#434654]">Balance: {txn.balance ? formatRM(txn.balance) : '-'}</p>
-                                  <p className="text-label-sm text-[#8E9196] mt-1">Status: <span className={cfg.cls}>{cfg.label}</span></p>
-                                  {txn.matched_at && <p className="text-label-sm text-[#8E9196]">Matched: {formatDate(txn.matched_at)}</p>}
+                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Transaction Details</p>
+                                  <p className="text-body-sm text-[var(--text-secondary)]">Date: <span className="tabular-nums">{formatDate(txn.transaction_date)}</span></p>
+                                  {txn.debit ? <p className="text-body-sm text-[var(--reject-red)] tabular-nums">Debit: {formatRM(txn.debit)}</p> : null}
+                                  {txn.credit ? <p className="text-body-sm text-[var(--match-green)] tabular-nums">Credit: {formatRM(txn.credit)}</p> : null}
+                                  <p className="text-body-sm text-[var(--text-secondary)] tabular-nums">Balance: {txn.balance ? formatRM(txn.balance) : '-'}</p>
+                                  <p className="text-label-sm text-[var(--text-secondary)] mt-1">Status: <span className={cfg.cls}>{cfg.label}</span></p>
+                                  {txn.matched_at && <p className="text-label-sm text-[var(--text-secondary)]">Matched: {formatDate(txn.matched_at)}</p>}
                                 </div>
                                 {/* Matched invoice/claim block */}
                                 {txn.matched_invoice && (() => {
                                   return (
                                   <div>
-                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
+                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
                                     {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
                                       ? txn.matched_invoice_allocations
                                       : [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }]
                                     ).map((alloc, idx) => (
                                       <div key={idx}
                                         onClick={(e) => { e.stopPropagation(); setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.allocation_amount) }); }}
-                                        className="bg-white rounded-lg border border-blue-100 p-3 mb-2 last:mb-0 cursor-pointer hover:border-blue-300 transition-colors">
-                                        <p className="text-body-sm font-semibold text-[#191C1E]">{alloc.vendor_name}</p>
-                                        <p className="text-body-sm text-[#434654]">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
+                                        className="bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3 mb-2 last:mb-0 cursor-pointer hover:bg-[var(--surface-low)] transition-colors">
+                                        <p className="text-body-sm font-semibold text-[var(--text-primary)]">{alloc.vendor_name}</p>
+                                        <p className="text-body-sm text-[var(--text-secondary)]">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
                                         <div className="flex items-center gap-2 mt-1">
-                                          <p className="text-body-sm font-medium text-[#191C1E]">Allocated: {formatRM(String(alloc.allocation_amount))}</p>
-                                          <span className="text-label-sm text-[#8E9196]">of {formatRM(alloc.total_amount)} invoice</span>
+                                          <p className="text-body-sm font-medium text-[var(--text-primary)] tabular-nums">Allocated: {formatRM(String(alloc.allocation_amount))}</p>
+                                          <span className="text-label-sm text-[var(--text-secondary)] tabular-nums">of {formatRM(alloc.total_amount)} invoice</span>
                                         </div>
                                       </div>
                                     ))}
                                     {txn.matched_invoice.file_url && (
                                       <a href={txn.matched_invoice.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1 mt-2 text-label-sm text-blue-600 hover:text-blue-800">
+                                        className="inline-flex items-center gap-1 mt-2 text-label-sm text-[var(--primary)] hover:opacity-80">
                                         View Invoice PDF &rarr;
                                       </a>
                                     )}
@@ -684,29 +685,29 @@ export default function AccountantReconciliationWorkspacePage() {
                                 })()}
                                 {txn.matched_sales_invoice && (
                                   <div>
-                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Sales Invoice</p>
-                                    <div className="bg-white rounded-lg border border-green-100 p-3">
-                                      <p className="text-body-sm font-semibold text-[#191C1E]">{txn.matched_sales_invoice.buyer_name}</p>
-                                      <p className="text-body-sm text-[#434654]">{txn.matched_sales_invoice.invoice_number} · {formatDate(txn.matched_sales_invoice.issue_date)}</p>
-                                      <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(txn.matched_sales_invoice.total_amount)}</p>
+                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Sales Invoice</p>
+                                    <div className="bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3">
+                                      <p className="text-body-sm font-semibold text-[var(--text-primary)]">{txn.matched_sales_invoice.buyer_name}</p>
+                                      <p className="text-body-sm text-[var(--text-secondary)]">{txn.matched_sales_invoice.invoice_number} · {formatDate(txn.matched_sales_invoice.issue_date)}</p>
+                                      <p className="text-body-sm font-medium text-[var(--text-primary)] mt-1 tabular-nums">{formatRM(txn.matched_sales_invoice.total_amount)}</p>
                                     </div>
                                   </div>
                                 )}
                                 {txn.matched_claims && txn.matched_claims.length > 0 && (
                                   <div>
-                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
+                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
                                     {txn.matched_claims.map((claim) => (
                                       <div key={claim.id}
                                         onClick={(e) => { e.stopPropagation(); setPreviewClaim(claim); }}
-                                        className="bg-white rounded-lg border border-amber-100 p-3 mb-2 last:mb-0 cursor-pointer hover:border-amber-300 transition-colors">
-                                        <p className="text-body-sm font-semibold text-[#191C1E]">{claim.employee_name} — {claim.merchant}</p>
-                                        <p className="text-body-sm text-[#434654]">{claim.category_name} · {formatDate(claim.claim_date)}</p>
-                                        <p className="text-body-sm font-medium text-[#191C1E] mt-1">{formatRM(claim.amount)}</p>
+                                        className="bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3 mb-2 last:mb-0 cursor-pointer hover:bg-[var(--surface-low)] transition-colors">
+                                        <p className="text-body-sm font-semibold text-[var(--text-primary)]">{claim.employee_name} — {claim.merchant}</p>
+                                        <p className="text-body-sm text-[var(--text-secondary)]">{claim.category_name} · {formatDate(claim.claim_date)}</p>
+                                        <p className="text-body-sm font-medium text-[var(--text-primary)] mt-1 tabular-nums">{formatRM(claim.amount)}</p>
                                       </div>
                                     ))}
                                   </div>
                                 )}
-                                {/* Add more items block — shown when transaction not fully allocated */}
+                                {/* Add more items block -- shown when transaction not fully allocated */}
                                 {(() => {
                                   const txnAmt = Number(txn.debit ?? txn.credit ?? 0);
                                   const invAllocated = txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
@@ -720,42 +721,42 @@ export default function AccountantReconciliationWorkspacePage() {
                                   return (
                                     <div
                                       onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }}
-                                      className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition-colors"
+                                      className="border-2 border-dashed border-[var(--surface-header)] p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--surface-low)] transition-colors"
                                     >
-                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#8E9196]">
+                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
                                         <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                                       </svg>
-                                      <p className="text-label-sm text-[#8E9196] mt-1">{formatRM(String(remaining))} unallocated</p>
+                                      <p className="text-label-sm text-[var(--text-secondary)] mt-1 tabular-nums">{formatRM(String(remaining))} unallocated</p>
                                     </div>
                                   );
                                 })()}
 
                                 {mp && (
                                 <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Matched Payment</p>
-                                  <p className="text-body-md font-medium text-[#191C1E]">{mp.supplier_name}</p>
-                                  <p className="text-body-sm text-[#434654]">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
-                                  {mp.reference && <p className="text-label-sm text-[#8E9196]">Ref: {mp.reference}</p>}
-                                  {mp.notes && <p className="text-label-sm text-[#8E9196] italic">{mp.notes}</p>}
+                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Payment</p>
+                                  <p className="text-body-md font-medium text-[var(--text-primary)]">{mp.supplier_name}</p>
+                                  <p className="text-body-sm text-[var(--text-secondary)]">{formatDate(mp.payment_date)} — <span className="tabular-nums">{formatRM(mp.amount)}</span> — {mp.direction}</p>
+                                  {mp.reference && <p className="text-label-sm text-[var(--text-secondary)]">Ref: {mp.reference}</p>}
+                                  {mp.notes && <p className="text-label-sm text-[var(--text-secondary)] italic">{mp.notes}</p>}
                                 </div>
                                 )}
                               </div>
 
                               {mp && mp.allocations.length > 0 && (
                                 <div className="mb-3">
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1.5">Linked Invoices ({mp.allocations.length})</p>
+                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Linked Invoices ({mp.allocations.length})</p>
                                   <div className="space-y-1">
                                     {mp.allocations.map((a) => (
                                       <div key={a.invoice_id}
                                         onClick={(e) => { e.stopPropagation(); setPreviewInvoice(a); }}
-                                        className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
+                                        className="flex items-center justify-between bg-white px-3 py-2 border-b border-[var(--surface-low)] hover:bg-[var(--surface-low)] transition-colors cursor-pointer">
                                         <div>
-                                          <span className="text-body-sm font-medium text-blue-700">{a.invoice_number ?? 'No number'}</span>
-                                          <span className="text-label-sm text-[#8E9196] ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
+                                          <span className="text-body-sm font-medium text-[var(--primary)]">{a.invoice_number ?? 'No number'}</span>
+                                          <span className="text-label-sm text-[var(--text-secondary)] ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
                                         </div>
                                         <div className="text-right">
-                                          <span className="text-body-sm font-semibold tabular-nums text-[#191C1E]">{formatRM(a.allocated_amount)}</span>
-                                          <span className="text-label-sm text-[#8E9196] ml-1">/ {formatRM(a.total_amount)}</span>
+                                          <span className="text-body-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(a.allocated_amount)}</span>
+                                          <span className="text-label-sm text-[var(--text-secondary)] ml-1 tabular-nums">/ {formatRM(a.total_amount)}</span>
                                         </div>
                                       </div>
                                     ))}
@@ -765,16 +766,16 @@ export default function AccountantReconciliationWorkspacePage() {
 
                               {mp && mp.receipts.length > 0 && (
                                 <div>
-                                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1.5">Linked Receipts ({mp.receipts.length})</p>
+                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Linked Receipts ({mp.receipts.length})</p>
                                   <div className="grid grid-cols-2 gap-2">
                                     {mp.receipts.map((r) => (
                                       <div key={r.id}
                                         onClick={(e) => { e.stopPropagation(); setPreviewReceipt(r); }}
-                                        className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-gray-100 hover:border-blue-200 hover:bg-blue-50/30 transition-colors cursor-pointer">
-                                        {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />}
+                                        className="flex items-center gap-3 bg-white px-3 py-2 border-b border-[var(--surface-low)] hover:bg-[var(--surface-low)] transition-colors cursor-pointer">
+                                        {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-10 h-10 object-cover flex-shrink-0" />}
                                         <div className="min-w-0">
-                                          <p className="text-body-sm font-medium text-blue-700 truncate">{r.merchant}</p>
-                                          <p className="text-label-sm text-[#8E9196]">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — {formatRM(r.amount)}</p>
+                                          <p className="text-body-sm font-medium text-[var(--primary)] truncate">{r.merchant}</p>
+                                          <p className="text-label-sm text-[var(--text-secondary)]">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — <span className="tabular-nums">{formatRM(r.amount)}</span></p>
                                         </div>
                                       </div>
                                     ))}
@@ -783,7 +784,7 @@ export default function AccountantReconciliationWorkspacePage() {
                               )}
 
                               {mp && mp.allocations.length === 0 && mp.receipts.length === 0 && (
-                                <p className="text-body-sm text-[#8E9196] italic">No invoices or receipts linked to this payment yet.</p>
+                                <p className="text-body-sm text-[var(--text-secondary)] italic">No invoices or receipts linked to this payment yet.</p>
                               )}
 
                               {/* JV Preview for suggested matches */}
@@ -801,23 +802,23 @@ export default function AccountantReconciliationWorkspacePage() {
                                 const glMismatch = hasExplicitGl && bankGl && receipt.gl_label !== bankGl && receipt.contra_gl_label !== bankGl;
 
                                 return (
-                                  <div className="mt-3 bg-white rounded-lg border border-gray-200 p-3">
-                                    <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-2">Journal Entry Preview</p>
+                                  <div className="mt-3 bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3">
+                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Journal Entry Preview</p>
                                     <table className="w-full text-body-sm">
                                       <thead>
-                                        <tr className="text-left text-label-sm text-[#8E9196] uppercase">
+                                        <tr className="text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
                                           <th className="py-1">Account</th>
                                           <th className="py-1 text-right">Debit</th>
                                           <th className="py-1 text-right">Credit</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        <tr><td className="py-1 text-[#191C1E] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
-                                        <tr><td className="py-1 text-[#191C1E] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
+                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
+                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
                                       </tbody>
                                     </table>
                                     {glMismatch && (
-                                      <p className="mt-2 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1.5">
+                                      <p className="mt-2 text-xs text-amber-700 bg-amber-50 px-2 py-1.5">
                                         Warning: Receipt GL does not reference this bank statement&apos;s GL ({bankGl}). Verify the GL accounts are correct before confirming.
                                       </p>
                                     )}
@@ -843,16 +844,16 @@ export default function AccountantReconciliationWorkspacePage() {
                       const mismatch = diff > 0.01;
                       return (
                         <>
-                          <tr className="bg-gray-50 border-t-2 border-gray-200">
-                            <td colSpan={3} className="px-4 py-2.5 text-body-sm font-semibold text-[#191C1E]">Total</td>
-                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-red-600 whitespace-nowrap">{formatRM(totalDr)}</td>
-                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-green-600 whitespace-nowrap">{formatRM(totalCr)}</td>
+                          <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
+                            <td colSpan={3} className="px-4 py-2.5 text-body-sm font-semibold text-[var(--text-primary)]">Total</td>
+                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--reject-red)] whitespace-nowrap">{formatRM(totalDr)}</td>
+                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--match-green)] whitespace-nowrap">{formatRM(totalCr)}</td>
                             <td colSpan={3} />
                           </tr>
                           {mismatch && (
                             <tr className="bg-amber-50 border-t border-amber-200">
                               <td colSpan={8} className="px-4 py-2.5 text-body-sm text-amber-700">
-                                <span className="font-semibold">Balance mismatch:</span> Opening ({formatRM(opening)}) − Debit ({formatRM(totalDr)}) + Credit ({formatRM(totalCr)}) = {formatRM(expected)}, but closing balance is {formatRM(closing)}. Difference: <strong>{formatRM(diff)}</strong> — the bank statement may have been parsed incorrectly.
+                                <span className="font-semibold">Balance mismatch:</span> Opening (<span className="tabular-nums">{formatRM(opening)}</span>) - Debit (<span className="tabular-nums">{formatRM(totalDr)}</span>) + Credit (<span className="tabular-nums">{formatRM(totalCr)}</span>) = <span className="tabular-nums">{formatRM(expected)}</span>, but closing balance is <span className="tabular-nums">{formatRM(closing)}</span>. Difference: <strong className="tabular-nums">{formatRM(diff)}</strong> — the bank statement may have been parsed incorrectly.
                               </td>
                             </tr>
                           )}
@@ -862,7 +863,7 @@ export default function AccountantReconciliationWorkspacePage() {
                   </tfoot>
                 </table>
                 {filteredTxns.length === 0 && (
-                  <div className="text-center py-8 text-sm text-[#8E9196]">No transactions in this filter.</div>
+                  <div className="text-center py-8 text-sm text-[var(--text-secondary)]">No transactions in this filter.</div>
                 )}
               </div>
 
@@ -871,17 +872,19 @@ export default function AccountantReconciliationWorkspacePage() {
 
           {/* Match modal */}
           {matchingTxn && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
-              <div className="bg-white rounded-xl shadow-xl w-[720px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="p-6 pb-0">
-                  <h2 className="text-title-md font-semibold text-[#191C1E] mb-3">
+            <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
+              <div className="bg-white shadow-xl w-[720px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-[var(--primary)] px-6 py-4">
+                  <h2 className="text-white font-bold text-sm uppercase tracking-widest">
                     {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
                   </h2>
-                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <p className="text-body-md font-medium text-[#191C1E]">{matchingTxn.description.split(' | ')[0]}</p>
-                    <div className="flex items-center gap-4 mt-1.5 text-body-sm text-[#434654]">
-                      <span>{formatDate(matchingTxn.transaction_date)}</span>
-                      <span className="font-semibold text-[#191C1E]">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
+                </div>
+                <div className="p-6 pb-0">
+                  <div className="bg-[var(--surface-low)] p-4 mb-4">
+                    <p className="text-body-md font-medium text-[var(--text-primary)]">{matchingTxn.description.split(' | ')[0]}</p>
+                    <div className="flex items-center gap-4 mt-1.5 text-body-sm text-[var(--text-secondary)]">
+                      <span className="tabular-nums">{formatDate(matchingTxn.transaction_date)}</span>
+                      <span className="font-semibold text-[var(--text-primary)] tabular-nums">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
                       {matchingTxn.reference && <span>Ref: {matchingTxn.reference}</span>}
                     </div>
                   </div>
@@ -901,9 +904,9 @@ export default function AccountantReconciliationWorkspacePage() {
                     />
                   </div>
 
-                  {/* Tabs — only show for debit (outgoing) which has both invoices and claims */}
+                  {/* Tabs -- only show for debit (outgoing) which has both invoices and claims */}
                   {matchingTxn.debit && (
-                    <div className="flex border-b border-gray-200">
+                    <div className="flex border-b border-[var(--surface-header)]">
                       {(() => {
                         const invoiceCount = outstandingItems.filter((i: { type: string }) => i.type !== 'claim').length;
                         const claimCount = outstandingItems.filter((i: { type: string }) => i.type === 'claim').length;
@@ -912,7 +915,7 @@ export default function AccountantReconciliationWorkspacePage() {
                             <button
                               onClick={() => { setMatchTab('invoices'); setSelectedClaimIds(new Set()); }}
                               className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
-                                matchTab === 'invoices' ? 'border-blue-600 text-blue-600' : 'border-transparent text-[#8E9196] hover:text-[#434654]'
+                                matchTab === 'invoices' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                               }`}
                             >
                               Invoices ({invoiceCount})
@@ -920,7 +923,7 @@ export default function AccountantReconciliationWorkspacePage() {
                             <button
                               onClick={() => { setMatchTab('claims'); setSelectedItem(null); }}
                               className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
-                                matchTab === 'claims' ? 'border-blue-600 text-blue-600' : 'border-transparent text-[#8E9196] hover:text-[#434654]'
+                                matchTab === 'claims' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                               }`}
                             >
                               Claims ({claimCount})
@@ -934,9 +937,9 @@ export default function AccountantReconciliationWorkspacePage() {
 
                 <div className="px-6 py-4">
                 {loadingCandidates ? (
-                  <p className="text-sm text-[#8E9196] py-8 text-center">Loading...</p>
+                  <p className="text-sm text-[var(--text-secondary)] py-8 text-center">Loading...</p>
                 ) : outstandingItems.length === 0 ? (
-                  <p className="text-sm text-[#8E9196] py-8 text-center">No outstanding items found.</p>
+                  <p className="text-sm text-[var(--text-secondary)] py-8 text-center">No outstanding items found.</p>
                 ) : (
                   <div className="space-y-1.5">
                     {(() => {
@@ -968,27 +971,27 @@ export default function AccountantReconciliationWorkspacePage() {
                               <div
                                 key={`${item.type}-${item.id}`}
                                 onClick={() => { setSelectedItem(isSelected ? null : { type: item.type, id: item.id }); setSelectedClaimIds(new Set()); }}
-                                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                                  isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-300 hover:bg-blue-50/50'
+                                className={`flex items-center justify-between p-3 border-b cursor-pointer transition-colors ${
+                                  isSelected ? 'border-[var(--primary)] bg-blue-50' : 'border-[var(--surface-low)] hover:bg-[var(--surface-low)]'
                                 }`}
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
                                       item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
                                     }`}>
                                       {item.type === 'invoice' ? 'INV' : 'SALES'}
                                     </span>
-                                    <p className="text-body-sm font-medium text-[#191C1E] truncate">{item.name}</p>
+                                    <p className="text-body-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
                                   </div>
-                                  <p className="text-label-sm text-[#8E9196] mt-0.5">
+                                  <p className="text-label-sm text-[var(--text-secondary)] mt-0.5">
                                     {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
                                   </p>
                                 </div>
                                 <div className="text-right flex-shrink-0 ml-3">
-                                  <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(String(item.remaining))}</p>
+                                  <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
                                   {item.remaining !== item.totalAmount && (
-                                    <p className="text-label-sm text-[#8E9196]">of {formatRM(String(item.totalAmount))}</p>
+                                    <p className="text-label-sm text-[var(--text-secondary)] tabular-nums">of {formatRM(String(item.totalAmount))}</p>
                                   )}
                                 </div>
                               </div>
@@ -996,7 +999,7 @@ export default function AccountantReconciliationWorkspacePage() {
                           })}
 
                           {showInvoices && invoiceItems.length === 0 && (
-                            <p className="text-sm text-[#8E9196] py-4 text-center">No outstanding invoices.</p>
+                            <p className="text-sm text-[var(--text-secondary)] py-4 text-center">No outstanding invoices.</p>
                           )}
 
                           {/* Claims grouped by employee */}
@@ -1025,41 +1028,41 @@ export default function AccountantReconciliationWorkspacePage() {
                             };
 
                             return (
-                              <div key={empKey} className="border border-gray-100 rounded-lg overflow-hidden">
+                              <div key={empKey} className="border-b border-[var(--surface-low)] overflow-hidden">
                                 <div
                                   onClick={toggleAll}
                                   className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
-                                    allSelected ? 'bg-blue-50' : someSelected ? 'bg-blue-50/50' : 'hover:bg-blue-50/50'
+                                    allSelected ? 'bg-blue-50' : someSelected ? 'bg-blue-50/50' : 'hover:bg-[var(--surface-low)]'
                                   }`}
                                 >
                                   <div className="flex items-center gap-2">
-                                    <input type="checkbox" checked={allSelected} onChange={() => {}} className="rounded border-gray-300 text-blue-600" onClick={e => e.stopPropagation()} />
-                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">CLAIMS</span>
-                                    <p className="text-body-sm font-medium text-[#191C1E]">{group.employeeName}</p>
-                                    <span className="text-label-sm text-[#8E9196]">({group.claims.length})</span>
+                                    <input type="checkbox" checked={allSelected} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
+                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-blue-100 text-blue-700">CLAIMS</span>
+                                    <p className="text-body-sm font-medium text-[var(--text-primary)]">{group.employeeName}</p>
+                                    <span className="text-label-sm text-[var(--text-secondary)]">({group.claims.length})</span>
                                   </div>
-                                  <p className="text-body-md font-semibold tabular-nums text-[#191C1E]">{formatRM(String(group.total))}</p>
+                                  <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(group.total))}</p>
                                 </div>
-                                <div className="border-t border-gray-50">
+                                <div className="border-t border-[var(--surface-low)]">
                                   {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null }) => (
                                     <div
                                       key={c.id}
                                       onClick={() => toggleOne(c.id)}
-                                      className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-gray-50 first:border-t-0 ${
-                                        selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-gray-50'
+                                      className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[var(--surface-low)] first:border-t-0 ${
+                                        selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-[var(--surface-low)]'
                                       }`}
                                     >
                                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="rounded border-gray-300 text-blue-600" onClick={e => e.stopPropagation()} />
+                                        <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
                                         <div className="min-w-0">
-                                          <p className="text-body-sm text-[#191C1E] truncate">{c.merchant}</p>
-                                          <p className="text-label-sm text-[#8E9196]">
+                                          <p className="text-body-sm text-[var(--text-primary)] truncate">{c.merchant}</p>
+                                          <p className="text-label-sm text-[var(--text-secondary)]">
                                             {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
                                             {c.categoryName ? ` · ${c.categoryName}` : ''}
                                           </p>
                                         </div>
                                       </div>
-                                      <p className="text-body-sm font-medium tabular-nums text-[#191C1E] ml-3">{formatRM(String(c.remaining))}</p>
+                                      <p className="text-body-sm font-medium tabular-nums text-[var(--text-primary)] ml-3">{formatRM(String(c.remaining))}</p>
                                     </div>
                                   ))}
                                 </div>
@@ -1068,7 +1071,7 @@ export default function AccountantReconciliationWorkspacePage() {
                           })}
 
                           {showClaims && employeeGroups.size === 0 && (
-                            <p className="text-sm text-[#8E9196] py-4 text-center">No outstanding claims.</p>
+                            <p className="text-sm text-[var(--text-secondary)] py-4 text-center">No outstanding claims.</p>
                           )}
                         </>
                       );
@@ -1077,46 +1080,46 @@ export default function AccountantReconciliationWorkspacePage() {
                 )}
                 </div>
 
-                <div className="px-6 pb-6 pt-2">
+                <div className="px-6 pb-6 pt-2 bg-[var(--surface-low)]">
                 {/* Match error */}
-                {matchError && <p className="text-sm text-red-600 mb-2">{matchError}</p>}
+                {matchError && <p className="text-sm text-[var(--reject-red)] mb-2">{matchError}</p>}
 
                 {/* Confirm match button */}
                 {(selectedItem || selectedClaimIds.size > 0) && (
                   <button
                     onClick={() => doMatchItem(selectedItem ?? undefined)}
                     disabled={matchSubmitting}
-                    className="btn-approve w-full py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+                    className="btn-thick-green w-full py-2.5 text-sm font-semibold disabled:opacity-50"
                   >
                     {matchSubmitting ? 'Matching...' : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create JV'}
                   </button>
                 )}
 
-                {/* Official receipt option — credit (money coming in) transactions only */}
+                {/* Official receipt option -- credit (money coming in) transactions only */}
                 {matchingTxn.credit && (
                   <>
                     <div className="flex items-center gap-3 my-4">
-                      <div className="flex-1 h-px bg-gray-200" />
-                      <span className="text-label-sm text-[#8E9196]">or</span>
-                      <div className="flex-1 h-px bg-gray-200" />
+                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
+                      <span className="text-label-sm text-[var(--text-secondary)]">or</span>
+                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
                     </div>
 
                     {!showReceiptForm ? (
                       <button
                         onClick={openReceiptForm}
-                        className="w-full px-3 py-2 text-body-md font-medium text-green-700 border border-green-200 rounded-lg hover:bg-green-50 transition-colors"
+                        className="btn-thick-green w-full px-3 py-2 text-body-md font-medium"
                       >
                         + Create Official Receipt
                       </button>
                     ) : (
-                      <div className="space-y-3 border border-green-100 rounded-lg p-4 bg-green-50/30">
-                        <h3 className="text-body-md font-semibold text-[#191C1E]">Create Official Receipt</h3>
-                        <div className="bg-white rounded-lg p-2.5 text-body-sm text-[#434654] flex gap-3">
-                          <span>Amount: <strong>{formatRM(matchingTxn.credit)}</strong></span>
+                      <div className="space-y-3 bg-white p-4">
+                        <h3 className="text-body-md font-semibold text-[var(--text-primary)]">Create Official Receipt</h3>
+                        <div className="bg-[var(--surface-low)] p-2.5 text-body-sm text-[var(--text-secondary)] flex gap-3">
+                          <span>Amount: <strong className="tabular-nums">{formatRM(matchingTxn.credit)}</strong></span>
                           <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
                         </div>
                         <div>
-                          <label className="input-label">Received From</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Received From</label>
                           {!creatingNewSupplier ? (
                             <div className="flex gap-2">
                               <select
@@ -1135,7 +1138,7 @@ export default function AccountantReconciliationWorkspacePage() {
                               <button
                                 type="button"
                                 onClick={() => { setCreatingNewSupplier(true); setVoucherData(prev => ({ ...prev, supplier_id: '', new_supplier_name: '' })); }}
-                                className="px-2.5 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 whitespace-nowrap"
+                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
                               >
                                 + New
                               </button>
@@ -1156,7 +1159,7 @@ export default function AccountantReconciliationWorkspacePage() {
                               <button
                                 type="button"
                                 onClick={() => { setCreatingNewSupplier(false); setVoucherData(prev => ({ ...prev, new_supplier_name: '' })); }}
-                                className="px-2.5 py-1.5 text-xs font-medium text-[#8E9196] border border-gray-200 rounded-lg hover:bg-gray-50"
+                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium"
                               >
                                 Cancel
                               </button>
@@ -1164,7 +1167,7 @@ export default function AccountantReconciliationWorkspacePage() {
                           )}
                         </div>
                         <div>
-                          <label className="input-label">Receipt No.</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt No.</label>
                           <input
                             type="text"
                             value={voucherData.reference}
@@ -1174,7 +1177,7 @@ export default function AccountantReconciliationWorkspacePage() {
                           />
                         </div>
                         <div>
-                          <label className="input-label">CR Account (Sales/Income GL)</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">CR Account (Sales/Income GL)</label>
                           <GlAccountSelect
                             value={voucherData.gl_account_id}
                             onChange={(id) => setVoucherData({ ...voucherData, gl_account_id: id })}
@@ -1183,10 +1186,10 @@ export default function AccountantReconciliationWorkspacePage() {
                             placeholder="Select GL account..."
                             preferredType="Revenue"
                           />
-                          <p className="text-xs text-[#8E9196] mt-0.5">DR Bank Account (auto) / CR this account</p>
+                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">DR Bank Account (auto) / CR this account</p>
                         </div>
                         <div>
-                          <label className="input-label">Notes (optional)</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes (optional)</label>
                           <input
                             type="text"
                             value={voucherData.notes}
@@ -1195,18 +1198,18 @@ export default function AccountantReconciliationWorkspacePage() {
                             placeholder="e.g. Payment received for invoice #123"
                           />
                         </div>
-                        {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
+                        {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                         <div className="flex gap-3">
                           <button
                             onClick={doCreateReceipt}
                             disabled={creatingVoucher}
-                            className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             {creatingVoucher ? 'Creating...' : 'Create & Match'}
                           </button>
                           <button
                             onClick={() => setShowReceiptForm(false)}
-                            className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                            className="btn-thick-white flex-1 py-2 text-sm font-semibold"
                           >
                             Cancel
                           </button>
@@ -1216,31 +1219,31 @@ export default function AccountantReconciliationWorkspacePage() {
                   </>
                 )}
 
-                {/* Payment voucher option — debit (money going out) transactions only */}
+                {/* Payment voucher option -- debit (money going out) transactions only */}
                 {matchingTxn.debit && (
                   <>
                     <div className="flex items-center gap-3 my-4">
-                      <div className="flex-1 h-px bg-gray-200" />
-                      <span className="text-label-sm text-[#8E9196]">or</span>
-                      <div className="flex-1 h-px bg-gray-200" />
+                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
+                      <span className="text-label-sm text-[var(--text-secondary)]">or</span>
+                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
                     </div>
 
                     {!showVoucherForm ? (
                       <button
                         onClick={openVoucherForm}
-                        className="w-full px-3 py-2 text-body-md font-medium text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                        className="btn-thick-navy w-full px-3 py-2 text-body-md font-medium"
                       >
                         + Create Payment Voucher
                       </button>
                     ) : (
-                      <div className="space-y-3 border border-blue-100 rounded-lg p-4 bg-blue-50/30">
-                        <h3 className="text-body-md font-semibold text-[#191C1E]">Create Payment Voucher</h3>
-                        <div className="bg-white rounded-lg p-2.5 text-body-sm text-[#434654] flex gap-3">
-                          <span>Amount: <strong>{formatRM(matchingTxn.debit)}</strong></span>
+                      <div className="space-y-3 bg-white p-4">
+                        <h3 className="text-body-md font-semibold text-[var(--text-primary)]">Create Payment Voucher</h3>
+                        <div className="bg-[var(--surface-low)] p-2.5 text-body-sm text-[var(--text-secondary)] flex gap-3">
+                          <span>Amount: <strong className="tabular-nums">{formatRM(matchingTxn.debit)}</strong></span>
                           <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
                         </div>
                         <div>
-                          <label className="input-label">Paid To</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Paid To</label>
                           {!creatingNewSupplier ? (
                             <div className="flex gap-2">
                               <select
@@ -1259,7 +1262,7 @@ export default function AccountantReconciliationWorkspacePage() {
                               <button
                                 type="button"
                                 onClick={() => { setCreatingNewSupplier(true); setVoucherData(prev => ({ ...prev, supplier_id: '', new_supplier_name: '' })); }}
-                                className="px-2.5 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 whitespace-nowrap"
+                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
                               >+ New</button>
                             </div>
                           ) : (
@@ -1276,13 +1279,13 @@ export default function AccountantReconciliationWorkspacePage() {
                               <button
                                 type="button"
                                 onClick={() => { setCreatingNewSupplier(false); setVoucherData(prev => ({ ...prev, new_supplier_name: '' })); }}
-                                className="px-2.5 py-1.5 text-xs font-medium text-[#8E9196] border border-gray-200 rounded-lg hover:bg-gray-50"
+                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium"
                               >Cancel</button>
                             </div>
                           )}
                         </div>
                         <div>
-                          <label className="input-label">Voucher No.</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Voucher No.</label>
                           <input
                             type="text"
                             value={voucherData.reference}
@@ -1292,7 +1295,7 @@ export default function AccountantReconciliationWorkspacePage() {
                           />
                         </div>
                         <div>
-                          <label className="input-label">Category</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
                           <select
                             value={voucherData.category_id}
                             onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })}
@@ -1303,7 +1306,7 @@ export default function AccountantReconciliationWorkspacePage() {
                           </select>
                         </div>
                         <div>
-                          <label className="input-label">DR Account (Expense GL)</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">DR Account (Expense GL)</label>
                           <GlAccountSelect
                             value={voucherData.gl_account_id}
                             onChange={(id) => setVoucherData({ ...voucherData, gl_account_id: id })}
@@ -1312,10 +1315,10 @@ export default function AccountantReconciliationWorkspacePage() {
                             placeholder="Select GL account..."
                             preferredType="Expense"
                           />
-                          <p className="text-xs text-[#8E9196] mt-0.5">DR this account / CR Bank Account (auto)</p>
+                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">DR this account / CR Bank Account (auto)</p>
                         </div>
                         <div>
-                          <label className="input-label">Notes (optional)</label>
+                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes (optional)</label>
                           <input
                             type="text"
                             value={voucherData.notes}
@@ -1324,18 +1327,18 @@ export default function AccountantReconciliationWorkspacePage() {
                             placeholder="e.g. Supplier payment for invoice #123"
                           />
                         </div>
-                        {voucherError && <p className="text-sm text-red-600">{voucherError}</p>}
+                        {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                         <div className="flex gap-3">
                           <button
                             onClick={doCreateVoucher}
                             disabled={creatingVoucher || !voucherData.category_id}
-                            className="btn-primary flex-1 py-2 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             {creatingVoucher ? 'Creating...' : 'Create & Match'}
                           </button>
                           <button
                             onClick={() => setShowVoucherForm(false)}
-                            className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
+                            className="btn-thick-white flex-1 py-2 text-sm font-semibold"
                           >
                             Cancel
                           </button>
@@ -1345,7 +1348,7 @@ export default function AccountantReconciliationWorkspacePage() {
                   </>
                 )}
 
-                <button onClick={closeMatchModal} className="mt-4 w-full px-3 py-2 text-body-md text-[#434654] border border-gray-200 rounded-lg hover:bg-gray-50">
+                <button onClick={closeMatchModal} className="btn-thick-white mt-4 w-full px-3 py-2 text-body-md">
                   Cancel
                 </button>
                 </div>
@@ -1359,35 +1362,34 @@ export default function AccountantReconciliationWorkspacePage() {
       {/* === Invoice Preview Modal === */}
       {previewInvoice && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Invoice Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="space-y-3">
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Invoice No.</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewInvoice.invoice_number ?? '-'}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Vendor</dt><dd className="text-body-md text-[#191C1E]">{previewInvoice.vendor_name}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Issue Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewInvoice.issue_date)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Total Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewInvoice.total_amount)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Allocated to Payment</dt><dd className="text-title-md font-bold text-green-600 tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice No.</dt><dd className="text-body-md text-[var(--text-primary)] font-medium">{previewInvoice.invoice_number ?? '-'}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</dt><dd className="text-body-md text-[var(--text-primary)]">{previewInvoice.vendor_name}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Issue Date</dt><dd className="text-body-md text-[var(--text-primary)]">{formatDate(previewInvoice.issue_date)}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Amount</dt><dd className="text-title-md font-bold text-[var(--text-primary)] tabular-nums">{formatRM(previewInvoice.total_amount)}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Allocated to Payment</dt><dd className="text-title-md font-bold text-[var(--match-green)] tabular-nums">{formatRM(previewInvoice.allocated_amount)}</dd></div>
               </dl>
 
               {previewTxn && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
-                  <p className="text-body-sm text-[#434654]">{previewTxn.description.split(' | ')[0]}</p>
-                  <p className="text-label-sm text-[#8E9196]">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
+                <div className="bg-[var(--surface-low)] p-3">
+                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Reconciled via Bank Transaction</p>
+                  <p className="text-body-sm text-[var(--text-secondary)]">{previewTxn.description.split(' | ')[0]}</p>
+                  <p className="text-label-sm text-[var(--text-secondary)] tabular-nums">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
                 </div>
               )}
             </div>
-            <div className="p-4 flex-shrink-0">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)]">
               <button
                 onClick={() => window.open(`/accountant/invoices?search=${encodeURIComponent(previewInvoice.invoice_number ?? '')}`, '_blank')}
-                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--sidebar)' }}
+                className="btn-thick-navy w-full py-2 text-sm font-semibold"
               >
                 Open in Invoices
               </button>
@@ -1400,31 +1402,31 @@ export default function AccountantReconciliationWorkspacePage() {
       {/* === Claim Preview Modal === */}
       {previewClaim && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Claim Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="grid grid-cols-2 gap-3">
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Employee</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewClaim.employee_name}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-[#191C1E]">{previewClaim.merchant}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Category</dt><dd className="text-body-md text-[#191C1E]">{previewClaim.category_name}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewClaim.claim_date)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewClaim.amount)}</dd></div>
-                {previewClaim.receipt_number && <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Receipt #</dt><dd className="text-body-md text-[#191C1E]">{previewClaim.receipt_number}</dd></div>}
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Employee</dt><dd className="text-body-md text-[var(--text-primary)] font-medium">{previewClaim.employee_name}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Merchant</dt><dd className="text-body-md text-[var(--text-primary)]">{previewClaim.merchant}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</dt><dd className="text-body-md text-[var(--text-primary)]">{previewClaim.category_name}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</dt><dd className="text-body-md text-[var(--text-primary)]">{formatDate(previewClaim.claim_date)}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount</dt><dd className="text-title-md font-bold text-[var(--text-primary)] tabular-nums">{formatRM(previewClaim.amount)}</dd></div>
+                {previewClaim.receipt_number && <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt #</dt><dd className="text-body-md text-[var(--text-primary)]">{previewClaim.receipt_number}</dd></div>}
               </dl>
               {previewClaim.file_url && (
                 <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-body-sm text-blue-600 hover:text-blue-800">
+                  className="inline-flex items-center gap-1 text-body-sm text-[var(--primary)] hover:opacity-80">
                   View Receipt Document &rarr;
                 </a>
               )}
             </div>
-            <div className="p-4 flex-shrink-0">
-              <button onClick={() => setPreviewClaim(null)} className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)]">
+              <button onClick={() => setPreviewClaim(null)} className="btn-thick-white w-full py-2 text-sm font-semibold">
                 Close
               </button>
             </div>
@@ -1436,51 +1438,50 @@ export default function AccountantReconciliationWorkspacePage() {
       {/* === Receipt Preview Modal === */}
       {previewReceipt && (
         <>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewReceipt(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewReceipt(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b rounded-t-xl" style={{ backgroundColor: 'var(--sidebar)' }}>
-              <h2 className="text-white font-semibold text-sm">Receipt Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Receipt Details</h2>
               <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (
                 previewReceipt.file_url ? (
                   <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                    <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--surface-header)] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
-                  <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain rounded-lg border border-gray-200" />
+                  <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--surface-header)]" />
                 )
               ) : (
-                <div className="w-full h-40 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center text-[#8E9196] text-sm">No image</div>
+                <div className="w-full h-40 border border-[var(--surface-header)] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] text-sm">No image</div>
               )}
               {previewReceipt.file_url && (
-                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:underline">View full document</a>
+                <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--primary)] hover:underline">View full document</a>
               )}
               <dl className="space-y-3">
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Merchant</dt><dd className="text-body-md text-[#191C1E] font-medium">{previewReceipt.merchant}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Receipt No.</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.receipt_number ?? '-'}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Date</dt><dd className="text-body-md text-[#191C1E]">{formatDate(previewReceipt.claim_date)}</dd></div>
-                <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">Amount</dt><dd className="text-title-md font-bold text-[#191C1E] tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Merchant</dt><dd className="text-body-md text-[var(--text-primary)] font-medium">{previewReceipt.merchant}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt No.</dt><dd className="text-body-md text-[var(--text-primary)]">{previewReceipt.receipt_number ?? '-'}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</dt><dd className="text-body-md text-[var(--text-primary)]">{formatDate(previewReceipt.claim_date)}</dd></div>
+                <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount</dt><dd className="text-title-md font-bold text-[var(--text-primary)] tabular-nums">{formatRM(previewReceipt.amount)}</dd></div>
                 {previewReceipt.gl_label && (
-                  <div><dt className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider">GL Account</dt><dd className="text-body-md text-[#191C1E]">{previewReceipt.gl_label}</dd></div>
+                  <div><dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">GL Account</dt><dd className="text-body-md text-[var(--text-primary)]">{previewReceipt.gl_label}</dd></div>
                 )}
               </dl>
 
               {previewTxn && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wider mb-1">Reconciled via Bank Transaction</p>
-                  <p className="text-body-sm text-[#434654]">{previewTxn.description.split(' | ')[0]}</p>
-                  <p className="text-label-sm text-[#8E9196]">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
+                <div className="bg-[var(--surface-low)] p-3">
+                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Reconciled via Bank Transaction</p>
+                  <p className="text-body-sm text-[var(--text-secondary)]">{previewTxn.description.split(' | ')[0]}</p>
+                  <p className="text-label-sm text-[var(--text-secondary)] tabular-nums">{formatDate(previewTxn.transaction_date)} — {previewTxn.debit ? `Debit ${formatRM(previewTxn.debit)}` : `Credit ${formatRM(previewTxn.credit)}`}</p>
                 </div>
               )}
             </div>
-            <div className="p-4 flex-shrink-0">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)]">
               <button
                 onClick={() => window.open(`/accountant/claims?search=${encodeURIComponent(previewReceipt.receipt_number ?? previewReceipt.merchant)}`, '_blank')}
-                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                style={{ backgroundColor: 'var(--sidebar)' }}
+                className="btn-thick-navy w-full py-2 text-sm font-semibold"
               >
                 Open in Claims
               </button>

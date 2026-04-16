@@ -150,28 +150,28 @@ export default function ProfitLossPage() {
     fy.periods.map(p => ({ id: p.id, label: `${fy.year_label} P${p.period_number}` }))
   );
 
-  const renderSection = (title: string, nodes: AccountNode[], sectionTotal: number, colorClass: string) => (
+  const renderSection = (title: string, nodes: AccountNode[], sectionTotal: number) => (
     <>
       {/* Section header */}
-      <tr className="bg-[#F7F9FB]">
-        <td colSpan={2} className="px-5 py-3 font-bold text-[#191C1E] text-sm">{title}</td>
+      <tr className="bg-[var(--surface-base)]">
+        <td colSpan={2} className="px-5 py-3 font-bold text-[var(--text-primary)] text-sm">{title}</td>
       </tr>
 
-      {nodes.map((node) => {
+      {nodes.map((node, nodeIdx) => {
         const isCollapsed = collapsed.has(node.account.id);
         const hasChildren = node.children.length > 0;
         return (
           <React.Fragment key={node.account.id}>
             {/* Parent row */}
             <tr
-              className="border-b border-gray-100 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+              className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
               onClick={() => hasChildren ? toggleCollapse(node.account.id) : undefined}
             >
-              <td className="px-5 py-2.5 font-semibold text-[#191C1E]">
+              <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                 <div className="flex items-center gap-2">
                   {hasChildren ? (
-                    <span className="w-4 h-4 flex items-center justify-center text-[#8E9196] text-xs flex-shrink-0">
-                      {isCollapsed ? '▶' : '▼'}
+                    <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
+                      {isCollapsed ? '\u25B6' : '\u25BC'}
                     </span>
                   ) : (
                     <span className="w-4 flex-shrink-0" />
@@ -179,21 +179,21 @@ export default function ProfitLossPage() {
                   {node.account.account_code} - {node.account.name}
                 </div>
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                 {!hasChildren ? formatRM(node.account.balance) : ''}
               </td>
             </tr>
 
             {/* Child rows */}
-            {hasChildren && !isCollapsed && node.children.map((child) => (
-              <tr key={child.id} className="border-b border-gray-50 hover:bg-[#F2F4F6] transition-colors">
-                <td className="py-2.5 text-[#434654]">
+            {hasChildren && !isCollapsed && node.children.map((child, ci) => (
+              <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
+                <td className="py-2.5 text-[var(--text-secondary)]">
                   <div className="flex items-center gap-2 pl-11">
-                    <span className="w-3 h-3 flex items-center justify-center text-[#C4C7CC] text-[10px] flex-shrink-0">◻</span>
+                    <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                     {child.account_code} - {child.name}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                   {formatRM(child.balance)}
                 </td>
               </tr>
@@ -201,11 +201,11 @@ export default function ProfitLossPage() {
 
             {/* Total row */}
             {hasChildren && (
-              <tr className="border-b border-gray-200 bg-[#F7F9FB]">
-                <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+              <tr className="bg-[var(--surface-base)]">
+                <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                   <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                   {formatRM(node.totalAmount)}
                 </td>
               </tr>
@@ -215,9 +215,9 @@ export default function ProfitLossPage() {
       })}
 
       {/* Section total */}
-      <tr className={`border-b-2 border-gray-300 ${colorClass}`}>
-        <td className="px-5 py-3 font-bold text-sm">Total {title}</td>
-        <td className="px-3 py-3 text-right tabular-nums font-bold text-sm">
+      <tr className="bg-[var(--surface-header)]">
+        <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {title}</td>
+        <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
           {formatRM(sectionTotal)}
         </td>
       </tr>
@@ -225,15 +225,15 @@ export default function ProfitLossPage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="flex items-center justify-between px-6 py-4 flex-shrink-0">
-          <h1 className="text-[22px] font-bold text-[#191C1E] tracking-tight">Profit & Loss</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Profit & Loss</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 px-6 pb-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -254,7 +254,7 @@ export default function ProfitLossPage() {
                 {dateRange === 'custom' && (
                   <>
                     <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
-                    <span className="text-[#8E9196] text-sm">–</span>
+                    <span className="text-[var(--text-muted)] text-sm">--</span>
                     <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
                   </>
                 )}
@@ -263,38 +263,38 @@ export default function ProfitLossPage() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
+          <div className="flex-1 min-h-0 overflow-auto bg-white">
             {!firmFilter ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Select a firm to view Profit & Loss.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Select a firm to view Profit & Loss.</div>
             ) : loading ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Loading...</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Loading...</div>
             ) : !hasData ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">No revenue or expense accounts with activity found.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">No revenue or expense accounts with activity found.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="ds-table-header text-left">
-                    <th className="px-5 py-2.5">Account</th>
-                    <th className="px-3 py-2.5 text-right w-[180px]">Amount</th>
+                  <tr className="bg-[var(--surface-header)] text-left">
+                    <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
+                    <th className="px-3 py-2.5 text-right w-[180px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {renderSection('Revenue', revenue.nodes, revenue.sectionTotal, 'bg-green-50 text-green-800')}
+                  {renderSection('Revenue', revenue.nodes, revenue.sectionTotal)}
 
                   {/* Spacer */}
                   <tr><td colSpan={2} className="h-2" /></tr>
 
-                  {renderSection('Expenses', expense.nodes, expense.sectionTotal, 'bg-red-50 text-red-800')}
+                  {renderSection('Expenses', expense.nodes, expense.sectionTotal)}
 
                   {/* Spacer */}
                   <tr><td colSpan={2} className="h-2" /></tr>
 
                   {/* Net Profit / Loss */}
-                  <tr className={`${netProfit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                    <td className={`px-5 py-4 font-bold text-base ${netProfit >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                  <tr className={`${netProfit >= 0 ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}`}>
+                    <td className={`px-5 py-4 font-bold text-base ${netProfit >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {netProfit >= 0 ? 'Net Profit' : 'Net Loss'}
                     </td>
-                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${netProfit >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${netProfit >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {formatRM(netProfit)}
                     </td>
                   </tr>

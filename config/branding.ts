@@ -16,40 +16,55 @@ export const brand = {
   sidebarLogo: '/Fortura logo icon.svg',
   logoAlt: 'Fortura Business Advisory',
 
-  // ── Brand Colors ──────────────────────────────────────────────────────────
+  // ── Brand Colors (The Precision Ledger) ───────────────────────────────────
   colors: {
-    // Primary action (CTA buttons, active states, links)
-    primary: '#234C77',             // Dark navy
-    primaryContainer: '#7AAED9',    // Light blue (gradient end)
+    // Primary action (CTA buttons, headings, sidebar accent)
+    primary: '#234B6E',
+    primaryContainer: '#1A3D5C',    // Slightly darker blue for gradients/borders
 
     // Sidebar / Navigation anchor
-    sidebar: '#1A3A5C',             // Navy sidebar
+    sidebar: '#F7F9FB',             // Light sidebar with thick navy border
 
-    // Surfaces (tonal layering — no borders, use bg shifts)
-    surfaceBase: '#F0F2F5',         // Level 0: page background
-    surfaceLow: '#E8ECF0',          // Level 1: sections
-    surfaceCard: '#FFFFFF',         // Level 2: cards
-    surfaceHeader: '#DDE3E9',       // Table headers, elevated sections
+    // Surfaces (tonal layering — archival paper stacking)
+    surfaceBase: '#F7F9FB',         // Level 0: page canvas
+    surfaceLow: '#F2F4F6',          // Level 1: secondary sections
+    surfaceCard: '#FFFFFF',         // Level 2: cards, elevated modules
+    surfaceHeader: '#E6E8EA',       // Table headers, emphasis layers
+    surfaceHighest: '#E0E3E5',      // Highest emphasis
 
-    // Text hierarchy
-    textPrimary: '#1E3A5F',         // Main text — navy tint
-    textSecondary: '#4A5B6D',       // Labels, metadata
+    // Text hierarchy (deep navy tones — never pure black)
+    textPrimary: '#191C1E',         // Main text (on-surface)
+    textSecondary: '#444650',       // Labels, metadata (on-surface-variant)
     textMuted: '#7A8A9A',           // Placeholder, disabled
 
     // Borders (ghost borders only — 15% opacity)
-    outline: '#B8C4D0',
+    outline: '#C5C6D2',
 
-    // Status: Warning / Pending (amber spectrum — use sparingly)
+    // Status: Match / Approve (green)
+    matchGreen: '#0A9981',
+    matchGreenDark: '#066656',
+
+    // Status: Reject / Error (red)
+    rejectRed: '#F23545',
+    rejectRedDark: '#A81C28',
+
+    // Status: Warning / Pending (amber spectrum)
     warningBg: '#805000',
     warningText: '#2A1700',
     warningAccent: '#FFB95F',
     warningMuted: '#603B00',
 
-    // Status: Success
+    // Status badges
+    errorContainer: '#FFDAD6',
+    onErrorContainer: '#93000A',
+    secondaryContainer: '#D6E0F1',
+    onSecondaryContainer: '#596372',
+
+    // Status: Success (legacy compat)
     successBg: '#E8F5E9',
     successText: '#1B5E20',
 
-    // Status: Error
+    // Status: Error (legacy compat)
     errorBg: '#FFEBEE',
     errorText: '#B71C1C',
   },
@@ -88,14 +103,15 @@ export function getBrandCssVars(): Record<string, string> {
     // Sidebar
     '--sidebar': c.sidebar,
     '--sidebar-rgb': hexToRgb(c.sidebar),
-    '--surface-dark': c.sidebar,
-    '--surface-dark-rgb': hexToRgb(c.sidebar),
+    '--surface-dark': c.primary,          // Modal headers use primary
+    '--surface-dark-rgb': hexToRgb(c.primary),
 
     // Surfaces
     '--surface-base': c.surfaceBase,
     '--surface-low': c.surfaceLow,
     '--surface-card': c.surfaceCard,
     '--surface-header': c.surfaceHeader,
+    '--surface-highest': c.surfaceHighest,
 
     // Text
     '--text-primary': c.textPrimary,
@@ -105,6 +121,12 @@ export function getBrandCssVars(): Record<string, string> {
     // Outline
     '--outline': c.outline,
     '--outline-ghost': `${c.outline}26`,  // 15% opacity
+
+    // Semantic colors
+    '--match-green': c.matchGreen,
+    '--match-green-dark': c.matchGreenDark,
+    '--reject-red': c.rejectRed,
+    '--reject-red-dark': c.rejectRedDark,
 
     // Legacy aliases
     '--surface': c.surfaceCard,

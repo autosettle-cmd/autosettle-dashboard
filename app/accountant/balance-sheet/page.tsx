@@ -129,8 +129,8 @@ export default function BalanceSheetPage() {
 
   // Load GL data
   // Balance Sheet = always cumulative. When a period is selected:
-  //   1. Cumulative fetch (dateTo = period end) → for BS account balances
-  //   2. Period-only fetch (periodId) → for current period Revenue/Expense
+  //   1. Cumulative fetch (dateTo = period end) -> for BS account balances
+  //   2. Period-only fetch (periodId) -> for current period Revenue/Expense
   // Dynamic retained earnings = cumulative net income - current period net income
   useEffect(() => {
     if (!firmsLoaded) return;
@@ -139,7 +139,7 @@ export default function BalanceSheetPage() {
 
     const selectedPeriod = periodOptions.find(p => p.id === periodFilter);
 
-    // Cumulative fetch — always from beginning of time
+    // Cumulative fetch -- always from beginning of time
     const cumParams = new URLSearchParams({ firmId: firmFilter });
     if (selectedPeriod) {
       cumParams.set('dateTo', selectedPeriod.endDate);
@@ -149,7 +149,7 @@ export default function BalanceSheetPage() {
 
     const cumFetch = fetch(`/api/general-ledger?${cumParams}`).then(r => r.json());
 
-    // Period-only fetch — only when a period is selected
+    // Period-only fetch -- only when a period is selected
     let periodFetch: Promise<{ data?: { accounts?: GLAccountRow[] } }> | null = null;
     if (periodFilter) {
       const periodParams = new URLSearchParams({ firmId: firmFilter, periodId: periodFilter });
@@ -193,26 +193,26 @@ export default function BalanceSheetPage() {
   const hasData = assets.nodes.length > 0 || liabilities.nodes.length > 0 || equity.nodes.length > 0
     || Math.abs(cumulativeNetIncome) > 0.01;
 
-  const renderSection = (title: string, nodes: AccountNode[], sectionTotal: number, colorClass: string) => (
+  const renderSection = (title: string, nodes: AccountNode[], sectionTotal: number) => (
     <>
-      <tr className="bg-[#F7F9FB]">
-        <td colSpan={2} className="px-5 py-3 font-bold text-[#191C1E] text-sm">{title}</td>
+      <tr className="bg-[var(--surface-base)]">
+        <td colSpan={2} className="px-5 py-3 font-bold text-[var(--text-primary)] text-sm">{title}</td>
       </tr>
 
-      {nodes.map((node) => {
+      {nodes.map((node, nodeIdx) => {
         const isCollapsed = collapsed.has(node.account.id);
         const hasChildren = node.children.length > 0;
         return (
           <React.Fragment key={node.account.id}>
             <tr
-              className="border-b border-gray-100 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+              className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
               onClick={() => hasChildren ? toggleCollapse(node.account.id) : undefined}
             >
-              <td className="px-5 py-2.5 font-semibold text-[#191C1E]">
+              <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                 <div className="flex items-center gap-2">
                   {hasChildren ? (
-                    <span className="w-4 h-4 flex items-center justify-center text-[#8E9196] text-xs flex-shrink-0">
-                      {isCollapsed ? '▶' : '▼'}
+                    <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
+                      {isCollapsed ? '\u25B6' : '\u25BC'}
                     </span>
                   ) : (
                     <span className="w-4 flex-shrink-0" />
@@ -220,31 +220,31 @@ export default function BalanceSheetPage() {
                   {node.account.account_code} - {node.account.name}
                 </div>
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                 {!hasChildren ? formatRM(node.account.balance) : ''}
               </td>
             </tr>
 
-            {hasChildren && !isCollapsed && node.children.map((child) => (
-              <tr key={child.id} className="border-b border-gray-50 hover:bg-[#F2F4F6] transition-colors">
-                <td className="py-2.5 text-[#434654]">
+            {hasChildren && !isCollapsed && node.children.map((child, ci) => (
+              <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
+                <td className="py-2.5 text-[var(--text-secondary)]">
                   <div className="flex items-center gap-2 pl-11">
-                    <span className="w-3 h-3 flex items-center justify-center text-[#C4C7CC] text-[10px] flex-shrink-0">◻</span>
+                    <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                     {child.account_code} - {child.name}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                   {formatRM(child.balance)}
                 </td>
               </tr>
             ))}
 
             {hasChildren && (
-              <tr className="border-b border-gray-200 bg-[#F7F9FB]">
-                <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+              <tr className="bg-[var(--surface-base)]">
+                <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                   <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                   {formatRM(node.totalAmount)}
                 </td>
               </tr>
@@ -253,9 +253,9 @@ export default function BalanceSheetPage() {
         );
       })}
 
-      <tr className={`border-b-2 border-gray-300 ${colorClass}`}>
-        <td className="px-5 py-3 font-bold text-sm">Total {title}</td>
-        <td className="px-3 py-3 text-right tabular-nums font-bold text-sm">
+      <tr className="bg-[var(--surface-header)]">
+        <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {title}</td>
+        <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
           {formatRM(sectionTotal)}
         </td>
       </tr>
@@ -263,15 +263,15 @@ export default function BalanceSheetPage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="flex items-center justify-between px-6 py-4 flex-shrink-0">
-          <h1 className="text-[22px] font-bold text-[#191C1E] tracking-tight">Balance Sheet</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Balance Sheet</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 px-6 pb-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -283,7 +283,7 @@ export default function BalanceSheetPage() {
             )}
             {!periodFilter && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-[#8E9196]">As of:</span>
+                <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">As of:</span>
                 <input
                   type="date"
                   value={asOfDate}
@@ -295,49 +295,49 @@ export default function BalanceSheetPage() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
+          <div className="flex-1 min-h-0 overflow-auto bg-white">
             {!firmFilter ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Select a firm to view the Balance Sheet.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Select a firm to view the Balance Sheet.</div>
             ) : loading ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Loading...</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Loading...</div>
             ) : !hasData ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">No accounts with activity found.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">No accounts with activity found.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="ds-table-header text-left">
-                    <th className="px-5 py-2.5">Account</th>
-                    <th className="px-3 py-2.5 text-right w-[180px]">Amount</th>
+                  <tr className="bg-[var(--surface-header)] text-left">
+                    <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
+                    <th className="px-3 py-2.5 text-right w-[180px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {renderSection('Assets', assets.nodes, assets.sectionTotal, 'bg-blue-50 text-blue-800')}
+                  {renderSection('Assets', assets.nodes, assets.sectionTotal)}
 
                   <tr><td colSpan={2} className="h-2" /></tr>
 
-                  {renderSection('Liabilities', liabilities.nodes, liabilities.sectionTotal, 'bg-amber-50 text-amber-800')}
+                  {renderSection('Liabilities', liabilities.nodes, liabilities.sectionTotal)}
 
                   <tr><td colSpan={2} className="h-2" /></tr>
 
                   {/* ── Equity section (custom rendering for dynamic retained earnings) ── */}
-                  <tr className="bg-[#F7F9FB]">
-                    <td colSpan={2} className="px-5 py-3 font-bold text-[#191C1E] text-sm">Equity</td>
+                  <tr className="bg-[var(--surface-base)]">
+                    <td colSpan={2} className="px-5 py-3 font-bold text-[var(--text-primary)] text-sm">Equity</td>
                   </tr>
 
-                  {equity.nodes.map((node) => {
+                  {equity.nodes.map((node, nodeIdx) => {
                     const isCollapsedNode = collapsed.has(node.account.id);
                     const hasChildNodes = node.children.length > 0;
                     return (
                       <React.Fragment key={node.account.id}>
                         <tr
-                          className="border-b border-gray-100 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                          className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
                           onClick={() => hasChildNodes ? toggleCollapse(node.account.id) : undefined}
                         >
-                          <td className="px-5 py-2.5 font-semibold text-[#191C1E]">
+                          <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                             <div className="flex items-center gap-2">
                               {hasChildNodes ? (
-                                <span className="w-4 h-4 flex items-center justify-center text-[#8E9196] text-xs flex-shrink-0">
-                                  {isCollapsedNode ? '▶' : '▼'}
+                                <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
+                                  {isCollapsedNode ? '\u25B6' : '\u25BC'}
                                 </span>
                               ) : (
                                 <span className="w-4 flex-shrink-0" />
@@ -345,29 +345,29 @@ export default function BalanceSheetPage() {
                               {node.account.account_code} - {node.account.name}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                             {!hasChildNodes ? formatRM(node.account.balance) : ''}
                           </td>
                         </tr>
-                        {hasChildNodes && !isCollapsedNode && node.children.map((child) => (
-                          <tr key={child.id} className="border-b border-gray-50 hover:bg-[#F2F4F6] transition-colors">
-                            <td className="py-2.5 text-[#434654]">
+                        {hasChildNodes && !isCollapsedNode && node.children.map((child, ci) => (
+                          <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
+                            <td className="py-2.5 text-[var(--text-secondary)]">
                               <div className="flex items-center gap-2 pl-11">
-                                <span className="w-3 h-3 flex items-center justify-center text-[#C4C7CC] text-[10px] flex-shrink-0">◻</span>
+                                <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                                 {child.account_code} - {child.name}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                               {formatRM(child.balance)}
                             </td>
                           </tr>
                         ))}
                         {hasChildNodes && (
-                          <tr className="border-b border-gray-200 bg-[#F7F9FB]">
-                            <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+                          <tr className="bg-[var(--surface-base)]">
+                            <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                               <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {formatRM(node.totalAmount)}
                             </td>
                           </tr>
@@ -378,22 +378,22 @@ export default function BalanceSheetPage() {
 
                   {/* Dynamic Retained Earnings (prior period P&L not yet closed) */}
                   {Math.abs(dynamicRetainedEarnings) > 0.01 && (
-                    <tr className="border-b border-gray-100">
-                      <td className="px-5 py-2.5 font-semibold text-[#191C1E] italic">
+                    <tr className="bg-white">
+                      <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)] italic">
                         <div className="flex items-center gap-2">
                           <span className="w-4 flex-shrink-0" />
                           Retained Earnings (Prior Periods)
                         </div>
                       </td>
-                      <td className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${dynamicRetainedEarnings < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                      <td className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${dynamicRetainedEarnings < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                         {formatRM(dynamicRetainedEarnings)}
                       </td>
                     </tr>
                   )}
 
                   {/* Current Period Net Income */}
-                  <tr className="border-b border-gray-100">
-                    <td className="px-5 py-2.5 font-semibold text-[#191C1E] italic">
+                  <tr className="bg-[var(--surface-low)]">
+                    <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)] italic">
                       <div className="flex items-center gap-2">
                         <span className="w-4 flex-shrink-0" />
                         {currentPeriodNetIncome >= 0
@@ -402,15 +402,15 @@ export default function BalanceSheetPage() {
                         }
                       </div>
                     </td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${currentPeriodNetIncome < 0 ? 'text-red-600' : 'text-[#191C1E]'}`}>
+                    <td className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${currentPeriodNetIncome < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                       {formatRM(currentPeriodNetIncome)}
                     </td>
                   </tr>
 
                   {/* Equity total */}
-                  <tr className="border-b-2 border-gray-300 bg-purple-50 text-purple-800">
-                    <td className="px-5 py-3 font-bold text-sm">Total Equity</td>
-                    <td className="px-3 py-3 text-right tabular-nums font-bold text-sm">
+                  <tr className="bg-[var(--surface-header)]">
+                    <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total Equity</td>
+                    <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                       {formatRM(totalEquityWithNetIncome)}
                     </td>
                   </tr>
@@ -418,20 +418,20 @@ export default function BalanceSheetPage() {
                   <tr><td colSpan={2} className="h-2" /></tr>
 
                   {/* Liabilities + Equity total */}
-                  <tr className="bg-[#F0F1F3]">
-                    <td className="px-5 py-3 font-bold text-sm text-[#191C1E]">Total Liabilities + Equity</td>
-                    <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[#191C1E]">
+                  <tr className="bg-[var(--surface-header)]">
+                    <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total Liabilities + Equity</td>
+                    <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                       {formatRM(totalLiabilitiesEquity)}
                     </td>
                   </tr>
 
                   {/* Balance check */}
-                  <tr className={isBalanced ? 'bg-green-100' : 'bg-red-100'}>
-                    <td className={`px-5 py-3 font-bold text-sm ${isBalanced ? 'text-green-800' : 'text-red-800'}`}>
+                  <tr className={isBalanced ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}>
+                    <td className={`px-5 py-3 font-bold text-sm ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {isBalanced ? 'Balanced' : 'Out of balance by'}
                     </td>
-                    <td className={`px-3 py-3 text-right tabular-nums font-bold text-sm ${isBalanced ? 'text-green-800' : 'text-red-800'}`}>
-                      {isBalanced ? '✓' : formatRM(Math.abs(difference))}
+                    <td className={`px-3 py-3 text-right tabular-nums font-bold text-sm ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                      {isBalanced ? '\u2713' : formatRM(Math.abs(difference))}
                     </td>
                   </tr>
                 </tbody>

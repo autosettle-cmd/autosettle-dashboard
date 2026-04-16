@@ -3,33 +3,91 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DESIGN SYSTEM: Editorial Financial Intelligence
+   DESIGN SYSTEM: The Precision Ledger
    ═══════════════════════════════════════════════════════════════════════════
-   Philosophy: Tonal layering, no-line rule, editorial typography.
+   Philosophy: Tonal layering, no-line rule, punchy 3D buttons, sharp corners,
+   editorial typography, archival paper texture.
    All tokens cascade from config/branding.ts → BrandingStyles → CSS vars.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ─── Design System Variables ──────────────────────────────────────────────── */
 /* Brand colors (--primary, --sidebar, surfaces) injected by BrandingStyles */
 :root {
-  /* Sidebar interaction states */
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active: rgba(255, 255, 255, 0.1);
+  /* Sidebar interaction states (light sidebar) */
+  --sidebar-hover: #ECEEF0;
+  --sidebar-active: #E6E8EA;
 
   /* Approval action colors */
-  --approve: #2F6F3E;
-  --approve-hover: #256332;
-  --reject: #8B1E24;
-  --reject-hover: #741A1F;
+  --approve: var(--match-green, #0A9981);
+  --approve-dark: var(--match-green-dark, #066656);
+  --reject: var(--reject-red, #F23545);
+  --reject-dark: var(--reject-red-dark, #A81C28);
+
+  /* Legacy compat */
+  --approve-hover: var(--approve-dark);
+  --reject-hover: var(--reject-dark);
 }
 
 /* ─── Base ─────────────────────────────────────────────────────────────────── */
 body {
-  font-family: var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-lato), 'Lato', var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--text-primary);
   background: var(--surface-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIGNATURE VISUAL EFFECTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Paper dot-grid texture for content areas */
+.paper-texture {
+  background-color: var(--surface-base, #F7F9FB);
+  background-image: radial-gradient(#e0e3e5 0.5px, transparent 0.5px);
+  background-size: 24px 24px;
+}
+
+/* Ledger binding / book spine effect on main content */
+.ledger-binding {
+  position: relative;
+}
+.ledger-binding::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  background: linear-gradient(to right,
+    rgba(0,0,0,0.12) 0%,
+    rgba(0,0,0,0.06) 15%,
+    rgba(0,0,0,0.02) 40%,
+    transparent 100%);
+  box-shadow: inset 12px 0 15px -10px rgba(0,0,0,0.15);
+  z-index: 30;
+}
+
+/* Card-popped: directional light/shadow borders for tactile depth */
+.card-popped {
+  border-top: 1px solid rgba(255, 255, 255, 0.8);
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+  border-right: 2px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 2px 2px 4px rgba(0,0,0,0.03);
+}
+
+/* Inset shadow for engraved badges */
+.inset-shadow {
+  box-shadow: inset 1px 1px 3px rgba(0,0,0,0.05);
+}
+
+/* ─── Punchy Button Hover Animation ────────────────────────────────────────── */
+@keyframes btn-jiggle {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-0.5px) rotate(-0.2deg); }
+  75% { transform: translateX(0.5px) rotate(0.2deg); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -38,158 +96,189 @@ body {
 
 @layer components {
 
-  /* ─── Buttons ────────────────────────────────────────────────────────────── */
+  /* ─── Thick 3D Buttons (Signature Element) ──────────────────────────────── */
 
-  /* Primary: gradient from --primary to --primary-container */
-  .btn-primary {
-    @apply inline-flex items-center justify-center font-semibold text-white
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
-    padding: 12px 24px;
+  /* Primary: steel blue CTA */
+  .btn-thick-navy {
+    @apply inline-flex items-center justify-center font-bold text-white
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #234B6E;
+    border-bottom: 5px solid #1A3D5C;
+    border-right: 2px solid #1A3D5C;
+    border-left: 1px solid rgba(255,255,255,0.25);
+    border-top: 1px solid rgba(255,255,255,0.25);
+    transition: all 0.1s ease;
     font-size: 0.75rem;
-    font-weight: 700;
     letter-spacing: 0.04em;
-    border-radius: 0.375rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+    text-transform: uppercase;
   }
-  .btn-primary:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
+  .btn-thick-navy:hover:not(:disabled) {
+    animation: btn-jiggle 0.3s ease;
   }
-  .btn-primary:active:not(:disabled) {
-    transform: translateY(0);
-    filter: brightness(0.95);
+  .btn-thick-navy:active:not(:disabled) {
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    transform: translateY(4px);
+    animation: none;
   }
 
-  /* Secondary: ghost / outlined */
-  .btn-secondary {
-    @apply inline-flex items-center justify-center font-medium
-           transition-all duration-200;
-    padding: 12px 24px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    border-radius: 0.375rem;
+  /* White: secondary actions */
+  .btn-thick-white {
+    @apply inline-flex items-center justify-center font-bold
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #ffffff;
     color: var(--text-primary);
-    background: var(--surface-card);
-    border: 1px solid var(--outline-ghost);
-  }
-  .btn-secondary:hover {
-    background: var(--surface-low);
-  }
-
-  /* Dark: sidebar-toned button */
-  .btn-dark {
-    @apply inline-flex items-center justify-center font-semibold text-white
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
-    padding: 12px 24px;
+    border-bottom: 5px solid #d1d5db;
+    border-right: 2px solid #d1d5db;
+    border-left: 1px solid #f3f4f6;
+    border-top: 1px solid #f3f4f6;
+    transition: all 0.1s ease;
     font-size: 0.75rem;
-    font-weight: 700;
     letter-spacing: 0.04em;
-    border-radius: 0.375rem;
-    background: linear-gradient(135deg, var(--sidebar) 0%, #1E2A3A 100%);
+    text-transform: uppercase;
   }
-  .btn-dark:hover:not(:disabled) {
-    filter: brightness(1.15);
-    transform: translateY(-1px);
+  .btn-thick-white:hover:not(:disabled) {
+    animation: btn-jiggle 0.3s ease;
   }
-  .btn-dark:active:not(:disabled) {
-    transform: translateY(0);
-    filter: brightness(0.95);
+  .btn-thick-white:active:not(:disabled) {
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    transform: translateY(4px);
+    animation: none;
   }
 
-  /* Blue: accent blue button (same as primary) */
+  /* Green: approve/confirm actions */
+  .btn-thick-green {
+    @apply inline-flex items-center justify-center font-bold text-white
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #0A9981;
+    border-bottom: 5px solid #066656;
+    border-right: 2px solid #066656;
+    border-left: 1px solid rgba(255,255,255,0.2);
+    border-top: 1px solid rgba(255,255,255,0.2);
+    transition: all 0.1s ease;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .btn-thick-green:hover:not(:disabled) {
+    animation: btn-jiggle 0.3s ease;
+  }
+  .btn-thick-green:active:not(:disabled) {
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    transform: translateY(4px);
+    animation: none;
+  }
+
+  /* Red: reject/delete actions */
+  .btn-thick-red {
+    @apply inline-flex items-center justify-center font-bold text-white
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #F23545;
+    border-bottom: 5px solid #A81C28;
+    border-right: 2px solid #A81C28;
+    border-left: 1px solid rgba(255,255,255,0.2);
+    border-top: 1px solid rgba(255,255,255,0.2);
+    transition: all 0.1s ease;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .btn-thick-red:hover:not(:disabled) {
+    animation: btn-jiggle 0.3s ease;
+  }
+  .btn-thick-red:active:not(:disabled) {
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    transform: translateY(4px);
+    animation: none;
+  }
+
+  /* Sidebar nav: lighter blue on dark blue bg */
+  .btn-thick-sidebar {
+    @apply inline-flex items-center justify-center font-bold text-white
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: #2E6999;
+    border-bottom: 4px solid #1F5280;
+    border-right: 2px solid #1F5280;
+    border-left: 1px solid rgba(255,255,255,0.15);
+    border-top: 1px solid rgba(255,255,255,0.15);
+    transition: all 0.1s ease;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .btn-thick-sidebar:hover {
+    background-color: #3878AD;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.15);
+  }
+  .btn-thick-sidebar:hover {
+    animation: btn-jiggle 0.3s ease;
+  }
+  .btn-thick-sidebar:active:not(:disabled) {
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    transform: translateY(3px);
+    animation: none;
+  }
+
+  /* ─── Legacy Button Aliases (map old classes → thick style) ─────────────── */
+
+  .btn-primary {
+    @apply btn-thick-navy;
+    padding: 12px 24px;
+  }
+
   .btn-blue {
-    @apply inline-flex items-center justify-center font-semibold text-white
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply btn-thick-navy;
     padding: 12px 24px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    border-radius: 0.375rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-  }
-  .btn-blue:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-  }
-  .btn-blue:active:not(:disabled) {
-    transform: translateY(0);
-    filter: brightness(0.95);
   }
 
-  /* Danger: destructive actions (unmatch, delete, reject) */
+  .btn-dark {
+    @apply btn-thick-navy;
+    padding: 12px 24px;
+  }
+
+  .btn-secondary {
+    @apply btn-thick-white;
+    padding: 12px 24px;
+  }
+
   .btn-danger {
-    @apply inline-flex items-center justify-center font-semibold text-white
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply btn-thick-red;
     padding: 12px 24px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    border-radius: 0.375rem;
-    background: linear-gradient(135deg, #B71C1C 0%, #D32F2F 100%);
-  }
-  .btn-danger:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-  }
-  .btn-danger:active:not(:disabled) {
-    transform: translateY(0);
-    filter: brightness(0.95);
   }
 
-  /* Approve: green action button */
   .btn-approve {
-    @apply inline-flex items-center justify-center font-semibold text-white
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply btn-thick-green;
     padding: 12px 24px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    border-radius: 0.375rem;
-    background: linear-gradient(135deg, var(--approve) 0%, var(--approve-hover) 100%);
-  }
-  .btn-approve:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-  }
-  .btn-approve:active:not(:disabled) {
-    transform: translateY(0);
-    filter: brightness(0.95);
   }
 
-  /* Reject: red action button */
   .btn-reject {
-    @apply inline-flex items-center justify-center font-semibold text-white
-           transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply btn-thick-red;
     padding: 12px 24px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    border-radius: 0.375rem;
-    background: linear-gradient(135deg, var(--reject) 0%, var(--reject-hover) 100%);
-  }
-  .btn-reject:hover:not(:disabled) {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-  }
-  .btn-reject:active:not(:disabled) {
-    transform: translateY(0);
-    filter: brightness(0.95);
   }
 
   /* ─── Form Inputs ───────────────────────────────────────────────────────── */
 
   .input-field {
     @apply text-sm bg-white placeholder-gray-400
-           focus:outline-none transition-all duration-150;
+           focus:outline-none transition-all duration-100;
     padding: 8px 12px;
-    border-radius: 0.375rem;
     color: var(--text-primary);
-    border: 1px solid var(--outline-ghost);
+    border-bottom: 3px solid #d1d5db;
+    border-right: 2px solid #d1d5db;
+    border-left: 1px solid #f3f4f6;
+    border-top: 1px solid #f3f4f6;
+  }
+  .input-field:hover {
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.06);
   }
   .input-field:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+    border-bottom-color: var(--primary);
+    border-right-color: var(--primary);
+    box-shadow: 2px 2px 6px rgba(var(--primary-rgb), 0.12);
   }
 
   .input-label {
@@ -200,24 +289,27 @@ body {
     text-transform: uppercase;
     color: var(--text-secondary);
     margin-bottom: 6px;
+    font-family: var(--font-lato), 'Lato', var(--font-inter), 'Inter', sans-serif;
   }
 
-  /* ─── Cards (tonal layering — no borders, no drop shadows) ──────────────── */
+  /* ─── Cards (tonal layering + card-popped borders) ─────────────────────── */
 
   .ds-card {
     background: var(--surface-card);
-    border-radius: 0.5rem;
     padding: 24px;
-    /* No border, no shadow — elevation via tonal shift against --surface-base */
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+    border-left: 1px solid rgba(255, 255, 255, 0.8);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+    border-right: 2px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 2px 2px 4px rgba(0,0,0,0.03);
   }
 
   .ds-card-section {
     background: var(--surface-low);
-    border-radius: 0.5rem;
     padding: 24px;
   }
 
-  /* ─── Tables (no dividers, hover row separation) ────────────────────────── */
+  /* ─── Tables (no dividers, tonal row separation) ────────────────────────── */
 
   .ds-table-header {
     background: var(--surface-header);
@@ -226,6 +318,7 @@ body {
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text-secondary);
+    font-family: var(--font-lato), 'Lato', var(--font-inter), 'Inter', sans-serif;
   }
 
   .ds-table-row {
@@ -235,45 +328,47 @@ body {
     background: var(--surface-low);
   }
 
-  /* ─── Status Chips (full-round, high contrast) ──────────────────────────── */
+  /* ─── Status Chips (sharp corners, inset shadow, engraved) ─────────────── */
 
   .chip {
     @apply inline-flex items-center leading-tight;
     padding: 4px 12px;
-    font-size: 0.6875rem;
+    font-size: 0.625rem;
     font-weight: 700;
     letter-spacing: 0.05em;
-    border-radius: 9999px;
+    text-transform: uppercase;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.05);
   }
 
   .chip-pending {
-    background: #FFF3E0;
-    color: #E65100;
+    background: #E0E3E5;
+    color: #444650;
   }
 
   .chip-success {
-    background: #E8F5E9;
-    color: #1B5E20;
+    background: #D6E0F1;
+    color: #596372;
   }
 
   .chip-error {
-    background: #FFEBEE;
-    color: #B71C1C;
+    background: #FFDAD6;
+    color: #93000A;
   }
 
   .chip-neutral {
     background: #E6E8EA;
-    color: #434654;
+    color: #444650;
   }
 
-  /* ─── Badges (backward compatible — existing pages still use these) ─────── */
+  /* ─── Badges (sharp corners, inset shadow) ──────────────────────────────── */
 
   .badge {
     @apply inline-flex items-center leading-tight tracking-wide;
     padding: 2px 8px;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    border-radius: 9999px;
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.05);
   }
 
   .badge-amber {
@@ -284,7 +379,7 @@ body {
 
   .badge-blue {
     @apply badge;
-    background: #E3F2FD;
+    background: #D6E0F1;
     color: var(--primary);
   }
 
@@ -296,8 +391,8 @@ body {
 
   .badge-red {
     @apply badge;
-    background: #FFEBEE;
-    color: #B71C1C;
+    background: #FFDAD6;
+    color: #93000A;
   }
 
   .badge-gray {
@@ -316,12 +411,11 @@ body {
 
   .ds-modal {
     background: var(--surface-card);
-    border-radius: 0.5rem;
-    box-shadow: 0 2px 24px rgba(25, 28, 30, 0.06);
+    box-shadow: 0px 24px 48px rgba(26, 50, 87, 0.08);
   }
 
   .ds-overlay {
-    background: rgba(25, 28, 30, 0.4);
+    background: rgba(7, 14, 27, 0.4);
     backdrop-filter: blur(2px);
   }
 }
@@ -432,7 +526,7 @@ body {
   --ag-row-border-color: var(--outline-ghost);
   --ag-odd-row-background-color: var(--surface-card);
   --ag-row-hover-color: var(--surface-low);
-  --ag-selected-row-background-color: #E3F2FD;
+  --ag-selected-row-background-color: #D6E0F1;
   --ag-range-selection-background-color: rgba(var(--primary-rgb), 0.08);
   --ag-checkbox-checked-color: var(--primary);
   --ag-checkbox-unchecked-color: #D1D5DB;
@@ -511,5 +605,6 @@ body {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .tabular-nums {
+  font-family: var(--font-lato), 'Lato', var(--font-inter), 'Inter', sans-serif;
   font-variant-numeric: tabular-nums;
 }

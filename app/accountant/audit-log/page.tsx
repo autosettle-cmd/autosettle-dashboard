@@ -42,8 +42,13 @@ const TABLE_OPTIONS = ['Claim', 'Invoice', 'Payment', 'GLAccount', 'FiscalYear',
 
 function formatTimestamp(iso: string) {
   const d = new Date(iso);
-  return d.toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })
-    + ' ' + d.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const date = [
+    d.getFullYear(),
+    (d.getMonth() + 1).toString().padStart(2, '0'),
+    d.getDate().toString().padStart(2, '0'),
+  ].join('.');
+  const time = d.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return `${date} ${time}`;
 }
 
 function formatValue(val: unknown): string {
@@ -100,15 +105,15 @@ export default function AuditLogPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F5F6F8]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white border-b border-gray-100">
-          <h1 className="text-gray-900 font-bold text-[17px] tracking-tight">Audit Log</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Audit Log</h1>
         </header>
 
-        <main className="flex-1 overflow-auto p-6 space-y-6 animate-in">
+        <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture ledger-binding animate-in">
           {/* Filter bar */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             <select value={tableFilter} onChange={(e) => setTableFilter(e.target.value)} className="input-field">
@@ -117,67 +122,67 @@ export default function AuditLogPage() {
             </select>
 
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="input-field" />
-            <span className="text-gray-400 text-sm">—</span>
+            <span className="text-[var(--text-secondary)] text-sm">—</span>
             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="input-field" />
           </div>
 
           {!firmId ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Select a firm to view audit logs.</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Select a firm to view audit logs.</div>
           ) : loading ? (
-            <div className="px-6 py-12 text-center text-sm text-[#8E9196]">Loading...</div>
+            <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
           ) : logs.length === 0 ? (
-            <div className="bg-white rounded-lg p-12 text-center">
-              <h3 className="text-base font-semibold text-[#191C1E] mb-1">No Audit Entries</h3>
-              <p className="text-sm text-[#8E9196]">No audit events recorded yet for this firm.</p>
+            <div className="bg-white p-12 text-center">
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-1">No Audit Entries</h3>
+              <p className="text-sm text-[var(--text-secondary)]">No audit events recorded yet for this firm.</p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-5 py-2.5">Timestamp</th>
-                      <th className="px-3 py-2.5">User</th>
-                      <th className="px-3 py-2.5 w-[80px]">Action</th>
-                      <th className="px-3 py-2.5">Table</th>
-                      <th className="px-3 py-2.5">Record</th>
-                      <th className="px-3 py-2.5">Changes</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Timestamp</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">User</th>
+                      <th className="px-3 py-2.5 w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Action</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Table</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Record</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Changes</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {logs.map((log) => (
+                    {logs.map((log, i) => (
                       <>
                         <tr
                           key={log.id}
-                          className="text-body-sm hover:bg-[#F2F4F6] transition-colors border-b border-gray-50 cursor-pointer"
+                          className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                         >
-                          <td className="px-5 py-3 text-[#434654] tabular-nums text-xs">{formatTimestamp(log.timestamp)}</td>
-                          <td className="px-3 py-3 text-[#191C1E] font-medium">{log.user_name ?? '—'}</td>
+                          <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums text-xs">{formatTimestamp(log.timestamp)}</td>
+                          <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{log.user_name ?? '—'}</td>
                           <td className="px-3 py-3">
                             <span className={ACTION_BADGES[log.action] ?? 'badge-gray'}>{log.action}</span>
                           </td>
-                          <td className="px-3 py-3 text-[#434654]">{TABLE_LABELS[log.table_name] ?? log.table_name}</td>
-                          <td className="px-3 py-3 text-[#8E9196] font-mono text-xs">{log.record_id.slice(0, 8)}...</td>
-                          <td className="px-3 py-3 text-[#8E9196] text-xs">
+                          <td className="px-3 py-3 text-[var(--text-secondary)]">{TABLE_LABELS[log.table_name] ?? log.table_name}</td>
+                          <td className="px-3 py-3 text-[var(--text-secondary)] font-mono text-xs">{log.record_id.slice(0, 8)}...</td>
+                          <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">
                             {log.changed_fields ? log.changed_fields.join(', ') : '—'}
                           </td>
                         </tr>
 
                         {/* Expanded diff row */}
                         {expandedId === log.id && (log.old_values || log.new_values) && (
-                          <tr key={`${log.id}-diff`} className="border-b border-gray-50">
-                            <td colSpan={6} className="px-5 py-3 bg-[#F9FAFB]">
+                          <tr key={`${log.id}-diff`}>
+                            <td colSpan={6} className="px-5 py-3 bg-[var(--surface-low)]">
                               <div className="space-y-1.5">
                                 {(log.changed_fields ?? Object.keys(log.new_values ?? log.old_values ?? {})).map((field) => (
                                   <div key={field} className="flex items-center gap-3 text-xs">
-                                    <span className="font-mono font-semibold text-[#434654] w-[140px] flex-shrink-0">{field}</span>
+                                    <span className="font-mono font-semibold text-[var(--text-secondary)] w-[140px] flex-shrink-0">{field}</span>
                                     {log.old_values && field in log.old_values && (
-                                      <span className="text-red-500 line-through">{formatValue(log.old_values[field])}</span>
+                                      <span className="text-[var(--reject-red)] line-through">{formatValue(log.old_values[field])}</span>
                                     )}
-                                    {log.old_values && log.new_values && <span className="text-[#8E9196]">→</span>}
+                                    {log.old_values && log.new_values && <span className="text-[var(--text-secondary)]">→</span>}
                                     {log.new_values && field in log.new_values && (
-                                      <span className="text-green-600 font-medium">{formatValue(log.new_values[field])}</span>
+                                      <span className="text-[var(--match-green)] font-medium">{formatValue(log.new_values[field])}</span>
                                     )}
                                   </div>
                                 ))}
@@ -193,21 +198,21 @@ export default function AuditLogPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
-                  <p className="text-body-sm text-[#8E9196]">{total} entries</p>
+                <div className="flex items-center justify-between px-5 py-3 bg-[var(--surface-low)]">
+                  <p className="text-body-sm text-[var(--text-secondary)] tabular-nums">{total} entries</p>
                   <div className="flex gap-1.5">
                     <button
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page === 1}
-                      className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30"
+                      className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30"
                     >
                       Previous
                     </button>
-                    <span className="px-3 py-1.5 text-body-sm text-[#8E9196]">{page} / {totalPages}</span>
+                    <span className="px-3 py-1.5 text-body-sm text-[var(--text-secondary)] tabular-nums">{page} / {totalPages}</span>
                     <button
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
-                      className="px-3 py-1.5 text-body-sm font-medium rounded-lg border border-gray-200 text-[#434654] hover:bg-gray-50 disabled:opacity-30"
+                      className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30"
                     >
                       Next
                     </button>

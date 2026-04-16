@@ -195,82 +195,78 @@ export default function ClientsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
 
       <Sidebar role="accountant" />
 
       {/* === MAIN === */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 bg-white">
-          <h1 className="text-[#191C1E] font-bold text-title-lg tracking-tight">Clients</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Clients</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
           {/* ── Action bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
             <button
               onClick={openAddModal}
-              className="ml-auto btn-primary text-sm px-4 py-2 rounded-lg font-medium"
+              className="ml-auto btn-thick-navy text-sm px-4 py-2 font-medium"
             >
               Add Client
             </button>
           </div>
 
           {/* ── Table ─────────────────────────────────────── */}
-          <div className="bg-white rounded-lg overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="bg-white overflow-hidden flex-1 min-h-0 flex flex-col">
             {loading ? (
-              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">Loading...</div>
+              <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
             ) : firms.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-[#8E9196]">No clients found.</div>
+              <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No clients found.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="ds-table-header text-left">
-                      <th className="px-6 py-3">Firm Name</th>
-                      <th className="px-6 py-3">Reg. Number</th>
-                      <th className="px-6 py-3 text-right">Employees</th>
-                      <th className="px-6 py-3 text-right">Claims This Month</th>
-                      <th className="px-6 py-3">Plan</th>
-                      <th className="px-6 py-3 text-right">Receipts</th>
-                      <th className="px-6 py-3">Actions</th>
+                    <tr className="bg-[var(--surface-header)] text-left">
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Firm Name</th>
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Reg. Number</th>
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Employees</th>
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Claims This Month</th>
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Plan</th>
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Receipts</th>
+                      <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {firms.map((firm) => (
-                      <tr key={firm.id} className="group hover:bg-[#F2F4F6] transition-colors">
+                  <tbody>
+                    {firms.map((firm, i) => (
+                      <tr key={firm.id} className={`group hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                         <td className="px-6 py-3 font-medium">
                           <Link
                             href={`/accountant/clients/${firm.id}`}
-                            className="text-[#191C1E] hover:text-[var(--accent)] transition-colors"
+                            className="text-[var(--text-primary)] hover:text-[var(--primary)] transition-colors"
                           >
                             {firm.name}
                           </Link>
                         </td>
-                        <td className="px-6 py-3 text-[#434654]">{firm.registration_number ?? '—'}</td>
-                        <td className="px-6 py-3 text-[#191C1E] font-medium text-right">{firm.employee_count}</td>
-                        <td className="px-6 py-3 text-[#191C1E] font-medium text-right">{firm.claims_this_month}</td>
+                        <td className="px-6 py-3 text-[var(--text-secondary)]">{firm.registration_number ?? '—'}</td>
+                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.employee_count}</td>
+                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.claims_this_month}</td>
                         <td className="px-6 py-3">
                           {firm.plan === 'paid' ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-green">
-                              Paid
-                            </span>
+                            <span className="badge-green">Paid</span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium badge-gray">
-                              Free
-                            </span>
+                            <span className="badge-gray">Free</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 text-right ${firm.receipt_count >= 450 ? 'text-amber-600 font-medium' : 'text-[#434654]'}`}>
+                        <td className={`px-6 py-3 text-right tabular-nums ${firm.receipt_count >= 450 ? 'text-amber-600 font-medium' : 'text-[var(--text-secondary)]'}`}>
                           {firm.receipt_count} / 500
                         </td>
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => openEdit(firm)}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                              className="btn-thick-white text-xs font-medium px-3 py-1.5"
                             >
                               Edit
                             </button>
@@ -287,7 +283,7 @@ export default function ClientsPage() {
                                   console.error(e);
                                 }
                               }}
-                              className="text-xs font-medium px-3 py-1.5 rounded-lg border border-gray-300 text-[#434654] hover:bg-gray-50 hover:text-[#191C1E] transition-colors"
+                              className="btn-thick-white text-xs font-medium px-3 py-1.5"
                             >
                               {firm.is_active ? 'Deactivate' : 'Activate'}
                             </button>
@@ -306,35 +302,35 @@ export default function ClientsPage() {
 
       {/* === EDIT CLIENT MODAL === */}
       {editFirm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditFirm(null)}>
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-semibold text-[#191C1E]">Edit Client</h2>
-              <button onClick={() => setEditFirm(null)} className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-[#8E9196] hover:text-[#434654] hover:bg-gray-200 transition-colors">
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => setEditFirm(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 bg-[var(--primary)]">
+              <h2 className="text-sm font-bold text-white uppercase tracking-widest">Edit Client</h2>
+              <button onClick={() => setEditFirm(null)} className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
               <div className="space-y-3">
                 <div>
-                  <label className="input-label">Firm Name *</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Firm Name *</label>
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" />
                 </div>
                 <div>
-                  <label className="input-label">Registration Number</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Registration Number</label>
                   <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-field w-full" placeholder="Optional" />
                 </div>
                 <div>
-                  <label className="input-label">Contact Email</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Email</label>
                   <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
                 </div>
                 <div>
-                  <label className="input-label">Contact Phone</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Phone</label>
                   <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
                 </div>
                 <div>
-                  <label className="input-label">Plan</label>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Plan</label>
                   <select value={editPlan} onChange={(e) => setEditPlan(e.target.value)} className="input-field w-full">
                     <option value="free">Free</option>
                     <option value="paid">Paid</option>
@@ -344,25 +340,25 @@ export default function ClientsPage() {
 
               {/* LHDN / E-Invoice Section */}
               <div className="pt-2">
-                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-3">LHDN / E-Invoice</h3>
+                <h3 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">LHDN / E-Invoice</h3>
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="input-label">TIN</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">TIN</label>
                       <input type="text" value={editTin} onChange={(e) => setEditTin(e.target.value)} className="input-field w-full" placeholder="Tax ID Number" />
                     </div>
                     <div>
-                      <label className="input-label">BRN</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">BRN</label>
                       <input type="text" value={editBrn} onChange={(e) => setEditBrn(e.target.value)} className="input-field w-full" placeholder="Business Reg No" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="input-label">MSIC Code</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">MSIC Code</label>
                       <input type="text" value={editMsic} onChange={(e) => setEditMsic(e.target.value)} className="input-field w-full" placeholder="5-digit code" />
                     </div>
                     <div>
-                      <label className="input-label">SST Registration</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">SST Registration</label>
                       <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-field w-full" placeholder="Optional" />
                     </div>
                   </div>
@@ -371,33 +367,33 @@ export default function ClientsPage() {
 
               {/* Address Section */}
               <div className="pt-2">
-                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-3">Address</h3>
+                <h3 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">Address</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="input-label">Address Line 1</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Address Line 1</label>
                     <input type="text" value={editAddr1} onChange={(e) => setEditAddr1(e.target.value)} className="input-field w-full" placeholder="Street address" />
                   </div>
                   <div>
-                    <label className="input-label">Address Line 2</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Address Line 2</label>
                     <input type="text" value={editAddr2} onChange={(e) => setEditAddr2(e.target.value)} className="input-field w-full" placeholder="Optional" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="input-label">City</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">City</label>
                       <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} className="input-field w-full" />
                     </div>
                     <div>
-                      <label className="input-label">Postal Code</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Postal Code</label>
                       <input type="text" value={editPostal} onChange={(e) => setEditPostal(e.target.value)} className="input-field w-full" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="input-label">State</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">State</label>
                       <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} className="input-field w-full" />
                     </div>
                     <div>
-                      <label className="input-label">Country</label>
+                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Country</label>
                       <input type="text" value={editCountry} onChange={(e) => setEditCountry(e.target.value)} className="input-field w-full" placeholder="MYS" />
                     </div>
                   </div>
@@ -406,22 +402,22 @@ export default function ClientsPage() {
 
               {/* LHDN Credentials Section */}
               <div className="pt-2">
-                <h3 className="text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-3">LHDN API Credentials (Optional)</h3>
-                <p className="text-label-sm text-[#8E9196] mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
+                <h3 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">LHDN API Credentials (Optional)</h3>
+                <p className="text-xs text-[var(--text-secondary)] mb-3">Only needed if this firm uses their own LHDN credentials instead of the platform default.</p>
                 <div className="space-y-3">
                   <div>
-                    <label className="input-label">Client ID</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Client ID</label>
                     <input type="text" value={editLhdnId} onChange={(e) => setEditLhdnId(e.target.value)} className="input-field w-full" placeholder="Optional" />
                   </div>
                   <div>
-                    <label className="input-label">Client Secret</label>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Client Secret</label>
                     <input type="password" value={editLhdnSecret} onChange={(e) => setEditLhdnSecret(e.target.value)} className="input-field w-full" placeholder="Optional" />
                   </div>
                 </div>
               </div>
 
               {/* Summary */}
-              <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+              <div className="bg-[var(--surface-low)] p-3 space-y-2">
                 <Field label="Employees" value={String(editFirm.employee_count)} />
                 <Field label="Claims This Month" value={String(editFirm.claims_this_month)} />
                 <Field label="Receipts" value={`${editFirm.receipt_count} / 500`} />
@@ -429,11 +425,11 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            <div className="p-4 flex-shrink-0 border-t border-gray-100 flex gap-3">
-              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] flex gap-3">
+              <button onClick={saveEdit} disabled={editSaving} className="flex-1 py-2.5 text-sm font-semibold btn-thick-navy disabled:opacity-40 disabled:cursor-not-allowed">
                 {editSaving ? 'Saving...' : 'Save Changes'}
               </button>
-              <button onClick={() => setEditFirm(null)} className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors">
+              <button onClick={() => setEditFirm(null)} className="flex-1 py-2.5 text-sm font-semibold btn-thick-white">
                 Cancel
               </button>
             </div>
@@ -443,65 +439,67 @@ export default function ClientsPage() {
 
       {/* === ADD CLIENT MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-base font-semibold text-[#191C1E]">Add Client</h3>
-            <p className="text-sm text-[#434654] mt-1 mb-4">Create a new client firm.</p>
+        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
+          <div className="bg-white shadow-2xl w-full max-w-md flex flex-col">
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Add Client</h3>
+              <p className="text-xs text-white/70 mt-1">Create a new client firm.</p>
+            </div>
 
-            {modalError && (
-              <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-sm text-red-700">{modalError}</p>
-              </div>
-            )}
+            <div className="p-6 space-y-3">
+              {modalError && (
+                <div className="bg-[var(--error-container)] p-3">
+                  <p className="text-sm text-[var(--on-error-container)]">{modalError}</p>
+                </div>
+              )}
 
-            <div className="space-y-3">
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Name *</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
                 <input
                   type="text"
                   value={modalName}
                   onChange={(e) => setModalName(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Firm name"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Registration Number</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Registration Number</label>
                 <input
                   type="text"
                   value={modalRegNumber}
                   onChange={(e) => setModalRegNumber(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Optional"
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Contact Email</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Email</label>
                 <input
                   type="email"
                   value={modalEmail}
                   onChange={(e) => setModalEmail(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Optional"
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Contact Phone</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Phone</label>
                 <input
                   type="text"
                   value={modalPhone}
                   onChange={(e) => setModalPhone(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                   placeholder="Optional"
                 />
               </div>
               <div>
-                <label className="block text-label-sm font-semibold text-[#8E9196] uppercase tracking-wide mb-1">Plan</label>
+                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Plan</label>
                 <select
                   value={modalPlan}
                   onChange={(e) => setModalPlan(e.target.value)}
-                  className={`${inputCls} w-full`}
+                  className="input-field w-full"
                 >
                   <option value="free">Free</option>
                   <option value="paid">Paid</option>
@@ -509,18 +507,18 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-5">
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
               <button
                 onClick={submitFirm}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex-1 py-2.5 text-sm font-semibold btn-thick-navy disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {modalSaving ? 'Creating...' : 'Create Client'}
               </button>
               <button
                 onClick={() => setShowModal(false)}
                 disabled={modalSaving}
-                className="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors disabled:opacity-40"
+                className="flex-1 py-2.5 text-sm font-semibold btn-thick-white disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -535,13 +533,11 @@ export default function ClientsPage() {
 
 // ─── Small reusable sub-components ────────────────────────────────────────────
 
-const inputCls = 'input-field';
-
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between text-body-md">
-      <span className="text-[#434654]">{label}</span>
-      <span className="text-[#191C1E] font-medium">{value}</span>
+      <span className="text-[var(--text-secondary)]">{label}</span>
+      <span className="text-[var(--text-primary)] font-medium tabular-nums">{value}</span>
     </div>
   );
 }

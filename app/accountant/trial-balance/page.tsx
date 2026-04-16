@@ -42,12 +42,12 @@ interface AccountNode {
   totalCredit: number;
 }
 
-const SECTION_ORDER: { type: string; label: string; colorClass: string }[] = [
-  { type: 'Asset',     label: 'Assets',          colorClass: 'bg-blue-50 text-blue-800' },
-  { type: 'Liability', label: 'Liabilities',     colorClass: 'bg-amber-50 text-amber-800' },
-  { type: 'Equity',    label: 'Equity',          colorClass: 'bg-purple-50 text-purple-800' },
-  { type: 'Revenue',   label: 'Revenue',         colorClass: 'bg-green-50 text-green-800' },
-  { type: 'Expense',   label: 'Expenses',        colorClass: 'bg-red-50 text-red-800' },
+const SECTION_ORDER: { type: string; label: string }[] = [
+  { type: 'Asset',     label: 'Assets' },
+  { type: 'Liability', label: 'Liabilities' },
+  { type: 'Equity',    label: 'Equity' },
+  { type: 'Revenue',   label: 'Revenue' },
+  { type: 'Expense',   label: 'Expenses' },
 ];
 
 function buildSection(accounts: GLAccountRow[], type: string): { nodes: AccountNode[]; sectionDebit: number; sectionCredit: number } {
@@ -193,15 +193,15 @@ export default function TrialBalancePage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
+    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
       <Sidebar role="accountant" />
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        <header className="flex items-center justify-between px-6 py-4 flex-shrink-0">
-          <h1 className="text-[22px] font-bold text-[#191C1E] tracking-tight">Trial Balance</h1>
+        <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
+          <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Trial Balance</h1>
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 px-6 pb-6 animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
@@ -222,7 +222,7 @@ export default function TrialBalancePage() {
                 {dateRange === 'custom' && (
                   <>
                     <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
-                    <span className="text-[#8E9196] text-sm">–</span>
+                    <span className="text-[var(--text-muted)] text-sm">--</span>
                     <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
                   </>
                 )}
@@ -233,41 +233,41 @@ export default function TrialBalancePage() {
           {/* Summary strip */}
           {hasData && (
             <div className="flex items-center gap-4 flex-shrink-0">
-              <div className="bg-white rounded-lg px-4 py-2 border border-gray-100">
-                <span className="text-label-sm text-[#8E9196] uppercase tracking-wide">Total Debit</span>
-                <p className="text-sm font-bold text-[#191C1E] tabular-nums">{formatRM(grandTotalDebit)}</p>
+              <div className="bg-white card-popped px-4 py-2">
+                <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Debit</span>
+                <p className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{formatRM(grandTotalDebit)}</p>
               </div>
-              <div className="bg-white rounded-lg px-4 py-2 border border-gray-100">
-                <span className="text-label-sm text-[#8E9196] uppercase tracking-wide">Total Credit</span>
-                <p className="text-sm font-bold text-[#191C1E] tabular-nums">{formatRM(grandTotalCredit)}</p>
+              <div className="bg-white card-popped px-4 py-2">
+                <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Credit</span>
+                <p className="text-sm font-bold text-[var(--text-primary)] tabular-nums">{formatRM(grandTotalCredit)}</p>
               </div>
               {isBalanced ? (
-                <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-                  <span className="text-label-sm text-green-700 font-semibold">Balanced</span>
+                <div className="bg-[var(--secondary-container)] px-4 py-2" style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>
+                  <span className="text-[10px] font-label font-bold uppercase tracking-widest text-[var(--on-secondary-container)]">Balanced</span>
                 </div>
               ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-                  <span className="text-label-sm text-red-600 font-semibold">Out of balance by {formatRM(Math.abs(grandTotalDebit - grandTotalCredit))}</span>
+                <div className="bg-[var(--error-container)] px-4 py-2" style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>
+                  <span className="text-[10px] font-label font-bold uppercase tracking-widest text-[var(--on-error-container)]">Out of balance by {formatRM(Math.abs(grandTotalDebit - grandTotalCredit))}</span>
                 </div>
               )}
             </div>
           )}
 
           {/* Content */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white rounded-lg">
+          <div className="flex-1 min-h-0 overflow-auto bg-white">
             {!firmFilter ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Select a firm to view Trial Balance.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Select a firm to view Trial Balance.</div>
             ) : loading ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">Loading...</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">Loading...</div>
             ) : !hasData ? (
-              <div className="text-center py-12 text-sm text-[#8E9196]">No accounts with activity found.</div>
+              <div className="text-center py-12 text-sm text-[var(--text-muted)]">No accounts with activity found.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="ds-table-header text-left">
-                    <th className="px-5 py-2.5">Account</th>
-                    <th className="px-3 py-2.5 text-right w-[160px]">Debit</th>
-                    <th className="px-3 py-2.5 text-right w-[160px]">Credit</th>
+                  <tr className="bg-[var(--surface-header)] text-left">
+                    <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
+                    <th className="px-3 py-2.5 text-right w-[160px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
+                    <th className="px-3 py-2.5 text-right w-[160px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -280,11 +280,11 @@ export default function TrialBalancePage() {
                         )}
 
                         {/* Section header */}
-                        <tr className="bg-[#F7F9FB]">
-                          <td colSpan={3} className="px-5 py-3 font-bold text-[#191C1E] text-sm">{section.label}</td>
+                        <tr className="bg-[var(--surface-base)]">
+                          <td colSpan={3} className="px-5 py-3 font-bold text-[var(--text-primary)] text-sm">{section.label}</td>
                         </tr>
 
-                        {section.nodes.map((node) => {
+                        {section.nodes.map((node, nodeIdx) => {
                           const isCollapsed = collapsed.has(node.account.id);
                           const hasChildren = node.children.length > 0;
                           const parentTB = trialBalanceColumns(node.account);
@@ -292,14 +292,14 @@ export default function TrialBalancePage() {
                             <React.Fragment key={node.account.id}>
                               {/* Parent row */}
                               <tr
-                                className="border-b border-gray-100 hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                                className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
                                 onClick={() => hasChildren ? toggleCollapse(node.account.id) : undefined}
                               >
-                                <td className="px-5 py-2.5 font-semibold text-[#191C1E]">
+                                <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                                   <div className="flex items-center gap-2">
                                     {hasChildren ? (
-                                      <span className="w-4 h-4 flex items-center justify-center text-[#8E9196] text-xs flex-shrink-0">
-                                        {isCollapsed ? '▶' : '▼'}
+                                      <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
+                                        {isCollapsed ? '\u25B6' : '\u25BC'}
                                       </span>
                                     ) : (
                                       <span className="w-4 flex-shrink-0" />
@@ -307,29 +307,29 @@ export default function TrialBalancePage() {
                                     {node.account.account_code} - {node.account.name}
                                   </div>
                                 </td>
-                                <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                                <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                                   {!hasChildren && parentTB.debit > 0 ? formatRM(parentTB.debit) : ''}
                                 </td>
-                                <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[#191C1E]">
+                                <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                                   {!hasChildren && parentTB.credit > 0 ? formatRM(parentTB.credit) : ''}
                                 </td>
                               </tr>
 
                               {/* Child rows */}
-                              {hasChildren && !isCollapsed && node.children.map((child) => {
+                              {hasChildren && !isCollapsed && node.children.map((child, ci) => {
                                 const childTB = trialBalanceColumns(child);
                                 return (
-                                  <tr key={child.id} className="border-b border-gray-50 hover:bg-[#F2F4F6] transition-colors">
-                                    <td className="py-2.5 text-[#434654]">
+                                  <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
+                                    <td className="py-2.5 text-[var(--text-secondary)]">
                                       <div className="flex items-center gap-2 pl-11">
-                                        <span className="w-3 h-3 flex items-center justify-center text-[#C4C7CC] text-[10px] flex-shrink-0">◻</span>
+                                        <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                                         {child.account_code} - {child.name}
                                       </div>
                                     </td>
-                                    <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                                       {childTB.debit > 0 ? formatRM(childTB.debit) : ''}
                                     </td>
-                                    <td className="px-3 py-2.5 text-right tabular-nums text-[#191C1E]">
+                                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                                       {childTB.credit > 0 ? formatRM(childTB.credit) : ''}
                                     </td>
                                   </tr>
@@ -338,14 +338,14 @@ export default function TrialBalancePage() {
 
                               {/* Total row */}
                               {hasChildren && (
-                                <tr className="border-b border-gray-200 bg-[#F7F9FB]">
-                                  <td className="px-5 py-2 text-[#434654] font-semibold text-xs">
+                                <tr className="bg-[var(--surface-base)]">
+                                  <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                                     <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                                   </td>
-                                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                                     {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
                                   </td>
-                                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[#191C1E] text-xs">
+                                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                                     {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
                                   </td>
                                 </tr>
@@ -355,12 +355,12 @@ export default function TrialBalancePage() {
                         })}
 
                         {/* Section total */}
-                        <tr className={`border-b-2 border-gray-300 ${section.colorClass}`}>
-                          <td className="px-5 py-3 font-bold text-sm">Total {section.label}</td>
-                          <td className="px-3 py-3 text-right tabular-nums font-bold text-sm">
+                        <tr className="bg-[var(--surface-header)]">
+                          <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {section.label}</td>
+                          <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                             {section.sectionDebit > 0 ? formatRM(section.sectionDebit) : ''}
                           </td>
-                          <td className="px-3 py-3 text-right tabular-nums font-bold text-sm">
+                          <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                             {section.sectionCredit > 0 ? formatRM(section.sectionCredit) : ''}
                           </td>
                         </tr>
@@ -370,14 +370,14 @@ export default function TrialBalancePage() {
 
                   {/* Grand total */}
                   <tr><td colSpan={3} className="h-2" /></tr>
-                  <tr className={`border-b-2 border-gray-400 ${isBalanced ? 'bg-green-100' : 'bg-red-100'}`}>
-                    <td className={`px-5 py-4 font-bold text-base ${isBalanced ? 'text-green-900' : 'text-red-900'}`}>
+                  <tr className={isBalanced ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}>
+                    <td className={`px-5 py-4 font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       Grand Total
                     </td>
-                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-green-900' : 'text-red-900'}`}>
+                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {formatRM(grandTotalDebit)}
                     </td>
-                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-green-900' : 'text-red-900'}`}>
+                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {formatRM(grandTotalCredit)}
                     </td>
                   </tr>
