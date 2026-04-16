@@ -28,20 +28,34 @@ export async function DELETE(request: NextRequest) {
 
   const claims = await prisma.claim.findMany({
     where,
-    select: { id: true, firm_id: true, merchant: true, amount: true, status: true, approval: true, payment_status: true },
+    select: { id: true, firm_id: true, merchant: true, amount: true, status: true, approval: true, payment_status: true, matched_bank_txn_id: true },
   });
 
   if (claims.length === 0) {
     return NextResponse.json({ data: null, error: 'No claims found' }, { status: 404 });
   }
 
-  // Block delete if any claim has payments
+  // Block delete if any claim has downstream links
   const withPayments = await prisma.paymentReceipt.findMany({
     where: { claim_id: { in: claimIds } },
     select: { claim_id: true },
   });
   if (withPayments.length > 0) {
-    return NextResponse.json({ data: null, error: 'Cannot delete claims with linked payments. Remove payments first.' }, { status: 400 });
+    return NextResponse.json({ data: null, error: 'Cannot delete — claims have linked payments. Remove payments first.' }, { status: 400 });
+  }
+
+  const withInvoiceLinks = await prisma.invoiceReceiptLink.findMany({
+    where: { claim_id: { in: claimIds } },
+    select: { claim_id: true, invoice: { select: { invoice_number: true } } },
+  });
+  if (withInvoiceLinks.length > 0) {
+    const invoiceNums = withInvoiceLinks.map(l => l.invoice.invoice_number).filter(Boolean).join(', ');
+    return NextResponse.json({ data: null, error: `Cannot delete — receipts are linked to invoices (${invoiceNums || 'unknown'}). Unlink them first.` }, { status: 400 });
+  }
+
+  const withBankMatch = claims.filter(c => c.matched_bank_txn_id);
+  if (withBankMatch.length > 0) {
+    return NextResponse.json({ data: null, error: 'Cannot delete — claims are matched to bank transactions. Unmatch them first.' }, { status: 400 });
   }
 
   for (const claim of claims) {
