@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { validateBankReconJV, createBankReconJV } from '@/lib/bank-recon-jv';
+import { createJournalEntry } from '@/lib/journal-entries';
+import { recalcInvoicePaid } from '@/lib/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,7 @@ export async function POST(request: NextRequest) {
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
   }
+  const firmId = session.user.firm_id;
 
   const { bankTransactionIds } = await request.json();
   if (!Array.isArray(bankTransactionIds) || bankTransactionIds.length === 0) {
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   const txns = await prisma.bankTransaction.findMany({
     where: { id: { in: bankTransactionIds }, recon_status: 'matched' },
-    include: { bankStatement: { select: { firm_id: true } } },
+    include: { bankStatement: { select: { firm_id: true, bank_name: true, account_number: true } } },
   });
 
   if (txns.length === 0) {
@@ -27,60 +29,181 @@ export async function POST(request: NextRequest) {
   }
 
   for (const txn of txns) {
-    if (txn.bankStatement.firm_id !== session.user.firm_id) {
+    if (txn.bankStatement.firm_id !== firmId) {
       return NextResponse.json({ data: null, error: 'Access denied' }, { status: 403 });
     }
   }
 
-  const errors: string[] = [];
-  for (const txn of txns) {
-    if (!txn.matched_payment_id) {
-      errors.push(`Transaction ${txn.description} has no matched payment.`);
-      continue;
-    }
-    const err = await validateBankReconJV(txn.id, txn.matched_payment_id, session.user.firm_id);
-    if (err) errors.push(err);
+  // Find claims matched to these transactions
+  const txnIds = txns.map(t => t.id);
+  const matchedClaims = await prisma.claim.findMany({
+    where: { matched_bank_txn_id: { in: txnIds } },
+    select: { id: true, amount: true, merchant: true, category_id: true, gl_account_id: true, matched_bank_txn_id: true,
+      employee: { select: { name: true } }, category: { select: { name: true } } },
+  });
+  const claimsByTxnId = new Map<string, typeof matchedClaims>();
+  for (const claim of matchedClaims) {
+    const list = claimsByTxnId.get(claim.matched_bank_txn_id!) ?? [];
+    list.push(claim);
+    claimsByTxnId.set(claim.matched_bank_txn_id!, list);
   }
 
-  if (errors.length > 0) {
-    const unique = Array.from(new Set(errors));
-    return NextResponse.json({ data: null, error: unique.join('\n') }, { status: 400 });
+  // Pre-fetch invoice allocations
+  const invoiceAllocations = await prisma.bankTransactionInvoice.findMany({
+    where: { bank_transaction_id: { in: txnIds } },
+    select: { bank_transaction_id: true, invoice_id: true, amount: true },
+  });
+  const allocationsByTxnId = new Map<string, typeof invoiceAllocations>();
+  for (const alloc of invoiceAllocations) {
+    const list = allocationsByTxnId.get(alloc.bank_transaction_id) ?? [];
+    list.push(alloc);
+    allocationsByTxnId.set(alloc.bank_transaction_id, list);
   }
+
+  // Validate — each txn must have a matched item
+  const errors: string[] = [];
+  for (const txn of txns) {
+    const hasClaims = claimsByTxnId.has(txn.id);
+    const hasInvoiceAllocs = allocationsByTxnId.has(txn.id);
+    if (!hasInvoiceAllocs && !txn.matched_sales_invoice_id && !hasClaims && !txn.matched_payment_id) {
+      errors.push(`Transaction ${txn.description} has no matched payment.`);
+    }
+  }
+  if (errors.length > 0) {
+    return NextResponse.json({ data: null, error: errors.join('\n') }, { status: 400 });
+  }
+
+  // Batch pre-fetch related data
+  const invoiceIds = Array.from(new Set(invoiceAllocations.map(a => a.invoice_id)));
+  const salesInvoiceIds = txns.map(t => t.matched_sales_invoice_id).filter(Boolean) as string[];
+
+  const bankAccountKey = (t: typeof txns[0]) => `${firmId}|${t.bankStatement.bank_name}|${t.bankStatement.account_number ?? ''}`;
+  const bankAccountKeys = Array.from(new Map(txns.map(t => [bankAccountKey(t), {
+    firm_id: firmId, bank_name: t.bankStatement.bank_name, account_number: t.bankStatement.account_number ?? '',
+  }] as const)).values());
+
+  const [invoices, salesInvoices, firm, bankAccounts, categoryOverrides] = await Promise.all([
+    invoiceIds.length > 0 ? prisma.invoice.findMany({
+      where: { id: { in: invoiceIds } },
+      select: { id: true, total_amount: true, amount_paid: true, vendor_name_raw: true, supplier: { select: { default_contra_gl_account_id: true } } },
+    }) : [],
+    salesInvoiceIds.length > 0 ? prisma.salesInvoice.findMany({
+      where: { id: { in: salesInvoiceIds } },
+      select: { id: true, total_amount: true, amount_paid: true, buyer: { select: { name: true } } },
+    }) : [],
+    prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true, default_trade_receivables_gl_id: true } }),
+    Promise.all(bankAccountKeys.map(k => prisma.bankAccount.findUnique({
+      where: { firm_id_bank_name_account_number: k },
+      select: { gl_account_id: true, firm_id: true, bank_name: true, account_number: true },
+    }))),
+    matchedClaims.filter(c => !c.gl_account_id && c.category_id).length > 0
+      ? prisma.categoryFirmOverride.findMany({
+          where: { firm_id: firmId, category_id: { in: matchedClaims.filter(c => !c.gl_account_id && c.category_id).map(c => c.category_id!) } },
+          select: { category_id: true, gl_account_id: true },
+        })
+      : [],
+  ]);
+
+  const invoiceMap = new Map(invoices.map(i => [i.id, i]));
+  const salesInvoiceMap = new Map(salesInvoices.map(s => [s.id, s]));
+  const bankGlMap = new Map(bankAccounts.filter(Boolean).map(b => [`${b!.firm_id}|${b!.bank_name}|${b!.account_number}`, b!.gl_account_id]));
+  const catOverrideMap = new Map(categoryOverrides.map(o => [o.category_id, o.gl_account_id]));
 
   let confirmed = 0;
   for (const txn of txns) {
-    // Create PaymentReceipt link for auto-matched receipts (deferred from auto-match)
-    if (txn.matched_payment_id) {
-      const payment = await prisma.payment.findUnique({
-        where: { id: txn.matched_payment_id },
-        select: { notes: true, amount: true },
+    const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
+    const bankGlId = bankGlMap.get(bankAccountKey(txn));
+    if (!bankGlId) { errors.push(`Bank account ${txn.bankStatement.bank_name} has no GL mapping.`); continue; }
+
+    // Confirm supplier invoice match(es)
+    const txnAllocations = allocationsByTxnId.get(txn.id);
+    if (txnAllocations && txnAllocations.length > 0) {
+      const jvLines: { glAccountId: string; debitAmount: number; creditAmount: number; description: string }[] = [];
+      let totalAllocated = 0;
+      let glError = false;
+      const descs: string[] = [];
+
+      for (const alloc of txnAllocations) {
+        const invoice = invoiceMap.get(alloc.invoice_id);
+        if (!invoice) continue;
+        const contraGlId = invoice.supplier?.default_contra_gl_account_id || firm?.default_trade_payables_gl_id;
+        if (!contraGlId) { errors.push(`No Trade Payables GL for ${invoice.vendor_name_raw}`); glError = true; break; }
+        const allocAmount = Number(alloc.amount);
+        totalAllocated += allocAmount;
+        descs.push(invoice.vendor_name_raw ?? 'Supplier');
+        jvLines.push({ glAccountId: contraGlId, debitAmount: allocAmount, creditAmount: 0, description: `Trade Payables — ${invoice.vendor_name_raw}` });
+      }
+      if (glError) continue;
+
+      jvLines.push({ glAccountId: bankGlId, debitAmount: 0, creditAmount: totalAllocated, description: txn.bankStatement.bank_name });
+
+      await createJournalEntry({
+        firmId, postingDate: txn.transaction_date,
+        description: txnAllocations.length === 1 ? `Bank recon — ${descs[0]}` : `Bank recon — ${txnAllocations.length} invoices`,
+        sourceType: 'bank_recon', sourceId: txn.id, lines: jvLines, createdBy: session.user.id,
       });
-      const claimMatch = payment?.notes?.match(/\[claim:([^\]]+)\]/);
-      if (claimMatch) {
-        const claimId = claimMatch[1];
-        const existing = await prisma.paymentReceipt.findFirst({
-          where: { payment_id: txn.matched_payment_id, claim_id: claimId },
+
+      for (const alloc of txnAllocations) { await recalcInvoicePaid(alloc.invoice_id); }
+    }
+
+    // Confirm sales invoice match
+    if (txn.matched_sales_invoice_id) {
+      const si = salesInvoiceMap.get(txn.matched_sales_invoice_id);
+      if (si) {
+        const receivablesGlId = firm?.default_trade_receivables_gl_id;
+        if (!receivablesGlId) { errors.push('No Trade Receivables GL configured'); continue; }
+        const newPaid = Number(si.amount_paid) + txnAmount;
+        await prisma.salesInvoice.update({ where: { id: si.id }, data: { amount_paid: newPaid, payment_status: newPaid >= Number(si.total_amount) ? 'paid' : 'partially_paid' } });
+        await createJournalEntry({
+          firmId, postingDate: txn.transaction_date,
+          description: `Bank recon — ${si.buyer?.name ?? 'Customer'}`,
+          sourceType: 'bank_recon', sourceId: txn.id,
+          lines: [
+            { glAccountId: bankGlId, debitAmount: txnAmount, creditAmount: 0, description: txn.bankStatement.bank_name },
+            { glAccountId: receivablesGlId, debitAmount: 0, creditAmount: txnAmount, description: 'Trade Receivables' },
+          ],
+          createdBy: session.user.id,
         });
-        if (!existing) {
-          await prisma.paymentReceipt.create({
-            data: { payment_id: txn.matched_payment_id, claim_id: claimId, amount: payment!.amount },
-          });
-        }
       }
     }
 
-    await prisma.bankTransaction.update({
-      where: { id: txn.id },
-      data: {
-        recon_status: 'manually_matched',
-        matched_at: new Date(),
-        matched_by: session.user.id,
-      },
-    });
+    // Confirm claim match
+    const txnClaims = claimsByTxnId.get(txn.id);
+    if (txnClaims && txnClaims.length > 0) {
+      const expenseLines: { glAccountId: string; debitAmount: number; creditAmount: number; description: string }[] = [];
+      let claimGlError = false;
+      for (const claim of txnClaims) {
+        let glId = claim.gl_account_id;
+        if (!glId && claim.category_id) glId = catOverrideMap.get(claim.category_id) ?? null;
+        if (!glId) { errors.push(`No GL for claim: ${claim.merchant}`); claimGlError = true; break; }
+        expenseLines.push({ glAccountId: glId, debitAmount: Number(claim.amount), creditAmount: 0, description: `${claim.category?.name} — ${claim.merchant}` });
+      }
+      if (claimGlError) continue;
 
-    await createBankReconJV(txn.id, txn.matched_payment_id!, session.user.firm_id, session.user.id);
+      await prisma.claim.updateMany({ where: { id: { in: txnClaims.map(c => c.id) } }, data: { payment_status: 'paid' } });
+
+      const claimEmployees = Array.from(new Set(txnClaims.map(c => c.employee?.name).filter(Boolean)));
+      await createJournalEntry({
+        firmId, postingDate: txn.transaction_date,
+        description: `Bank recon — ${txnClaims.length === 1 ? `${txnClaims[0].category?.name} — ${txnClaims[0].merchant}` : `${txnClaims.length} claims (${claimEmployees.join(', ')})`}`,
+        sourceType: 'bank_recon', sourceId: txn.id,
+        lines: [...expenseLines, { glAccountId: bankGlId, debitAmount: 0, creditAmount: txnAmount, description: txn.bankStatement.bank_name }],
+        createdBy: session.user.id,
+      });
+    }
+
+    // Legacy: Payment-based match
+    if (txn.matched_payment_id && (!txnAllocations || txnAllocations.length === 0) && !txn.matched_sales_invoice_id && (!txnClaims || txnClaims.length === 0)) {
+      const { createBankReconJV } = await import('@/lib/bank-recon-jv');
+      await createBankReconJV(txn.id, txn.matched_payment_id, firmId, session.user.id);
+    }
+
+    await prisma.bankTransaction.update({ where: { id: txn.id }, data: { recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id } });
     confirmed++;
   }
 
+  if (errors.length > 0) {
+    return NextResponse.json({ data: { confirmed }, error: errors.join('\n') }, { status: confirmed > 0 ? 200 : 400 });
+  }
   return NextResponse.json({ data: { confirmed }, error: null });
 }

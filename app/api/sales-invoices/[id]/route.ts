@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { reverseJVsForSource } from '@/lib/journal-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -117,7 +118,7 @@ export async function PATCH(
   // Fetch old values for audit
   const oldInvoice = await prisma.salesInvoice.findUnique({
     where: { id },
-    select: { invoice_number: true, supplier_id: true, issue_date: true, due_date: true, currency: true, notes: true, payment_status: true, amount_paid: true, subtotal: true, tax_amount: true, total_amount: true },
+    select: { invoice_number: true, supplier_id: true, issue_date: true, due_date: true, currency: true, notes: true, payment_status: true, amount_paid: true, subtotal: true, tax_amount: true, total_amount: true, approval: true },
   });
 
   const body = await request.json();
@@ -132,6 +133,12 @@ export async function PATCH(
   if (body.notes !== undefined) data.notes = body.notes || null;
   if (body.payment_status !== undefined) data.payment_status = body.payment_status;
   if (body.amount_paid !== undefined) data.amount_paid = parseFloat(body.amount_paid);
+
+  // If editing an approved sales invoice, reverse existing JV (new one will be created on re-approval)
+  if (oldInvoice?.approval === 'approved') {
+    await reverseJVsForSource('sales_invoice_posting', id, session.user.id);
+    data.approval = 'pending_approval';
+  }
 
   // If items are provided, replace all items and recalculate totals
   if (body.items && Array.isArray(body.items)) {
@@ -257,8 +264,14 @@ export async function DELETE(
   // Fetch old values for audit before deleting
   const deletedInvoice = await prisma.salesInvoice.findUnique({
     where: { id },
-    select: { invoice_number: true, supplier_id: true, total_amount: true, payment_status: true },
+    select: { invoice_number: true, supplier_id: true, total_amount: true, payment_status: true, approval: true },
   });
+
+  // Reverse JVs if sales invoice was approved
+  if (deletedInvoice?.approval === 'approved') {
+    const { reverseJVsForSource } = await import('@/lib/journal-entries');
+    await reverseJVsForSource('sales_invoice_posting', id, session.user.id);
+  }
 
   await prisma.salesInvoice.delete({ where: { id } });
 

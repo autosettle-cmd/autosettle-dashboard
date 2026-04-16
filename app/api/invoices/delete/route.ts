@@ -28,7 +28,7 @@ export async function DELETE(request: NextRequest) {
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, firm_id: true, vendor_name_raw: true, invoice_number: true, total_amount: true, status: true },
+      select: { id: true, firm_id: true, vendor_name_raw: true, invoice_number: true, total_amount: true, status: true, approval: true },
     });
 
     if (!invoice) {
@@ -45,6 +45,12 @@ export async function DELETE(request: NextRequest) {
       if (session.user.firm_id !== invoice.firm_id) {
         return NextResponse.json({ data: null, error: 'Not authorized for this firm' }, { status: 403 });
       }
+    }
+
+    // Reverse JVs if invoice was approved
+    if (invoice.status === 'reviewed' || invoice.approval === 'approved') {
+      const { reverseJVsForSource } = await import('@/lib/journal-entries');
+      await reverseJVsForSource('invoice_posting', invoiceId, session.user.id);
     }
 
     await prisma.invoice.delete({ where: { id: invoiceId } });

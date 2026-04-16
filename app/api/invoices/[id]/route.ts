@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { reverseJVsForSource } from '@/lib/journal-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,12 @@ export async function PATCH(
     }
   }
   if (body.supplier_link_status !== undefined) data.supplier_link_status = body.supplier_link_status;
+
+  // If editing an approved invoice, reverse existing JV (new one will be created on re-approval)
+  if (invoice.approval === 'approved') {
+    await reverseJVsForSource('invoice_posting', id, session.user.id);
+    data.approval = 'pending_approval';
+  }
 
   const updated = await prisma.invoice.update({ where: { id }, data });
 

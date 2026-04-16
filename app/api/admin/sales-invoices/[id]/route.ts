@@ -225,10 +225,16 @@ export async function DELETE(
 
   const deletedInvoice = await prisma.salesInvoice.findUnique({
     where: { id },
-    select: { firm_id: true, invoice_number: true, supplier_id: true, total_amount: true, payment_status: true },
+    select: { firm_id: true, invoice_number: true, supplier_id: true, total_amount: true, payment_status: true, approval: true },
   });
   if (!deletedInvoice || deletedInvoice.firm_id !== session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Sales invoice not found' }, { status: 404 });
+  }
+
+  // Reverse JVs if sales invoice was approved
+  if (deletedInvoice.approval === 'approved') {
+    const { reverseJVsForSource } = await import('@/lib/journal-entries');
+    await reverseJVsForSource('sales_invoice_posting', id, session.user.id);
   }
 
   await prisma.salesInvoice.delete({ where: { id } });
