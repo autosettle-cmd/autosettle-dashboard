@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { uploadFileForFirm } from '@/lib/google-drive';
+import { createJournalEntry } from '@/lib/journal-entries';
+import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
         supplier: { select: { id: true, name: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
         category: { select: { name: true } },
         glAccount: { select: { id: true, account_code: true, name: true } },
+        contraGlAccount: { select: { id: true, account_code: true, name: true } },
       },
       orderBy: { issue_date: 'desc' },
       take: takeParam || 100,
@@ -90,6 +93,8 @@ export async function GET(request: NextRequest) {
     submitted_via: inv.submitted_via,
     gl_account_id: inv.gl_account_id,
     gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
+    contra_gl_account_id: inv.contra_gl_account_id,
+    contra_gl_account_label: inv.contraGlAccount ? `${inv.contraGlAccount.account_code} — ${inv.contraGlAccount.name}` : null,
     supplier_default_gl_id: inv.supplier?.default_gl_account_id ?? null,
     supplier_default_contra_gl_id: inv.supplier?.default_contra_gl_account_id ?? null,
     approval: inv.approval,
@@ -121,14 +126,26 @@ export async function POST(request: NextRequest) {
     const paymentTerms = formData.get('payment_terms') as string | null;
     const notes = formData.get('notes') as string | null;
     const glAccountId = formData.get('gl_account_id') as string | null;
+    const contraGlAccountId = formData.get('contra_gl_account_id') as string | null;
+    const isBatch = formData.get('batch') === 'true';
     const file = formData.get('file') as File | null;
 
-    if (!firmId || !vendorName || !issueDate || !totalAmountStr || !categoryId) {
-      const missing = [!firmId && 'firm', !vendorName && 'vendor name', !issueDate && 'issue date', !totalAmountStr && 'total amount', !categoryId && 'category'].filter(Boolean);
+    if (!firmId || !vendorName || !issueDate || !totalAmountStr) {
+      const missing = [!firmId && 'firm', !vendorName && 'vendor name', !issueDate && 'issue date', !totalAmountStr && 'total amount'].filter(Boolean);
       return NextResponse.json(
         { data: null, error: `Missing required fields: ${missing.join(', ')}` },
         { status: 400 }
       );
+    }
+
+    // Auto-assign "Miscellaneous" category if not provided
+    let resolvedCategoryId = categoryId;
+    if (!resolvedCategoryId) {
+      const misc = await prisma.category.findFirst({ where: { name: 'Miscellaneous' }, select: { id: true } });
+      if (!misc) {
+        return NextResponse.json({ data: null, error: 'No default category found. Please select a category.' }, { status: 400 });
+      }
+      resolvedCategoryId = misc.id;
     }
 
     // Validate accountant has access to this firm
@@ -241,18 +258,76 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Duplicate check ──
-    if (invoiceNumber) {
-      const existing = await prisma.invoice.findFirst({
-        where: { firm_id: firmId!, invoice_number: invoiceNumber },
-        select: { id: true, vendor_name_raw: true },
+    // 0. File hash — exact same file
+    let fileHash: string | null = null;
+    if (file) {
+      const buf = Buffer.from(await file.arrayBuffer());
+      fileHash = createHash('sha256').update(buf).digest('hex');
+      const hashDupe = await prisma.invoice.findFirst({
+        where: { firm_id: firmId!, file_hash: fileHash },
+        select: { id: true, vendor_name_raw: true, invoice_number: true },
       });
-      if (existing) {
+      if (hashDupe) {
         return NextResponse.json(
-          { data: null, error: `Duplicate: invoice #${invoiceNumber} already exists (${existing.vendor_name_raw})` },
+          { data: null, error: `Duplicate file: this exact document was already uploaded${hashDupe.invoice_number ? ` as ${hashDupe.invoice_number}` : ''} (${hashDupe.vendor_name_raw})` },
           { status: 409 }
         );
       }
     }
+    // 1. Invoice number match (case-insensitive, with/without # prefix)
+    if (invoiceNumber) {
+      const stripped = invoiceNumber.replace(/^[#\s]+/, '').trim();
+      const existing = await prisma.invoice.findFirst({
+        where: {
+          firm_id: firmId!,
+          OR: [
+            { invoice_number: { equals: invoiceNumber, mode: 'insensitive' } },
+            { invoice_number: { equals: stripped, mode: 'insensitive' } },
+            { invoice_number: { equals: `#${stripped}`, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true, vendor_name_raw: true, invoice_number: true },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { data: null, error: `Duplicate: invoice #${existing.invoice_number} already exists (${existing.vendor_name_raw})` },
+          { status: 409 }
+        );
+      }
+    }
+    // 2. Composite match: same vendor + issue date + amount (catches renamed/renumbered dupes)
+    if (vendorName && issueDate && totalAmount) {
+      const compositeMatch = await prisma.invoice.findFirst({
+        where: {
+          firm_id: firmId!,
+          vendor_name_raw: { equals: vendorName, mode: 'insensitive' },
+          issue_date: new Date(issueDate),
+          total_amount: { gte: totalAmount - 0.01, lte: totalAmount + 0.01 },
+        },
+        select: { id: true, vendor_name_raw: true, invoice_number: true },
+      });
+      if (compositeMatch) {
+        return NextResponse.json(
+          { data: null, error: `Possible duplicate: ${compositeMatch.vendor_name_raw} on ${issueDate} for the same amount already exists${compositeMatch.invoice_number ? ` (${compositeMatch.invoice_number})` : ''}` },
+          { status: 409 }
+        );
+      }
+    }
+
+    // ── Resolve contra GL for auto-approve ──
+    let resolvedContraGlId = contraGlAccountId;
+    if (!resolvedContraGlId && supplierId) {
+      const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { default_contra_gl_account_id: true } });
+      resolvedContraGlId = supplier?.default_contra_gl_account_id ?? null;
+    }
+    if (!resolvedContraGlId) {
+      const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true } });
+      resolvedContraGlId = firm?.default_trade_payables_gl_id ?? null;
+    }
+
+    // Accountant upload → auto-approve if GL accounts are available
+    // Auto-approve only for single uploads where GL accounts are provided
+    const canAutoApprove = !isBatch && !!(glAccountId && resolvedContraGlId);
 
     // ── Create the invoice ──
     const invoice = await prisma.invoice.create({
@@ -260,7 +335,7 @@ export async function POST(request: NextRequest) {
         firm_id: firmId,
         uploaded_by: uploaderEmployee.id,
         supplier_id: supplierId,
-        supplier_link_status: linkStatus,
+        supplier_link_status: canAutoApprove && supplierId ? 'confirmed' : linkStatus,
         vendor_name_raw: vendorName,
         invoice_number: invoiceNumber || null,
         issue_date: new Date(issueDate),
@@ -268,15 +343,18 @@ export async function POST(request: NextRequest) {
         payment_terms: paymentTerms || null,
         notes: notes || null,
         total_amount: totalAmount,
-        category_id: categoryId!,
+        category_id: resolvedCategoryId!,
         gl_account_id: glAccountId || null,
+        contra_gl_account_id: resolvedContraGlId || null,
         confidence: 'HIGH',
-        status: 'pending_review',
+        status: 'reviewed',
+        approval: canAutoApprove ? 'approved' : 'pending_approval',
         payment_status: 'unpaid',
         amount_paid: 0,
         file_url: fileUrl,
         file_download_url: fileDownloadUrl,
         thumbnail_url: thumbnailUrl,
+        file_hash: fileHash,
         submitted_via: 'dashboard',
       },
       include: {
@@ -284,6 +362,40 @@ export async function POST(request: NextRequest) {
         supplier: { select: { id: true, name: true } },
       },
     });
+
+    // Auto-approve: create JV (DR Expense / CR Trade Payables)
+    if (canAutoApprove) {
+      const absAmount = Math.abs(totalAmount);
+      const isCreditNote = totalAmount < 0;
+      await createJournalEntry({
+        firmId,
+        postingDate: new Date(issueDate),
+        description: `${isCreditNote ? 'Credit Note' : invoice.category.name} — ${vendorName}`,
+        sourceType: 'invoice_posting',
+        sourceId: invoice.id,
+        lines: isCreditNote
+          ? [
+              { glAccountId: resolvedContraGlId!, debitAmount: absAmount, creditAmount: 0, description: 'Trade Payables (reversal)' },
+              { glAccountId: glAccountId!, debitAmount: 0, creditAmount: absAmount, description: vendorName },
+            ]
+          : [
+              { glAccountId: glAccountId!, debitAmount: absAmount, creditAmount: 0, description: vendorName },
+              { glAccountId: resolvedContraGlId!, debitAmount: 0, creditAmount: absAmount, description: 'Trade Payables' },
+            ],
+        createdBy: session.user.id,
+      });
+
+      // Save GL to supplier for future auto-fill
+      if (supplierId) {
+        const updates: Record<string, string> = {};
+        const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { default_gl_account_id: true, default_contra_gl_account_id: true } });
+        if (!supplier?.default_gl_account_id) updates.default_gl_account_id = glAccountId!;
+        if (contraGlAccountId && !supplier?.default_contra_gl_account_id) updates.default_contra_gl_account_id = contraGlAccountId;
+        if (Object.keys(updates).length > 0) {
+          await prisma.supplier.update({ where: { id: supplierId }, data: updates });
+        }
+      }
+    }
 
     const data = {
       id: invoice.id,
@@ -296,6 +408,7 @@ export async function POST(request: NextRequest) {
       supplier_name: invoice.supplier?.name ?? null,
       supplier_link_status: invoice.supplier_link_status,
       status: invoice.status,
+      approval: invoice.approval,
       payment_status: invoice.payment_status,
     };
 

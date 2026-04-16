@@ -82,7 +82,7 @@ export async function PATCH(request: NextRequest) {
   // ─── Proceed with update ───────────────────────────────────────────────
   const updateData =
     action === 'approve'
-      ? { approval: 'approved' as const, status: 'reviewed' as const, rejection_reason: null as string | null, ...(gl_account_id && { gl_account_id }) }
+      ? { approval: 'approved' as const, status: 'reviewed' as const, rejection_reason: null as string | null, supplier_link_status: 'confirmed' as const, ...(gl_account_id && { gl_account_id }) }
       : action === 'revert'
       ? { approval: 'pending_approval' as const, rejection_reason: null as string | null }
       : { approval: 'not_approved' as const, rejection_reason: (reason ?? null) as string | null };
@@ -118,22 +118,32 @@ export async function PATCH(request: NextRequest) {
     for (const inv of invoices) {
       const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
       const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaults.get(inv.firm_id);
+      const amount = Math.abs(Number(inv.total_amount));
+      const isCreditNote = Number(inv.total_amount) < 0;
       await createJournalEntry({
         firmId: inv.firm_id,
         postingDate: inv.issue_date,
-        description: `${inv.category.name} — ${inv.vendor_name_raw}`,
+        description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${inv.vendor_name_raw}`,
         sourceType: 'invoice_posting',
         sourceId: inv.id,
-        lines: [
-          { glAccountId: expenseGlId!, debitAmount: Number(inv.total_amount), creditAmount: 0, description: inv.vendor_name_raw },
-          { glAccountId: contraGlId!, debitAmount: 0, creditAmount: Number(inv.total_amount), description: 'Trade Payables' },
-        ],
+        lines: isCreditNote
+          ? [
+              { glAccountId: contraGlId!, debitAmount: amount, creditAmount: 0, description: 'Trade Payables (reversal)' },
+              { glAccountId: expenseGlId!, debitAmount: 0, creditAmount: amount, description: inv.vendor_name_raw },
+            ]
+          : [
+              { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: inv.vendor_name_raw },
+              { glAccountId: contraGlId!, debitAmount: 0, creditAmount: amount, description: 'Trade Payables' },
+            ],
         createdBy: session.user.id,
       });
 
       // Save resolved GL on the invoice itself (so preview shows it)
-      if (expenseGlId && !inv.gl_account_id) {
-        await prisma.invoice.update({ where: { id: inv.id }, data: { gl_account_id: expenseGlId } });
+      const glUpdates: Record<string, string> = {};
+      if (expenseGlId && !inv.gl_account_id) glUpdates.gl_account_id = expenseGlId;
+      if (contraGlId) glUpdates.contra_gl_account_id = contraGlId;
+      if (Object.keys(glUpdates).length > 0) {
+        await prisma.invoice.update({ where: { id: inv.id }, data: glUpdates });
       }
 
       // Save GL to supplier for future auto-fill (learn once per supplier)

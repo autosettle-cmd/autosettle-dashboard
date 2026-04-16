@@ -51,6 +51,9 @@ export async function DELETE(request: NextRequest) {
       await prisma.bankTransactionInvoice.deleteMany({ where: { bank_transaction_id: { in: txnIds } } });
     }
 
+    // Revert claim allocations via join table
+    await prisma.bankTransactionClaim.deleteMany({ where: { bank_transaction_id: { in: txnIds } } });
+
     for (const t of allTxns) {
       const txnAmount = Number(t.debit ?? t.credit ?? 0);
       if (t.matched_sales_invoice_id) {

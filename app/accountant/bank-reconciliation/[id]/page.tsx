@@ -127,6 +127,7 @@ export default function AccountantReconciliationWorkspacePage() {
   const [matchTab, setMatchTab] = useState<'invoices' | 'claims'>('invoices');
   const [matchSubmitting, setMatchSubmitting] = useState(false);
   const [matchError, setMatchError] = useState('');
+  const [claimSearch, setClaimSearch] = useState('');
   const [rematching, setRematching] = useState(false);
   const [rematchResult, setRematchResult] = useState<{ matched: number } | null>(null);
 
@@ -218,6 +219,7 @@ export default function AccountantReconciliationWorkspacePage() {
     setVoucherError('');
     setMatchError('');
     setSelectedItem(null);
+    setClaimSearch('');
     setLoadingCandidates(true);
 
     const amount = txn.debit ?? txn.credit ?? '';
@@ -230,6 +232,19 @@ export default function AccountantReconciliationWorkspacePage() {
     const json = await res.json();
     setOutstandingItems(json.data ?? []);
     setLoadingCandidates(false);
+  };
+
+  const searchOutstandingItems = async (searchTerm: string) => {
+    const firmId = statement?.firm_id;
+    if (!firmId || !matchingTxn) return;
+    const amount = matchingTxn.debit ?? matchingTxn.credit ?? '';
+    const direction = matchingTxn.debit ? 'outgoing' : 'incoming';
+    const params = new URLSearchParams({ firmId, direction });
+    if (amount && !searchTerm) params.set('amount', amount);
+    if (searchTerm) params.set('search', searchTerm);
+    const res = await fetch(`/api/bank-reconciliation/outstanding-items?${params}`);
+    const json = await res.json();
+    setOutstandingItems(json.data ?? []);
   };
 
   const _doMatch = async (paymentId: string) => {
@@ -869,6 +884,21 @@ export default function AccountantReconciliationWorkspacePage() {
                       <span className="font-semibold text-[#191C1E]">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
                       {matchingTxn.reference && <span>Ref: {matchingTxn.reference}</span>}
                     </div>
+                  </div>
+
+                  {/* Search outstanding items */}
+                  <div className="mb-3">
+                    <input
+                      type="text"
+                      placeholder="Search by name, invoice number, or amount..."
+                      value={claimSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setClaimSearch(val);
+                        searchOutstandingItems(val);
+                      }}
+                      className="input-field w-full"
+                    />
                   </div>
 
                   {/* Tabs — only show for debit (outgoing) which has both invoices and claims */}

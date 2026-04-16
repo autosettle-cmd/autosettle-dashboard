@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
   const firmId = searchParams.get('firmId');
   const direction = searchParams.get('direction'); // 'outgoing' | 'incoming'
   const amount = searchParams.get('amount') ? parseFloat(searchParams.get('amount')!) : null;
+  const search = searchParams.get('search')?.trim() || null;
 
   if (!firmId) {
     return NextResponse.json({ data: null, error: 'firmId required' }, { status: 400 });
@@ -40,12 +41,28 @@ export async function GET(request: NextRequest) {
     // DEBIT = money going out → show supplier invoices + employee claims
 
     // 1. Unpaid/partially paid supplier invoices
+    const invoiceWhere: Record<string, unknown> = {
+      firm_id: firmId,
+      approval: 'approved',
+      payment_status: { in: ['unpaid', 'partially_paid'] },
+    };
+    if (search) {
+      // Check if search looks like an amount (number with optional decimals)
+      const searchAmount = parseFloat(search);
+      const isAmountSearch = !isNaN(searchAmount) && /^\d+\.?\d*$/.test(search.trim());
+      if (isAmountSearch) {
+        // Amount prefix match — find invoices where remaining amount starts with the search digits
+        invoiceWhere.total_amount = { gte: searchAmount, lt: searchAmount < 1 ? searchAmount + 1 : searchAmount * 10 < searchAmount + 10 ? searchAmount + 10 : Math.pow(10, Math.ceil(Math.log10(searchAmount + 1))) };
+      } else {
+        invoiceWhere.OR = [
+          { vendor_name_raw: { contains: search, mode: 'insensitive' } },
+          { invoice_number: { contains: search, mode: 'insensitive' } },
+          { supplier: { name: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
+    }
     const invoices = await prisma.invoice.findMany({
-      where: {
-        firm_id: firmId,
-        approval: 'approved',
-        payment_status: { in: ['unpaid', 'partially_paid'] },
-      },
+      where: invoiceWhere,
       select: {
         id: true,
         invoice_number: true,
@@ -61,13 +78,29 @@ export async function GET(request: NextRequest) {
     });
 
     // 2. Reviewed employee claims not yet reimbursed
+    const claimWhere: Record<string, unknown> = {
+      firm_id: firmId,
+      status: 'reviewed',
+      payment_status: 'unpaid',
+      type: { in: ['claim', 'mileage'] },
+      bankTxnAllocations: { none: {} },
+    };
+    if (search) {
+      const searchAmount = parseFloat(search);
+      const isAmountSearch = !isNaN(searchAmount) && /^\d+\.?\d*$/.test(search.trim());
+      if (isAmountSearch) {
+        claimWhere.amount = { gte: searchAmount, lt: searchAmount < 1 ? searchAmount + 1 : searchAmount * 10 < searchAmount + 10 ? searchAmount + 10 : Math.pow(10, Math.ceil(Math.log10(searchAmount + 1))) };
+      } else {
+        claimWhere.OR = [
+          { merchant: { contains: search, mode: 'insensitive' } },
+          { receipt_number: { contains: search, mode: 'insensitive' } },
+          { employee: { name: { contains: search, mode: 'insensitive' } } },
+          { category: { name: { contains: search, mode: 'insensitive' } } },
+        ];
+      }
+    }
     const claims = await prisma.claim.findMany({
-      where: {
-        firm_id: firmId,
-        status: 'reviewed',
-        payment_status: 'unpaid',
-        type: { in: ['claim', 'mileage'] },
-      },
+      where: claimWhere,
       select: {
         id: true,
         claim_date: true,
@@ -122,12 +155,25 @@ export async function GET(request: NextRequest) {
 
   if (direction === 'incoming') {
     // CREDIT = money coming in → show sales invoices
+    const salesWhere: Record<string, unknown> = {
+      firm_id: firmId,
+      approval: 'approved',
+      payment_status: { in: ['unpaid', 'partially_paid'] },
+    };
+    if (search) {
+      const searchAmount = parseFloat(search);
+      const isAmountSearch = !isNaN(searchAmount) && /^\d+\.?\d*$/.test(search.trim());
+      if (isAmountSearch) {
+        salesWhere.total_amount = { gte: searchAmount, lt: searchAmount < 1 ? searchAmount + 1 : searchAmount * 10 < searchAmount + 10 ? searchAmount + 10 : Math.pow(10, Math.ceil(Math.log10(searchAmount + 1))) };
+      } else {
+        salesWhere.OR = [
+          { buyer: { name: { contains: search, mode: 'insensitive' } } },
+          { invoice_number: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+    }
     const salesInvoices = await prisma.salesInvoice.findMany({
-      where: {
-        firm_id: firmId,
-        approval: 'approved',
-        payment_status: { in: ['unpaid', 'partially_paid'] },
-      },
+      where: salesWhere,
       select: {
         id: true,
         invoice_number: true,

@@ -893,6 +893,21 @@ function AdminClaimsPage() {
             </div>
             <p className="text-sm text-[#434654] mb-4">Fill in the details below.</p>
 
+            {/* Document preview */}
+            {selectedFile && (() => {
+              const url = URL.createObjectURL(selectedFile);
+              const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+              return (
+                <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50 mb-4">
+                  {isPdf ? (
+                    <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
+                  ) : (
+                    <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
+                  )}
+                </div>
+              );
+            })()}
+
             {/* ── Type Toggle ── */}
             <div className="flex rounded-lg border border-gray-200 overflow-hidden mb-4">
               {(['claim', 'receipt', 'mileage'] as const).map((t) => (

@@ -23,6 +23,7 @@ export interface GeminiInvoiceResult {
   category: string;
   notes: string;
   confidence: "HIGH" | "MEDIUM" | "LOW";
+  depositWarning?: string;
 }
 
 export type DocumentType = "receipt" | "invoice" | "bank_statement";
@@ -340,9 +341,10 @@ Fields to extract:
 - paymentTerms: payment terms like "Net 30", "30 Days", "Net 60", "COD" (empty string if not found)
 - subtotal: subtotal before tax as a number (0 if not found)
 - taxAmount: tax/GST/SST amount as a number (0 if not found)
-- totalAmount: total amount payable as a number (RM, no currency symbol)
+- totalAmount: total amount payable as a number (RM, no currency symbol). Use the printed total on the invoice as-is. If there are deposit deductions shown, they are already reflected in the total — do not add them back. Mention any deposit deductions in notes for reference.
 - category: pick the BEST match from this list only: [${categories.join(", ")}]. Base the category on the PURPOSE of the transaction (what was paid for), not the banking platform or payment method. For bank transfers, infer the category from the recipient name and context (e.g. paying "NINJA LOGISTICS" = Logistics/Delivery, not "Bank & Finance").
-- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. Keep it concise (2-3 lines max). Empty string if nothing notable.
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. If there is a deposit deduction, note the deposit amount and any referenced invoice number. Keep it concise (2-3 lines max). Empty string if nothing notable.
+
 - confidence: HIGH, MEDIUM, or LOW
 
 Confidence rules:
@@ -418,9 +420,10 @@ If it is an INVOICE (or Credit Note), extract:
 - paymentTerms: e.g. "Net 30", "30 Days" (empty string if not found)
 - subtotal: subtotal before tax (0 if not found). Use NEGATIVE for credit notes.
 - taxAmount: tax/GST/SST amount (0 if not found). Use NEGATIVE for credit notes.
-- totalAmount: total payable as number. Use NEGATIVE for credit notes (e.g. -17.50).
+- totalAmount: total payable as number. Use NEGATIVE for credit notes (e.g. -17.50). Use the printed total on the invoice as-is. If there are deposit deductions shown, they are already reflected in the total — do not add them back. Mention any deposit deductions in notes for reference.
 - category: pick BEST match from: [${categories.join(", ")}]. Base category on the PURPOSE of the payment (what was paid for), not the banking platform. Infer from recipient name and context.
-- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. For credit notes, prefix with "CREDIT NOTE: " and include reason. Keep it concise (2-3 lines max). Empty string if nothing notable.
+- notes: important extra details the accountant should know — e.g. "Billed To" / "Bill To" person name, phone/account numbers, service period, line item summary, account holder name, reference numbers. ALWAYS include the "Billed To" or "Bill To" name if present. For credit notes, prefix with "CREDIT NOTE: " and include reason. If there is a deposit deduction, note the deposit amount and any referenced invoice number. Keep it concise (2-3 lines max). Empty string if nothing notable.
+
 - confidence: HIGH, MEDIUM, or LOW
 
 If it is a RECEIPT, extract:

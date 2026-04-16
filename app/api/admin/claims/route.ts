@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { uploadFileForFirm } from '@/lib/google-drive';
 import { getFirmMileageRate, calculateMileageAmount } from '@/lib/mileage';
 import { checkClaimDuplicate } from '@/lib/claim-dedup';
+import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -298,6 +299,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── File hash duplicate check ──
+    let fileHash: string | null = null;
+    if (file) {
+      const hashBuf = Buffer.from(await file.arrayBuffer());
+      fileHash = createHash('sha256').update(hashBuf).digest('hex');
+      const hashDupe = await prisma.claim.findFirst({
+        where: { firm_id: firmId, file_hash: fileHash },
+        select: { id: true, merchant: true, receipt_number: true },
+      });
+      if (hashDupe) {
+        return NextResponse.json(
+          { data: null, error: `Duplicate file: this exact document was already uploaded${hashDupe.receipt_number ? ` as ${hashDupe.receipt_number}` : ''} (${hashDupe.merchant})` },
+          { status: 409 }
+        );
+      }
+    }
+
     // ── Duplicate check ──
     const dedup = await checkClaimDuplicate({
       firmId,
@@ -331,6 +349,7 @@ export async function POST(request: NextRequest) {
         file_url: fileUrl,
         file_download_url: fileDownloadUrl,
         thumbnail_url: thumbnailUrl,
+        file_hash: fileHash,
       },
       include: {
         employee: { select: { name: true } },

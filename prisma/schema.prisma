@@ -264,6 +264,7 @@ model Claim {
   file_url         String?
   file_download_url String?
   thumbnail_url    String?
+  file_hash        String?
   submitted_via    SubmittedVia
   type             ClaimType      @default(claim)
   from_location    String?
@@ -286,6 +287,7 @@ model Claim {
   contraGlAccount GLAccount? @relation("ClaimContraGL", fields: [contra_gl_account_id], references: [id])
   taxCode    TaxCode?   @relation(fields: [tax_code_id], references: [id], onDelete: SetNull)
   matchedBankTxn BankTransaction? @relation(fields: [matched_bank_txn_id], references: [id], onDelete: SetNull)
+  bankTxnAllocations BankTransactionClaim[]
   paymentReceipts PaymentReceipt[]
   invoiceReceiptLinks InvoiceReceiptLink[]
 
@@ -294,6 +296,7 @@ model Claim {
   @@index([firm_id, claim_date])
   @@index([firm_id, approval])
   @@index([firm_id, payment_status])
+  @@index([firm_id, file_hash])
   @@index([employee_id, claim_date])
   @@index([matched_bank_txn_id])
 }
@@ -373,8 +376,10 @@ model Invoice {
   file_url            String?
   file_download_url   String?
   thumbnail_url       String?
+  file_hash           String?
   submitted_via       SubmittedVia
-  gl_account_id       String?
+  gl_account_id            String?
+  contra_gl_account_id     String?
   approval            ApprovalStatus       @default(pending_approval)
   rejection_reason    String?
   notes               String?
@@ -385,13 +390,15 @@ model Invoice {
   uploader Employee  @relation(fields: [uploaded_by], references: [id])
   supplier            Supplier?            @relation(fields: [supplier_id], references: [id])
   category            Category             @relation(fields: [category_id], references: [id])
-  glAccount           GLAccount?           @relation(fields: [gl_account_id], references: [id])
+  glAccount           GLAccount?           @relation("InvoiceExpenseGL", fields: [gl_account_id], references: [id])
+  contraGlAccount     GLAccount?           @relation("InvoiceContraGL", fields: [contra_gl_account_id], references: [id])
   paymentAllocations  PaymentAllocation[]
   bankTxnAllocations  BankTransactionInvoice[]
   receiptLinks        InvoiceReceiptLink[]
 
   @@index([firm_id, status])
   @@index([firm_id, issue_date])
+  @@index([firm_id, file_hash])
   @@index([supplier_id])
   @@index([firm_id, payment_status])
   @@index([firm_id, approval])
@@ -675,6 +682,7 @@ model BankTransaction {
   matchedSalesInvoice SalesInvoice? @relation(fields: [matched_sales_invoice_id], references: [id])
   matchedClaims      Claim[]
   invoiceAllocations BankTransactionInvoice[]
+  claimAllocations   BankTransactionClaim[]
 
   @@index([bank_statement_id, recon_status])
   @@index([bank_statement_id, transaction_date])
@@ -693,6 +701,19 @@ model BankTransactionInvoice {
 
   @@unique([bank_transaction_id, invoice_id])
   @@index([invoice_id])
+}
+
+model BankTransactionClaim {
+  id                  String   @id @default(uuid())
+  bank_transaction_id String
+  claim_id            String
+  amount              Decimal  @db.Decimal(12, 2)
+
+  bankTransaction BankTransaction @relation(fields: [bank_transaction_id], references: [id], onDelete: Cascade)
+  claim           Claim           @relation(fields: [claim_id], references: [id], onDelete: Cascade)
+
+  @@unique([bank_transaction_id, claim_id])
+  @@index([claim_id])
 }
 
 // ─── Chart of Accounts ──────────────────────────────────────────────────────
@@ -718,7 +739,8 @@ model GLAccount {
 
   claims                Claim[]  @relation("ClaimExpenseGL")
   claimsContra          Claim[]  @relation("ClaimContraGL")
-  invoices              Invoice[]
+  invoices              Invoice[] @relation("InvoiceExpenseGL")
+  invoicesContra        Invoice[] @relation("InvoiceContraGL")
   salesInvoices         SalesInvoice[]
   categoryFirmOverrides CategoryFirmOverride[]
   taxCodes              TaxCode[]

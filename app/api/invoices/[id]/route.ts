@@ -37,12 +37,15 @@ export async function PATCH(
 
   if (body.vendor_name_raw !== undefined) data.vendor_name_raw = body.vendor_name_raw;
   if (body.invoice_number !== undefined) data.invoice_number = body.invoice_number || null;
-  if (body.issue_date !== undefined) data.issue_date = new Date(body.issue_date);
+  if (body.issue_date !== undefined && body.issue_date) {
+    const parsed = new Date(body.issue_date);
+    if (!isNaN(parsed.getTime())) data.issue_date = parsed;
+  }
   if (body.due_date !== undefined) data.due_date = body.due_date ? new Date(body.due_date) : null;
   if (body.payment_terms !== undefined) data.payment_terms = body.payment_terms || null;
-  if (body.subtotal !== undefined) data.subtotal = body.subtotal;
-  if (body.tax_amount !== undefined) data.tax_amount = body.tax_amount;
-  if (body.total_amount !== undefined) data.total_amount = body.total_amount;
+  if (body.subtotal !== undefined) data.subtotal = body.subtotal ? Number(body.subtotal) : null;
+  if (body.tax_amount !== undefined) data.tax_amount = body.tax_amount ? Number(body.tax_amount) : null;
+  if (body.total_amount !== undefined) data.total_amount = body.total_amount ? Number(body.total_amount) : undefined;
   if (body.category_id !== undefined) data.category_id = body.category_id;
   if (body.amount_paid !== undefined) {
     data.amount_paid = body.amount_paid;
@@ -75,24 +78,30 @@ export async function PATCH(
   }
   if (body.supplier_link_status !== undefined) data.supplier_link_status = body.supplier_link_status;
 
-  // If editing an approved invoice, reverse existing JV (new one will be created on re-approval)
-  if (invoice.approval === 'approved') {
-    await reverseJVsForSource('invoice_posting', id, session.user.id);
-    data.approval = 'pending_approval';
+  // Block financial edits on approved invoices — must revert approval first
+  const financialFields = ['vendor_name_raw', 'total_amount', 'subtotal', 'tax_amount', 'category_id', 'gl_account_id', 'issue_date'];
+  const hasFinancialChange = financialFields.some(f => f in data);
+  if (invoice.approval === 'approved' && hasFinancialChange) {
+    return NextResponse.json({ data: null, error: 'Cannot edit an approved invoice. Revert approval first.' }, { status: 400 });
   }
 
-  const updated = await prisma.invoice.update({ where: { id }, data });
+  try {
+    const updated = await prisma.invoice.update({ where: { id }, data });
 
-  await auditLog({
-    firmId: invoice!.firm_id,
-    tableName: 'Invoice',
-    recordId: id,
-    action: 'update',
-    oldValues: { status: invoice!.status, payment_status: invoice!.payment_status, supplier_id: invoice!.supplier_id, total_amount: String(invoice!.total_amount), gl_account_id: invoice!.gl_account_id },
-    newValues: { status: updated.status, payment_status: updated.payment_status, supplier_id: updated.supplier_id, total_amount: String(updated.total_amount), gl_account_id: updated.gl_account_id },
-    userId: session.user.id,
-    userName: session.user.name,
-  });
+    await auditLog({
+      firmId: invoice!.firm_id,
+      tableName: 'Invoice',
+      recordId: id,
+      action: 'update',
+      oldValues: { status: invoice!.status, payment_status: invoice!.payment_status, supplier_id: invoice!.supplier_id, total_amount: String(invoice!.total_amount), gl_account_id: invoice!.gl_account_id },
+      newValues: { status: updated.status, payment_status: updated.payment_status, supplier_id: updated.supplier_id, total_amount: String(updated.total_amount), gl_account_id: updated.gl_account_id },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
 
-  return NextResponse.json({ data: updated, error: null });
+    return NextResponse.json({ data: updated, error: null });
+  } catch (err) {
+    console.error('Invoice PATCH error:', err, 'Data:', JSON.stringify(data));
+    return NextResponse.json({ data: null, error: `Save failed: ${err instanceof Error ? err.message : String(err)}` }, { status: 500 });
+  }
 }

@@ -56,6 +56,7 @@ export async function DELETE(request: NextRequest) {
   for (const claim of claims) {
     if (claim.matched_bank_txn_id) {
       await reverseJVsForSource('bank_recon', claim.matched_bank_txn_id, session.user.id);
+      await prisma.bankTransactionClaim.deleteMany({ where: { claim_id: claim.id } });
       await prisma.bankTransaction.update({
         where: { id: claim.matched_bank_txn_id },
         data: { recon_status: 'unmatched', matched_at: null, matched_by: null },

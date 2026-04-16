@@ -77,7 +77,7 @@ export async function autoMatchTransactions(
   const matchedSalesInvoiceIds = new Set<string>();
   const matchedClaimIds = new Set<string>();
   const updates: { txnId: string; data: { matched_sales_invoice_id?: string; notes?: string }; invoiceId?: string; invoiceAmount?: number }[] = [];
-  const claimUpdates: { txnId: string; claimId: string; notes: string }[] = [];
+  const claimUpdates: { txnId: string; claimId: string; claimAmount: number; notes: string }[] = [];
 
   // Helper: get remaining amount for an invoice
   const remaining = (total: unknown, paid: unknown) => Number(total) - Number(paid);
@@ -157,7 +157,7 @@ export async function autoMatchTransactions(
           return Math.abs(c.claim_date.getTime() - txnDate) <= DAY3;
         });
         if (claimCandidates.length === 1) {
-          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, notes: `Pass 2: claim amount+date` });
+          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, claimAmount: Number(claimCandidates[0].amount), notes: `Pass 2: claim amount+date` });
           matchedTxnIds.add(txn.id);
           matchedClaimIds.add(claimCandidates[0].id);
         }
@@ -205,7 +205,7 @@ export async function autoMatchTransactions(
           return nameInDesc([c.employee.name, c.merchant], descLower);
         });
         if (claimCandidates.length === 1) {
-          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, notes: `Pass 3: claim name+amount` });
+          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, claimAmount: Number(claimCandidates[0].amount), notes: `Pass 3: claim name+amount` });
           matchedTxnIds.add(txn.id);
           matchedClaimIds.add(claimCandidates[0].id);
         }
@@ -248,7 +248,7 @@ export async function autoMatchTransactions(
           matchedTxnIds.add(txn.id);
           matchedInvoiceIds.add(invCandidates[0].id);
         } else {
-          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, notes: `Pass 4: claim amount only` });
+          claimUpdates.push({ txnId: txn.id, claimId: claimCandidates[0].id, claimAmount: Number(claimCandidates[0].amount), notes: `Pass 4: claim amount only` });
           matchedTxnIds.add(txn.id);
           matchedClaimIds.add(claimCandidates[0].id);
         }
@@ -286,11 +286,18 @@ export async function autoMatchTransactions(
           amount: u.invoiceAmount!,
         },
       }));
-    // For claim matches: update bank txn status + set matched_bank_txn_id on claim
+    // For claim matches: update bank txn status + create join table record + set matched_bank_txn_id on claim
     const claimTxnOps = claimUpdates.flatMap((u) => [
       prisma.bankTransaction.update({
         where: { id: u.txnId },
         data: { recon_status: 'matched', matched_at: now, notes: u.notes },
+      }),
+      prisma.bankTransactionClaim.create({
+        data: {
+          bank_transaction_id: u.txnId,
+          claim_id: u.claimId,
+          amount: u.claimAmount,
+        },
       }),
       prisma.claim.update({
         where: { id: u.claimId },

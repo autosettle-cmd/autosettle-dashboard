@@ -255,12 +255,30 @@ export async function POST(request: NextRequest) {
       // Credit bank for total
       jvLines.push({ glAccountId: bankGlId, debitAmount: 0, creditAmount: totalAmount, description: txn.bankStatement.bank_name });
 
-      // Update bank txn + all claims in one transaction
+      // Check for double-payment — reject claims already linked to another bank txn
+      const existingAllocs = await prisma.bankTransactionClaim.findMany({
+        where: { claim_id: { in: resolvedClaimIds } },
+        select: { claim_id: true },
+      });
+      if (existingAllocs.length > 0) {
+        const dupeIds = existingAllocs.map(a => a.claim_id);
+        const dupeNames = claims.filter(c => dupeIds.includes(c.id)).map(c => c.merchant);
+        return NextResponse.json({ data: null, error: `Claims already matched: ${dupeNames.join(', ')}` }, { status: 400 });
+      }
+
+      // Update bank txn + create claim allocations via join table
       await prisma.$transaction([
         prisma.bankTransaction.update({
           where: { id: bankTransactionId },
           data: { recon_status: 'manually_matched', matched_at: new Date(), matched_by: session.user.id },
         }),
+        ...claims.map(c => prisma.bankTransactionClaim.create({
+          data: {
+            bank_transaction_id: bankTransactionId,
+            claim_id: c.id,
+            amount: Number(c.amount),
+          },
+        })),
         ...claims.map(c => prisma.claim.update({
           where: { id: c.id },
           data: { matched_bank_txn_id: bankTransactionId, payment_status: 'paid' },

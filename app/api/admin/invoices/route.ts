@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { uploadFileForFirm } from '@/lib/google-drive';
+import { createHash } from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,13 +116,26 @@ export async function POST(request: NextRequest) {
     const categoryId = formData.get('category_id') as string | null;
     const paymentTerms = formData.get('payment_terms') as string | null;
     const notes = formData.get('notes') as string | null;
+    const glAccountId = formData.get('gl_account_id') as string | null;
+    const contraGlAccountId = formData.get('contra_gl_account_id') as string | null;
+    const isBatch = formData.get('batch') === 'true';
     const file = formData.get('file') as File | null;
 
-    if (!vendorName || !issueDate || !totalAmountStr || !categoryId) {
+    if (!vendorName || !issueDate || !totalAmountStr) {
       return NextResponse.json(
-        { data: null, error: 'Missing required fields: vendor_name, issue_date, total_amount, category_id' },
+        { data: null, error: 'Missing required fields: vendor_name, issue_date, total_amount' },
         { status: 400 }
       );
+    }
+
+    // Auto-assign "Miscellaneous" category if not provided
+    let resolvedCategoryId = categoryId;
+    if (!resolvedCategoryId) {
+      const misc = await prisma.category.findFirst({ where: { name: 'Miscellaneous' }, select: { id: true } });
+      if (!misc) {
+        return NextResponse.json({ data: null, error: 'No default category found. Please select a category.' }, { status: 400 });
+      }
+      resolvedCategoryId = misc.id;
     }
 
     const totalAmount = parseFloat(totalAmountStr);
@@ -215,14 +229,56 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Duplicate check ──
+    // 0. File hash — exact same file
+    let fileHash: string | null = null;
+    if (file) {
+      const buf = Buffer.from(await file.arrayBuffer());
+      fileHash = createHash('sha256').update(buf).digest('hex');
+      const hashDupe = await prisma.invoice.findFirst({
+        where: { firm_id: firmId, file_hash: fileHash },
+        select: { id: true, vendor_name_raw: true, invoice_number: true },
+      });
+      if (hashDupe) {
+        return NextResponse.json(
+          { data: null, error: `Duplicate file: this exact document was already uploaded${hashDupe.invoice_number ? ` as ${hashDupe.invoice_number}` : ''} (${hashDupe.vendor_name_raw})` },
+          { status: 409 }
+        );
+      }
+    }
     if (invoiceNumber) {
+      const stripped = invoiceNumber.replace(/^[#\s]+/, '').trim();
       const existing = await prisma.invoice.findFirst({
-        where: { firm_id: firmId, invoice_number: invoiceNumber },
-        select: { id: true, vendor_name_raw: true },
+        where: {
+          firm_id: firmId,
+          OR: [
+            { invoice_number: { equals: invoiceNumber, mode: 'insensitive' } },
+            { invoice_number: { equals: stripped, mode: 'insensitive' } },
+            { invoice_number: { equals: `#${stripped}`, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true, vendor_name_raw: true, invoice_number: true },
       });
       if (existing) {
         return NextResponse.json(
-          { data: null, error: `Duplicate: invoice #${invoiceNumber} already exists (${existing.vendor_name_raw})` },
+          { data: null, error: `Duplicate: invoice #${existing.invoice_number} already exists (${existing.vendor_name_raw})` },
+          { status: 409 }
+        );
+      }
+    }
+    // 2. Composite match: same vendor + issue date + amount
+    if (vendorName && issueDate && totalAmount) {
+      const compositeMatch = await prisma.invoice.findFirst({
+        where: {
+          firm_id: firmId,
+          vendor_name_raw: { equals: vendorName, mode: 'insensitive' },
+          issue_date: new Date(issueDate),
+          total_amount: { gte: totalAmount - 0.01, lte: totalAmount + 0.01 },
+        },
+        select: { id: true, vendor_name_raw: true, invoice_number: true },
+      });
+      if (compositeMatch) {
+        return NextResponse.json(
+          { data: null, error: `Possible duplicate: ${compositeMatch.vendor_name_raw} on ${issueDate} for the same amount already exists${compositeMatch.invoice_number ? ` (${compositeMatch.invoice_number})` : ''}` },
           { status: 409 }
         );
       }
@@ -242,14 +298,17 @@ export async function POST(request: NextRequest) {
         payment_terms: paymentTerms || null,
         notes: notes || null,
         total_amount: totalAmount,
-        category_id: categoryId,
+        category_id: resolvedCategoryId!,
+        gl_account_id: glAccountId || null,
+        contra_gl_account_id: contraGlAccountId || null,
         confidence: 'HIGH',
-        status: 'pending_review',
+        status: isBatch ? 'pending_review' : 'reviewed',
         payment_status: 'unpaid',
         amount_paid: 0,
         file_url: fileUrl,
         file_download_url: fileDownloadUrl,
         thumbnail_url: thumbnailUrl,
+        file_hash: fileHash,
         submitted_via: 'dashboard',
       },
       include: {

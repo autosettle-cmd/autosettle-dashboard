@@ -45,6 +45,8 @@ interface InvoiceRow {
   notes: string | null;
   gl_account_id: string | null;
   gl_account_label: string | null;
+  contra_gl_account_id: string | null;
+  contra_gl_account_label: string | null;
   supplier_default_gl_id: string | null;
   supplier_default_contra_gl_id: string | null;
   approval: 'pending_approval' | 'approved' | 'not_approved';
@@ -55,6 +57,8 @@ interface SupplierOption {
   id: string;
   name: string;
   firm_id: string;
+  default_gl_account_id?: string | null;
+  default_contra_gl_account_id?: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -108,11 +112,21 @@ function AccountantInvoicesPage() {
         refresh();
         setSelectedRows([]);
         if (previewInvoice && invoiceIds.includes(previewInvoice.id)) {
+          // After approve, resolve GL labels for display
+          const resolvedExpenseGlId = glAccountId || previewInvoice.gl_account_id || previewInvoice.supplier_default_gl_id;
+          const resolvedContraGlId = contraGlId || previewInvoice.supplier_default_contra_gl_id;
+          const expenseGl = resolvedExpenseGlId ? glAccounts.find(a => a.id === resolvedExpenseGlId) : null;
+          const contraGl = resolvedContraGlId ? glAccounts.find(a => a.id === resolvedContraGlId) : null;
           setPreviewInvoice({
             ...previewInvoice,
             approval: action === 'approve' ? 'approved' : action === 'reject' ? 'not_approved' : 'pending_approval',
             ...(action === 'reject' && reason ? { rejection_reason: reason } : {}),
+            ...(action === 'approve' ? {
+              ...(resolvedExpenseGlId ? { gl_account_id: resolvedExpenseGlId, gl_account_label: expenseGl ? `${expenseGl.account_code} — ${expenseGl.name}` : previewInvoice.gl_account_label } : {}),
+              ...(resolvedContraGlId ? { contra_gl_account_id: resolvedContraGlId, contra_gl_account_label: contraGl ? `${contraGl.account_code} — ${contraGl.name}` : null } : {}),
+            } : {}),
           });
+          if (action === 'approve' && resolvedContraGlId) setSelectedContraGlId(resolvedContraGlId);
         }
       } else {
         const json = await res.json().catch(() => ({ error: 'Unknown error' }));
@@ -154,6 +168,7 @@ function AccountantInvoicesPage() {
   const [showNewInvoice, setShowNewInvoice] = useState(false);
   const [newInvSubmitting, setNewInvSubmitting] = useState(false);
   const [newInvError, setNewInvError] = useState('');
+  const [depositWarning, setDepositWarning] = useState('');
   const [newInv, setNewInv] = useState({
     firm_id: '',
     vendor_name: '',
@@ -216,6 +231,20 @@ function AccountantInvoicesPage() {
       setNewInvFile(file);
       setBatchProgress(null);
       setNewInvError('');
+      setDepositWarning('');
+
+      // Check for duplicate file before OCR
+      try {
+        const dupFd = new FormData();
+        dupFd.append('file', file);
+        dupFd.append('firm_id', targetFirmId);
+        const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
+        const dupJson = await dupRes.json();
+        if (dupJson.data?.isDuplicate) {
+          setNewInvError(dupJson.data.message);
+          return;
+        }
+      } catch { /* proceed with OCR if check fails */ }
 
       // Trigger OCR scan
       setOcrScanning(true);
@@ -255,6 +284,16 @@ function AccountantInvoicesPage() {
             }
             return updates;
           });
+          // Auto-fill GL from matched supplier defaults
+          const vendorName = f.vendor || f.merchant;
+          if (vendorName) {
+            const vLower = vendorName.toLowerCase();
+            const firmSuppliers = suppliers.filter((s) => s.firm_id === targetFirmId);
+            const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+            if (supplierMatch?.default_gl_account_id) setNewInvExpenseGlId(supplierMatch.default_gl_account_id);
+            if (supplierMatch?.default_contra_gl_account_id) setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
+          }
+          if (f.depositWarning) setDepositWarning(f.depositWarning);
         }
       } catch (err) {
         console.error('OCR extraction failed:', err);
@@ -277,6 +316,18 @@ function AccountantInvoicesPage() {
       setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
 
       try {
+        // Check duplicate before OCR
+        const dupFd = new FormData();
+        dupFd.append('file', file);
+        dupFd.append('firm_id', targetFirmId);
+        const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
+        const dupJson = await dupRes.json();
+        if (dupJson.data?.isDuplicate) {
+          results.push({ name: file.name, ok: false, msg: dupJson.data.message });
+          setBatchProgress({ current: i + 1, total: droppedFiles.length, results: [...results] });
+          continue;
+        }
+
         const ocrFd = new FormData();
         ocrFd.append('file', file);
         ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
@@ -321,6 +372,7 @@ function AccountantInvoicesPage() {
 
         if (newInvExpenseGlId) fd.append('gl_account_id', newInvExpenseGlId);
         if (newInvContraGlId) fd.append('contra_gl_account_id', newInvContraGlId);
+        fd.append('batch', 'true');
 
         const res = await fetch('/api/invoices', { method: 'POST', body: fd });
         const json = await res.json();
@@ -526,6 +578,7 @@ function AccountantInvoicesPage() {
       if (!res.ok) { setNewInvError(j.error || 'Failed to create invoice'); return; }
 
       setShowNewInvoice(false);
+      setDepositWarning('');
       setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
@@ -558,9 +611,9 @@ function AccountantInvoicesPage() {
             const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
             setSelectedGlAccountId(match?.gl_account_id ?? '');
           }
-          // Contra GL: supplier's sub-account → firm default → empty
-          const contraId = previewInvoice.supplier_default_contra_gl_id || settingsJson.data?.default_trade_payables_gl_id || '';
-          setDefaultContraGlId(contraId);
+          // Contra GL: saved on invoice → supplier's sub-account → firm default → empty
+          const contraId = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || settingsJson.data?.default_trade_payables_gl_id || '';
+          setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || settingsJson.data?.default_trade_payables_gl_id || '');
           setSelectedContraGlId(contraId);
         })
         .catch(console.error);
@@ -581,7 +634,7 @@ function AccountantInvoicesPage() {
 
   // Fetch suppliers
   useEffect(() => {
-    fetch('/api/suppliers').then((r) => r.json()).then((j) => setSuppliers((j.data ?? []).map((s: { id: string; name: string; firm_id: string }) => ({ id: s.id, name: s.name, firm_id: s.firm_id })))).catch(console.error);
+    fetch('/api/suppliers').then((r) => r.json()).then((j) => setSuppliers((j.data ?? []).map((s: { id: string; name: string; firm_id: string; default_gl_account_id?: string; default_contra_gl_account_id?: string }) => ({ id: s.id, name: s.name, firm_id: s.firm_id, default_gl_account_id: s.default_gl_account_id, default_contra_gl_account_id: s.default_contra_gl_account_id })))).catch(console.error);
   }, [refreshKey]);
 
   const saveEdit = async () => {
@@ -596,7 +649,24 @@ function AccountantInvoicesPage() {
           ...(selectedGlAccountId && { gl_account_id: selectedGlAccountId }),
         }),
       });
-      if (res.ok) { setEditMode(false); setEditData(null); setPreviewInvoice(null); refresh(); }
+      if (res.ok) {
+        const json = await res.json();
+        setEditMode(false);
+        setEditData(null);
+        // Stay in preview with updated data
+        const newSupplier = editData.supplier_id ? suppliers.find(s => s.id === editData.supplier_id) : null;
+        setPreviewInvoice({
+          ...previewInvoice,
+          ...editData,
+          ...(newSupplier && { supplier_name: newSupplier.name, supplier_link_status: 'confirmed' as const }),
+          ...(selectedGlAccountId && { gl_account_id: selectedGlAccountId }),
+          gl_account_label: selectedGlAccountId ? (glAccounts.find(a => a.id === selectedGlAccountId)?.account_code + ' — ' + glAccounts.find(a => a.id === selectedGlAccountId)?.name) : previewInvoice.gl_account_label,
+        });
+        refresh();
+      } else {
+        const json = await res.json().catch(() => ({ error: 'Save failed' }));
+        alert(json.error || 'Save failed');
+      }
     } catch (e) { console.error(e); }
     finally { setEditSaving(false); }
   };
@@ -630,7 +700,12 @@ function AccountantInvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ supplier_id: supplierId, supplier_link_status: 'confirmed' }),
       });
-      if (res.ok) { setPreviewInvoice(null); refresh(); }
+      if (res.ok) {
+        if (previewInvoice && previewInvoice.id === invoiceId) {
+          setPreviewInvoice({ ...previewInvoice, supplier_id: supplierId, supplier_link_status: 'confirmed' });
+        }
+        refresh();
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -905,6 +980,21 @@ function AccountantInvoicesPage() {
 
               <div className="p-5 space-y-4">
 
+                {/* Document preview */}
+                {newInvFile && (() => {
+                  const url = URL.createObjectURL(newInvFile);
+                  const isPdf = newInvFile.type === 'application/pdf' || newInvFile.name.toLowerCase().endsWith('.pdf');
+                  return (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                      {isPdf ? (
+                        <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Invoice preview" />
+                      ) : (
+                        <img src={url} alt="Invoice preview" className="w-full max-h-[300px] object-contain" />
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <label className="input-label">Firm *</label>
                   <select value={newInv.firm_id} onChange={(e) => setNewInv({ ...newInv, firm_id: e.target.value })} className="input-field w-full">
@@ -1089,6 +1179,7 @@ function AccountantInvoicesPage() {
                 )}
               </div>
 
+              {depositWarning && <div className="px-5 pt-3"><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">{depositWarning}</p></div>}
               {newInvError && <div className="px-5 pt-3"><p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{newInvError}</p></div>}
               <div className="flex gap-3 px-5 py-4 border-t">
                 {!batchProgress && (
@@ -1188,7 +1279,54 @@ function AccountantInvoicesPage() {
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
-                  <input type="hidden" value={editData.supplier_id} />
+                  <div>
+                    <label className="input-label">Supplier Account</label>
+                    {creatingSupplier ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newSupplierName}
+                          onChange={(e) => setNewSupplierName(e.target.value)}
+                          placeholder="New supplier name"
+                          className="input-field flex-1"
+                          autoFocus
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!newSupplierName.trim()) return;
+                            try {
+                              const res = await fetch('/api/suppliers', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ name: newSupplierName.trim(), firm_id: previewInvoice.firm_id }),
+                              });
+                              const j = await res.json();
+                              if (j.data?.id) {
+                                setSuppliers(prev => [...prev, { id: j.data.id, name: j.data.name, firm_id: previewInvoice.firm_id }]);
+                                setEditData({ ...editData, supplier_id: j.data.id });
+                                setCreatingSupplier(false);
+                                setNewSupplierName('');
+                              }
+                            } catch (e) { console.error(e); }
+                          }}
+                          className="btn-approve px-3 py-1.5 rounded-lg text-sm font-medium"
+                        >
+                          Create
+                        </button>
+                        <button onClick={() => { setCreatingSupplier(false); setNewSupplierName(''); }} className="px-3 py-1.5 rounded-lg text-sm border border-gray-300 text-[#434654]">
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <select value={editData.supplier_id} onChange={(e) => setEditData({ ...editData, supplier_id: e.target.value })} className="input-field w-full">
+                          <option value="">— Not assigned —</option>
+                          {suppliers.filter(s => s.firm_id === previewInvoice.firm_id).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <button onClick={() => setCreatingSupplier(true)} className="text-xs text-blue-600 hover:text-blue-700 mt-1">+ Create new supplier</button>
+                      </>
+                    )}
+                  </div>
                   {glAccounts.length > 0 && (
                     <>
                       <div>
@@ -1364,7 +1502,11 @@ function AccountantInvoicesPage() {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
                       </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                      <span className="text-sm font-medium text-[#191C1E]">{(() => {
+                        if (previewInvoice.contra_gl_account_label) return previewInvoice.contra_gl_account_label;
+                        const gl = glAccounts.find(a => a.id === selectedContraGlId);
+                        return gl ? `${gl.account_code} — ${gl.name}` : 'Not assigned';
+                      })()}</span>
                     </div>
                   ) : (
                     <GlAccountSelect
@@ -1448,6 +1590,7 @@ function AccountantInvoicesPage() {
                   </div>
                   {/* ── Secondary actions (edit, revert) ── */}
                   <div className="flex gap-3">
+                    {previewInvoice.approval !== 'approved' && (
                     <button
                       onClick={() => {
                         setEditMode(true);
@@ -1468,6 +1611,7 @@ function AccountantInvoicesPage() {
                     >
                       Edit
                     </button>
+                    )}
                     {previewInvoice.status === 'reviewed' && (
                       <button
                         onClick={async () => {
@@ -1488,14 +1632,24 @@ function AccountantInvoicesPage() {
                         Revert Review
                       </button>
                     )}
-                    {(previewInvoice.approval === 'approved' || previewInvoice.approval === 'not_approved') && (
-                      <button
-                        onClick={() => batchAction([previewInvoice.id], 'revert')}
-                        className="flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 text-[#434654] hover:bg-gray-50 transition-colors"
-                      >
-                        Revert Approval
-                      </button>
-                    )}
+                    {(previewInvoice.approval === 'approved' || previewInvoice.approval === 'not_approved') && (() => {
+                      const hasBankRecon = previewInvoice.payment_status === 'paid' || previewInvoice.payment_status === 'partially_paid';
+                      return (
+                        <button
+                          onClick={() => {
+                            if (hasBankRecon) return;
+                            batchAction([previewInvoice.id], 'revert');
+                          }}
+                          disabled={hasBankRecon}
+                          title={hasBankRecon ? 'Cannot revert — invoice has bank reconciliation payments. Unmatch in Bank Recon first.' : ''}
+                          className={`flex-1 py-2 rounded-lg text-sm font-semibold border border-gray-300 transition-colors ${
+                            hasBankRecon ? 'text-[#8E9196] bg-gray-100 cursor-not-allowed opacity-60' : 'text-[#434654] hover:bg-gray-50'
+                          }`}
+                        >
+                          Revert Approval
+                        </button>
+                      );
+                    })()}
                   </div>
                 </>
               )}

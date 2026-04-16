@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Transaction not found' }, { status: 404 });
   }
 
-  // Clear any claims linked to this txn
+  // Clear any claims linked to this txn via join table + legacy FK
+  await prisma.bankTransactionClaim.deleteMany({ where: { bank_transaction_id: bankTransactionId } });
   await prisma.claim.updateMany({ where: { matched_bank_txn_id: bankTransactionId }, data: { matched_bank_txn_id: null, payment_status: 'unpaid' } });
 
   // Clear invoice allocations via join table

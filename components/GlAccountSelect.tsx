@@ -197,7 +197,7 @@ export default function GlAccountSelect({
       if (!res.ok) { setError(j.error || 'Failed to create'); return; }
       const created = j.data as GlAccount;
       onAccountCreated?.(created);
-      onChange(created.id);
+      setTimeout(() => onChange(created.id), 0);
       setShowAdd(false);
       setNewCode('');
       setNewName('');

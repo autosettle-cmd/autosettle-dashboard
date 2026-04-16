@@ -116,6 +116,19 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
       return { ...fallback, ...parsed, confidence: "LOW" };
     }
 
+    const notes = String(parsed.notes || "");
+    const totalAmount = Number(parsed.totalAmount);
+
+    // Post-process: detect if notes mention a deposit — informational notice
+    let depositWarning: string | undefined;
+    const depositMatch = notes.match(/deposit[^.]*?(?:RM\s?)?(\d[\d,]*(?:\.\d{2})?)/i);
+    if (depositMatch) {
+      const depositAmount = parseFloat(depositMatch[1].replace(/,/g, ''));
+      if (depositAmount > 0) {
+        depositWarning = `This invoice mentions a deposit of RM ${depositAmount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}. The deposit payment should be matched separately in Bank Reconciliation.`;
+      }
+    }
+
     return {
       vendor: String(parsed.vendor),
       invoiceNumber: String(parsed.invoiceNumber || ""),
@@ -124,12 +137,13 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
       paymentTerms: String(parsed.paymentTerms || ""),
       subtotal: Number(parsed.subtotal || 0),
       taxAmount: Number(parsed.taxAmount || 0),
-      totalAmount: Number(parsed.totalAmount),
+      totalAmount,
       category: String(parsed.category || ""),
-      notes: String(parsed.notes || ""),
+      notes,
       confidence: ["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence)
         ? parsed.confidence
         : "LOW",
+      depositWarning,
     };
   } catch {
     return fallback;

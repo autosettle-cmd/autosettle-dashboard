@@ -167,6 +167,19 @@ function AdminInvoicesPage() {
       setNewInvFile(file);
       setNewInvError('');
 
+      // Check for duplicate file before OCR
+      try {
+        const dupFd = new FormData();
+        dupFd.append('file', file);
+        // firm_id resolved from session on server for admin
+        const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
+        const dupJson = await dupRes.json();
+        if (dupJson.data?.isDuplicate) {
+          setNewInvError(dupJson.data.message);
+          return;
+        }
+      } catch { /* proceed with OCR if check fails */ }
+
       // Trigger OCR scan
       setOcrScanning(true);
       try {
@@ -295,6 +308,7 @@ function AdminInvoicesPage() {
         if (item.payment_terms) fd.append('payment_terms', item.payment_terms);
         if (item.notes) fd.append('notes', item.notes);
         if (item.supplier_id) fd.append('supplier_id', item.supplier_id);
+        fd.append('batch', 'true');
 
         const res = await fetch('/api/admin/invoices', { method: 'POST', body: fd });
         if (res.ok) {
@@ -417,7 +431,15 @@ function AdminInvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData),
       });
-      if (res.ok) { setEditMode(false); setEditData(null); setPreviewInvoice(null); refresh(); }
+      if (res.ok) {
+        setEditMode(false);
+        setEditData(null);
+        setPreviewInvoice({ ...previewInvoice, ...editData });
+        refresh();
+      } else {
+        const json = await res.json().catch(() => ({ error: 'Save failed' }));
+        alert(json.error || 'Save failed');
+      }
     } catch (e) { console.error(e); }
     finally { setEditSaving(false); }
   };
@@ -440,7 +462,12 @@ function AdminInvoicesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ supplier_id: supplierId, supplier_link_status: 'confirmed' }),
       });
-      if (res.ok) { setPreviewInvoice(null); refresh(); }
+      if (res.ok) {
+        if (previewInvoice && previewInvoice.id === invoiceId) {
+          setPreviewInvoice({ ...previewInvoice, supplier_id: supplierId, supplier_link_status: 'confirmed' });
+        }
+        refresh();
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -659,6 +686,21 @@ function AdminInvoicesPage() {
               </div>
 
               <div className="p-5 space-y-4">
+
+                {/* Document preview */}
+                {newInvFile && (() => {
+                  const url = URL.createObjectURL(newInvFile);
+                  const isPdf = newInvFile.type === 'application/pdf' || newInvFile.name.toLowerCase().endsWith('.pdf');
+                  return (
+                    <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                      {isPdf ? (
+                        <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
+                      ) : (
+                        <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="relative">
                   <label className="input-label">Vendor Name *</label>

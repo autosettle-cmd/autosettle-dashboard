@@ -34,18 +34,28 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Find claims matched to these transactions
+  // Find claims matched to these transactions via join table
   const txnIds = txns.map(t => t.id);
-  const matchedClaims = await prisma.claim.findMany({
-    where: { matched_bank_txn_id: { in: txnIds } },
-    select: { id: true, amount: true, merchant: true, category_id: true, gl_account_id: true, matched_bank_txn_id: true,
-      employee: { select: { name: true } }, category: { select: { name: true } } },
+  const claimAllocations = await prisma.bankTransactionClaim.findMany({
+    where: { bank_transaction_id: { in: txnIds } },
+    select: { bank_transaction_id: true, claim_id: true, amount: true },
   });
+  const claimIds = Array.from(new Set(claimAllocations.map(a => a.claim_id)));
+  const matchedClaims = claimIds.length > 0
+    ? await prisma.claim.findMany({
+        where: { id: { in: claimIds } },
+        select: { id: true, amount: true, merchant: true, category_id: true, gl_account_id: true, matched_bank_txn_id: true,
+          employee: { select: { name: true } }, category: { select: { name: true } } },
+      })
+    : [];
+  const claimMap = new Map(matchedClaims.map(c => [c.id, c]));
   const claimsByTxnId = new Map<string, typeof matchedClaims>();
-  for (const claim of matchedClaims) {
-    const list = claimsByTxnId.get(claim.matched_bank_txn_id!) ?? [];
+  for (const alloc of claimAllocations) {
+    const claim = claimMap.get(alloc.claim_id);
+    if (!claim) continue;
+    const list = claimsByTxnId.get(alloc.bank_transaction_id) ?? [];
     list.push(claim);
-    claimsByTxnId.set(claim.matched_bank_txn_id!, list);
+    claimsByTxnId.set(alloc.bank_transaction_id, list);
   }
 
   // Pre-fetch invoice allocations

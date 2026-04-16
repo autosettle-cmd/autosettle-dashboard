@@ -124,6 +124,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Duplicate check ──
+    if (invoice_number) {
+      const stripped = invoice_number.replace(/^[#\s]+/, '').trim();
+      const existing = await prisma.salesInvoice.findFirst({
+        where: {
+          firm_id: firmId,
+          OR: [
+            { invoice_number: { equals: invoice_number, mode: 'insensitive' } },
+            { invoice_number: { equals: stripped, mode: 'insensitive' } },
+            { invoice_number: { equals: `#${stripped}`, mode: 'insensitive' } },
+          ],
+        },
+        select: { id: true, invoice_number: true, buyer: { select: { name: true } } },
+      });
+      if (existing) {
+        return NextResponse.json(
+          { data: null, error: `Duplicate: sales invoice #${existing.invoice_number} already exists (${existing.buyer?.name})` },
+          { status: 409 }
+        );
+      }
+    }
+
     // Calculate totals from items
     let subtotal = 0;
     let taxAmount = 0;
