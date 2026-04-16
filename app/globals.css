@@ -275,6 +275,11 @@ body {
   .input-field:hover {
     box-shadow: 2px 2px 6px rgba(0,0,0,0.06);
   }
+  .input-field:active {
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+    transform: translateY(2px);
+  }
   .input-field:focus {
     border-bottom-color: var(--primary);
     border-right-color: var(--primary);

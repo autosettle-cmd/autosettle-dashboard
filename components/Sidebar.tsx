@@ -235,24 +235,30 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
                   </svg>
                 </button>
                 {isOpen && (
-                  <div className="ml-7 space-y-1">
+                  <div className="ml-6 mt-1 space-y-1">
                     {item.children.map((child) => {
                       const active = isActive(child.href);
                       return (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          className={`flex items-center py-1.5 px-3 text-[12px] tracking-tight transition-all btn-thick-sidebar ${
-                            active ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
-                          }`}
-                        >
-                          {child.label}
-                          {child.countKey && counts[child.countKey] > 0 && (
-                            <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 bg-[var(--reject-red)] text-white rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center leading-none">
-                              {counts[child.countKey]}
-                            </span>
-                          )}
-                        </Link>
+                        <div key={child.href} className="flex items-center gap-1">
+                          {/* Arrow */}
+                          <svg width="10" height="10" viewBox="0 0 10 10" className="flex-shrink-0 opacity-40">
+                            <path d="M2 1 L2 5 L8 5" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            <path d="M6 3 L8 5 L6 7" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          <Link
+                            href={child.href}
+                            className={`flex-1 flex items-center py-1.5 px-3 text-[12px] tracking-tight transition-all btn-thick-sidebar ${
+                              active ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
+                            }`}
+                          >
+                            {child.label}
+                            {child.countKey && counts[child.countKey] > 0 && (
+                              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 bg-[var(--reject-red)] text-white rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center leading-none">
+                                {counts[child.countKey]}
+                              </span>
+                            )}
+                          </Link>
+                        </div>
                       );
                     })}
                   </div>

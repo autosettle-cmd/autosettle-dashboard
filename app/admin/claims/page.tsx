@@ -106,6 +106,38 @@ function AdminClaimsPage() {
   const [invoiceLinkLoading, setInvoiceLinkLoading] = useState(false);
   const [linkedInvoices, setLinkedInvoices] = useState<{ id: string; invoice_id: string; amount: number; invoice_number: string; vendor_name: string }[]>([]);
   const [suggestedInvoices, setSuggestedInvoices] = useState<{ id: string; invoice_number: string; vendor_name_raw: string; total_amount: number; amount_paid: number; issue_date: string; match_reason: string }[]>([]);
+  const [pendingLinkInvoice, setPendingLinkInvoice] = useState<{ id: string; invoice_number: string; vendor_name_raw: string; total_amount: number; amount_paid: number } | null>(null);
+  const [linkingInvoice, setLinkingInvoice] = useState(false);
+
+  const confirmLinkInvoice = async () => {
+    if (!pendingLinkInvoice || !previewClaim) return;
+    setLinkingInvoice(true);
+    try {
+      const res = await fetch(`/api/invoices/${pendingLinkInvoice.id}/receipt-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimId: previewClaim.id }),
+      });
+      const j = await res.json();
+      if (res.ok) {
+        setLinkedInvoices(prev => [...prev, {
+          id: `temp-${pendingLinkInvoice.id}`,
+          invoice_id: pendingLinkInvoice.id,
+          amount: j.data?.amount ?? 0,
+          invoice_number: pendingLinkInvoice.invoice_number,
+          vendor_name: pendingLinkInvoice.vendor_name_raw,
+        }]);
+        setSuggestedInvoices(prev => prev.filter(s => s.id !== pendingLinkInvoice.id));
+        setInvoiceLinkSearch('');
+        setInvoiceLinkResults([]);
+        setPendingLinkInvoice(null);
+        refresh();
+      } else {
+        alert(j.error || 'Failed to link');
+      }
+    } catch (e) { console.error(e); }
+    finally { setLinkingInvoice(false); }
+  };
 
   // Submit modal
   const [showModal, setShowModal]           = useState(false);
@@ -393,29 +425,7 @@ function AdminClaimsPage() {
         scored.sort((a, b) => b.score - a.score);
         if (!cancelled) setSuggestedInvoices(scored.slice(0, 10));
 
-        // Auto-link best match if no existing links and we have a good candidate (score >= 2)
-        if (existing.length === 0 && scored.length > 0 && scored[0].score >= 2) {
-          const best = scored[0];
-          try {
-            const linkRes = await fetch(`/api/invoices/${best.id}/receipt-link`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ claimId: previewClaim.id }),
-            });
-            const linkJ = await linkRes.json();
-            if (linkRes.ok && !cancelled) {
-              setLinkedInvoices([{
-                id: `auto-${best.id}`,
-                invoice_id: best.id,
-                amount: linkJ.data?.amount ?? 0,
-                invoice_number: best.invoice_number,
-                vendor_name: best.vendor_name_raw,
-              }]);
-              setSuggestedInvoices(prev => prev.filter(s => s.id !== best.id));
-              refresh();
-            }
-          } catch { /* auto-link failed, user can still link manually */ }
-        }
+        // Best match is shown first in suggestions — user must confirm manually
       } catch { if (!cancelled) setSuggestedInvoices([]); }
     })();
     return () => { cancelled = true; };
@@ -1334,32 +1344,8 @@ function AdminClaimsPage() {
                                 <button
                                   type="button"
                                   key={inv.id}
-                                  onClick={async () => {
-                                    try {
-                                      const res = await fetch(`/api/invoices/${inv.id}/receipt-link`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ claimId: previewClaim.id }),
-                                      });
-                                      const j = await res.json();
-                                      if (res.ok) {
-                                        setLinkedInvoices(prev => [...prev, {
-                                          id: `temp-${inv.id}`,
-                                          invoice_id: inv.id,
-                                          amount: j.data?.amount ?? 0,
-                                          invoice_number: inv.invoice_number,
-                                          vendor_name: inv.vendor_name_raw,
-                                        }]);
-                                        setSuggestedInvoices(prev => prev.filter(s => s.id !== inv.id));
-                                        setInvoiceLinkSearch('');
-                                        setInvoiceLinkResults([]);
-                                        refresh();
-                                      } else {
-                                        alert(j.error || 'Failed to link');
-                                      }
-                                    } catch (e) { console.error(e); }
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 hover:bg-blue-50 border border-[var(--outline-ghost)] transition-colors"
+                                  onClick={() => setPendingLinkInvoice({ id: inv.id, invoice_number: inv.invoice_number, vendor_name_raw: inv.vendor_name_raw, total_amount: inv.total_amount, amount_paid: inv.amount_paid })}
+                                  className={`w-full text-left px-2.5 py-1.5 transition-colors ${pendingLinkInvoice?.id === inv.id ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]' : 'hover:bg-[var(--primary)]/5'}`}
                                 >
                                   <div className="flex justify-between items-center">
                                     <span className="text-sm font-medium text-[var(--text-secondary)]">{inv.invoice_number || 'No number'}</span>
@@ -1372,6 +1358,11 @@ function AdminClaimsPage() {
                                 </button>
                               ))}
                             </div>
+                            {pendingLinkInvoice && (
+                              <button onClick={confirmLinkInvoice} disabled={linkingInvoice} className="btn-thick-green w-full py-2 mt-2 text-sm">
+                                {linkingInvoice ? 'Linking...' : `Confirm Link to ${pendingLinkInvoice.invoice_number || 'Invoice'}`}
+                              </button>
+                            )}
                           </div>
                         );
                       })()}
@@ -1509,32 +1500,8 @@ function AdminClaimsPage() {
                               {displayList.map(inv => (
                                 <button
                                   key={inv.id}
-                                  onClick={async () => {
-                                    try {
-                                      const res = await fetch(`/api/invoices/${inv.id}/receipt-link`, {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ claimId: previewClaim.id }),
-                                      });
-                                      const j = await res.json();
-                                      if (res.ok) {
-                                        setLinkedInvoices(prev => [...prev, {
-                                          id: `temp-${inv.id}`,
-                                          invoice_id: inv.id,
-                                          amount: j.data?.amount ?? 0,
-                                          invoice_number: inv.invoice_number,
-                                          vendor_name: inv.vendor_name_raw,
-                                        }]);
-                                        setSuggestedInvoices(prev => prev.filter(s => s.id !== inv.id));
-                                        setInvoiceLinkSearch('');
-                                        setInvoiceLinkResults([]);
-                                        refresh();
-                                      } else {
-                                        alert(j.error || 'Failed to link');
-                                      }
-                                    } catch (e) { console.error(e); }
-                                  }}
-                                  className="w-full text-left px-2.5 py-1.5 hover:bg-blue-50 border border-[var(--outline-ghost)] transition-colors"
+                                  onClick={() => setPendingLinkInvoice({ id: inv.id, invoice_number: inv.invoice_number, vendor_name_raw: inv.vendor_name_raw, total_amount: inv.total_amount, amount_paid: inv.amount_paid })}
+                                  className={`w-full text-left px-2.5 py-1.5 transition-colors ${pendingLinkInvoice?.id === inv.id ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]' : 'hover:bg-[var(--primary)]/5'}`}
                                 >
                                   <div className="flex justify-between items-center">
                                     <span className="text-sm font-medium text-[var(--text-secondary)]">{inv.invoice_number || 'No number'}</span>
@@ -1547,6 +1514,11 @@ function AdminClaimsPage() {
                                 </button>
                               ))}
                             </div>
+                            {pendingLinkInvoice && (
+                              <button onClick={confirmLinkInvoice} disabled={linkingInvoice} className="btn-thick-green w-full py-2 mt-2 text-sm">
+                                {linkingInvoice ? 'Linking...' : `Confirm Link to ${pendingLinkInvoice.invoice_number || 'Invoice'}`}
+                              </button>
+                            )}
                           </div>
                         );
                       })()}

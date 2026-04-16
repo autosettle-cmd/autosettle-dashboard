@@ -132,6 +132,7 @@ Same punchy 3D treatment as buttons:
 ### Modals
 - **Centered** always
 - **Scrim:** #070E1B at 40% opacity, 2px backdrop-blur
+- **Click outside to close:** centering wrapper must have `onClick` to close modal; modal box must have `onClick={(e) => e.stopPropagation()}`. Mandatory for ALL modals.
 - **Header:** `bg-[var(--primary)]`, white text, bold uppercase tracking
 - **Footer:** `bg-[var(--surface-low)]`
 - Sharp corners throughout
@@ -185,6 +186,7 @@ Same punchy 3D treatment as buttons:
 - Use `card-popped` on cards and stat card icons
 - Use `btn-thick-sidebar` for nav; active = white button with `var(--primary)` text
 - Use `input-field` class for all form inputs — they have the same punchy 3D treatment
+- When a big container block has small buttons inside, use `onMouseDown` + `stopPropagation` on the container so clicking a small button doesn't press the big block down too. Big block press = click anywhere except buttons. Small button press = only that button.
 
 ### Don't
 - Use 1px borders to separate cards or table rows

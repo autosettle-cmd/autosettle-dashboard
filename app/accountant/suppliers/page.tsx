@@ -630,11 +630,18 @@ export default function AccountantSuppliersPage() {
           ) : (
             <div className="space-y-2">
               {sortedSuppliers.map((s) => (
-                <div key={s.id} className="bg-white card-popped overflow-hidden">
+                <div key={s.id} className="bg-white overflow-hidden" style={{
+                  borderBottom: '5px solid #d1d5db',
+                  borderRight: '2px solid #d1d5db',
+                  borderLeft: '1px solid #f3f4f6',
+                  borderTop: '1px solid #f3f4f6',
+                  transition: 'all 0.1s ease',
+                }}>
                   {/* Supplier row */}
                   <div
-                    className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-low)] transition-colors"
+                    className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-low)] transition-colors active:translate-y-[3px]"
                     onClick={() => toggleExpand(s.id)}
+                    onMouseDown={(e) => { if (e.target !== e.currentTarget && (e.target as HTMLElement).closest('button, a')) e.stopPropagation(); }}
                   >
                     {/* Expand icon */}
                     <svg
@@ -664,12 +671,12 @@ export default function AccountantSuppliersPage() {
                     {(s.expense_gl_label || s.contra_gl_label) && (
                       <div className="flex flex-col gap-1 flex-shrink-0">
                         {s.expense_gl_label && (
-                          <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--surface-low)] border border-[var(--surface-header)] px-2 py-0.5 truncate max-w-[200px]" title={s.expense_gl_label}>
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-white px-2 py-1 truncate max-w-[200px] card-popped" title={s.expense_gl_label}>
                             DR: {s.expense_gl_label}
                           </span>
                         )}
                         {s.contra_gl_label && (
-                          <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-[var(--surface-low)] border border-[var(--surface-header)] px-2 py-0.5 truncate max-w-[200px]" title={s.contra_gl_label}>
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] bg-white px-2 py-1 truncate max-w-[200px] card-popped" title={s.contra_gl_label}>
                             CR: {s.contra_gl_label}
                           </span>
                         )}
@@ -683,7 +690,7 @@ export default function AccountantSuppliersPage() {
                         const receivable = Number(s.receivable_amount);
                         const net = payable - receivable;
                         return (
-                          <div className={`px-2.5 py-1.5 text-right ${net > 0 ? 'bg-red-50/60 border border-red-100' : net < 0 ? 'bg-green-50/60 border border-green-100' : 'bg-[var(--surface-low)] border border-[var(--surface-header)]'}`}>
+                          <div className={`px-2.5 py-1.5 text-right card-popped ${net > 0 ? 'bg-red-50/60' : net < 0 ? 'bg-green-50/60' : 'bg-white'}`}>
                             <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest leading-none">Net</p>
                             <p className={`text-sm font-bold tabular-nums mt-0.5 ${net > 0 ? 'text-[var(--reject-red)]' : net < 0 ? 'text-[var(--match-green)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(Math.abs(net))}{net > 0 ? ' owed' : net < 0 ? ' due' : ''}
@@ -696,7 +703,7 @@ export default function AccountantSuppliersPage() {
                     {/* Action buttons */}
                     <button
                       onClick={(e) => { e.stopPropagation(); openPayment(s); }}
-                      className="flex-shrink-0 btn-thick-navy text-label-sm px-3 py-1.5 font-medium"
+                      className="flex-shrink-0 btn-thick-green text-label-sm px-3 py-1.5 font-medium"
                     >
                       Pay
                     </button>
@@ -932,8 +939,8 @@ export default function AccountantSuppliersPage() {
       {paymentSupplier && (
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPaymentSupplier(null)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPaymentSupplier(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Record Payment</h2>
               <button onClick={() => setPaymentSupplier(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
@@ -1205,8 +1212,8 @@ export default function AccountantSuppliersPage() {
       {previewInvoice && (
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>

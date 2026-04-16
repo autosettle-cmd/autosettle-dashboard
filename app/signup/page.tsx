@@ -99,7 +99,7 @@ export default function SignupPage() {
     "w-full px-4 py-3 bg-white/[0.04] border border-white/[0.08] text-white placeholder-white/20 text-title-md focus:outline-none focus:ring-2 focus:ring-[rgba(var(--primary-rgb),0.4)] focus:border-[rgba(var(--primary-rgb),0.2)] focus:bg-white/[0.06] transition-all duration-300";
 
   const labelClass =
-    "block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2.5";
+    "block text-[10px] font-bold text-white/60 uppercase tracking-widest mb-2.5";
 
   return (
     <div>
