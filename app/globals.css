@@ -425,6 +425,11 @@ body {
   }
 }
 
+/* ─── Supplier row: press down only when not clicking inner buttons ────────── */
+.supplier-row:active:not(:has(button:active, a:active)) {
+  transform: translateY(3px);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    AUTH PAGE ANIMATIONS
    ═══════════════════════════════════════════════════════════════════════════ */

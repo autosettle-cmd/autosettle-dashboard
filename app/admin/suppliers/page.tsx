@@ -600,9 +600,8 @@ export default function AdminSuppliersPage() {
                 }}>
                   {/* Supplier row */}
                   <div
-                    className="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-low)] transition-colors active:translate-y-[3px]"
+                    className="supplier-row flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-low)] transition-all"
                     onClick={() => toggleExpand(s.id)}
-                    onMouseDown={(e) => { if (e.target !== e.currentTarget && (e.target as HTMLElement).closest('button, a')) e.stopPropagation(); }}
                   >
                     {/* Expand icon */}
                     <svg
