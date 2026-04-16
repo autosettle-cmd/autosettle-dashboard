@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { auditLog } from '@/lib/audit';
 import { reverseJVsForSource } from '@/lib/journal-entries';
+import { recalcInvoicePaid } from '@/lib/invoice-payment';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'No claims found' }, { status: 404 });
   }
 
-  // Block delete if any claim has downstream links
+  // Block delete only if claim has linked payments (those need manual removal)
   const withPayments = await prisma.paymentReceipt.findMany({
     where: { claim_id: { in: claimIds } },
     select: { claim_id: true },
@@ -39,24 +40,34 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Cannot delete — claims have linked payments. Remove payments first.' }, { status: 400 });
   }
 
-  const withInvoiceLinks = await prisma.invoiceReceiptLink.findMany({
-    where: { claim_id: { in: claimIds } },
-    select: { claim_id: true, invoice: { select: { invoice_number: true } } },
-  });
-  if (withInvoiceLinks.length > 0) {
-    const invoiceNums = withInvoiceLinks.map(l => l.invoice.invoice_number).filter(Boolean).join(', ');
-    return NextResponse.json({ data: null, error: `Cannot delete — receipts are linked to invoices (${invoiceNums || 'unknown'}). Unlink them first.` }, { status: 400 });
-  }
-
-  const withBankMatch = claims.filter(c => c.matched_bank_txn_id);
-  if (withBankMatch.length > 0) {
-    return NextResponse.json({ data: null, error: 'Cannot delete — claims are matched to bank transactions. Unmatch them first.' }, { status: 400 });
-  }
-
-  // Reverse any JVs created from claim approval
+  // Cascade: reverse JVs for approved claims
   for (const claim of claims) {
     if (claim.approval === 'approved') {
       await reverseJVsForSource('claim_approval', claim.id, session.user.id);
+    }
+  }
+
+  // Cascade: unlink from bank transactions and reverse bank recon JVs
+  for (const claim of claims) {
+    if (claim.matched_bank_txn_id) {
+      await reverseJVsForSource('bank_recon', claim.matched_bank_txn_id, session.user.id);
+      await prisma.bankTransaction.update({
+        where: { id: claim.matched_bank_txn_id },
+        data: { recon_status: 'unmatched', matched_at: null, matched_by: null },
+      });
+    }
+  }
+
+  // Cascade: remove invoice receipt links and recalc invoice paid amounts
+  const invoiceLinks = await prisma.invoiceReceiptLink.findMany({
+    where: { claim_id: { in: claimIds } },
+    select: { id: true, invoice_id: true },
+  });
+  if (invoiceLinks.length > 0) {
+    await prisma.invoiceReceiptLink.deleteMany({ where: { claim_id: { in: claimIds } } });
+    const affectedInvoiceIds = Array.from(new Set(invoiceLinks.map(l => l.invoice_id)));
+    for (const invId of affectedInvoiceIds) {
+      await recalcInvoicePaid(invId);
     }
   }
 
