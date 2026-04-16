@@ -31,16 +31,13 @@ export async function POST(request: NextRequest) {
     firmScope = {};
   }
 
-  // Find ALL posted JVs with source references that are NOT already reversed
+  // Find ALL JVs with source references (including reversed ones — if source deleted, delete all)
   const allJVs = await prisma.journalEntry.findMany({
     where: {
       ...firmScope,
-      status: 'posted',
       source_id: { not: null },
-      reversed_by_id: null, // not yet reversed
-      reversal_of_id: null, // not a reversal entry itself
     },
-    select: { id: true, source_id: true, source_type: true, voucher_number: true, description: true },
+    select: { id: true, source_id: true, source_type: true, voucher_number: true, description: true, reversed_by_id: true, reversal_of_id: true },
   });
 
   if (allJVs.length === 0) {
@@ -82,7 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!exists) {
-      // Source document deleted — JV is orphaned, delete it
+      // Source document deleted — delete the JV (original or reversal, doesn't matter)
       orphans.push({
         id: jv.id,
         voucher: jv.voucher_number,
@@ -90,8 +87,8 @@ export async function POST(request: NextRequest) {
         reason: 'Source document deleted',
         action: 'delete',
       });
-    } else if (!statusOk) {
-      // Source document exists but action was reverted — reverse the JV
+    } else if (!statusOk && !jv.reversed_by_id && !jv.reversal_of_id) {
+      // Source exists but status wrong, and JV not already reversed — reverse it
       orphans.push({
         id: jv.id,
         voucher: jv.voucher_number,
@@ -120,7 +117,15 @@ export async function POST(request: NextRequest) {
   for (const orphan of orphans) {
     try {
       if (orphan.action === 'delete') {
-        // Source doesn't exist — just delete the JV and its lines
+        // Source doesn't exist — clear reversal refs then delete
+        await prisma.journalEntry.updateMany({
+          where: { reversed_by_id: orphan.id },
+          data: { reversed_by_id: null },
+        });
+        await prisma.journalEntry.updateMany({
+          where: { reversal_of_id: orphan.id },
+          data: { reversal_of_id: null },
+        });
         await prisma.journalEntry.delete({ where: { id: orphan.id } });
         deleted++;
       } else {
