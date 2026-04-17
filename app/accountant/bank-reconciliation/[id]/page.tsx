@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import HelpTooltip from '@/components/HelpTooltip';
 import GlAccountSelect from '@/components/GlAccountSelect';
+import Field from '@/components/forms/Field';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
 
@@ -113,7 +114,6 @@ export default function AccountantReconciliationWorkspacePage() {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [matchingTxn, setMatchingTxn] = useState<BankTxn | null>(null);
-  const [editingTxnDesc, setEditingTxnDesc] = useState(false);
   const [txnDescDraft, setTxnDescDraft] = useState('');
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
   const [expandedDocUrl, setExpandedDocUrl] = useState<string | null>(null);
@@ -208,7 +208,6 @@ export default function AccountantReconciliationWorkspacePage() {
     setMatchingTxn(null);
     setShowVoucherForm(false);
     setShowReceiptForm(false);
-    setEditingTxnDesc(false);
     setTxnDescDraft('');
     setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
     setVoucherError('');
@@ -221,6 +220,7 @@ export default function AccountantReconciliationWorkspacePage() {
     const firmId = statement?.firm_id;
     if (!firmId) return;
     setMatchingTxn(txn);
+    setTxnDescDraft(txn.description.split(' | ').join('\n'));
     setShowVoucherForm(false);
     setShowReceiptForm(false);
     setVoucherError('');
@@ -698,7 +698,7 @@ export default function AccountantReconciliationWorkspacePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredTxns.map((txn, idx) => {
+                    {filteredTxns.map((txn) => {
                       const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
                       const isSelected = previewTxn?.id === txn.id;
                       const mp = txn.matched_payment;
@@ -1099,25 +1099,30 @@ export default function AccountantReconciliationWorkspacePage() {
 
           {/* Match modal */}
           {matchingTxn && (
-            <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
-              <div className="bg-white shadow-xl w-[720px] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="bg-[var(--primary)] px-6 py-4">
+            <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-6" onClick={closeMatchModal}>
+              <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
                   <h2 className="text-white font-bold text-sm uppercase tracking-widest">
                     {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
                   </h2>
+                  <button onClick={closeMatchModal} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
                 </div>
-                <div className="p-6 pb-0">
-                  <div className="bg-[var(--surface-low)] p-4 mb-4">
-                    {editingTxnDesc ? (
-                      <div className="space-y-2">
-                        <textarea
-                          value={txnDescDraft}
-                          onChange={(e) => setTxnDescDraft(e.target.value)}
-                          className="input-field w-full text-sm"
-                          rows={3}
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
+
+                {/* Body — two panels */}
+                <div className="flex-1 flex min-h-0">
+                  {/* Left panel — transaction details */}
+                  <div className="w-[360px] flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
+                    <div>
+                      <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Description</p>
+                      <textarea
+                        value={txnDescDraft}
+                        onChange={(e) => setTxnDescDraft(e.target.value)}
+                        className="input-field w-full text-sm"
+                        rows={6}
+                      />
+                      {txnDescDraft.trim().split('\n').join(' | ') !== matchingTxn.description && (
+                        <div className="flex gap-2 mt-2">
                           <button
                             onClick={async () => {
                               const trimmed = txnDescDraft.trim();
@@ -1129,79 +1134,107 @@ export default function AccountantReconciliationWorkspacePage() {
                                 body: JSON.stringify({ bankTransactionId: matchingTxn.id, description: newDesc }),
                               });
                               setMatchingTxn({ ...matchingTxn, description: newDesc });
-                              setEditingTxnDesc(false);
+                              if (statement) {
+                                setStatement({
+                                  ...statement,
+                                  transactions: statement.transactions.map((t) =>
+                                    t.id === matchingTxn.id ? { ...t, description: newDesc } : t
+                                  ),
+                                });
+                              }
                             }}
                             className="btn-thick-green px-3 py-1 text-[10px]"
                           >
                             Save
                           </button>
-                          <button onClick={() => setEditingTxnDesc(false)} className="btn-thick-white px-3 py-1 text-[10px]">
+                          <button
+                            onClick={() => setTxnDescDraft(matchingTxn.description.split(' | ').join('\n'))}
+                            className="btn-thick-white px-3 py-1 text-[10px]"
+                          >
                             Cancel
                           </button>
                         </div>
-                      </div>
-                    ) : (
-                      <div className="cursor-pointer group/desc-edit" onClick={() => { setEditingTxnDesc(true); setTxnDescDraft(matchingTxn.description.split(' | ').join('\n')); }}>
-                        {matchingTxn.description.split(' | ').map((line, i) => (
-                          <p key={i} className={`${i === 0 ? 'text-body-md font-medium text-[var(--text-primary)]' : 'text-body-sm text-[var(--text-secondary)]'}`}>{line}</p>
-                        ))}
-                        <span className="text-[10px] text-[var(--primary)] opacity-0 group-hover/desc-edit:opacity-100 transition-opacity">Click to edit</span>
+                      )}
+                    </div>
+
+                    {/* Transaction details */}
+                    <div className="space-y-2">
+                      <Field label="Date" value={formatDate(matchingTxn.transaction_date)} />
+                      <Field label="Amount" value={matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`} />
+                      {matchingTxn.reference && <Field label="Reference" value={matchingTxn.reference} />}
+                    </div>
+
+                    {/* Amount card */}
+                    <div className={`p-3 card-popped ${matchingTxn.debit ? 'bg-red-50/60' : 'bg-green-50/60'}`}>
+                      <p className="text-[10px] font-label font-bold uppercase tracking-widest leading-none" style={{ color: matchingTxn.debit ? 'var(--reject-red)' : 'var(--match-green)' }}>
+                        {matchingTxn.debit ? 'Outgoing' : 'Incoming'}
+                      </p>
+                      <p className={`text-xl font-extrabold tabular-nums mt-1 ${matchingTxn.debit ? 'text-[var(--reject-red)]' : 'text-[var(--match-green)]'}`}>
+                        {formatRM(matchingTxn.debit ?? matchingTxn.credit ?? '0')}
+                      </p>
+                    </div>
+
+                    {/* Bank info */}
+                    {statement && (
+                      <div className="space-y-2">
+                        <Field label="Bank" value={statement.bank_name} />
+                        {statement.account_number && <Field label="Account" value={statement.account_number} />}
+                        {statement.bank_gl_label && <Field label="Bank GL" value={statement.bank_gl_label} />}
                       </div>
                     )}
-                    <div className="flex items-center gap-4 mt-1.5 text-body-sm text-[var(--text-secondary)]">
-                      <span className="tabular-nums">{formatDate(matchingTxn.transaction_date)}</span>
-                      <span className="font-semibold text-[var(--text-primary)] tabular-nums">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
-                      {matchingTxn.reference && <span>Ref: {matchingTxn.reference}</span>}
-                    </div>
                   </div>
 
-                  {/* Search outstanding items */}
-                  <div className="mb-3">
-                    <input
-                      type="text"
-                      placeholder="Search by name, invoice number, or amount..."
-                      value={claimSearch}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setClaimSearch(val);
-                        searchOutstandingItems(val);
-                      }}
-                      className="input-field w-full"
-                    />
-                  </div>
+                  {/* Right panel — search & match */}
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="p-5 pb-0 flex-shrink-0">
+                      {/* Search outstanding items */}
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          placeholder="Search by name, invoice number, or amount..."
+                          value={claimSearch}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setClaimSearch(val);
+                            searchOutstandingItems(val);
+                          }}
+                          className="input-field w-full"
+                        />
+                      </div>
 
-                  {/* Tabs -- only show for debit (outgoing) which has both invoices and claims */}
-                  {matchingTxn.debit && (
-                    <div className="flex border-b border-[var(--surface-header)]">
-                      {(() => {
-                        const invoiceCount = outstandingItems.filter((i: { type: string }) => i.type !== 'claim').length;
-                        const claimCount = outstandingItems.filter((i: { type: string }) => i.type === 'claim').length;
-                        return (
-                          <>
-                            <button
-                              onClick={() => { setMatchTab('invoices'); setSelectedClaimIds(new Set()); }}
-                              className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
-                                matchTab === 'invoices' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                              }`}
-                            >
-                              Invoices ({invoiceCount})
-                            </button>
-                            <button
-                              onClick={() => { setMatchTab('claims'); setSelectedItem(null); }}
-                              className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
-                                matchTab === 'claims' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                              }`}
-                            >
-                              Claims ({claimCount})
-                            </button>
-                          </>
-                        );
-                      })()}
+                      {/* Tabs -- only show for debit (outgoing) which has both invoices and claims */}
+                      {matchingTxn.debit && (
+                        <div className="flex border-b border-[var(--surface-header)]">
+                          {(() => {
+                            const invoiceCount = outstandingItems.filter((i: { type: string }) => i.type !== 'claim').length;
+                            const claimCount = outstandingItems.filter((i: { type: string }) => i.type === 'claim').length;
+                            return (
+                              <>
+                                <button
+                                  onClick={() => { setMatchTab('invoices'); setSelectedClaimIds(new Set()); }}
+                                  className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
+                                    matchTab === 'invoices' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  Invoices ({invoiceCount})
+                                </button>
+                                <button
+                                  onClick={() => { setMatchTab('claims'); setSelectedItem(null); }}
+                                  className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
+                                    matchTab === 'claims' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  Claims ({claimCount})
+                                </button>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="px-6 py-4">
+                    {/* Scrollable items list */}
+                    <div className="flex-1 overflow-y-auto px-5 py-4">
                 {loadingCandidates ? (
                   <p className="text-sm text-[var(--text-secondary)] py-8 text-center">Loading...</p>
                 ) : outstandingItems.length === 0 ? (
@@ -1390,9 +1423,10 @@ export default function AccountantReconciliationWorkspacePage() {
                     })()}
                   </div>
                 )}
-                </div>
+                    </div>
 
-                <div className="px-6 pb-6 pt-2 bg-[var(--surface-low)]">
+                    {/* Footer actions */}
+                    <div className="flex-shrink-0 px-5 pb-5 pt-2 bg-[var(--surface-low)]">
                 {/* Match error */}
                 {matchError && <p className="text-sm text-[var(--reject-red)] mb-2">{matchError}</p>}
 
@@ -1663,8 +1697,10 @@ export default function AccountantReconciliationWorkspacePage() {
                 <button onClick={closeMatchModal} className="btn-thick-white mt-4 w-full px-3 py-2 text-body-md">
                   Cancel
                 </button>
-                </div>
-              </div>
+                    </div>
+                  </div>{/* close right panel */}
+                </div>{/* close body flex */}
+              </div>{/* close modal */}
             </div>
           )}
 

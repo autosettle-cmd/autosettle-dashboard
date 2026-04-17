@@ -5,6 +5,8 @@
       "argsIgnorePattern": "^_",
       "varsIgnorePattern": "^_",
       "caughtErrorsIgnorePattern": "^_"
-    }]
+    }],
+    "@next/next/no-img-element": "off",
+    "react-hooks/exhaustive-deps": "warn"
   }
 }
