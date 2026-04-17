@@ -411,6 +411,7 @@ function AccountantInvoicesPage() {
       }
     }
     setBatchScanning(false);
+    setShowBatchReview(true);
   };
 
   const submitBatch = async () => {
@@ -581,6 +582,7 @@ function AccountantInvoicesPage() {
       }
     }
     setBatchScanning(false);
+    setShowBatchReview(true);
   };
 
   const submitNewInvoice = async () => {
@@ -1217,8 +1219,8 @@ function AccountantInvoicesPage() {
       {/* ═══ BATCH REVIEW MODAL ═══ */}
       {showBatchReview && (
         <>
-          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (batchScanning) { setShowBatchReview(false); } }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (batchScanning) { setShowBatchReview(false); } }}>
           <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
 
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
@@ -1239,7 +1241,7 @@ function AccountantInvoicesPage() {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (!batchScanning && !batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (batchScanning) { setShowBatchReview(false); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             {batchScanning && (
@@ -1878,19 +1880,22 @@ function AccountantInvoicesPage() {
       )}
 
       {/* ═══ FLOATING BATCH UPLOAD PROGRESS ═══ */}
-      {batchSubmitting && (
-        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in">
+      {(batchSubmitting || (batchScanning && !showBatchReview)) && (
+        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in cursor-pointer" onClick={() => { if (batchScanning && !showBatchReview) setShowBatchReview(true); }}>
           <div className="px-4 py-3 flex items-center gap-3">
             <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[var(--text-primary)]">Uploading invoices...</p>
-              <p className="text-xs text-[var(--text-secondary)]">{batchSubmitProgress.current} of {batchSubmitProgress.total}</p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">{batchSubmitting ? 'Uploading invoices...' : 'Scanning documents...'}</p>
+              <p className="text-xs text-[var(--text-secondary)]">{batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current} of {batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}</p>
             </div>
-            <span className="text-sm font-bold tabular-nums text-[var(--primary)]">{Math.round((batchSubmitProgress.current / batchSubmitProgress.total) * 100)}%</span>
+            <span className="text-sm font-bold tabular-nums text-[var(--primary)]">{Math.round(((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100)}%</span>
           </div>
           <div className="h-1 bg-[var(--surface-low)]">
-            <div className="h-1 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${(batchSubmitProgress.current / batchSubmitProgress.total) * 100}%` }} />
+            <div className="h-1 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100}%` }} />
           </div>
+          {batchScanning && !showBatchReview && (
+            <p className="text-[10px] text-center text-[var(--text-secondary)] pb-2">Click to expand</p>
+          )}
         </div>
       )}
 
