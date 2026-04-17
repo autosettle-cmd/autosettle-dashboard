@@ -55,6 +55,20 @@ const firmScope = firmIds === null
 
 Never create workflows that skip JV for approved records (migration, bulk upload, historical, admin tools). Keeps the system predictable and GL accurate.
 
+### GL Prerequisites — Block Before Create
+**Every action that posts a JV must validate GL accounts BEFORE creating records.** If GL is missing, block the action with a clear error listing exactly what's missing. Never silently skip JV creation.
+
+| Action | GL Required | Resolution Order |
+|--------|------------|-----------------|
+| **Invoice approval** | Expense GL + Contra GL (Trade Payables) | User-selected → supplier default → firm default |
+| **Sales invoice approval** | Revenue GL + Contra GL (Trade Receivables) | User-selected → invoice GL → firm default |
+| **Payment voucher** (bank recon) | Bank GL + Expense GL | Bank account GL mapping + user-selected → category override → firm default |
+| **Official receipt** (bank recon) | Bank GL + Income GL | Bank account GL mapping + user-selected → category override → firm default |
+| **Bank recon match/confirm** | Bank GL + Payables/Receivables GL | Bank account GL mapping + supplier/firm defaults |
+
+**Error message format:** Tell the user exactly what's missing and where to fix it.
+Example: `Bank account "CIMB 123456" has no GL account mapped. Go to Bank Recon → Manage Accounts and assign a GL.`
+
 ---
 
 ## Delete & Revert Rules

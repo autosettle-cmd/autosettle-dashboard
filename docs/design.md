@@ -76,12 +76,21 @@ Cards use directional borders for physical depth:
 - Box-shadow: `2px 2px 4px rgba(0,0,0,0.03)`
 
 ### Thick Button System (Signature Element)
-All buttons have a **punchy 3D press** effect:
-- Bottom border: 5px solid (darker shade)
-- Right border: 2px solid (darker shade)
-- Top/left: 1px solid (white at low opacity)
-- **Hover:** `btn-jiggle` micro-wobble (±0.5px translateX, ±0.2deg rotate, 0.3s)
-- **Active/Click:** borders collapse + `translateY(4px)` press. Animation cancelled.
+All interactive elements use **`box-shadow`** (never `border`) for their 3D depth effect. This ensures zero layout shift when pressed.
+
+**Default state:**
+- `box-shadow: 0 4px 0 0 <dark>, 2px 0 0 0 <dark>, 2px 4px 0 0 <dark>` — bottom + right + corner
+- `border`: 1px top/left highlight (white at low opacity), bottom/right set to `transparent`
+- Sharp corners, no border-radius
+
+**Active/Click state:**
+- Shadow collapses: `0 1px 0 0 <dark>, 1px 0 0 0 <dark>, 1px 1px 0 0 <dark>`
+- `transform: translateY(3px)` — button sinks into the surface
+- Zero layout shift — shadow is outside box model, siblings don't move
+
+**Hover:** no animation, no jiggle — clean and professional
+
+**Why box-shadow, not border:** Borders are part of the box model and change element height when modified. Shadow is purely visual — collapsing it + translating the button gives a true "sink into panel" feel without pushing content around.
 
 ### Ambient Shadows
 Floating elements (modals, dropdowns): `0px 24px 48px rgba(26, 50, 87, 0.08)` — tinted navy.
@@ -93,21 +102,32 @@ Floating elements (modals, dropdowns): `0px 24px 48px rgba(26, 50, 87, 0.08)` �
 ### Buttons
 | Class | Background | Borders | Text | Usage |
 |-------|-----------|---------|------|-------|
-| `btn-thick-navy` | `var(--primary)` | `var(--primary-container)` | White | Primary CTA |
-| `btn-thick-white` | #FFFFFF | #D1D5DB | Dark | Secondary actions |
-| `btn-thick-green` | `var(--match-green)` | `var(--match-green-dark)` | White | Approve, confirm |
-| `btn-thick-red` | `var(--reject-red)` | `var(--reject-red-dark)` | White | Reject, delete |
-| `btn-thick-sidebar` | #2E6999 | #1F5280 | White | Sidebar nav items |
+| Class | Background | Shadow Color | Text | Usage |
+|-------|-----------|-------------|------|-------|
+| `btn-thick-navy` | `var(--primary)` / #234B6E | #1A3D5C | White | Primary CTA |
+| `btn-thick-white` | #FFFFFF | #D1D5DB | Dark | Secondary actions, matched item cards |
+| `btn-thick-green` | `var(--match-green)` / #0A9981 | #066656 | White | Approve, confirm |
+| `btn-thick-red` | `var(--reject-red)` / #F23545 | #A81C28 | White | Reject, delete |
+| `btn-thick-sidebar` | #2E6999 | #1F5280 | White | Sidebar nav (3px shadow) |
 
-All buttons: sharp corners, `active:translateY(4px)`, `btn-jiggle` on hover.
+All buttons: box-shadow 3D, sharp corners, sink-press active state, no hover animation.
 
 ### Form Inputs (`input-field`)
-Same punchy 3D treatment as buttons:
-- Bottom: 3px solid #d1d5db, Right: 2px solid #d1d5db
-- Top/left: 1px solid #f3f4f6
-- **Hover:** shadow lift
-- **Focus:** bottom/right borders change to `var(--primary)`
+Same box-shadow 3D treatment as buttons (3px depth instead of 4px):
+- `box-shadow: 0 3px 0 0 #d1d5db, 2px 0 0 0 #d1d5db, 2px 3px 0 0 #d1d5db`
+- `border`: 1px top/left #f3f4f6, bottom/right transparent
+- **Hover:** adds ambient shadow `2px 2px 6px rgba(0,0,0,0.06)`
+- **Active:** shadow collapses + `translateY(2px)` — same sink feel
+- **Focus:** shadow color changes to `var(--primary)` + subtle glow
 - Sharp corners, no border-radius
+
+### Clickable Entity Cards (Expand-to-Preview Pattern)
+When displaying a list of matched/linked entities (invoices, claims, sales invoices), use `btn-thick-white` as the card. Clicking the card:
+1. **Selects** the item (highlights blue)
+2. **Expands** inline document preview below the card (Google Drive iframe or thumbnail)
+3. Clicking again **collapses** the preview
+
+Used in: bank recon transaction preview (matched items), bank recon match modal (outstanding items), invoice preview modal (line items).
 
 ### Tables
 - **Headers:** `bg-[var(--surface-header)]`, Lato bold uppercase `tracking-widest`

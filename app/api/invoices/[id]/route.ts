@@ -79,13 +79,47 @@ export async function PATCH(
   if (body.supplier_link_status !== undefined) data.supplier_link_status = body.supplier_link_status;
 
   // Block financial edits on approved invoices — must revert approval first
+  const hasLines = Array.isArray(body.lines);
   const financialFields = ['vendor_name_raw', 'total_amount', 'subtotal', 'tax_amount', 'category_id', 'gl_account_id', 'issue_date'];
-  const hasFinancialChange = financialFields.some(f => f in data);
+  const hasFinancialChange = financialFields.some(f => f in data) || hasLines;
   if (invoice.approval === 'approved' && hasFinancialChange) {
     return NextResponse.json({ data: null, error: 'Cannot edit an approved invoice. Revert approval first.' }, { status: 400 });
   }
 
   try {
+    // Handle line items: replace-all strategy
+    if (hasLines) {
+      // Delete existing lines
+      await prisma.invoiceLine.deleteMany({ where: { invoice_id: id } });
+
+      const lines = body.lines as Array<{
+        description: string; quantity?: number; unit_price: number;
+        tax_amount?: number; line_total: number; gl_account_id?: string; sort_order?: number;
+      }>;
+
+      if (lines.length > 0) {
+        await prisma.invoiceLine.createMany({
+          data: lines.map((l, i) => ({
+            invoice_id: id,
+            description: l.description,
+            quantity: l.quantity ?? 1,
+            unit_price: l.unit_price,
+            tax_amount: l.tax_amount ?? 0,
+            line_total: l.line_total,
+            gl_account_id: l.gl_account_id || null,
+            sort_order: l.sort_order ?? i,
+          })),
+        });
+
+        // Recalculate invoice totals from lines
+        const totalAmount = lines.reduce((sum, l) => sum + Number(l.line_total), 0);
+        const totalTax = lines.reduce((sum, l) => sum + Number(l.tax_amount ?? 0), 0);
+        data.total_amount = totalAmount;
+        data.subtotal = totalAmount - totalTax;
+        data.tax_amount = totalTax;
+      }
+    }
+
     const updated = await prisma.invoice.update({ where: { id }, data });
 
     await auditLog({

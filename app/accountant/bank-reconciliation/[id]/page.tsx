@@ -113,7 +113,10 @@ export default function AccountantReconciliationWorkspacePage() {
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState('');
   const [matchingTxn, setMatchingTxn] = useState<BankTxn | null>(null);
+  const [editingTxnDesc, setEditingTxnDesc] = useState(false);
+  const [txnDescDraft, setTxnDescDraft] = useState('');
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
+  const [expandedDocUrl, setExpandedDocUrl] = useState<string | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<PaymentAllocation | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -184,7 +187,9 @@ export default function AccountantReconciliationWorkspacePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setConfirmError(json.error || 'Failed to confirm');
+        const errMsg = json.error || 'Failed to confirm';
+        setConfirmError(errMsg);
+        alert(errMsg);
       } else {
         loadStatement();
       }
@@ -203,6 +208,8 @@ export default function AccountantReconciliationWorkspacePage() {
     setMatchingTxn(null);
     setShowVoucherForm(false);
     setShowReceiptForm(false);
+    setEditingTxnDesc(false);
+    setTxnDescDraft('');
     setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
     setVoucherError('');
     setSelectedClaimIds(new Set());
@@ -293,11 +300,80 @@ export default function AccountantReconciliationWorkspacePage() {
     setMatchSubmitting(false);
   };
 
+  // Save name-like description lines as supplier aliases for future auto-match
+  const saveDescriptionAlias = (txn: BankTxn, supplierId?: string) => {
+    if (!supplierId) return;
+    const bankKeywords = /^(transfer|bulk|credit|debit|duitnow|instant|ibft|ibg|qr|settle|payment|giro|dr|cr|fps|epayment|salary|loan|interest|commission|charge|fee|reversal|mbb|cimb|ocbc|rhb|maybank|hsbc|uob|amb|sal\s)/i;
+    const lines = txn.description.split(' | ').map(l => l.trim());
+    for (const line of lines) {
+      const lower = line.toLowerCase().replace(/\s*\*\s*$/, '').trim();
+      if (lower.length < 3 || bankKeywords.test(lower) || /^\d/.test(lower) || /[(){}[\]]/.test(lower)) continue;
+      const words = lower.split(/\s+/).filter(w => w.length > 0);
+      if (words.length < 2 || !words.every(w => /^[a-zA-Z.*@'-]+$/.test(w))) continue;
+      // Save as alias (fire-and-forget)
+      fetch('/api/suppliers/alias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplier_id: supplierId, alias: lower }),
+      }).catch(() => {});
+    }
+  };
+
+  // Shared: resolve supplier from bank transaction description
+  // Level 1: supplier alias lookup (DB — learned from past vouchers/receipts/invoices)
+  // Level 2: exact/partial match against existing supplier names
+  // Level 3: extract name-like line from description for new supplier
+  const resolveSupplierFromDesc = async (
+    txn: BankTxn,
+    suppliers: { id: string; name: string }[],
+    firmId: string
+  ): Promise<{ type: 'existing'; id: string; name: string } | { type: 'new'; name: string } | null> => {
+    const descLines = txn.description.split(' | ').map(l => l.trim());
+    const descLinesLower = descLines.map(l => l.toLowerCase());
+
+    // Level 1: Check supplier aliases in DB
+    for (const line of descLines) {
+      const normalized = line.toLowerCase().replace(/\s*\*\s*$/, '').trim();
+      if (normalized.length < 2) continue;
+      try {
+        const res = await fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(normalized)}&firmId=${firmId}`);
+        const j = await res.json();
+        if (j.data?.id) return { type: 'existing', id: j.data.id, name: j.data.name };
+      } catch { /* ignore */ }
+    }
+
+    // Level 2: Match against existing supplier names
+    const matched = suppliers.find((s) => {
+      const sName = s.name.toLowerCase();
+      return descLinesLower.some((line) => line.includes(sName) || sName.includes(line));
+    });
+    if (matched) return { type: 'existing', id: matched.id, name: matched.name };
+
+    // Level 3: Extract name-like line
+    const bankKeywords = /^(transfer|bulk|credit|debit|duitnow|instant|ibft|ibg|qr|settle|payment|giro|dr|cr|fps|epayment|salary|loan|interest|commission|charge|fee|reversal|mbb|cimb|ocbc|rhb|maybank|hsbc|uob|amb|sal\s)/i;
+    const nameLine = descLinesLower.find((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.length < 3) return false;
+      if (bankKeywords.test(trimmed)) return false;
+      if (/^\d/.test(trimmed)) return false;
+      if (/[(){}[\]]/.test(trimmed)) return false;
+      const words = trimmed.split(/\s+/).filter(w => w.length > 0);
+      return words.length >= 2 && words.every(w => /^[a-zA-Z.*@'-]+$/.test(w));
+    });
+    if (nameLine) {
+      const formatted = nameLine.replace(/\s+/g, ' ').trim().replace(/\b\w/g, (c: string) => c.toUpperCase()).replace(/\s*\*\s*$/, '');
+      return { type: 'new', name: formatted };
+    }
+
+    return null;
+  };
+
   const openVoucherForm = async () => {
     setShowVoucherForm(true);
     setCreatingNewSupplier(false);
     setVoucherError('');
-    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
+    const lastGl = localStorage.getItem('lastVoucherGl') || '';
+    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: lastGl });
     const firmId = statement?.firm_id;
     if (!firmId) return;
     const [suppRes, catRes, glRes] = await Promise.all([
@@ -309,6 +385,24 @@ export default function AccountantReconciliationWorkspacePage() {
     setVoucherSuppliers(suppliers);
     setVoucherCategories(catRes.data ?? []);
     if (glRes.data) setReceiptGlAccounts(glRes.data);
+
+    // Auto-resolve supplier from transaction description
+    if (matchingTxn && firmId) {
+      const result = await resolveSupplierFromDesc(matchingTxn, suppliers, firmId);
+      if (result?.type === 'existing') {
+        setVoucherData((prev) => ({ ...prev, supplier_id: result.id }));
+        fetchNextVoucherNumber(result.name, result.id);
+        return;
+      }
+      if (result?.type === 'new') {
+        setCreatingNewSupplier(true);
+        setVoucherData((prev) => ({ ...prev, new_supplier_name: result.name }));
+        fetchNextVoucherNumber(result.name);
+        return;
+      }
+    }
+
+    // Fallback to Walk-in Customer
     const walkIn = suppliers.find((s: { name: string }) => s.name === 'Walk-in Customer');
     if (walkIn) {
       setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
@@ -355,6 +449,9 @@ export default function AccountantReconciliationWorkspacePage() {
       const json = await res.json();
       if (!res.ok) { setVoucherError(json.error || 'Failed to create payment voucher'); return; }
       if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
+      if (voucherData.gl_account_id) localStorage.setItem('lastVoucherGl', voucherData.gl_account_id);
+      // Save description names as supplier alias for future auto-match
+      saveDescriptionAlias(matchingTxn, voucherData.supplier_id || json.data?.supplier_id);
       closeMatchModal();
       loadStatement();
     } finally { setCreatingVoucher(false); }
@@ -364,7 +461,8 @@ export default function AccountantReconciliationWorkspacePage() {
     setShowReceiptForm(true);
     setCreatingNewSupplier(false);
     setVoucherError('');
-    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: '' });
+    const lastGl = localStorage.getItem('lastReceiptGl') || '';
+    setVoucherData({ supplier_id: '', category_id: '', reference: '', notes: '', new_supplier_name: '', gl_account_id: lastGl });
     const firmId = statement?.firm_id;
     if (!firmId) return;
     const [suppRes, glRes] = await Promise.all([
@@ -374,6 +472,24 @@ export default function AccountantReconciliationWorkspacePage() {
     const suppliers = (suppRes.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
     setVoucherSuppliers(suppliers);
     setReceiptGlAccounts(glRes.data ?? []);
+
+    // Auto-resolve supplier from transaction description
+    if (matchingTxn && firmId) {
+      const result = await resolveSupplierFromDesc(matchingTxn, suppliers, firmId);
+      if (result?.type === 'existing') {
+        setVoucherData((prev) => ({ ...prev, supplier_id: result.id }));
+        fetchNextReceiptNumber(result.name, result.id);
+        return;
+      }
+      if (result?.type === 'new') {
+        setCreatingNewSupplier(true);
+        setVoucherData((prev) => ({ ...prev, new_supplier_name: result.name }));
+        fetchNextReceiptNumber(result.name);
+        return;
+      }
+    }
+
+    // Fallback to Walk-in Customer
     const walkIn = suppliers.find((s: { name: string }) => s.name === 'Walk-in Customer');
     if (walkIn) {
       setVoucherData((prev) => ({ ...prev, supplier_id: walkIn.id }));
@@ -418,6 +534,9 @@ export default function AccountantReconciliationWorkspacePage() {
       const json = await res.json();
       if (!res.ok) { setVoucherError(json.error || 'Failed to create official receipt'); return; }
       if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
+      if (voucherData.gl_account_id) localStorage.setItem('lastReceiptGl', voucherData.gl_account_id);
+      // Save description names as supplier alias for future auto-match
+      saveDescriptionAlias(matchingTxn, voucherData.supplier_id || json.data?.supplier_id);
       closeMatchModal();
       loadStatement();
     } finally { setCreatingVoucher(false); }
@@ -581,27 +700,34 @@ export default function AccountantReconciliationWorkspacePage() {
                   <tbody>
                     {filteredTxns.map((txn, idx) => {
                       const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
-                      const isExpanded = previewTxn?.id === txn.id;
+                      const isSelected = previewTxn?.id === txn.id;
                       const mp = txn.matched_payment;
-                      const rowBg = isExpanded ? 'bg-blue-50/60' : (txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') ? 'bg-green-50/30' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white';
+                      const rowBg = isSelected ? 'bg-blue-50/60' : txn.debit ? 'bg-red-50/40' : 'bg-green-50/30';
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`group transition-colors cursor-pointer hover:bg-[var(--surface-header)] ${rowBg}`}
-                          onClick={() => setPreviewTxn(isExpanded ? null : txn)}
+                        <tr className={`group/row relative transition-colors cursor-pointer hover:bg-[var(--surface-header)] ${rowBg}`}
+                          onClick={() => {
+                            if (txn.recon_status === 'unmatched') { openMatchModal(txn); }
+                            else { setPreviewTxn(isSelected ? null : txn); setExpandedDocUrl(null); }
+                          }}
                         >
                           <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-1.5">
-                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
-                                <path d="M9 18l6-6-6-6" />
-                              </svg>
-                              <span className={cfg.cls}>{cfg.label}</span>
+                            <span className={cfg.cls}>{cfg.label}</span>
+                            <div className="absolute left-4 top-full z-20 mt-0.5 px-3 py-2 bg-[var(--text-primary)] text-white text-xs max-w-[400px] opacity-0 group-hover/row:opacity-100 transition-opacity duration-75 pointer-events-none shadow-lg whitespace-pre-line">
+                              {txn.description.split(' | ').join('\n')}
+                              {txn.reference ? `\nRef: ${txn.reference}` : ''}
+                              {txn.cheque_number ? `\nCheque: ${txn.cheque_number}` : ''}
                             </div>
                           </td>
                           <td className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)] tabular-nums">{formatDate(txn.transaction_date)}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate" title={txn.description}>
+                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate relative group/desc">
                             {txn.description.split(' | ')[0]}
                             {txn.reference && <span className="ml-1 text-[var(--text-secondary)] text-label-sm">({txn.reference})</span>}
+                            {txn.description.includes(' | ') && (
+                              <div className="absolute left-0 top-full z-10 mt-0.5 px-3 py-2 bg-[var(--text-primary)] text-white text-xs whitespace-pre-line max-w-[350px] opacity-0 group-hover/desc:opacity-100 transition-opacity duration-75 pointer-events-none shadow-lg">
+                                {txn.description.split(' | ').join('\n')}
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)]">{txn.debit ? formatRM(txn.debit) : '-'}</td>
                           <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)]">{txn.credit ? formatRM(txn.credit) : '-'}</td>
@@ -632,202 +758,7 @@ export default function AccountantReconciliationWorkspacePage() {
                             )}
                           </td>
                         </tr>
-                        {isExpanded && (
-                          <tr className="bg-blue-50/30">
-                            <td colSpan={8} className="px-6 py-4">
-                              <div className={`grid ${mp ? 'grid-cols-3' : 'grid-cols-2'} gap-4 mb-3`}>
-                                <div>
-                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Bank Description</p>
-                                  {txn.description.split(' | ').map((line, i) => (
-                                    <p key={i} className="text-body-sm text-[var(--text-secondary)]">{line}</p>
-                                  ))}
-                                  {txn.reference && <p className="text-label-sm text-[var(--text-secondary)] mt-1">Ref: {txn.reference}</p>}
-                                  {txn.cheque_number && <p className="text-label-sm text-[var(--text-secondary)]">Cheque: {txn.cheque_number}</p>}
-                                  {txn.notes && <p className="text-label-sm text-[var(--text-secondary)] italic mt-1">{txn.notes}</p>}
-                                </div>
-                                <div>
-                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Transaction Details</p>
-                                  <p className="text-body-sm text-[var(--text-secondary)]">Date: <span className="tabular-nums">{formatDate(txn.transaction_date)}</span></p>
-                                  {txn.debit ? <p className="text-body-sm text-[var(--reject-red)] tabular-nums">Debit: {formatRM(txn.debit)}</p> : null}
-                                  {txn.credit ? <p className="text-body-sm text-[var(--match-green)] tabular-nums">Credit: {formatRM(txn.credit)}</p> : null}
-                                  <p className="text-body-sm text-[var(--text-secondary)] tabular-nums">Balance: {txn.balance ? formatRM(txn.balance) : '-'}</p>
-                                  <p className="text-label-sm text-[var(--text-secondary)] mt-1">Status: <span className={cfg.cls}>{cfg.label}</span></p>
-                                  {txn.matched_at && <p className="text-label-sm text-[var(--text-secondary)]">Matched: {formatDate(txn.matched_at)}</p>}
-                                </div>
-                                {/* Matched invoice/claim block */}
-                                {txn.matched_invoice && (() => {
-                                  return (
-                                  <div>
-                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
-                                    {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
-                                      ? txn.matched_invoice_allocations
-                                      : [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }]
-                                    ).map((alloc, idx) => (
-                                      <div key={idx}
-                                        onClick={(e) => { e.stopPropagation(); setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.allocation_amount) }); }}
-                                        className="bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3 mb-2 last:mb-0 cursor-pointer hover:bg-[var(--surface-low)] transition-colors">
-                                        <p className="text-body-sm font-semibold text-[var(--text-primary)]">{alloc.vendor_name}</p>
-                                        <p className="text-body-sm text-[var(--text-secondary)]">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                          <p className="text-body-sm font-medium text-[var(--text-primary)] tabular-nums">Allocated: {formatRM(String(alloc.allocation_amount))}</p>
-                                          <span className="text-label-sm text-[var(--text-secondary)] tabular-nums">of {formatRM(alloc.total_amount)} invoice</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                    {txn.matched_invoice.file_url && (
-                                      <a href={txn.matched_invoice.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
-                                        className="inline-flex items-center gap-1 mt-2 text-label-sm text-[var(--primary)] hover:opacity-80">
-                                        View Invoice PDF &rarr;
-                                      </a>
-                                    )}
-                                  </div>
-                                  );
-                                })()}
-                                {txn.matched_sales_invoice && (
-                                  <div>
-                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Sales Invoice</p>
-                                    <div className="bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3">
-                                      <p className="text-body-sm font-semibold text-[var(--text-primary)]">{txn.matched_sales_invoice.buyer_name}</p>
-                                      <p className="text-body-sm text-[var(--text-secondary)]">{txn.matched_sales_invoice.invoice_number} · {formatDate(txn.matched_sales_invoice.issue_date)}</p>
-                                      <p className="text-body-sm font-medium text-[var(--text-primary)] mt-1 tabular-nums">{formatRM(txn.matched_sales_invoice.total_amount)}</p>
-                                    </div>
-                                  </div>
-                                )}
-                                {txn.matched_claims && txn.matched_claims.length > 0 && (
-                                  <div>
-                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
-                                    {txn.matched_claims.map((claim) => (
-                                      <div key={claim.id}
-                                        onClick={(e) => { e.stopPropagation(); setPreviewClaim(claim); }}
-                                        className="bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3 mb-2 last:mb-0 cursor-pointer hover:bg-[var(--surface-low)] transition-colors">
-                                        <p className="text-body-sm font-semibold text-[var(--text-primary)]">{claim.employee_name} — {claim.merchant}</p>
-                                        <p className="text-body-sm text-[var(--text-secondary)]">{claim.category_name} · {formatDate(claim.claim_date)}</p>
-                                        <p className="text-body-sm font-medium text-[var(--text-primary)] mt-1 tabular-nums">{formatRM(claim.amount)}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {/* Add more items block -- shown when transaction not fully allocated */}
-                                {(() => {
-                                  const txnAmt = Number(txn.debit ?? txn.credit ?? 0);
-                                  const invAllocated = txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
-                                    ? txn.matched_invoice_allocations.reduce((s, a) => s + Number(a.allocation_amount || 0), 0)
-                                    : txn.matched_invoice ? Number(txn.matched_invoice.allocation_amount || txn.matched_invoice.total_amount || 0) : 0;
-                                  const salesInvAllocated = txn.matched_sales_invoice ? Number(txn.matched_sales_invoice.total_amount || 0) : 0;
-                                  const claimAllocated = txn.matched_claims
-                                    ? txn.matched_claims.reduce((s, c) => s + Number(c.amount), 0) : 0;
-                                  const remaining = txnAmt - invAllocated - salesInvAllocated - claimAllocated;
-                                  if (remaining <= 0.01) return null;
-                                  return (
-                                    <div
-                                      onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }}
-                                      className="border-2 border-dashed border-[var(--surface-header)] p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--surface-low)] transition-colors"
-                                    >
-                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-secondary)]">
-                                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                                      </svg>
-                                      <p className="text-label-sm text-[var(--text-secondary)] mt-1 tabular-nums">{formatRM(String(remaining))} unallocated</p>
-                                    </div>
-                                  );
-                                })()}
-
-                                {mp && (
-                                <div>
-                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Payment</p>
-                                  <p className="text-body-md font-medium text-[var(--text-primary)]">{mp.supplier_name}</p>
-                                  <p className="text-body-sm text-[var(--text-secondary)]">{formatDate(mp.payment_date)} — <span className="tabular-nums">{formatRM(mp.amount)}</span> — {mp.direction}</p>
-                                  {mp.reference && <p className="text-label-sm text-[var(--text-secondary)]">Ref: {mp.reference}</p>}
-                                  {mp.notes && <p className="text-label-sm text-[var(--text-secondary)] italic">{mp.notes}</p>}
-                                </div>
-                                )}
-                              </div>
-
-                              {mp && mp.allocations.length > 0 && (
-                                <div className="mb-3">
-                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Linked Invoices ({mp.allocations.length})</p>
-                                  <div className="space-y-1">
-                                    {mp.allocations.map((a) => (
-                                      <div key={a.invoice_id}
-                                        onClick={(e) => { e.stopPropagation(); setPreviewInvoice(a); }}
-                                        className="flex items-center justify-between bg-white px-3 py-2 border-b border-[var(--surface-low)] hover:bg-[var(--surface-low)] transition-colors cursor-pointer">
-                                        <div>
-                                          <span className="text-body-sm font-medium text-[var(--primary)]">{a.invoice_number ?? 'No number'}</span>
-                                          <span className="text-label-sm text-[var(--text-secondary)] ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
-                                        </div>
-                                        <div className="text-right">
-                                          <span className="text-body-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(a.allocated_amount)}</span>
-                                          <span className="text-label-sm text-[var(--text-secondary)] ml-1 tabular-nums">/ {formatRM(a.total_amount)}</span>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {mp && mp.receipts.length > 0 && (
-                                <div>
-                                  <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Linked Receipts ({mp.receipts.length})</p>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {mp.receipts.map((r) => (
-                                      <div key={r.id}
-                                        onClick={(e) => { e.stopPropagation(); setPreviewReceipt(r); }}
-                                        className="flex items-center gap-3 bg-white px-3 py-2 border-b border-[var(--surface-low)] hover:bg-[var(--surface-low)] transition-colors cursor-pointer">
-                                        {r.thumbnail_url && <img src={r.thumbnail_url} alt="" className="w-10 h-10 object-cover flex-shrink-0" />}
-                                        <div className="min-w-0">
-                                          <p className="text-body-sm font-medium text-[var(--primary)] truncate">{r.merchant}</p>
-                                          <p className="text-label-sm text-[var(--text-secondary)]">{r.receipt_number ?? 'No #'} — {formatDate(r.claim_date)} — <span className="tabular-nums">{formatRM(r.amount)}</span></p>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {mp && mp.allocations.length === 0 && mp.receipts.length === 0 && (
-                                <p className="text-body-sm text-[var(--text-secondary)] italic">No invoices or receipts linked to this payment yet.</p>
-                              )}
-
-                              {/* JV Preview for suggested matches */}
-                              {mp && (txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && (() => {
-                                const receipt = mp.receipts[0];
-                                const hasExplicitGl = !!(receipt?.gl_label && receipt?.contra_gl_label);
-                                const bankGl = statement.bank_gl_label;
-                                const amount = txn.credit ?? txn.debit;
-
-                                // When receipt has explicit GL, use as-is (Expense=Debit, Contra=Credit)
-                                const debitLabel = hasExplicitGl ? receipt.gl_label! : (txn.credit ? (bankGl ?? `${statement.bank_name} (no GL mapped)`) : (receipt?.gl_label ?? 'Trade Payables (default)'));
-                                const creditLabel = hasExplicitGl ? receipt.contra_gl_label! : (txn.credit ? (receipt?.gl_label ?? 'Staff Claims Payable (default)') : (bankGl ?? `${statement.bank_name} (no GL mapped)`));
-
-                                // Mismatch warning: receipt has explicit GL but neither side matches the bank statement GL
-                                const glMismatch = hasExplicitGl && bankGl && receipt.gl_label !== bankGl && receipt.contra_gl_label !== bankGl;
-
-                                return (
-                                  <div className="mt-3 bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3">
-                                    <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Journal Entry Preview</p>
-                                    <table className="w-full text-body-sm">
-                                      <thead>
-                                        <tr className="text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
-                                          <th className="py-1">Account</th>
-                                          <th className="py-1 text-right">Debit</th>
-                                          <th className="py-1 text-right">Credit</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
-                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
-                                      </tbody>
-                                    </table>
-                                    {glMismatch && (
-                                      <p className="mt-2 text-xs text-amber-700 bg-amber-50 px-2 py-1.5">
-                                        Warning: Receipt GL does not reference this bank statement&apos;s GL ({bankGl}). Verify the GL accounts are correct before confirming.
-                                      </p>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </td>
-                          </tr>
-                        )}
+                        {/* Inline expansion removed — uses preview modal */}
                         </React.Fragment>
                       );
                     })}
@@ -870,6 +801,302 @@ export default function AccountantReconciliationWorkspacePage() {
             </>
           )}
 
+          {/* ═══ TRANSACTION PREVIEW MODAL ═══ */}
+          {previewTxn && (() => {
+            const txn = previewTxn;
+            const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
+            const mp = txn.matched_payment;
+            const hasInvoices = !!(txn.matched_invoice || (txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0));
+            const hasSalesInvoice = !!txn.matched_sales_invoice;
+            const hasClaims = txn.matched_claims && txn.matched_claims.length > 0;
+            const hasMatches = hasInvoices || hasSalesInvoice || hasClaims || !!mp;
+
+            return (
+              <>
+                <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewTxn(null)} />
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewTxn(null)}>
+                <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[85vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+                  <div className="h-12 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
+                    <h2 className="text-white font-bold text-xs uppercase tracking-widest">Transaction Details</h2>
+                    <button onClick={() => setPreviewTxn(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+                  </div>
+
+                  <div className="flex-1 flex min-h-0">
+                    {/* ── Left: Transaction Details ── */}
+                    <div className="w-2/5 overflow-y-auto p-5 space-y-3 border-r border-[#E0E3E5]">
+                      <div className="flex items-center gap-2">
+                        <span className={cfg.cls}>{cfg.label}</span>
+                        {txn.matched_at && <span className="text-[10px] text-[var(--text-secondary)]">Matched {formatDate(txn.matched_at)}</span>}
+                      </div>
+
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</dt><dd className="text-sm text-[var(--text-primary)] tabular-nums">{formatDate(txn.transaction_date)}</dd></div>
+                        {txn.debit && <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Debit</dt><dd className="text-sm font-medium text-[var(--reject-red)] tabular-nums">{formatRM(txn.debit)}</dd></div>}
+                        {txn.credit && <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Credit</dt><dd className="text-sm font-medium text-[var(--match-green)] tabular-nums">{formatRM(txn.credit)}</dd></div>}
+                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Balance</dt><dd className="text-sm text-[var(--text-secondary)] tabular-nums">{txn.balance ? formatRM(txn.balance) : '-'}</dd></div>
+                      </dl>
+
+                      <div className="border-t border-[#E0E3E5] pt-2">
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description</p>
+                        {txn.description.split(' | ').map((line, i) => (
+                          <p key={i} className="text-sm text-[var(--text-primary)]">{line}</p>
+                        ))}
+                        {txn.reference && <p className="text-xs text-[var(--text-secondary)] mt-1">Ref: {txn.reference}</p>}
+                        {txn.cheque_number && <p className="text-xs text-[var(--text-secondary)]">Cheque: {txn.cheque_number}</p>}
+                      </div>
+
+                      {txn.notes && (
+                        <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--outline)] pl-3 py-1">{txn.notes}</p>
+                      )}
+                    </div>
+
+                    {/* ── Right: Matched Items + Actions ── */}
+                    <div className="w-3/5 flex flex-col min-h-0">
+                      <div className="flex-1 overflow-y-auto p-5 space-y-3">
+                        {hasMatches ? (
+                          <>
+                            {/* Matched invoices */}
+                            {hasInvoices && (
+                              <div>
+                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
+                                {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
+                                  ? txn.matched_invoice_allocations
+                                  : txn.matched_invoice ? [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }] : []
+                                ).map((alloc, idx) => {
+                                  const docUrl = txn.matched_invoice?.file_url ?? null;
+                                  const driveMatch = docUrl?.match(/\/d\/([^/]+)/);
+                                  const fileId = driveMatch?.[1];
+                                  const isDocExpanded = expandedDocUrl === (docUrl ?? `inv-${idx}`);
+                                  return (
+                                  <div key={idx} className="mb-1.5">
+                                    <button
+                                      onClick={() => {
+                                        if (docUrl) setExpandedDocUrl(isDocExpanded ? null : docUrl);
+                                        else setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.allocation_amount) });
+                                      }}
+                                      className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isDocExpanded ? '!bg-blue-50' : ''}`}>
+                                      <div>
+                                        <p className="text-sm font-medium text-[var(--text-primary)]">{alloc.vendor_name}</p>
+                                        <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(String(alloc.allocation_amount))}</p>
+                                        <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(alloc.total_amount)}</p>
+                                      </div>
+                                    </button>
+                                    {isDocExpanded && fileId && (
+                                      <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[350px] border border-t-0 border-[#E0E3E5]" title="Invoice Preview" allow="autoplay" />
+                                    )}
+                                  </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Matched sales invoice */}
+                            {hasSalesInvoice && txn.matched_sales_invoice && (
+                              <div>
+                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Sales Invoice</p>
+                                {(() => {
+                                  const si = txn.matched_sales_invoice!;
+                                  const siKey = `si-${si.id}`;
+                                  const isSiExpanded = expandedDocUrl === siKey;
+                                  return (
+                                    <div>
+                                      <button
+                                        onClick={() => setExpandedDocUrl(isSiExpanded ? null : siKey)}
+                                        className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isSiExpanded ? '!bg-blue-50' : ''}`}>
+                                        <div>
+                                          <p className="text-sm font-medium text-[var(--text-primary)]">{si.buyer_name}</p>
+                                          <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{si.invoice_number} · {formatDate(si.issue_date)}</p>
+                                        </div>
+                                        <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(si.total_amount)}</p>
+                                      </button>
+                                      {isSiExpanded && (
+                                        <div className="border border-t-0 border-[#E0E3E5] p-3 bg-[var(--surface-low)] space-y-1">
+                                          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Invoice No.</dt><dd className="text-[var(--text-primary)]">{si.invoice_number}</dd></div>
+                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Issue Date</dt><dd className="text-[var(--text-primary)]">{formatDate(si.issue_date)}</dd></div>
+                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Total</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(si.total_amount)}</dd></div>
+                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Paid</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(si.amount_paid)}</dd></div>
+                                          </dl>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+
+                            {/* Matched claims */}
+                            {hasClaims && (
+                              <div>
+                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
+                                {txn.matched_claims.map((claim) => {
+                                  const claimDocUrl = claim.file_url;
+                                  const claimDriveMatch = claimDocUrl?.match(/\/d\/([^/]+)/);
+                                  const claimFileId = claimDriveMatch?.[1];
+                                  const isClaimDocExpanded = expandedDocUrl === (claimDocUrl ?? `claim-${claim.id}`);
+                                  return (
+                                  <div key={claim.id} className="mb-1.5">
+                                    <button
+                                      onClick={() => {
+                                        if (claimDocUrl) setExpandedDocUrl(isClaimDocExpanded ? null : claimDocUrl);
+                                        else if (claim.thumbnail_url) setExpandedDocUrl(isClaimDocExpanded ? null : (claim.thumbnail_url ?? `claim-${claim.id}`));
+                                        else setPreviewClaim(claim);
+                                      }}
+                                      className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isClaimDocExpanded ? '!bg-blue-50' : ''}`}>
+                                      <div>
+                                        <p className="text-sm font-medium text-[var(--text-primary)]">{claim.employee_name} — {claim.merchant}</p>
+                                        <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{claim.category_name} · {formatDate(claim.claim_date)}</p>
+                                      </div>
+                                      <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(claim.amount)}</p>
+                                    </button>
+                                    {isClaimDocExpanded && claimFileId && (
+                                      <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-[350px] border border-t-0 border-[#E0E3E5]" title="Claim Preview" allow="autoplay" />
+                                    )}
+                                    {isClaimDocExpanded && claim.thumbnail_url && !claimFileId && (
+                                      <div className="border border-t-0 border-[#E0E3E5] p-2">
+                                        <img src={claim.thumbnail_url} alt="Claim" className="w-full object-contain max-h-[350px]" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Legacy matched payment */}
+                            {mp && (
+                              <div>
+                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Payment</p>
+                                <div className="btn-thick-white w-full px-3 py-2 text-left cursor-default">
+                                  <p className="text-sm font-medium text-[var(--text-primary)]">{mp.supplier_name}</p>
+                                  <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
+                                  {mp.reference && <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">Ref: {mp.reference}</p>}
+                                </div>
+                              </div>
+                            )}
+                            {/* JV Preview */}
+                            {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && hasMatches && (() => {
+                              const bankGl = statement?.bank_gl_label;
+                              const amount = txn.debit ?? txn.credit;
+
+                              // Build JV lines from matched items
+                              const jvLines: { account: string; debit: string | null; credit: string | null }[] = [];
+
+                              if (txn.debit) {
+                                // Money out: DR contra (Trade Payables) / CR bank
+                                const invoiceAllocs = txn.matched_invoice_allocations?.length
+                                  ? txn.matched_invoice_allocations
+                                  : txn.matched_invoice ? [{ vendor_name: txn.matched_invoice.vendor_name, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount }] : [];
+                                for (const alloc of invoiceAllocs) {
+                                  jvLines.push({ account: `Trade Payables — ${alloc.vendor_name}`, debit: formatRM(String(alloc.allocation_amount)), credit: null });
+                                }
+                                if (txn.matched_claims?.length) {
+                                  for (const c of txn.matched_claims) {
+                                    jvLines.push({ account: `${c.category_name} — ${c.merchant}`, debit: formatRM(c.amount), credit: null });
+                                  }
+                                }
+                                jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: null, credit: formatRM(amount) });
+                              } else {
+                                // Money in: DR bank / CR contra (Trade Receivables)
+                                jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: formatRM(amount), credit: null });
+                                if (txn.matched_sales_invoice) {
+                                  jvLines.push({ account: `Trade Receivables — ${txn.matched_sales_invoice.buyer_name}`, debit: null, credit: formatRM(txn.matched_sales_invoice.total_amount) });
+                                }
+                                if (txn.matched_claims?.length) {
+                                  for (const c of txn.matched_claims) {
+                                    jvLines.push({ account: `${c.category_name} — ${c.merchant}`, debit: null, credit: formatRM(c.amount) });
+                                  }
+                                }
+                              }
+
+                              if (jvLines.length < 2) return null;
+
+                              return (
+                                <div className="border border-[#E0E3E5] p-3 mt-1">
+                                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Journal Entry Preview</p>
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                                        <th className="py-1 text-left">Account</th>
+                                        <th className="py-1 text-right w-24">Debit</th>
+                                        <th className="py-1 text-right w-24">Credit</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {jvLines.map((line, i) => (
+                                        <tr key={i}>
+                                          <td className="py-1 text-[var(--text-primary)]">{line.account}</td>
+                                          <td className="py-1 text-right tabular-nums">{line.debit ?? '-'}</td>
+                                          <td className="py-1 text-right tabular-nums">{line.credit ?? '-'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                  {!bankGl && (
+                                    <p className="mt-1.5 text-[10px] text-amber-700 bg-amber-50 px-2 py-1">
+                                      Bank account has no GL mapped — JV will fail on confirm.
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm">
+                            No matched items
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="p-3 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5] space-y-1.5">
+                        <div className="flex gap-2">
+                          {txn.recon_status === 'matched' && (
+                            <>
+                              <button onClick={() => { doConfirm([txn.id]); setPreviewTxn(null); }} disabled={confirming} className="btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-50">
+                                Confirm
+                              </button>
+                              <button onClick={() => { doUnmatch(txn.id); setPreviewTxn(null); }} className="btn-thick-red flex-1 py-1.5 text-xs">
+                                Unmatch
+                              </button>
+                            </>
+                          )}
+                          {txn.recon_status === 'manually_matched' && (
+                            <>
+                              <div className="flex-1 flex items-center justify-center py-1.5 text-xs font-semibold text-[var(--match-green)] bg-green-50 border border-green-200">
+                                Confirmed
+                              </div>
+                              <div className="flex-1 relative group">
+                                <button disabled className="btn-thick-white w-full py-1.5 text-xs opacity-40 cursor-not-allowed">
+                                  Edit
+                                </button>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--text-primary)] text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                  Unmatch first to edit
+                                </div>
+                              </div>
+                              <button onClick={() => { doUnmatch(txn.id); setPreviewTxn(null); }} className="btn-thick-red flex-1 py-1.5 text-xs">
+                                Unmatch
+                              </button>
+                            </>
+                          )}
+                          {txn.recon_status === 'unmatched' && (
+                            <button onClick={() => { setPreviewTxn(null); openMatchModal(txn); }} className="btn-thick-navy flex-1 py-1.5 text-xs">
+                              Match
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </>
+            );
+          })()}
+
           {/* Match modal */}
           {matchingTxn && (
             <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center" onClick={closeMatchModal}>
@@ -881,7 +1108,46 @@ export default function AccountantReconciliationWorkspacePage() {
                 </div>
                 <div className="p-6 pb-0">
                   <div className="bg-[var(--surface-low)] p-4 mb-4">
-                    <p className="text-body-md font-medium text-[var(--text-primary)]">{matchingTxn.description.split(' | ')[0]}</p>
+                    {editingTxnDesc ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={txnDescDraft}
+                          onChange={(e) => setTxnDescDraft(e.target.value)}
+                          className="input-field w-full text-sm"
+                          rows={3}
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              const trimmed = txnDescDraft.trim();
+                              if (!trimmed) return;
+                              const newDesc = trimmed.split('\n').join(' | ');
+                              await fetch('/api/bank-reconciliation/update-txn', {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ bankTransactionId: matchingTxn.id, description: newDesc }),
+                              });
+                              setMatchingTxn({ ...matchingTxn, description: newDesc });
+                              setEditingTxnDesc(false);
+                            }}
+                            className="btn-thick-green px-3 py-1 text-[10px]"
+                          >
+                            Save
+                          </button>
+                          <button onClick={() => setEditingTxnDesc(false)} className="btn-thick-white px-3 py-1 text-[10px]">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="cursor-pointer group/desc-edit" onClick={() => { setEditingTxnDesc(true); setTxnDescDraft(matchingTxn.description.split(' | ').join('\n')); }}>
+                        {matchingTxn.description.split(' | ').map((line, i) => (
+                          <p key={i} className={`${i === 0 ? 'text-body-md font-medium text-[var(--text-primary)]' : 'text-body-sm text-[var(--text-secondary)]'}`}>{line}</p>
+                        ))}
+                        <span className="text-[10px] text-[var(--primary)] opacity-0 group-hover/desc-edit:opacity-100 transition-opacity">Click to edit</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-4 mt-1.5 text-body-sm text-[var(--text-secondary)]">
                       <span className="tabular-nums">{formatDate(matchingTxn.transaction_date)}</span>
                       <span className="font-semibold text-[var(--text-primary)] tabular-nums">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
@@ -965,35 +1231,63 @@ export default function AccountantReconciliationWorkspacePage() {
                       return (
                         <>
                           {/* Invoice / Sales Invoice items */}
-                          {showInvoices && invoiceItems.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string }) => {
+                          {showInvoices && invoiceItems.length > 0 && (
+                            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
+                              {matchingTxn.debit ? 'Outstanding Invoices' : 'Outstanding Sales Invoices'} ({invoiceItems.length})
+                            </p>
+                          )}
+                          {showInvoices && invoiceItems.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string; fileUrl?: string | null }) => {
                             const isSelected = selectedItem?.id === item.id;
+                            const docUrl = item.fileUrl;
+                            const driveMatch = docUrl?.match(/\/d\/([^/]+)/);
+                            const fileId = driveMatch?.[1];
+                            const isExpanded = expandedDocUrl === `match-${item.id}`;
                             return (
-                              <div
-                                key={`${item.type}-${item.id}`}
-                                onClick={() => { setSelectedItem(isSelected ? null : { type: item.type, id: item.id }); setSelectedClaimIds(new Set()); }}
-                                className={`flex items-center justify-between p-3 border-b cursor-pointer transition-colors ${
-                                  isSelected ? 'border-[var(--primary)] bg-blue-50' : 'border-[var(--surface-low)] hover:bg-[var(--surface-low)]'
-                                }`}
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
-                                      item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                                    }`}>
-                                      {item.type === 'invoice' ? 'INV' : 'SALES'}
-                                    </span>
-                                    <p className="text-body-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
+                              <div key={`${item.type}-${item.id}`} className="mb-1.5">
+                                <button
+                                  onClick={() => {
+                                    setSelectedItem(isSelected ? null : { type: item.type, id: item.id });
+                                    setSelectedClaimIds(new Set());
+                                    setExpandedDocUrl(isExpanded ? null : `match-${item.id}`);
+                                  }}
+                                  className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${
+                                    isSelected ? '!bg-blue-50' : ''
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
+                                        item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                                      }`}>
+                                        {item.type === 'invoice' ? 'INV' : 'SALES'}
+                                      </span>
+                                      <p className="text-sm font-medium text-[var(--text-primary)] truncate normal-case tracking-normal">{item.name}</p>
+                                    </div>
+                                    <p className="text-xs text-[var(--text-secondary)] mt-0.5 normal-case tracking-normal">
+                                      {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
+                                    </p>
                                   </div>
-                                  <p className="text-label-sm text-[var(--text-secondary)] mt-0.5">
-                                    {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
-                                  </p>
-                                </div>
-                                <div className="text-right flex-shrink-0 ml-3">
-                                  <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
-                                  {item.remaining !== item.totalAmount && (
-                                    <p className="text-label-sm text-[var(--text-secondary)] tabular-nums">of {formatRM(String(item.totalAmount))}</p>
-                                  )}
-                                </div>
+                                  <div className="text-right flex-shrink-0 ml-3">
+                                    <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
+                                    {item.remaining !== item.totalAmount && (
+                                      <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(String(item.totalAmount))}</p>
+                                    )}
+                                  </div>
+                                </button>
+                                {isExpanded && fileId && (
+                                  <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[300px] border border-t-0 border-[#E0E3E5]" title="Document Preview" allow="autoplay" />
+                                )}
+                                {isExpanded && !fileId && (
+                                  <div className="border border-t-0 border-[#E0E3E5] p-3 bg-[var(--surface-low)] space-y-1">
+                                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                      <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Type</dt><dd className="text-[var(--text-primary)]">{item.type === 'invoice' ? 'Purchase Invoice' : 'Sales Invoice'}</dd></div>
+                                      <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">{item.type === 'invoice' ? 'Invoice No.' : 'Receipt No.'}</dt><dd className="text-[var(--text-primary)]">{item.reference ?? '—'}</dd></div>
+                                      <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Date</dt><dd className="text-[var(--text-primary)]">{formatDate(item.date)}</dd></div>
+                                      <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Total</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(String(item.totalAmount))}</dd></div>
+                                      <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Remaining</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(String(item.remaining))}</dd></div>
+                                    </dl>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -1044,27 +1338,45 @@ export default function AccountantReconciliationWorkspacePage() {
                                   <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(group.total))}</p>
                                 </div>
                                 <div className="border-t border-[var(--surface-low)]">
-                                  {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null }) => (
-                                    <div
-                                      key={c.id}
-                                      onClick={() => toggleOne(c.id)}
-                                      className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[var(--surface-low)] first:border-t-0 ${
-                                        selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-[var(--surface-low)]'
-                                      }`}
-                                    >
-                                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                                        <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
-                                        <div className="min-w-0">
-                                          <p className="text-body-sm text-[var(--text-primary)] truncate">{c.merchant}</p>
-                                          <p className="text-label-sm text-[var(--text-secondary)]">
-                                            {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
-                                            {c.categoryName ? ` · ${c.categoryName}` : ''}
-                                          </p>
+                                  {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null; fileUrl?: string | null; thumbnailUrl?: string | null }) => {
+                                    const claimDocUrl = c.fileUrl;
+                                    const claimDriveMatch = claimDocUrl?.match(/\/d\/([^/]+)/);
+                                    const claimFileId = claimDriveMatch?.[1];
+                                    const isClaimExpanded = expandedDocUrl === `match-claim-${c.id}`;
+                                    return (
+                                    <div key={c.id}>
+                                      <div
+                                        onClick={() => {
+                                          toggleOne(c.id);
+                                          if (claimDocUrl || c.thumbnailUrl) setExpandedDocUrl(isClaimExpanded ? null : `match-claim-${c.id}`);
+                                        }}
+                                        className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[var(--surface-low)] first:border-t-0 ${
+                                          selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-[var(--surface-low)]'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
+                                          <div className="min-w-0">
+                                            <p className="text-body-sm text-[var(--text-primary)] truncate">{c.merchant}</p>
+                                            <p className="text-label-sm text-[var(--text-secondary)]">
+                                              {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
+                                              {c.categoryName ? ` · ${c.categoryName}` : ''}
+                                            </p>
+                                          </div>
                                         </div>
+                                        <p className="text-body-sm font-medium tabular-nums text-[var(--text-primary)] ml-3">{formatRM(String(c.remaining))}</p>
                                       </div>
-                                      <p className="text-body-sm font-medium tabular-nums text-[var(--text-primary)] ml-3">{formatRM(String(c.remaining))}</p>
+                                      {isClaimExpanded && claimFileId && (
+                                        <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-[250px] border border-t-0 border-[var(--surface-low)]" title="Claim Preview" allow="autoplay" />
+                                      )}
+                                      {isClaimExpanded && c.thumbnailUrl && !claimFileId && (
+                                        <div className="border border-t-0 border-[var(--surface-low)] p-2">
+                                          <img src={c.thumbnailUrl} alt="Claim" className="w-full object-contain max-h-[250px]" />
+                                        </div>
+                                      )}
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               </div>
                             );

@@ -58,6 +58,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Supplier not found in this firm' }, { status: 404 });
   }
 
+  // ─── Pre-validate GL accounts — block if JV cannot be created ─────────
+  const bankAccount = await prisma.bankAccount.findUnique({
+    where: {
+      firm_id_bank_name_account_number: {
+        firm_id: firmId,
+        bank_name: txn.bankStatement.bank_name,
+        account_number: txn.bankStatement.account_number ?? '',
+      },
+    },
+    select: { gl_account_id: true },
+  });
+
+  let expenseGlId: string | null = gl_account_id || null;
+  if (!expenseGlId && category_id) {
+    const catOverride = await prisma.categoryFirmOverride.findUnique({
+      where: { category_id_firm_id: { category_id, firm_id: firmId } },
+      select: { gl_account_id: true },
+    });
+    expenseGlId = catOverride?.gl_account_id ?? null;
+  }
+  if (!expenseGlId) {
+    const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true } });
+    expenseGlId = firm?.default_trade_payables_gl_id ?? null;
+  }
+
+  const missing: string[] = [];
+  if (!bankAccount?.gl_account_id) missing.push(`Bank account "${txn.bankStatement.bank_name} ${txn.bankStatement.account_number ?? ''}" has no GL account mapped. Go to Bank Recon → Manage Accounts and assign a GL.`);
+  if (!expenseGlId) missing.push('No expense GL account found. Assign a GL account, set a category GL mapping, or configure firm default Trade Payables GL.');
+  if (missing.length > 0) {
+    return NextResponse.json({ data: null, error: `Cannot create payment voucher — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
+  }
+
   const voucherNumber = reference || `PV-${Date.now()}`;
 
   // Create Invoice record (accounts payable — money going out to supplier, already paid)
@@ -102,60 +134,23 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Create JV if we can resolve GL accounts
-  let jvWarning: string | undefined;
-  try {
-    // Resolve bank GL
-    const bankAccount = await prisma.bankAccount.findUnique({
-      where: {
-        firm_id_bank_name_account_number: {
-          firm_id: firmId,
-          bank_name: txn.bankStatement.bank_name,
-          account_number: txn.bankStatement.account_number ?? '',
-        },
-      },
-      select: { gl_account_id: true },
-    });
-
-    // Resolve expense GL: user-selected > category mapping > firm default trade payables
-    let expenseGlId: string | null = gl_account_id || null;
-    if (!expenseGlId && category_id) {
-      const catOverride = await prisma.categoryFirmOverride.findUnique({
-        where: { category_id_firm_id: { category_id, firm_id: firmId } },
-        select: { gl_account_id: true },
-      });
-      expenseGlId = catOverride?.gl_account_id ?? null;
-    }
-    if (!expenseGlId) {
-      const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true } });
-      expenseGlId = firm?.default_trade_payables_gl_id ?? null;
-    }
-
-    const category = await prisma.category.findUnique({ where: { id: category_id }, select: { name: true } });
-
-    if (bankAccount?.gl_account_id && expenseGlId) {
-      await createJournalEntry({
-        firmId,
-        postingDate: txn.transaction_date,
-        description: `Payment voucher — ${supplier.name} (${voucherNumber})`,
-        sourceType: 'bank_recon',
-        sourceId: bankTransactionId,
-        lines: [
-          { glAccountId: expenseGlId, debitAmount: amount, creditAmount: 0, description: `${category?.name ?? 'Expense'} — ${supplier.name}` },
-          { glAccountId: bankAccount.gl_account_id, debitAmount: 0, creditAmount: amount, description: txn.bankStatement.bank_name },
-        ],
-        createdBy: session.user.id,
-      });
-    } else {
-      jvWarning = 'Voucher created but no JV — missing GL mapping for bank or expense account.';
-    }
-  } catch (e) {
-    console.error('JV creation failed for voucher:', e);
-    jvWarning = 'Voucher created but JV failed. Check GL mappings.';
-  }
+  // Create JV — GL accounts already validated above
+  const category = await prisma.category.findUnique({ where: { id: category_id }, select: { name: true } });
+  await createJournalEntry({
+    firmId,
+    postingDate: txn.transaction_date,
+    description: `Payment voucher — ${supplier.name} (${voucherNumber})`,
+    sourceType: 'bank_recon',
+    sourceId: bankTransactionId,
+    lines: [
+      { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: `${category?.name ?? 'Expense'} — ${supplier.name}` },
+      { glAccountId: bankAccount!.gl_account_id, debitAmount: 0, creditAmount: amount, description: txn.bankStatement.bank_name },
+    ],
+    createdBy: session.user.id,
+  });
 
   return NextResponse.json({
-    data: { recon_status: 'manually_matched', invoice_id: invoice.id, jv_warning: jvWarning },
+    data: { recon_status: 'manually_matched', invoice_id: invoice.id },
     error: null,
   });
 }

@@ -119,11 +119,26 @@ export async function POST(request: NextRequest) {
   const bankGlMap = new Map(bankAccounts.filter(Boolean).map(b => [`${b!.firm_id}|${b!.bank_name}|${b!.account_number}`, b!.gl_account_id]));
   const catOverrideMap = new Map(categoryOverrides.map(o => [o.category_id, o.gl_account_id]));
 
+  // ─── Pre-validate: block if any bank account has no GL ─────────────
+  const missingBankGl: string[] = [];
+  for (const txn of txns) {
+    const key = bankAccountKey(txn);
+    if (!bankGlMap.get(key)) {
+      const label = `${txn.bankStatement.bank_name} ${txn.bankStatement.account_number ?? ''}`.trim();
+      if (!missingBankGl.includes(label)) missingBankGl.push(label);
+    }
+  }
+  if (missingBankGl.length > 0) {
+    return NextResponse.json({
+      data: null,
+      error: `Cannot confirm — bank account GL not mapped:\n${missingBankGl.map(b => `"${b}" has no GL account. Go to Bank Recon → Manage Accounts and assign a GL.`).join('\n')}`,
+    }, { status: 400 });
+  }
+
   let confirmed = 0;
   for (const txn of txns) {
     const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
-    const bankGlId = bankGlMap.get(bankAccountKey(txn));
-    if (!bankGlId) { errors.push(`Bank account ${txn.bankStatement.bank_name} has no GL mapping.`); continue; }
+    const bankGlId = bankGlMap.get(bankAccountKey(txn))!;
 
     // Confirm supplier invoice match(es)
     const txnAllocations = allocationsByTxnId.get(txn.id);

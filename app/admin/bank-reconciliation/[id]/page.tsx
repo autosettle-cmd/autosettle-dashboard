@@ -165,7 +165,9 @@ export default function ReconciliationWorkspacePage() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setConfirmError(json.error || 'Failed to confirm');
+        const errMsg = json.error || 'Failed to confirm';
+        setConfirmError(errMsg);
+        alert(errMsg);
       } else {
         loadStatement();
       }

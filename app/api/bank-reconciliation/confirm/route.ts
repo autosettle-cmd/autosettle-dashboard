@@ -147,6 +147,22 @@ export async function POST(request: NextRequest) {
     : [];
   const catOverrideMap = new Map(categoryOverrides.map(o => [`${o.category_id}|${o.firm_id}`, o.gl_account_id]));
 
+  // ─── Pre-validate: block if any bank account has no GL ─────────────
+  const missingBankGl: string[] = [];
+  for (const txn of txns) {
+    const bankKey = `${txn.bankStatement.firm_id}|${txn.bankStatement.bank_name}|${txn.bankStatement.account_number ?? ''}`;
+    if (!bankGlMap.get(bankKey)) {
+      const label = `${txn.bankStatement.bank_name} ${txn.bankStatement.account_number ?? ''}`.trim();
+      if (!missingBankGl.includes(label)) missingBankGl.push(label);
+    }
+  }
+  if (missingBankGl.length > 0) {
+    return NextResponse.json({
+      data: null,
+      error: `Cannot confirm — bank account GL not mapped:\n${missingBankGl.map(b => `"${b}" has no GL account. Go to Bank Recon → Manage Accounts and assign a GL.`).join('\n')}`,
+    }, { status: 400 });
+  }
+
   // ─── Process each transaction using pre-fetched data ───────────────
   let confirmed = 0;
   for (const txn of txns) {
@@ -154,11 +170,7 @@ export async function POST(request: NextRequest) {
     const txnAmount = Number(txn.debit ?? txn.credit ?? 0);
     const bankKey = `${firmId}|${txn.bankStatement.bank_name}|${txn.bankStatement.account_number ?? ''}`;
 
-    const bankGlId = bankGlMap.get(bankKey);
-    if (!bankGlId) {
-      errors.push(`Bank account ${txn.bankStatement.bank_name} has no GL mapping.`);
-      continue;
-    }
+    const bankGlId = bankGlMap.get(bankKey)!;
 
     // ─── Confirm supplier invoice match(es) via BankTransactionInvoice ───
     const txnAllocations = allocationsByTxnId.get(txn.id);

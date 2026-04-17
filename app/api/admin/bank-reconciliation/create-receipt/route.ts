@@ -58,6 +58,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Supplier not found in this firm' }, { status: 404 });
   }
 
+  // ─── Pre-validate GL accounts — block if JV cannot be created ─────────
+  const bankAccount = await prisma.bankAccount.findUnique({
+    where: {
+      firm_id_bank_name_account_number: {
+        firm_id: firmId,
+        bank_name: txn.bankStatement.bank_name,
+        account_number: txn.bankStatement.account_number ?? '',
+      },
+    },
+    select: { gl_account_id: true },
+  });
+
+  let incomeGlId: string | null = gl_account_id || null;
+  if (!incomeGlId && category_id) {
+    const catOverride = await prisma.categoryFirmOverride.findUnique({
+      where: { category_id_firm_id: { category_id, firm_id: firmId } },
+      select: { gl_account_id: true },
+    });
+    incomeGlId = catOverride?.gl_account_id ?? null;
+  }
+  if (!incomeGlId) {
+    const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_receivables_gl_id: true } });
+    incomeGlId = firm?.default_trade_receivables_gl_id ?? null;
+  }
+
+  const missing: string[] = [];
+  if (!bankAccount?.gl_account_id) missing.push(`Bank account "${txn.bankStatement.bank_name} ${txn.bankStatement.account_number ?? ''}" has no GL account mapped. Go to Bank Recon → Manage Accounts and assign a GL.`);
+  if (!incomeGlId) missing.push('No income GL account found. Assign a GL account, set a category GL mapping, or configure firm default Trade Receivables GL.');
+  if (missing.length > 0) {
+    return NextResponse.json({ data: null, error: `Cannot create official receipt — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
+  }
+
   const receiptNumber = reference || `OR-${Date.now()}`;
 
   // Create SalesInvoice record (official receipt = issued invoice, already paid)
@@ -92,56 +124,22 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  // Create JV if we can resolve GL accounts
-  let jvWarning: string | undefined;
-  try {
-    const bankAccount = await prisma.bankAccount.findUnique({
-      where: {
-        firm_id_bank_name_account_number: {
-          firm_id: firmId,
-          bank_name: txn.bankStatement.bank_name,
-          account_number: txn.bankStatement.account_number ?? '',
-        },
-      },
-      select: { gl_account_id: true },
-    });
-
-    let incomeGlId: string | null = gl_account_id || null;
-    if (!incomeGlId && category_id) {
-      const catOverride = await prisma.categoryFirmOverride.findUnique({
-        where: { category_id_firm_id: { category_id, firm_id: firmId } },
-        select: { gl_account_id: true },
-      });
-      incomeGlId = catOverride?.gl_account_id ?? null;
-    }
-    if (!incomeGlId) {
-      const firm = await prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_receivables_gl_id: true } });
-      incomeGlId = firm?.default_trade_receivables_gl_id ?? null;
-    }
-
-    if (bankAccount?.gl_account_id && incomeGlId) {
-      await createJournalEntry({
-        firmId,
-        postingDate: txn.transaction_date,
-        description: `Official receipt — ${supplier.name} (${receiptNumber})`,
-        sourceType: 'bank_recon',
-        sourceId: bankTransactionId,
-        lines: [
-          { glAccountId: bankAccount.gl_account_id, debitAmount: amount, creditAmount: 0, description: txn.bankStatement.bank_name },
-          { glAccountId: incomeGlId, debitAmount: 0, creditAmount: amount, description: `${supplier.name} — ${receiptNumber}` },
-        ],
-        createdBy: session.user.id,
-      });
-    } else {
-      jvWarning = 'Receipt created but no JV — missing GL mapping for bank or income account.';
-    }
-  } catch (e) {
-    console.error('JV creation failed for receipt:', e);
-    jvWarning = 'Receipt created but JV failed. Check GL mappings.';
-  }
+  // Create JV — GL accounts already validated above
+  await createJournalEntry({
+    firmId,
+    postingDate: txn.transaction_date,
+    description: `Official receipt — ${supplier.name} (${receiptNumber})`,
+    sourceType: 'bank_recon',
+    sourceId: bankTransactionId,
+    lines: [
+      { glAccountId: bankAccount!.gl_account_id, debitAmount: amount, creditAmount: 0, description: txn.bankStatement.bank_name },
+      { glAccountId: incomeGlId!, debitAmount: 0, creditAmount: amount, description: `${supplier.name} — ${receiptNumber}` },
+    ],
+    createdBy: session.user.id,
+  });
 
   return NextResponse.json({
-    data: { recon_status: 'manually_matched', sales_invoice_id: salesInvoice.id, jv_warning: jvWarning },
+    data: { recon_status: 'manually_matched', sales_invoice_id: salesInvoice.id },
     error: null,
   });
 }

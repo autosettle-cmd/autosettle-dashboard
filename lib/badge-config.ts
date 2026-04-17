@@ -16,7 +16,7 @@ export const STATUS_CFG: Record<string, BadgeConfig> = {
 
 /** Approval status badges (claims) */
 export const APPROVAL_CFG: Record<string, BadgeConfig> = {
-  pending_approval: { label: 'Pending',  cls: 'badge-amber' },
+  pending_approval: { label: 'Pending Approval',  cls: 'badge-amber' },
   approved:         { label: 'Approved', cls: 'badge-green' },
   not_approved:     { label: 'Rejected', cls: 'badge-red'   },
 };

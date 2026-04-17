@@ -72,6 +72,7 @@ export async function GET(request: NextRequest) {
         issue_date: true,
         supplier_id: true,
         gl_account_id: true,
+        file_url: true,
       },
       orderBy: { issue_date: 'desc' },
       take: 100,
@@ -110,6 +111,8 @@ export async function GET(request: NextRequest) {
         category: { select: { id: true, name: true } },
         employee: { select: { id: true, name: true } },
         gl_account_id: true,
+        file_url: true,
+        thumbnail_url: true,
       },
       orderBy: { claim_date: 'desc' },
       take: 100,
@@ -126,6 +129,7 @@ export async function GET(request: NextRequest) {
       date: inv.issue_date,
       supplierId: inv.supplier_id,
       glAccountId: inv.gl_account_id,
+      fileUrl: inv.file_url,
     }));
 
     const claimItems = claims.map(c => ({
@@ -142,6 +146,8 @@ export async function GET(request: NextRequest) {
       categoryId: c.category.id,
       categoryName: c.category.name,
       glAccountId: c.gl_account_id,
+      fileUrl: c.file_url,
+      thumbnailUrl: c.thumbnail_url,
     }));
 
     // Sort by amount proximity if amount provided

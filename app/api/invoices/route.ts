@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
         category: { select: { name: true } },
         glAccount: { select: { id: true, account_code: true, name: true } },
         contraGlAccount: { select: { id: true, account_code: true, name: true } },
+        lines: { orderBy: { sort_order: 'asc' }, include: { glAccount: { select: { id: true, account_code: true, name: true } } } },
       },
       orderBy: { issue_date: 'desc' },
       take: takeParam || 100,
@@ -99,6 +100,17 @@ export async function GET(request: NextRequest) {
     supplier_default_contra_gl_id: inv.supplier?.default_contra_gl_account_id ?? null,
     approval: inv.approval,
     rejection_reason: inv.rejection_reason,
+    lines: inv.lines.map((l) => ({
+      id: l.id,
+      description: l.description,
+      quantity: l.quantity.toString(),
+      unit_price: l.unit_price.toString(),
+      tax_amount: l.tax_amount.toString(),
+      line_total: l.line_total.toString(),
+      gl_account_id: l.gl_account_id,
+      gl_account_label: l.glAccount ? `${l.glAccount.account_code} — ${l.glAccount.name}` : null,
+      sort_order: l.sort_order,
+    })),
   }));
 
   return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });

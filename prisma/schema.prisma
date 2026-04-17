@@ -392,6 +392,7 @@ model Invoice {
   category            Category             @relation(fields: [category_id], references: [id])
   glAccount           GLAccount?           @relation("InvoiceExpenseGL", fields: [gl_account_id], references: [id])
   contraGlAccount     GLAccount?           @relation("InvoiceContraGL", fields: [contra_gl_account_id], references: [id])
+  lines               InvoiceLine[]
   paymentAllocations  PaymentAllocation[]
   bankTxnAllocations  BankTransactionInvoice[]
   receiptLinks        InvoiceReceiptLink[]
@@ -403,6 +404,23 @@ model Invoice {
   @@index([firm_id, payment_status])
   @@index([firm_id, approval])
   @@index([uploaded_by])
+}
+
+model InvoiceLine {
+  id             String   @id @default(uuid())
+  invoice_id     String
+  description    String
+  quantity       Decimal  @default(1) @db.Decimal(10, 3)
+  unit_price     Decimal  @db.Decimal(10, 2)
+  tax_amount     Decimal  @default(0) @db.Decimal(10, 2)
+  line_total     Decimal  @db.Decimal(10, 2)
+  gl_account_id  String?
+  sort_order     Int      @default(0)
+
+  invoice   Invoice    @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  glAccount GLAccount? @relation("InvoiceLineGL", fields: [gl_account_id], references: [id])
+
+  @@index([invoice_id])
 }
 
 model Payment {
@@ -752,6 +770,7 @@ model GLAccount {
   firmsRetainedEarnings Firm[]  @relation("FirmRetainedEarnings")
   suppliersDefaultGL    Supplier[] @relation("SupplierDefaultGL")
   suppliersContraGL     Supplier[] @relation("SupplierContraGL")
+  invoiceLines          InvoiceLine[] @relation("InvoiceLineGL")
 
   @@unique([firm_id, account_code])
   @@index([firm_id, account_type])

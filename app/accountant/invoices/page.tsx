@@ -18,6 +18,18 @@ import { useFirm } from '@/contexts/FirmContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface InvoiceLineRow {
+  id: string;
+  description: string;
+  quantity: string;
+  unit_price: string;
+  tax_amount: string;
+  line_total: string;
+  gl_account_id: string | null;
+  gl_account_label: string | null;
+  sort_order: number;
+}
+
 interface InvoiceRow {
   id: string;
   vendor_name_raw: string;
@@ -51,6 +63,7 @@ interface InvoiceRow {
   supplier_default_contra_gl_id: string | null;
   approval: 'pending_approval' | 'approved' | 'not_approved';
   rejection_reason: string | null;
+  lines: InvoiceLineRow[];
 }
 
 interface SupplierOption {
@@ -169,6 +182,97 @@ function AccountantInvoicesPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+
+  // Line items editor
+  interface LineDraft { description: string; unit_price: string; tax_amount: string; line_total: string; gl_account_id: string }
+  const [lineItems, setLineItems] = useState<LineDraft[]>([]);
+  const [showLineItems, setShowLineItems] = useState(false);
+  const [lineSaving, setLineSaving] = useState(false);
+  const lineSavedRef = useRef(false);
+
+  const addLineItem = () => setLineItems(prev => [...prev, { description: '', unit_price: '', tax_amount: '0', line_total: '', gl_account_id: '' }]);
+  const removeLineItem = (idx: number) => setLineItems(prev => prev.filter((_, i) => i !== idx));
+  const updateLineItem = (idx: number, field: keyof LineDraft, value: string) => {
+    setLineItems(prev => prev.map((l, i) => {
+      if (i !== idx) return l;
+      const updated = { ...l, [field]: value };
+      if (field === 'unit_price' || field === 'tax_amount') {
+        updated.line_total = (Number(updated.unit_price || 0) + Number(updated.tax_amount || 0)).toFixed(2);
+      }
+      return updated;
+    }));
+  };
+  const lineItemsTotal = lineItems.reduce((sum, l) => sum + Number(l.line_total || 0), 0);
+
+  const saveLineItems = async () => {
+    if (!previewInvoice) return;
+    setLineSaving(true);
+    try {
+      const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lines: lineItems.map((l, i) => ({
+            description: l.description,
+            unit_price: Number(l.unit_price || 0),
+            tax_amount: Number(l.tax_amount || 0),
+            line_total: Number(l.line_total || 0),
+            gl_account_id: l.gl_account_id || null,
+            sort_order: i,
+          })),
+        }),
+      });
+      if (res.ok) {
+        // Build updated lines for read-only preview
+        const newLines: InvoiceLineRow[] = lineItems.map((l, i) => ({
+          id: `temp-${i}`,
+          description: l.description,
+          quantity: '1',
+          unit_price: l.unit_price,
+          tax_amount: l.tax_amount,
+          line_total: l.line_total,
+          gl_account_id: l.gl_account_id || null,
+          gl_account_label: l.gl_account_id ? (() => {
+            const gl = glAccounts.find(a => a.id === l.gl_account_id);
+            return gl ? `${gl.account_code} — ${gl.name}` : null;
+          })() : null,
+          sort_order: i,
+        }));
+        // Switch back to read-only preview
+        lineSavedRef.current = true;
+        setShowLineItems(false);
+        setPreviewInvoice({
+          ...previewInvoice,
+          total_amount: lineItemsTotal.toFixed(2),
+          lines: newLines,
+        });
+        refresh();
+      } else {
+        const json = await res.json().catch(() => ({ error: 'Save failed' }));
+        alert(json.error || 'Save failed');
+      }
+    } catch (e) { console.error(e); }
+    finally { setLineSaving(false); }
+  };
+
+  const removeAllLineItems = async () => {
+    if (!previewInvoice) return;
+    setLineSaving(true);
+    try {
+      const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lines: [] }),
+      });
+      if (res.ok) {
+        setLineItems([]);
+        setShowLineItems(false);
+        setPreviewInvoice({ ...previewInvoice, lines: [] });
+        refresh();
+      }
+    } catch (e) { console.error(e); }
+    finally { setLineSaving(false); }
+  };
 
   // Create new supplier
   const [creatingSupplier, setCreatingSupplier] = useState(false);
@@ -347,14 +451,25 @@ function AccountantInvoicesPage() {
             }
             return updates;
           });
-          // Auto-fill GL from matched supplier defaults
+          // Auto-fill GL from matched supplier defaults → alias lookup → empty
           const vendorName = f.vendor || f.merchant;
           if (vendorName) {
-            const vLower = vendorName.toLowerCase();
+            const vLower = vendorName.toLowerCase().trim();
             const firmSuppliers = suppliers.filter((s) => s.firm_id === targetFirmId);
             const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
-            if (supplierMatch?.default_gl_account_id) setNewInvExpenseGlId(supplierMatch.default_gl_account_id);
-            if (supplierMatch?.default_contra_gl_account_id) setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
+            if (supplierMatch?.default_gl_account_id) {
+              setNewInvExpenseGlId(supplierMatch.default_gl_account_id);
+              if (supplierMatch?.default_contra_gl_account_id) setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
+            } else {
+              // Alias lookup for GL suggestion
+              fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(vLower)}&firmId=${targetFirmId}`)
+                .then(r => r.json())
+                .then(j => {
+                  if (j.data?.default_gl_account_id) setNewInvExpenseGlId(prev => prev || j.data.default_gl_account_id);
+                  if (j.data?.default_contra_gl_account_id) setNewInvContraGlId(prev => prev || j.data.default_contra_gl_account_id);
+                })
+                .catch(() => {});
+            }
           }
           if (f.depositWarning) setDepositWarning(f.depositWarning);
         }
@@ -645,7 +760,27 @@ function AccountantInvoicesPage() {
   };
 
   // Reset edit mode when preview changes
-  useEffect(() => { setEditMode(false); setEditData(null); setCreatingSupplier(false); }, [previewInvoice]);
+  useEffect(() => {
+    setEditMode(false); setEditData(null); setCreatingSupplier(false);
+    // After saving line items, skip resetting to edit mode — stay in read-only preview
+    if (lineSavedRef.current) {
+      lineSavedRef.current = false;
+      return;
+    }
+    if (previewInvoice && previewInvoice.lines.length > 0) {
+      setShowLineItems(false); // default to read-only view
+      setLineItems(previewInvoice.lines.map(l => ({
+        description: l.description,
+        unit_price: l.unit_price,
+        tax_amount: l.tax_amount,
+        line_total: l.line_total,
+        gl_account_id: l.gl_account_id || '',
+      })));
+    } else {
+      setShowLineItems(false);
+      setLineItems([]);
+    }
+  }, [previewInvoice]);
 
   // Fetch GL accounts + pre-fill suggestion
   useEffect(() => {
@@ -654,22 +789,45 @@ function AccountantInvoicesPage() {
         fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
         fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
         fetch(`/api/accounting-settings?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+        // Try alias lookup for vendor name → supplier GL suggestion
+        fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw.toLowerCase().trim())}&firmId=${previewInvoice.firm_id}`).then(r => r.json()).catch(() => ({ data: null })),
       ])
-        .then(([glJson, catJson, settingsJson]) => {
+        .then(([glJson, catJson, settingsJson, aliasJson]) => {
           setGlAccounts(glJson.data ?? []);
+          const aliasGl = aliasJson.data?.default_gl_account_id || '';
+          const aliasContraGl = aliasJson.data?.default_contra_gl_account_id || '';
+
+          // Expense GL: invoice → supplier default → alias match → category → empty
           if (previewInvoice.gl_account_id) {
             setSelectedGlAccountId(previewInvoice.gl_account_id);
           } else if (previewInvoice.supplier_default_gl_id) {
-            // Auto-fill from supplier's saved GL (learned from first approval)
             setSelectedGlAccountId(previewInvoice.supplier_default_gl_id);
+          } else if (aliasGl) {
+            setSelectedGlAccountId(aliasGl);
           } else {
             const catData = catJson.data ?? [];
             const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
             setSelectedGlAccountId(match?.gl_account_id ?? '');
           }
-          // Contra GL: saved on invoice → supplier's sub-account → firm default → empty
-          const contraId = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || settingsJson.data?.default_trade_payables_gl_id || '';
-          setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || settingsJson.data?.default_trade_payables_gl_id || '');
+
+          // Contra GL: invoice → supplier default → alias match → name match against GL accounts → firm default
+          const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || '';
+          let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
+
+          // Try fuzzy match: vendor name against Liability GL account names (supplier-specific Trade Creditor sub-accounts)
+          if (!resolvedContra) {
+            const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const glData = glJson.data ?? [];
+            const liabilityGls = glData.filter((g: { account_type: string }) => g.account_type === 'Liability');
+            const nameMatch = liabilityGls.find((g: { name: string }) => {
+              const glLower = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return glLower.length > 2 && (vendorLower.includes(glLower) || glLower.includes(vendorLower));
+            });
+            if (nameMatch) resolvedContra = nameMatch.id;
+          }
+
+          const contraId = resolvedContra || firmDefaultContra;
+          setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || aliasContraGl || firmDefaultContra);
           setSelectedContraGlId(contraId);
         })
         .catch(console.error);
@@ -1410,34 +1568,15 @@ function AccountantInvoicesPage() {
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white shadow-2xl w-full max-w-[800px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
-            <div className="flex-1 overflow-y-scroll p-5 space-y-4">
-              {previewInvoice.file_url ? (
-                <div className="border border-[#E0E3E5]">
-                  {(() => {
-                    const driveMatch = previewInvoice.file_url.match(/\/d\/([^/]+)/);
-                    const fileId = driveMatch?.[1];
-                    if (fileId) {
-                      return <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full min-h-[400px]" title="Document Preview" allow="autoplay" />;
-                    }
-                    if (previewInvoice.thumbnail_url) {
-                      return <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full object-contain" />;
-                    }
-                    return (
-                      <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block px-4 py-3 text-sm hover:bg-[var(--surface-low)]" style={{ color: 'var(--primary)' }}>
-                        View full document →
-                      </a>
-                    );
-                  })()}
-                </div>
-              ) : (
-                <div className="w-full h-20 border border-[#E0E3E5] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] text-sm">No document attached</div>
-              )}
+            <div className="flex-1 flex min-h-0">
+            {/* ── Left: Details + GL ── */}
+            <div className="w-1/2 overflow-y-auto border-r border-[#E0E3E5] p-5 space-y-4">
 
               {editMode && editData ? (
                 <div className="space-y-3">
@@ -1565,29 +1704,8 @@ function AccountantInvoicesPage() {
                 </div>
               ) : (
                 <>
-                  <dl className="grid grid-cols-2 gap-3">
-                    <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
-                    <Field label="Invoice No."   value={previewInvoice.invoice_number} />
-                    <Field label="Issue Date"    value={formatDateDot(previewInvoice.issue_date)} />
-                    <Field label="Due Date"      value={previewInvoice.due_date ? formatDateDot(previewInvoice.due_date) : null} />
-                    <Field label="Payment Terms" value={previewInvoice.payment_terms} />
-                    <Field label="Subtotal"      value={previewInvoice.subtotal ? formatRM(previewInvoice.subtotal) : null} />
-                    <Field label="Tax"           value={previewInvoice.tax_amount ? formatRM(previewInvoice.tax_amount) : null} />
-                    <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
-                    <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
-                    <Field label="Category"      value={previewInvoice.category_name} />
-                    <Field label="Uploaded By"   value={previewInvoice.uploader_name} />
-                    <Field label="Firm"          value={previewInvoice.firm_name} />
-                  </dl>
-
-                  {previewInvoice.notes && (
-                    <div className="bg-amber-50 border border-amber-200 px-3 py-2 mt-2">
-                      <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide mb-0.5">Notes</p>
-                      <p className="text-sm text-amber-900 whitespace-pre-line">{previewInvoice.notes}</p>
-                    </div>
-                  )}
-
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  {/* ── Status row ── */}
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
                       <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
                     ))}
@@ -1596,30 +1714,50 @@ function AccountantInvoicesPage() {
                         {APPROVAL_CFG[previewInvoice.approval].label}
                       </span>
                     )}
+                    <span className={`text-[10px] font-semibold uppercase tracking-wide ${
+                      previewInvoice.confidence === 'HIGH' ? 'text-[var(--match-green)]' :
+                      previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'
+                    }`}>{previewInvoice.confidence}</span>
                   </div>
 
-                  {/* Supplier link */}
-                  <div className="bg-[var(--surface-low)] p-3 space-y-2">
+                  {/* ── Fields ── */}
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+                    <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
+                    <Field label="Invoice No."   value={previewInvoice.invoice_number} />
+                    <Field label="Issue Date"    value={formatDateDot(previewInvoice.issue_date)} />
+                    <Field label="Due Date"      value={previewInvoice.due_date ? formatDateDot(previewInvoice.due_date) : null} />
+                    <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
+                    <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
+                    <Field label="Category"      value={previewInvoice.category_name} />
+                    <Field label="Firm"          value={previewInvoice.firm_name} />
+                  </dl>
+
+                  {previewInvoice.notes && (
+                    <p className="text-xs text-[var(--text-secondary)] whitespace-pre-line border-l-2 border-[var(--outline)] pl-3 py-1">{previewInvoice.notes}</p>
+                  )}
+
+                  {/* ── Supplier ── */}
+                  <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier Account</span>
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</span>
                       {(() => {
                         const cfg = LINK_CFG[previewInvoice.supplier_link_status];
                         return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
                       })()}
                     </div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
+                    <p className="text-sm text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
                     {previewInvoice.supplier_link_status !== 'confirmed' && (
-                      <div className="flex gap-2 pt-1">
+                      <div className="flex items-center gap-2">
                         {previewInvoice.supplier_id && (
                           <button
                             onClick={() => confirmSupplier(previewInvoice.id, previewInvoice.supplier_id!)}
-                            className="btn-thick-green text-xs px-3 py-1.5 font-medium"
+                            className="btn-thick-green text-[10px] px-2.5 py-1"
                           >
                             Confirm
                           </button>
                         )}
                         <select
-                          className="input-field text-xs"
+                          className="input-field text-xs flex-1"
                           defaultValue=""
                           onChange={(e) => {
                             if (e.target.value === '__new__') {
@@ -1635,7 +1773,7 @@ function AccountantInvoicesPage() {
                           <option value="__new__">+ Create new supplier</option>
                         </select>
                         {creatingSupplier && (
-                          <div className="flex gap-2 mt-2">
+                          <div className="flex items-center gap-2 mt-1">
                             <input
                               type="text"
                               value={newSupplierName}
@@ -1644,10 +1782,10 @@ function AccountantInvoicesPage() {
                               className="input-field flex-1 text-xs"
                               placeholder="Supplier name"
                             />
-                            <button onClick={createAndAssignSupplier} className="btn-thick-green text-xs px-3 py-1.5 font-medium">
+                            <button onClick={createAndAssignSupplier} className="btn-thick-green text-[10px] px-2.5 py-1">
                               Create
                             </button>
-                            <button onClick={() => setCreatingSupplier(false)} className="btn-thick-white text-xs px-2 py-1.5 font-medium">
+                            <button onClick={() => setCreatingSupplier(false)} className="btn-thick-white text-[10px] px-2 py-1">
                               Cancel
                             </button>
                           </div>
@@ -1655,49 +1793,169 @@ function AccountantInvoicesPage() {
                       </div>
                     )}
                   </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Confidence</span>
-                    <span className={`text-xs font-semibold ${
-                      previewInvoice.confidence === 'HIGH' ? 'text-[var(--match-green)]' :
-                      previewInvoice.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'
-                    }`}>{previewInvoice.confidence}</span>
-                  </div>
-
-                  {previewInvoice.file_url && (
-                    <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs hover:underline block" style={{ color: 'var(--primary)' }}>
-                      View full document &rarr;
-                    </a>
-                  )}
                 </>
               )}
-            </div>
 
             {/* GL Account Assignment */}
             {!editMode && glAccounts.length > 0 && (
-              <div className="px-5 pb-2 space-y-2">
-                <div>
-                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
-                  {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5]">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
+              <div className="space-y-2 border-t border-[#E0E3E5] pt-3">
+                {showLineItems ? (
+                  /* ── Editing line items ── */
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Line Items</label>
+                      <div className="flex gap-3">
+                        <button onClick={() => { setShowLineItems(false); }} className="text-[10px] text-[var(--text-secondary)] hover:underline">Cancel</button>
+                        <button onClick={removeAllLineItems} disabled={lineSaving} className="text-[10px] text-[var(--reject-red)] hover:underline">
+                          Remove All Lines
+                        </button>
+                      </div>
                     </div>
-                  ) : (
-                    <GlAccountSelect
-                      value={selectedGlAccountId}
-                      onChange={setSelectedGlAccountId}
-                      accounts={glAccounts}
-                      firmId={previewInvoice.firm_id}
-                      placeholder="Select GL Account"
-                      preferredType="Expense"
-                      defaultType="Expense"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  )}
-                </div>
+                    <div className="space-y-2">
+                      {lineItems.map((line, i) => (
+                        <div key={i} className="bg-[var(--surface-low)] border border-[#E0E3E5] p-2 space-y-1.5">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={line.description}
+                              onChange={(e) => updateLineItem(i, 'description', e.target.value)}
+                              placeholder="Description"
+                              className="input-field flex-1 text-sm"
+                            />
+                            <button onClick={() => removeLineItem(i)} className="text-[var(--reject-red)] hover:opacity-70 px-1" title="Remove line">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Amount</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={line.unit_price}
+                                onChange={(e) => updateLineItem(i, 'unit_price', e.target.value)}
+                                placeholder="0.00"
+                                className="input-field w-full text-sm tabular-nums"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Tax</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={line.tax_amount}
+                                onChange={(e) => updateLineItem(i, 'tax_amount', e.target.value)}
+                                placeholder="0.00"
+                                className="input-field w-full text-sm tabular-nums"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Line Total</label>
+                              <div className="input-field w-full text-sm tabular-nums bg-[var(--surface-base)] cursor-default">
+                                {Number(line.line_total || 0).toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">GL Account</label>
+                            <GlAccountSelect
+                              value={line.gl_account_id}
+                              onChange={(val) => updateLineItem(i, 'gl_account_id', val)}
+                              accounts={glAccounts}
+                              firmId={previewInvoice.firm_id}
+                              placeholder="Select GL"
+                              preferredType="Expense"
+                              defaultType="Expense"
+                              onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      <button onClick={addLineItem} className="text-xs font-medium hover:underline w-full text-left py-1" style={{ color: 'var(--primary)' }}>
+                        + Add Line Item
+                      </button>
+                      <div className="flex items-center justify-between px-1 pt-1 border-t border-[#E0E3E5]">
+                        <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase">Total</span>
+                        <span className="text-sm font-semibold text-[var(--text-primary)] tabular-nums">{formatRM(lineItemsTotal.toFixed(2))}</span>
+                      </div>
+                      <button
+                        onClick={saveLineItems}
+                        disabled={lineSaving || lineItems.length === 0 || lineItems.some(l => !l.description || !l.unit_price)}
+                        className="btn-thick-navy w-full py-1.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {lineSaving ? 'Saving...' : 'Save Line Items'}
+                      </button>
+                    </div>
+                  </div>
+                ) : previewInvoice.lines.length > 0 ? (
+                  /* ── Read-only line items (saved) ── */
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Line Items</label>
+                      {previewInvoice.approval !== 'approved' && (
+                        <button onClick={() => setShowLineItems(true)} className="text-[10px] hover:underline" style={{ color: 'var(--primary)' }}>
+                          Edit Lines
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {previewInvoice.lines.map((line, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5] text-sm">
+                          <span className="flex-1 text-[var(--text-primary)]">{line.description}</span>
+                          <span className="tabular-nums font-medium text-[var(--text-primary)] w-24 text-right">{formatRM(line.line_total)}</span>
+                          <div className="flex items-center gap-1 w-48">
+                            {previewInvoice.approval === 'approved' && (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                              </svg>
+                            )}
+                            <span className="text-xs text-[var(--text-secondary)] truncate">{line.gl_account_label ?? 'No GL'}</span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-end px-3 py-1 text-sm font-semibold text-[var(--text-primary)] tabular-nums">
+                        Total: {formatRM(previewInvoice.total_amount)}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Single GL mode (no line items) ── */
+                  <>
+                    <div>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
+                      {previewInvoice.approval === 'approved' ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5]">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                          <span className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.gl_account_label ?? 'Not assigned'}</span>
+                        </div>
+                      ) : (
+                        <GlAccountSelect
+                          value={selectedGlAccountId}
+                          onChange={setSelectedGlAccountId}
+                          accounts={glAccounts}
+                          firmId={previewInvoice.firm_id}
+                          placeholder="Select GL Account"
+                          preferredType="Expense"
+                          defaultType="Expense"
+                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      )}
+                    </div>
+                    {previewInvoice.approval !== 'approved' && (
+                      <button
+                        onClick={() => { setShowLineItems(true); if (lineItems.length === 0) addLineItem(); }}
+                        className="text-xs font-medium hover:underline py-1"
+                        style={{ color: 'var(--primary)' }}
+                      >
+                        + Split into line items (different GL per line)
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {/* Contra GL — always single, shown in all modes */}
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
                   {previewInvoice.approval === 'approved' ? (
@@ -1728,145 +1986,176 @@ function AccountantInvoicesPage() {
               </div>
             )}
 
-            <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] space-y-2">
-              {editMode ? (
-                <div className="flex gap-3">
-                  <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
-                    {editSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 py-2 text-sm font-semibold">
-                    Cancel
-                  </button>
+            </div>{/* close left panel */}
+
+            {/* ── Right: Document Preview + Actions ── */}
+            <div className="w-1/2 flex flex-col">
+              {/* Preview */}
+              {previewInvoice.file_url ? (
+                <div className="flex-1 flex flex-col bg-[var(--surface-low)]">
+                  {(() => {
+                    const driveMatch = previewInvoice.file_url.match(/\/d\/([^/]+)/);
+                    const fileId = driveMatch?.[1];
+                    if (fileId) {
+                      return <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full flex-1" title="Document Preview" allow="autoplay" />;
+                    }
+                    if (previewInvoice.thumbnail_url) {
+                      return <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full object-contain" />;
+                    }
+                    return (
+                      <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block px-4 py-3 text-sm hover:bg-[var(--surface-low)]" style={{ color: 'var(--primary)' }}>
+                        View full document →
+                      </a>
+                    );
+                  })()}
                 </div>
               ) : (
-                <>
-                  {/* ── Primary actions based on current state ── */}
-                  <div className="flex gap-3">
-                    {previewInvoice.status === 'pending_review' && previewInvoice.approval === 'pending_approval' && (
-                      <>
-                        <button
-                          onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                          className="btn-thick-navy flex-1 py-2 text-sm font-semibold"
-                        >
-                          Mark as Reviewed
-                        </button>
-                        <button
-                          onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                          className="btn-thick-green flex-1 py-2 text-sm"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                          className="btn-thick-red flex-1 py-2 text-sm"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
-                      <>
-                        <button
-                          onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                          className="btn-thick-green flex-1 py-2 text-sm"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                          className="btn-thick-red flex-1 py-2 text-sm"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    {previewInvoice.approval === 'approved' && (
-                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-[var(--match-green)] bg-green-50 border border-green-200">
-                        Approved
-                      </div>
-                    )}
-                    {previewInvoice.approval === 'not_approved' && (
-                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-[var(--reject-red)] bg-red-50 border border-red-200">
-                        Rejected
-                      </div>
-                    )}
-                  </div>
-                  {/* ── Secondary actions (edit, revert) ── */}
-                  <div className="flex gap-3">
-                    {previewInvoice.approval !== 'approved' && (
-                    <button
-                      onClick={() => {
-                        setEditMode(true);
-                        setEditData({
-                          vendor_name_raw: previewInvoice.vendor_name_raw,
-                          invoice_number: previewInvoice.invoice_number ?? '',
-                          issue_date: previewInvoice.issue_date.split('T')[0],
-                          due_date: previewInvoice.due_date?.split('T')[0] ?? '',
-                          payment_terms: previewInvoice.payment_terms ?? '',
-                          subtotal: previewInvoice.subtotal ?? '',
-                          tax_amount: previewInvoice.tax_amount ?? '',
-                          total_amount: previewInvoice.total_amount,
-                          category_id: previewInvoice.category_id,
-                          supplier_id: previewInvoice.supplier_id ?? '',
-                        });
-                      }}
-                      className="btn-thick-white flex-1 py-2 text-sm font-semibold"
-                    >
-                      Edit
+                <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm bg-[var(--surface-low)]">No document attached</div>
+              )}
+
+              {/* Action buttons */}
+              <div className="p-3 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5] space-y-1.5">
+                {editMode ? (
+                  <div className="flex gap-2">
+                    <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy flex-1 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                      {editSaving ? 'Saving...' : 'Save Changes'}
                     </button>
-                    )}
-                    {previewInvoice.status === 'reviewed' && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
-                              method: 'PATCH',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ status: 'pending_review' }),
-                            });
-                            if (res.ok) {
-                              refresh();
-                              setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
-                            }
-                          } catch (e) { console.error(e); }
-                        }}
-                        className="btn-thick-white flex-1 py-2 text-sm font-semibold"
-                      >
-                        Revert Review
-                      </button>
-                    )}
-                    {(previewInvoice.approval === 'approved' || previewInvoice.approval === 'not_approved') && (() => {
-                      const hasBankRecon = previewInvoice.payment_status === 'paid' || previewInvoice.payment_status === 'partially_paid';
-                      return (
+                    <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 py-1.5 text-xs font-semibold">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      {previewInvoice.status === 'pending_review' && previewInvoice.approval === 'pending_approval' && (
+                        <>
+                          <button
+                            onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
+                            className="btn-thick-navy flex-1 py-1.5 text-xs font-semibold"
+                          >
+                            Mark as Reviewed
+                          </button>
+                          <button
+                            onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
+                            className="btn-thick-green flex-1 py-1.5 text-xs"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
+                            className="btn-thick-red flex-1 py-1.5 text-xs"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
+                        <>
+                          <button
+                            onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
+                            className="btn-thick-green flex-1 py-1.5 text-xs"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
+                            className="btn-thick-red flex-1 py-1.5 text-xs"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {previewInvoice.approval === 'approved' && (
+                        <div className="flex-1 flex items-center justify-center py-1.5 text-xs font-semibold text-[var(--match-green)] bg-green-50 border border-green-200">
+                          Approved
+                        </div>
+                      )}
+                      {previewInvoice.approval === 'not_approved' && (
+                        <div className="flex-1 flex items-center justify-center py-1.5 text-xs font-semibold text-[var(--reject-red)] bg-red-50 border border-red-200">
+                          Rejected
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {previewInvoice.approval !== 'approved' && (
                         <button
                           onClick={() => {
-                            if (hasBankRecon) return;
-                            batchAction([previewInvoice.id], 'revert');
+                            setEditMode(true);
+                            setEditData({
+                              vendor_name_raw: previewInvoice.vendor_name_raw,
+                              invoice_number: previewInvoice.invoice_number ?? '',
+                              issue_date: previewInvoice.issue_date.split('T')[0],
+                              due_date: previewInvoice.due_date?.split('T')[0] ?? '',
+                              payment_terms: previewInvoice.payment_terms ?? '',
+                              subtotal: previewInvoice.subtotal ?? '',
+                              tax_amount: previewInvoice.tax_amount ?? '',
+                              total_amount: previewInvoice.total_amount,
+                              category_id: previewInvoice.category_id,
+                              supplier_id: previewInvoice.supplier_id ?? '',
+                            });
                           }}
-                          disabled={hasBankRecon}
-                          title={hasBankRecon ? 'Cannot revert -- invoice has bank reconciliation payments. Unmatch in Bank Recon first.' : ''}
-                          className={`btn-thick-white flex-1 py-2 text-sm font-semibold ${
-                            hasBankRecon ? 'opacity-60 cursor-not-allowed' : ''
-                          }`}
+                          className="btn-thick-white flex-1 py-1.5 text-xs font-semibold"
                         >
-                          Revert Approval
+                          Edit
                         </button>
-                      );
-                    })()}
-                  </div>
-                </>
-              )}
+                      )}
+                      {previewInvoice.status === 'reviewed' && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ status: 'pending_review' }),
+                              });
+                              if (res.ok) {
+                                refresh();
+                                setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
+                              }
+                            } catch (e) { console.error(e); }
+                          }}
+                          className="btn-thick-white flex-1 py-1.5 text-xs font-semibold"
+                        >
+                          Revert Review
+                        </button>
+                      )}
+                      {(previewInvoice.approval === 'approved' || previewInvoice.approval === 'not_approved') && (() => {
+                        const hasBankRecon = previewInvoice.payment_status === 'paid' || previewInvoice.payment_status === 'partially_paid';
+                        return hasBankRecon ? (
+                          <div className="flex-1 relative group">
+                            <button disabled className="btn-thick-white w-full py-1.5 text-xs font-semibold opacity-40 cursor-not-allowed">
+                              Revert Approval
+                            </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--text-primary)] text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
+                              Unmatch in Bank Recon first
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => batchAction([previewInvoice.id], 'revert')}
+                            className="btn-thick-white flex-1 py-1.5 text-xs font-semibold"
+                          >
+                            Revert Approval
+                          </button>
+                        );
+                      })()}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="px-5 py-3 border-t border-[#E0E3E5] flex-shrink-0">
+                <button
+                  onClick={() => deleteInvoice(previewInvoice.id)}
+                  className="btn-thick-red text-xs px-3 py-1 font-medium"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
-            <div className="px-5 py-3 border-t border-[#E0E3E5] flex-shrink-0">
-              <button
-                onClick={() => deleteInvoice(previewInvoice.id)}
-                className="btn-thick-red text-xs px-3 py-1 font-medium"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-          </div>
+
+            </div>{/* close flex row */}
+          </div>{/* close modal */}
+          </div>{/* close centering */}
         </>
       )}
 

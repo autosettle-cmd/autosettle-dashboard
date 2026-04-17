@@ -41,6 +41,7 @@ export async function PATCH(request: NextRequest) {
       gl_account_id: true, approval: true, vendor_name_raw: true, supplier_id: true,
       category: { select: { name: true } },
       supplier: { select: { id: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
+      lines: { select: { description: true, line_total: true, gl_account_id: true } },
     },
   });
   const oldMap = new Map(invoices.map((inv) => [inv.id, inv]));
@@ -67,9 +68,19 @@ export async function PATCH(request: NextRequest) {
 
     // Check each invoice — fall back to supplier's default GL
     for (const inv of invoices) {
-      const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
-      if (!expenseGlId) {
-        errors.push(`Invoice from ${inv.vendor_name_raw} (${inv.category.name}) has no GL account assigned. Assign a GL account before approving.`);
+      if (inv.lines.length > 0) {
+        // Line items mode: each line must resolve to a GL
+        const fallbackGl = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
+        for (const line of inv.lines) {
+          if (!line.gl_account_id && !fallbackGl) {
+            errors.push(`Line "${line.description}" on invoice from ${inv.vendor_name_raw} has no GL account. Assign GL accounts to all line items before approving.`);
+          }
+        }
+      } else {
+        const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
+        if (!expenseGlId) {
+          errors.push(`Invoice from ${inv.vendor_name_raw} (${inv.category.name}) has no GL account assigned. Assign a GL account before approving.`);
+        }
       }
     }
 
@@ -120,13 +131,36 @@ export async function PATCH(request: NextRequest) {
       const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaults.get(inv.firm_id);
       const amount = Math.abs(Number(inv.total_amount));
       const isCreditNote = Number(inv.total_amount) < 0;
-      await createJournalEntry({
-        firmId: inv.firm_id,
-        postingDate: inv.issue_date,
-        description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${inv.vendor_name_raw}`,
-        sourceType: 'invoice_posting',
-        sourceId: inv.id,
-        lines: isCreditNote
+
+      // Build JV lines: multi-debit when line items exist, single debit otherwise
+      let jvLines: { glAccountId: string; debitAmount: number; creditAmount: number; description?: string }[];
+
+      if (inv.lines.length > 0) {
+        // Group line items by GL account
+        const glTotals = new Map<string, number>();
+        for (const line of inv.lines) {
+          const lineGlId = line.gl_account_id || expenseGlId!;
+          glTotals.set(lineGlId, (glTotals.get(lineGlId) || 0) + Math.abs(Number(line.line_total)));
+        }
+
+        const debitLines = Array.from(glTotals.entries()).map(([glId, amt]) => ({
+          glAccountId: glId,
+          debitAmount: isCreditNote ? 0 : amt,
+          creditAmount: isCreditNote ? amt : 0,
+          description: inv.vendor_name_raw,
+        }));
+
+        const contraLine = {
+          glAccountId: contraGlId!,
+          debitAmount: isCreditNote ? amount : 0,
+          creditAmount: isCreditNote ? 0 : amount,
+          description: isCreditNote ? 'Trade Payables (reversal)' : 'Trade Payables',
+        };
+
+        jvLines = isCreditNote ? [contraLine, ...debitLines] : [...debitLines, contraLine];
+      } else {
+        // Legacy single-GL path
+        jvLines = isCreditNote
           ? [
               { glAccountId: contraGlId!, debitAmount: amount, creditAmount: 0, description: 'Trade Payables (reversal)' },
               { glAccountId: expenseGlId!, debitAmount: 0, creditAmount: amount, description: inv.vendor_name_raw },
@@ -134,7 +168,16 @@ export async function PATCH(request: NextRequest) {
           : [
               { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: inv.vendor_name_raw },
               { glAccountId: contraGlId!, debitAmount: 0, creditAmount: amount, description: 'Trade Payables' },
-            ],
+            ];
+      }
+
+      await createJournalEntry({
+        firmId: inv.firm_id,
+        postingDate: inv.issue_date,
+        description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${inv.vendor_name_raw}`,
+        sourceType: 'invoice_posting',
+        sourceId: inv.id,
+        lines: jvLines,
         createdBy: session.user.id,
       });
 
@@ -146,8 +189,9 @@ export async function PATCH(request: NextRequest) {
         await prisma.invoice.update({ where: { id: inv.id }, data: glUpdates });
       }
 
-      // Save GL to supplier for future auto-fill (learn once per supplier)
-      if (inv.supplier) {
+      // Save GL to supplier for future auto-fill (skip when multiple GLs — no single default)
+      const uniqueLineGls = new Set(inv.lines.map(l => l.gl_account_id).filter(Boolean));
+      if (inv.supplier && uniqueLineGls.size <= 1) {
         const updates: Record<string, string> = {};
         const resolvedGlId = gl_account_id || inv.gl_account_id;
         if (resolvedGlId && !inv.supplier.default_gl_account_id) {
