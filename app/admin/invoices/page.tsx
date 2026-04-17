@@ -136,12 +136,14 @@ function AdminInvoicesPage() {
     supplier_id: string;
     ocrDone: boolean;
     ocrError: string;
+    selected: boolean;
   }
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [batchScanning, setBatchScanning] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
+  const [batchPreviewIdx, setBatchPreviewIdx] = useState<number | null>(null);
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -248,6 +250,7 @@ function AdminInvoicesPage() {
       supplier_id: '',
       ocrDone: false,
       ocrError: '',
+      selected: true,
     }));
     setBatchItems(items);
     setShowBatchReview(true);
@@ -301,11 +304,13 @@ function AdminInvoicesPage() {
   }, []);
 
   const submitBatch = async () => {
+    const selected = batchItems.filter(i => i.selected);
+    if (selected.length === 0) return;
     setBatchSubmitting(true);
     let ok = 0;
     let fail = 0;
     const dupes: string[] = [];
-    for (const item of batchItems) {
+    for (const item of selected) {
       try {
         const fd = new FormData();
         fd.append('file', item.file);
@@ -862,16 +867,29 @@ function AdminInvoicesPage() {
       {/* ═══ BATCH REVIEW MODAL ═══ */}
       {showBatchReview && (
         <>
-          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }}>
-          <div className="bg-white shadow-2xl w-full max-w-[900px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); } }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); } }}>
+          <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
 
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
-              <h2 className="text-white font-bold text-sm uppercase tracking-widest">
-                Batch Review -- {batchItems.length} invoices
-                {batchScanning && ` (Scanning ${batchScanProgress.current}/${batchScanProgress.total}...)`}
-              </h2>
-              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <div className="flex items-center gap-3">
+                <h2 className="text-white font-bold text-sm uppercase tracking-widest">
+                  Batch Review -- {batchItems.length} invoices
+                  {batchScanning && ` (Scanning ${batchScanProgress.current}/${batchScanProgress.total}...)`}
+                </h2>
+                {!batchScanning && batchItems.some(i => i.ocrDone) && (
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={batchItems.filter(i => i.ocrDone).every(i => i.selected)}
+                      onChange={(e) => setBatchItems(prev => prev.map(i => i.ocrDone ? { ...i, selected: e.target.checked } : i))}
+                      className="w-3.5 h-3.5 accent-white"
+                    />
+                    <span className="text-white/70 text-xs">Select All</span>
+                  </label>
+                )}
+              </div>
+              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             {/* Scanning progress */}
@@ -887,18 +905,30 @@ function AdminInvoicesPage() {
               </div>
             )}
 
+            <div className="flex-1 overflow-hidden flex">
             {/* Batch items list */}
-            <div className="flex-1 overflow-y-scroll p-5 space-y-3">
+            <div className={`flex-1 overflow-y-scroll p-5 space-y-3 ${batchPreviewIdx !== null ? 'max-w-[60%]' : ''}`}>
               {batchItems.map((item, idx) => (
-                <div key={idx} className={`border p-4 ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-[#E0E3E5]') : 'border-[var(--surface-low)] bg-[var(--surface-low)] opacity-60'}`}>
+                <div key={idx} className={`border p-4 cursor-pointer transition-colors ${batchPreviewIdx === idx ? 'ring-2 ring-[var(--primary)]' : ''} ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-[#E0E3E5] hover:border-[var(--primary)]/40') : 'border-[var(--surface-low)] bg-[var(--surface-low)] opacity-60'}`} onClick={() => item.ocrDone && setBatchPreviewIdx(batchPreviewIdx === idx ? null : idx)}>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-[var(--text-primary)] truncate flex-1">{item.file.name}</p>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {item.ocrDone && (
+                        <input
+                          type="checkbox"
+                          checked={item.selected}
+                          onChange={(e) => { e.stopPropagation(); setBatchItems(prev => prev.map((it, i) => i === idx ? { ...it, selected: e.target.checked } : it)); }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-4 h-4 accent-[var(--primary)] flex-shrink-0"
+                        />
+                      )}
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate flex-1">{item.file.name}</p>
+                    </div>
                     {!item.ocrDone && <span className="text-xs text-[var(--text-secondary)] ml-2">Scanning...</span>}
                     {item.ocrError && <span className="text-xs text-[var(--reject-red)] ml-2">{item.ocrError}</span>}
-                    <button onClick={() => setBatchItems(prev => prev.filter((_, i) => i !== idx))} className="text-xs text-[var(--reject-red)] hover:opacity-80 ml-2">Remove</button>
+                    <button onClick={(e) => { e.stopPropagation(); setBatchItems(prev => prev.filter((_, i) => i !== idx)); if (batchPreviewIdx === idx) setBatchPreviewIdx(null); else if (batchPreviewIdx !== null && batchPreviewIdx > idx) setBatchPreviewIdx(batchPreviewIdx - 1); }} className="text-xs text-[var(--reject-red)] hover:opacity-80 ml-2">Remove</button>
                   </div>
                   {item.ocrDone && (
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
                         <input value={item.vendor_name} onChange={(e) => { const next = [...batchItems]; next[idx].vendor_name = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
@@ -940,21 +970,43 @@ function AdminInvoicesPage() {
               ))}
             </div>
 
+            {/* File preview panel */}
+            {batchPreviewIdx !== null && batchItems[batchPreviewIdx] && (
+              <div className="w-[40%] border-l border-[#E0E3E5] flex flex-col bg-[var(--surface-low)]">
+                <div className="h-10 flex items-center justify-between px-4 border-b border-[#E0E3E5] bg-white">
+                  <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Preview</span>
+                  <button onClick={() => setBatchPreviewIdx(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-lg leading-none">&times;</button>
+                </div>
+                <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
+                  {(() => {
+                    const file = batchItems[batchPreviewIdx].file;
+                    const url = URL.createObjectURL(file);
+                    if (file.type === 'application/pdf') {
+                      return <iframe src={url} className="w-full h-full min-h-[500px]" title="PDF Preview" />;
+                    }
+                    return <img src={url} alt={file.name} className="max-w-full max-h-full object-contain" onLoad={() => URL.revokeObjectURL(url)} />;
+                  })()}
+                </div>
+              </div>
+            )}
+            </div>
+
             {/* Footer */}
-            <div className="px-5 py-3 bg-[var(--surface-low)] flex gap-2 flex-shrink-0">
+            <div className="px-5 py-3 bg-[var(--surface-low)] flex items-center gap-2 flex-shrink-0 border-t border-[#E0E3E5]">
+              <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
               <button
-                onClick={() => { setShowBatchReview(false); setBatchItems([]); }}
+                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); }}
                 disabled={batchScanning || batchSubmitting}
-                className="btn-thick-white flex-1 py-2 text-sm font-semibold disabled:opacity-40"
+                className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 onClick={submitBatch}
-                disabled={batchScanning || batchSubmitting || batchItems.length === 0}
-                className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40"
+                disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0}
+                className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40"
               >
-                {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
+                {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
               </button>
             </div>
           </div>

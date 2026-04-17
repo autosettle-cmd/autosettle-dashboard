@@ -145,11 +145,13 @@ export default function EmployeeClaimsPage() {
     description: string;
     ocrDone: boolean;
     ocrError: string;
+    selected: boolean;
   }
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
 
   const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchPreviewIdx, setBatchPreviewIdx] = useState<number | null>(null);
 
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -243,6 +245,7 @@ export default function EmployeeClaimsPage() {
             description: r.notes || '',
             ocrDone: true,
             ocrError: '',
+            selected: true,
           };
         });
         setBatchItems(items);
@@ -342,7 +345,7 @@ export default function EmployeeClaimsPage() {
   };
 
   const submitBatchClaims = async () => {
-    const valid = batchItems.filter((item) => item.merchant && item.amount && item.category_id);
+    const valid = batchItems.filter((item) => item.selected && item.merchant && item.amount && item.category_id);
     if (valid.length === 0) return;
 
     setBatchSubmitting(true);
@@ -438,6 +441,7 @@ export default function EmployeeClaimsPage() {
             description: r.notes || '',
             ocrDone: true,
             ocrError: '',
+            selected: true,
           };
         });
         setBatchItems(items);
@@ -872,23 +876,44 @@ export default function EmployeeClaimsPage() {
       {/* ═══ BATCH REVIEW MODAL ═══ */}
       {showBatchReview && (
         <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-3xl max-h-[90vh] flex flex-col">
+          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[1200px] max-h-[90vh] flex flex-col">
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[#234B6E]">
-              <h2 className="text-white font-bold text-sm uppercase tracking-wider">
-                Review {batchItems.length} Receipts
-                <span className="ml-2 text-white/50 font-normal normal-case tracking-normal">from 1 image</span>
-              </h2>
-              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
+              <div className="flex items-center gap-3">
+                <h2 className="text-white font-bold text-sm uppercase tracking-wider">
+                  Review {batchItems.length} Receipts
+                  <span className="ml-2 text-white/50 font-normal normal-case tracking-normal">from 1 image</span>
+                </h2>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={batchItems.every(i => i.selected)}
+                    onChange={(e) => setBatchItems(prev => prev.map(i => ({ ...i, selected: e.target.checked })))}
+                    className="w-3.5 h-3.5 accent-white"
+                  />
+                  <span className="text-white/70 text-xs">Select All</span>
+                </label>
+              </div>
+              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+            <div className="flex-1 overflow-hidden flex">
+            <div className={`flex-1 overflow-y-auto p-5 space-y-4 ${batchPreviewIdx !== null ? 'max-w-[60%]' : ''}`}>
               {batchItems.map((item, idx) => (
-                <div key={idx} className="bg-[#F2F4F6] p-4 space-y-3">
+                <div key={idx} className={`bg-[#F2F4F6] p-4 space-y-3 cursor-pointer transition-colors ${batchPreviewIdx === idx ? 'ring-2 ring-[#234B6E]' : 'hover:bg-[#EBEEF1]'}`} onClick={() => setBatchPreviewIdx(batchPreviewIdx === idx ? null : idx)}>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-label font-bold text-[#0D1B2A] uppercase tracking-widest">Receipt {idx + 1}</span>
-                    <button onClick={() => setBatchItems(batchItems.filter((_, i) => i !== idx))} className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider">Remove</button>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={item.selected}
+                        onChange={(e) => { e.stopPropagation(); setBatchItems(prev => prev.map((it, i) => i === idx ? { ...it, selected: e.target.checked } : it)); }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 accent-[#234B6E] flex-shrink-0"
+                      />
+                      <span className="text-xs font-label font-bold text-[#0D1B2A] uppercase tracking-widest">Receipt {idx + 1}</span>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); setBatchItems(batchItems.filter((_, i) => i !== idx)); if (batchPreviewIdx === idx) setBatchPreviewIdx(null); else if (batchPreviewIdx !== null && batchPreviewIdx > idx) setBatchPreviewIdx(batchPreviewIdx - 1); }} className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider">Remove</button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Date</label>
                       <input type="date" value={item.claim_date} onChange={(e) => { const items = [...batchItems]; items[idx].claim_date = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
@@ -921,18 +946,40 @@ export default function EmployeeClaimsPage() {
               ))}
             </div>
 
-            <div className="p-4 flex-shrink-0 flex gap-3 bg-[#F2F4F6]">
+            {/* File preview panel */}
+            {batchPreviewIdx !== null && batchItems[batchPreviewIdx] && (
+              <div className="w-[40%] border-l border-[#E0E3E5] flex flex-col bg-[#F2F4F6]">
+                <div className="h-10 flex items-center justify-between px-4 border-b border-[#E0E3E5] bg-white">
+                  <span className="text-xs font-bold text-[#444650] uppercase tracking-widest">Preview</span>
+                  <button onClick={() => setBatchPreviewIdx(null)} className="text-[#444650] hover:text-[#0D1B2A] text-lg leading-none">&times;</button>
+                </div>
+                <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
+                  {(() => {
+                    const file = batchItems[batchPreviewIdx].file;
+                    const url = URL.createObjectURL(file);
+                    if (file.type === 'application/pdf') {
+                      return <iframe src={url} className="w-full h-full min-h-[500px]" title="PDF Preview" />;
+                    }
+                    return <img src={url} alt={file.name} className="max-w-full max-h-full object-contain" onLoad={() => URL.revokeObjectURL(url)} />;
+                  })()}
+                </div>
+              </div>
+            )}
+            </div>
+
+            <div className="p-4 flex-shrink-0 flex items-center gap-3 bg-[#F2F4F6] border-t border-[#E0E3E5]">
+              <span className="text-xs text-[#444650] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
               <button
                 onClick={submitBatchClaims}
-                disabled={batchSubmitting || batchItems.length === 0}
-                className="btn-thick-green flex-1 py-3 text-sm"
+                disabled={batchSubmitting || batchItems.filter(i => i.selected).length === 0}
+                className="btn-thick-green px-6 py-3 text-sm"
               >
-                {batchSubmitting ? 'Submitting...' : `Submit All (${batchItems.length})`}
+                {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
               </button>
               <button
-                onClick={() => { setShowBatchReview(false); setBatchItems([]); }}
+                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); }}
                 disabled={batchSubmitting}
-                className="btn-thick-white flex-1 py-3 text-sm"
+                className="btn-thick-white px-6 py-3 text-sm"
               >
                 Cancel
               </button>
