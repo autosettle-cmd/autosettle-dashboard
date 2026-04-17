@@ -189,7 +189,7 @@ function ClaimsPage() {
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
   const [batchScanning, setBatchScanning] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number } | null>(null);
+  const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
   const [batchPreviewType, setBatchPreviewType] = useState<string>('');
@@ -434,6 +434,7 @@ function ClaimsPage() {
     const firmId = batchFirmId;
     let ok = 0;
     let fail = 0;
+    const errors: string[] = [];
     for (const item of selected) {
       try {
         const fd = new FormData();
@@ -448,14 +449,19 @@ function ClaimsPage() {
         if (item.category_id) fd.append('category_id', item.category_id);
         if (item.description) fd.append('description', item.description);
         const res = await fetch('/api/claims', { method: 'POST', body: fd });
-        if (res.ok) ok++; else fail++;
+        if (res.ok) ok++;
+        else {
+          const json = await res.json().catch(() => ({ error: 'Failed' }));
+          errors.push(`${item.file.name}: ${json.error}`);
+          fail++;
+        }
       } catch { fail++; }
     }
     setBatchSubmitting(false);
     setShowBatchReview(false);
     setBatchItems([]);
     setBatchPreviewId(null);
-    setBatchWarning({ ok, fail });
+    setBatchWarning({ ok, fail, errors });
     refresh();
   };
 
@@ -1509,6 +1515,12 @@ function ClaimsPage() {
                 <span className="font-bold text-green-700">{batchWarning.ok}</span> claim{batchWarning.ok !== 1 ? 's' : ''} submitted
                 {batchWarning.fail > 0 && <>, <span className="font-bold text-[var(--reject-red)]">{batchWarning.fail}</span> failed</>}
               </p>
+              {batchWarning.errors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 p-3 space-y-1 max-h-[120px] overflow-y-auto">
+                  <p className="text-xs font-bold text-[var(--reject-red)] uppercase tracking-widest">Failed Items</p>
+                  {batchWarning.errors.map((d, i) => <p key={i} className="text-xs text-red-700">{d}</p>)}
+                </div>
+              )}
               <div className="bg-amber-50 border border-amber-300 p-3">
                 <p className="text-sm text-amber-800 font-medium">Please review the uploaded claims to ensure all details are correct before approving.</p>
               </div>
