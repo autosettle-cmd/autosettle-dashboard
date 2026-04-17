@@ -216,6 +216,7 @@ function AccountantInvoicesPage() {
     ocrDone: boolean;
     ocrError: string;
     selected: boolean;
+    dupMessage: string;
   }
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
@@ -356,7 +357,7 @@ function AccountantInvoicesPage() {
     const items: BatchItem[] = droppedFiles.map((file, i) => ({
       _id: `${Date.now()}-${i}`, file, vendor_name: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0],
       due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', supplier_id: '',
-      ocrDone: false, ocrError: '', selected: true,
+      ocrDone: false, ocrError: '', selected: true, dupMessage: '',
     }));
     setBatchItems(items);
     setShowBatchReview(true);
@@ -367,6 +368,17 @@ function AccountantInvoicesPage() {
       const itemId = items[i]._id;
       setBatchScanProgress({ current: i + 1, total: items.length });
       try {
+        // Check duplicate before OCR
+        const dupFd = new FormData();
+        dupFd.append('file', items[i].file);
+        if (targetFirmId) dupFd.append('firm_id', targetFirmId);
+        const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
+        const dupJson = await dupRes.json();
+        if (dupJson.data?.isDuplicate) {
+          setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, dupMessage: dupJson.data.message, selected: false } : it));
+          continue;
+        }
+
         const ocrFd = new FormData();
         ocrFd.append('file', items[i].file);
         ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
@@ -516,7 +528,7 @@ function AccountantInvoicesPage() {
     const bItems: BatchItem[] = fileList.map((file, i) => ({
       _id: `${Date.now()}-${i}`, file, vendor_name: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0],
       due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', supplier_id: '',
-      ocrDone: false, ocrError: '', selected: true,
+      ocrDone: false, ocrError: '', selected: true, dupMessage: '',
     }));
     setBatchItems(bItems);
     setShowBatchReview(true);
@@ -527,6 +539,16 @@ function AccountantInvoicesPage() {
       const itemId = bItems[i]._id;
       setBatchScanProgress({ current: i + 1, total: bItems.length });
       try {
+        const dupFd = new FormData();
+        dupFd.append('file', bItems[i].file);
+        if (newInv.firm_id) dupFd.append('firm_id', newInv.firm_id);
+        const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
+        const dupJson = await dupRes.json();
+        if (dupJson.data?.isDuplicate) {
+          setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, dupMessage: dupJson.data.message, selected: false } : it));
+          continue;
+        }
+
         const ocrFd = new FormData();
         ocrFd.append('file', bItems[i].file);
         ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
@@ -1257,7 +1279,7 @@ function AccountantInvoicesPage() {
             <div className="flex-1 overflow-hidden flex">
             <div className={`flex-1 overflow-y-scroll p-5 space-y-3 ${batchPreviewId ? 'max-w-[60%]' : ''}`}>
               {batchItems.map((item) => (
-                <div key={item._id} className={`border p-4 cursor-pointer transition-colors ${batchPreviewId === item._id ? 'ring-2 ring-[var(--primary)]' : ''} ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-[#E0E3E5] hover:border-[var(--primary)]/40') : 'border-[var(--surface-low)] bg-[var(--surface-low)] opacity-60'}`} onClick={() => item.ocrDone && setBatchPreviewId(batchPreviewId === item._id ? null : item._id)}>
+                <div key={item._id} className={`border p-4 cursor-pointer transition-colors ${batchPreviewId === item._id ? 'ring-2 ring-[var(--primary)]' : ''} ${item.dupMessage ? 'border-red-300 bg-red-50/50' : item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-[#E0E3E5] hover:border-[var(--primary)]/40') : 'border-[var(--surface-low)] bg-[var(--surface-low)] opacity-60'}`} onClick={() => item.ocrDone && setBatchPreviewId(batchPreviewId === item._id ? null : item._id)}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {item.ocrDone && (
@@ -1271,7 +1293,10 @@ function AccountantInvoicesPage() {
                     {item.ocrError && <span className="text-xs text-[var(--reject-red)] ml-2">{item.ocrError}</span>}
                     <button onClick={(e) => { e.stopPropagation(); if (batchPreviewId === item._id) setBatchPreviewId(null); setBatchItems(prev => prev.filter(it => it._id !== item._id)); }} className="text-xs text-[var(--reject-red)] hover:opacity-80 ml-2">Remove</button>
                   </div>
-                  {item.ocrDone && (
+                  {item.dupMessage && (
+                    <p className="text-xs text-[var(--reject-red)] font-medium">{item.dupMessage}</p>
+                  )}
+                  {item.ocrDone && !item.dupMessage && (
                     <div className="grid grid-cols-4 gap-2" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
