@@ -166,6 +166,14 @@ function AdminInvoicesPage() {
     }
   };
 
+  // Warn before navigating away during batch operations
+  useEffect(() => {
+    if (!batchScanning && !batchSubmitting) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [batchScanning, batchSubmitting]);
+
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);

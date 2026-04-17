@@ -203,6 +203,14 @@ function ClaimsPage() {
       else setBatchPreviewUrl(null);
     } else setBatchPreviewUrl(null);
   };
+
+  useEffect(() => {
+    if (!batchScanning && !batchSubmitting) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [batchScanning, batchSubmitting]);
+
   const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
   const [batchFirmId, setBatchFirmId] = useState('');
 

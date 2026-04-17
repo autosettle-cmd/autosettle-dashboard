@@ -167,6 +167,13 @@ export default function EmployeeClaimsPage() {
     } else setBatchPreviewUrl(null);
   };
 
+  useEffect(() => {
+    if (!batchSubmitting) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [batchSubmitting]);
+
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
   const [mileageTo, setMileageTo]           = useState('');
