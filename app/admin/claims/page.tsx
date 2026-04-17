@@ -1129,8 +1129,8 @@ function AdminClaimsPage() {
       {/* === BATCH REVIEW MODAL === */}
       {showBatchReview && (
         <>
-          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }}>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
 
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
@@ -1148,7 +1148,7 @@ function AdminClaimsPage() {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (!batchScanning && !batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             {batchScanning && (
@@ -1244,7 +1244,7 @@ function AdminClaimsPage() {
 
             <div className="px-5 py-3 flex items-center gap-2 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5]">
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
-              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); }} disabled={batchScanning || batchSubmitting}
+              <button onClick={() => { if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} disabled={batchScanning || batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40">Cancel</button>
               <button onClick={submitBatchClaims} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0}
                 className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40">

@@ -918,7 +918,7 @@ export default function EmployeeClaimsPage() {
                   <span className="text-white/70 text-xs">Select All</span>
                 </label>
               </div>
-              <button onClick={() => { if (!batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-hidden flex">
@@ -999,7 +999,7 @@ export default function EmployeeClaimsPage() {
                 {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
               </button>
               <button
-                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); }}
+                onClick={() => { if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }}
                 disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-3 text-sm"
               >
