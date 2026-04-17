@@ -1349,9 +1349,11 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
               {previewInvoice.thumbnail_url ? (
                 previewInvoice.file_url ? (
                   <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain border border-[var(--surface-header)] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain border border-[var(--surface-header)]" />
                 )
               ) : (
@@ -1422,9 +1424,11 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
               {previewReceipt.thumbnail_url ? (
                 previewReceipt.file_url ? (
                   <a href={previewReceipt.file_url} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--surface-header)] cursor-pointer hover:opacity-90 transition-opacity" />
                   </a>
                 ) : (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={previewReceipt.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-[var(--surface-header)]" />
                 )
               ) : (

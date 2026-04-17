@@ -841,7 +841,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         setLineItems([]);
       }
     }
-  }, [previewInvoice]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewInvoice, config.showLineItems]);
 
   // Fetch GL accounts + pre-fill suggestion (accountant only)
   useEffect(() => {
@@ -1288,6 +1289,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                       {isPdf ? (
                         <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Invoice preview" />
                       ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={url} alt="Invoice preview" className="w-full max-h-[300px] object-contain" />
                       )}
                     </div>
@@ -1609,6 +1611,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   {batchPreviewType === 'application/pdf' ? (
                     <iframe key={batchPreviewId} src={batchPreviewUrl} className="w-full h-full min-h-[500px]" title="PDF Preview" />
                   ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img key={batchPreviewId} src={batchPreviewUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
                   )}
                 </div>
@@ -2125,6 +2128,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   if (previewInvoice.thumbnail_url) {
                     return (
                       <div className="flex items-center justify-center h-full p-5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain" />
                       </div>
                     );
