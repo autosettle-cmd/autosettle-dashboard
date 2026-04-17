@@ -198,7 +198,6 @@ function AccountantInvoicesPage() {
   const [newInvContraGlId, setNewInvContraGlId] = useState('');
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const vendorInputRef = useRef<HTMLInputElement>(null);
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
 
   // Batch review state (same pattern as admin invoices)
   interface BatchItem {
@@ -275,7 +274,6 @@ function AccountantInvoicesPage() {
       setNewInv((prev) => ({ ...prev, firm_id: targetFirmId }));
       setShowNewInvoice(true);
       setNewInvFile(file);
-      setBatchProgress(null);
       setNewInvError('');
       setDepositWarning('');
 
@@ -893,7 +891,7 @@ function AccountantInvoicesPage() {
           >
             <div className="ml-auto">
               <button
-                onClick={() => { setShowNewInvoice(true); setBatchProgress(null); if (firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: firms[0].id })); }}
+                onClick={() => { setShowNewInvoice(true); if (firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: firms[0].id })); }}
                 className="btn-thick-navy px-4 py-2 text-sm font-semibold"
               >
                 + Submit New Invoice
@@ -1190,45 +1188,23 @@ function AccountantInvoicesPage() {
                   )}
                 </div>
 
-                {batchProgress && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                      <span>Processing {batchProgress.current} of {batchProgress.total}</span>
-                      <span>{Math.round((batchProgress.current / batchProgress.total) * 100)}%</span>
-                    </div>
-                    <div className="w-full bg-[var(--surface-low)] h-2">
-                      <div className="h-2 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${(batchProgress.current / batchProgress.total) * 100}%` }} />
-                    </div>
-                    {batchProgress.results.length > 0 && (
-                      <div className="max-h-[200px] overflow-y-auto space-y-1">
-                        {batchProgress.results.map((r, i) => (
-                          <div key={i} className={`text-xs px-2 py-1 ${r.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-                            <span className="font-medium">{r.name}</span>: {r.msg}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
 
               {depositWarning && <div className="px-5 pt-3"><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">{depositWarning}</p></div>}
               {newInvError && <div className="px-5 pt-3"><p className="text-sm text-[var(--reject-red)] bg-red-50 border border-red-200 px-3 py-2">{newInvError}</p></div>}
               <div className="flex gap-3 px-5 py-4 bg-[var(--surface-low)]">
-                {!batchProgress && (
-                  <button
-                    onClick={submitNewInvoice}
-                    disabled={newInvSubmitting || ocrScanning}
-                    className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
-                  </button>
-                )}
                 <button
-                  onClick={() => { setShowNewInvoice(false); setBatchProgress(null); }}
+                  onClick={submitNewInvoice}
+                  disabled={newInvSubmitting || ocrScanning}
+                  className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
+                </button>
+                <button
+                  onClick={() => setShowNewInvoice(false)}
                   className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
                 >
-                  {batchProgress && !newInvSubmitting ? 'Done' : 'Cancel'}
+                  Cancel
                 </button>
               </div>
             </div>
