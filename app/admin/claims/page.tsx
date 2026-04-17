@@ -175,6 +175,7 @@ function AdminClaimsPage() {
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
   const [batchScanning, setBatchScanning] = useState(false);
+  const batchCancelRef = useRef(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchSubmitProgress, setBatchSubmitProgress] = useState({ current: 0, total: 0 });
   const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
@@ -198,6 +199,15 @@ function AdminClaimsPage() {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, [batchScanning, batchSubmitting]);
+
+  const cancelBatchScan = () => {
+    if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;
+    batchCancelRef.current = true;
+    setBatchScanning(false);
+    setShowBatchReview(false);
+    setBatchItems([]);
+    setBatchPreviewId(null);
+  };
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -323,9 +333,11 @@ function AdminClaimsPage() {
     setBatchItems(items);
     setShowBatchReview(true);
     setBatchScanning(true);
+    batchCancelRef.current = false;
     setBatchScanProgress({ current: 0, total: droppedFiles.length });
 
     for (let i = 0; i < items.length; i++) {
+      if (batchCancelRef.current) break;
       const itemId = items[i]._id;
       setBatchScanProgress({ current: i + 1, total: items.length });
       try {
@@ -1156,7 +1168,7 @@ function AdminClaimsPage() {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (batchScanning) { setShowBatchReview(false); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             {batchScanning && (
@@ -1252,7 +1264,7 @@ function AdminClaimsPage() {
 
             <div className="px-5 py-3 flex items-center gap-2 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5]">
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
-              <button onClick={() => { if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} disabled={batchScanning || batchSubmitting}
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40">Cancel</button>
               <button onClick={submitBatchClaims} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0}
                 className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40">
@@ -1703,7 +1715,10 @@ function AdminClaimsPage() {
             <div className="h-1 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100}%` }} />
           </div>
           {batchScanning && !showBatchReview && (
-            <p className="text-[10px] text-center text-[var(--text-secondary)] pb-2">Click to expand</p>
+            <div className="px-4 pb-2 flex items-center justify-between">
+              <span className="text-[10px] text-[var(--text-secondary)]">Click to expand</span>
+              <button onClick={(e) => { e.stopPropagation(); cancelBatchScan(); }} className="text-[10px] text-[var(--reject-red)] hover:opacity-80 font-medium">Cancel</button>
+            </div>
           )}
         </div>
       )}
