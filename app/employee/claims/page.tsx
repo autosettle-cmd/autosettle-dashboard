@@ -914,7 +914,7 @@ export default function EmployeeClaimsPage() {
                   <span className="text-white/70 text-xs">Select All</span>
                 </label>
               </div>
-              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (!batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-hidden flex">

@@ -1391,21 +1391,23 @@ function AccountantInvoicesPage() {
 
             <div className="flex-1 overflow-y-scroll p-5 space-y-4">
               {previewInvoice.file_url ? (
-                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block">
-                  {previewInvoice.thumbnail_url && !previewInvoice.file_url.includes('.pdf') ? (
-                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-64 object-contain border border-[#E0E3E5] cursor-pointer hover:opacity-90 transition-opacity" />
-                  ) : (
-                    <div className="w-full border border-[#E0E3E5] bg-[var(--surface-low)] px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-[var(--surface-header)] transition-colors">
-                      <div className="w-10 h-12 bg-red-50 border border-red-200 flex items-center justify-center flex-shrink-0">
-                        <span className="text-red-500 font-bold text-xs">PDF</span>
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate" style={{ color: 'var(--primary)' }}>View document</p>
-                        <p className="text-xs text-[var(--text-secondary)]">Opens in Google Drive</p>
-                      </div>
-                    </div>
-                  )}
-                </a>
+                <div className="border border-[#E0E3E5]">
+                  {(() => {
+                    const driveMatch = previewInvoice.file_url.match(/\/d\/([^/]+)/);
+                    const fileId = driveMatch?.[1];
+                    if (fileId) {
+                      return <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full min-h-[400px]" title="Document Preview" allow="autoplay" />;
+                    }
+                    if (previewInvoice.thumbnail_url) {
+                      return <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full object-contain" />;
+                    }
+                    return (
+                      <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="block px-4 py-3 text-sm hover:bg-[var(--surface-low)]" style={{ color: 'var(--primary)' }}>
+                        View full document →
+                      </a>
+                    );
+                  })()}
+                </div>
               ) : (
                 <div className="w-full h-20 border border-[#E0E3E5] bg-[var(--surface-low)] flex items-center justify-center text-[var(--text-secondary)] text-sm">No document attached</div>
               )}
