@@ -189,6 +189,7 @@ function ClaimsPage() {
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
   const [batchScanning, setBatchScanning] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchSubmitProgress, setBatchSubmitProgress] = useState({ current: 0, total: 0 });
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
@@ -430,12 +431,18 @@ function ClaimsPage() {
   const submitBatchClaims = async () => {
     const selected = batchItems.filter(i => i.selected);
     if (selected.length === 0) return;
+    setShowBatchReview(false);
+    setBatchItems([]);
+    setBatchPreviewId(null);
     setBatchSubmitting(true);
+    setBatchSubmitProgress({ current: 0, total: selected.length });
     const firmId = batchFirmId;
     let ok = 0;
     let fail = 0;
     const errors: string[] = [];
-    for (const item of selected) {
+    for (let si = 0; si < selected.length; si++) {
+      const item = selected[si];
+      setBatchSubmitProgress({ current: si + 1, total: selected.length });
       try {
         const fd = new FormData();
         fd.append('firm_id', firmId);
@@ -458,9 +465,6 @@ function ClaimsPage() {
       } catch { fail++; }
     }
     setBatchSubmitting(false);
-    setShowBatchReview(false);
-    setBatchItems([]);
-    setBatchPreviewId(null);
     setBatchWarning({ ok, fail, errors });
     refresh();
   };
@@ -1950,6 +1954,22 @@ function ClaimsPage() {
       )}
 
       {/* Reject modal removed — accountant no longer approves/rejects claims */}
+
+      {batchSubmitting && (
+        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[var(--text-primary)]">Uploading claims...</p>
+              <p className="text-xs text-[var(--text-secondary)]">{batchSubmitProgress.current} of {batchSubmitProgress.total}</p>
+            </div>
+            <span className="text-sm font-bold tabular-nums text-[var(--primary)]">{Math.round((batchSubmitProgress.current / batchSubmitProgress.total) * 100)}%</span>
+          </div>
+          <div className="h-1 bg-[var(--surface-low)]">
+            <div className="h-1 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${(batchSubmitProgress.current / batchSubmitProgress.total) * 100}%` }} />
+          </div>
+        </div>
+      )}
 
     </div>
   );

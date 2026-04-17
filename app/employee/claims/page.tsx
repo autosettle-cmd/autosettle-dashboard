@@ -152,6 +152,7 @@ export default function EmployeeClaimsPage() {
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
 
   const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchSubmitProgress, setBatchSubmitProgress] = useState({ current: 0, total: 0 });
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
@@ -362,11 +363,17 @@ export default function EmployeeClaimsPage() {
     const valid = batchItems.filter((item) => item.selected && item.merchant && item.amount && item.category_id);
     if (valid.length === 0) return;
 
+    setShowBatchReview(false);
+    setBatchItems([]);
+    setBatchPreviewId(null);
     setBatchSubmitting(true);
+    setBatchSubmitProgress({ current: 0, total: valid.length });
     let submitted = 0;
 
     const errors: string[] = [];
-    for (const item of valid) {
+    for (let si = 0; si < valid.length; si++) {
+      const item = valid[si];
+      setBatchSubmitProgress({ current: si + 1, total: valid.length });
       try {
         const fd = new FormData();
         fd.append('claim_date', item.claim_date);
@@ -389,9 +396,6 @@ export default function EmployeeClaimsPage() {
     }
 
     setBatchSubmitting(false);
-    setShowBatchReview(false);
-    setBatchItems([]);
-    setBatchPreviewId(null);
     const failed = valid.length - submitted;
     setBatchWarning({ ok: submitted, fail: failed, errors });
     refresh();
@@ -1176,6 +1180,22 @@ export default function EmployeeClaimsPage() {
           </div>
           </div>
         </>
+      )}
+
+      {batchSubmitting && (
+        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-[#234B6E] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-[#0D1B2A]">Uploading claims...</p>
+              <p className="text-xs text-[#444650]">{batchSubmitProgress.current} of {batchSubmitProgress.total}</p>
+            </div>
+            <span className="text-sm font-bold tabular-nums text-[#234B6E]">{Math.round((batchSubmitProgress.current / batchSubmitProgress.total) * 100)}%</span>
+          </div>
+          <div className="h-1 bg-[#F2F4F6]">
+            <div className="h-1 bg-[#234B6E] transition-all" style={{ width: `${(batchSubmitProgress.current / batchSubmitProgress.total) * 100}%` }} />
+          </div>
+        </div>
       )}
 
     </div>
