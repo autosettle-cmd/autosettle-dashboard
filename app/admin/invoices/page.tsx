@@ -144,7 +144,24 @@ function AdminInvoicesPage() {
   const [batchScanning, setBatchScanning] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
-  const [batchPreviewId, setBatchPreviewId] = useState<string | null>(null);
+  const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
+  const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
+  const [batchPreviewType, setBatchPreviewType] = useState<string>('');
+  const setBatchPreviewId = (id: string | null) => {
+    _setBatchPreviewId(id);
+    if (batchPreviewUrl) URL.revokeObjectURL(batchPreviewUrl);
+    if (id) {
+      const found = batchItems.find(it => it._id === id);
+      if (found) {
+        setBatchPreviewUrl(URL.createObjectURL(found.file));
+        setBatchPreviewType(found.file.type);
+      } else {
+        setBatchPreviewUrl(null);
+      }
+    } else {
+      setBatchPreviewUrl(null);
+    }
+  };
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -934,7 +951,7 @@ function AdminInvoicesPage() {
                     <button onClick={(e) => { e.stopPropagation(); if (batchPreviewId === item._id) setBatchPreviewId(null); setBatchItems(prev => prev.filter(it => it._id !== item._id)); }} className="text-xs text-[var(--reject-red)] hover:opacity-80 ml-2">Remove</button>
                   </div>
                   {item.ocrDone && (
-                    <div className="grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="grid grid-cols-4 gap-2" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
                         <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className="input-field w-full text-xs" />
@@ -977,21 +994,18 @@ function AdminInvoicesPage() {
             </div>
 
             {/* File preview panel */}
-            {batchPreviewId && batchItems.find(it => it._id === batchPreviewId) && (
+            {batchPreviewId && batchPreviewUrl && (
               <div className="w-[40%] border-l border-[#E0E3E5] flex flex-col bg-[var(--surface-low)]">
                 <div className="h-10 flex items-center justify-between px-4 border-b border-[#E0E3E5] bg-white">
                   <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Preview</span>
                   <button onClick={() => setBatchPreviewId(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-lg leading-none">&times;</button>
                 </div>
                 <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
-                  {(() => {
-                    const file = batchItems.find(it => it._id === batchPreviewId)!.file;
-                    const url = URL.createObjectURL(file);
-                    if (file.type === 'application/pdf') {
-                      return <iframe src={url} className="w-full h-full min-h-[500px]" title="PDF Preview" />;
-                    }
-                    return <img src={url} alt={file.name} className="max-w-full max-h-full object-contain" onLoad={() => URL.revokeObjectURL(url)} />;
-                  })()}
+                  {batchPreviewType === 'application/pdf' ? (
+                    <iframe key={batchPreviewId} src={batchPreviewUrl} className="w-full h-full min-h-[500px]" title="PDF Preview" />
+                  ) : (
+                    <img key={batchPreviewId} src={batchPreviewUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                  )}
                 </div>
               </div>
             )}

@@ -152,7 +152,18 @@ export default function EmployeeClaimsPage() {
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
 
   const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchPreviewId, setBatchPreviewId] = useState<string | null>(null);
+  const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
+  const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
+  const [batchPreviewType, setBatchPreviewType] = useState<string>('');
+  const setBatchPreviewId = (id: string | null) => {
+    _setBatchPreviewId(id);
+    if (batchPreviewUrl) URL.revokeObjectURL(batchPreviewUrl);
+    if (id) {
+      const found = batchItems.find(it => it._id === id);
+      if (found) { setBatchPreviewUrl(URL.createObjectURL(found.file)); setBatchPreviewType(found.file.type); }
+      else setBatchPreviewUrl(null);
+    } else setBatchPreviewUrl(null);
+  };
 
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -916,7 +927,7 @@ export default function EmployeeClaimsPage() {
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); if (batchPreviewId === item._id) setBatchPreviewId(null); setBatchItems(prev => prev.filter(it => it._id !== item._id)); }} className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider">Remove</button>
                   </div>
-                  <div className="grid grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="grid grid-cols-2 gap-3" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Date</label>
                       <input type="date" value={item.claim_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, claim_date: v } : it)); }} className="input-field w-full text-sm" />
@@ -950,21 +961,18 @@ export default function EmployeeClaimsPage() {
             </div>
 
             {/* File preview panel */}
-            {batchPreviewId && batchItems.find(it => it._id === batchPreviewId) && (
+            {batchPreviewId && batchPreviewUrl && (
               <div className="w-[40%] border-l border-[#E0E3E5] flex flex-col bg-[#F2F4F6]">
                 <div className="h-10 flex items-center justify-between px-4 border-b border-[#E0E3E5] bg-white">
                   <span className="text-xs font-bold text-[#444650] uppercase tracking-widest">Preview</span>
                   <button onClick={() => setBatchPreviewId(null)} className="text-[#444650] hover:text-[#0D1B2A] text-lg leading-none">&times;</button>
                 </div>
                 <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
-                  {(() => {
-                    const file = batchItems.find(it => it._id === batchPreviewId)!.file;
-                    const url = URL.createObjectURL(file);
-                    if (file.type === 'application/pdf') {
-                      return <iframe src={url} className="w-full h-full min-h-[500px]" title="PDF Preview" />;
-                    }
-                    return <img src={url} alt={file.name} className="max-w-full max-h-full object-contain" onLoad={() => URL.revokeObjectURL(url)} />;
-                  })()}
+                  {batchPreviewType === 'application/pdf' ? (
+                    <iframe key={batchPreviewId} src={batchPreviewUrl} className="w-full h-full min-h-[500px]" title="PDF Preview" />
+                  ) : (
+                    <img key={batchPreviewId} src={batchPreviewUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                  )}
                 </div>
               </div>
             )}
