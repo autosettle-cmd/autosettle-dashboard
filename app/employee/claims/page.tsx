@@ -136,6 +136,7 @@ export default function EmployeeClaimsPage() {
 
   // Batch review (multi-receipt in one image)
   interface BatchClaimItem {
+    _id: string;
     file: File;
     merchant: string;
     amount: string;
@@ -151,7 +152,7 @@ export default function EmployeeClaimsPage() {
   const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
 
   const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchPreviewIdx, setBatchPreviewIdx] = useState<number | null>(null);
+  const [batchPreviewId, setBatchPreviewId] = useState<string | null>(null);
 
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -229,13 +230,14 @@ export default function EmployeeClaimsPage() {
       if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
         setShowModal(false);
         setOcrScanning(false);
-        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }, ridx: number) => {
           let catId = '';
           if (r.category) {
             const match = categories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
             if (match) catId = match.id;
           }
           return {
+            _id: `${Date.now()}-${ridx}`,
             file: file!,
             merchant: r.merchant || '',
             amount: r.amount ? String(r.amount) : '',
@@ -425,13 +427,14 @@ export default function EmployeeClaimsPage() {
         // Multiple receipts in one image — switch to batch review
         setShowModal(false);
         setOcrScanning(false);
-        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }) => {
+        const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }, ridx: number) => {
           let catId = '';
           if (r.category) {
             const match = categories.find((c) => c.name.toLowerCase() === r.category!.toLowerCase());
             if (match) catId = match.id;
           }
           return {
+            _id: `${Date.now()}-${ridx}`,
             file,
             merchant: r.merchant || '',
             amount: r.amount ? String(r.amount) : '',
@@ -893,53 +896,53 @@ export default function EmployeeClaimsPage() {
                   <span className="text-white/70 text-xs">Select All</span>
                 </label>
               </div>
-              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-hidden flex">
-            <div className={`flex-1 overflow-y-auto p-5 space-y-4 ${batchPreviewIdx !== null ? 'max-w-[60%]' : ''}`}>
+            <div className={`flex-1 overflow-y-auto p-5 space-y-4 ${batchPreviewId ? 'max-w-[60%]' : ''}`}>
               {batchItems.map((item, idx) => (
-                <div key={idx} className={`bg-[#F2F4F6] p-4 space-y-3 cursor-pointer transition-colors ${batchPreviewIdx === idx ? 'ring-2 ring-[#234B6E]' : 'hover:bg-[#EBEEF1]'}`} onClick={() => setBatchPreviewIdx(batchPreviewIdx === idx ? null : idx)}>
+                <div key={item._id} className={`bg-[#F2F4F6] p-4 space-y-3 cursor-pointer transition-colors ${batchPreviewId === item._id ? 'ring-2 ring-[#234B6E]' : 'hover:bg-[#EBEEF1]'}`} onClick={() => setBatchPreviewId(batchPreviewId === item._id ? null : item._id)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={item.selected}
-                        onChange={(e) => { e.stopPropagation(); setBatchItems(prev => prev.map((it, i) => i === idx ? { ...it, selected: e.target.checked } : it)); }}
+                        onChange={(e) => { e.stopPropagation(); setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, selected: e.target.checked } : it)); }}
                         onClick={(e) => e.stopPropagation()}
                         className="w-4 h-4 accent-[#234B6E] flex-shrink-0"
                       />
                       <span className="text-xs font-label font-bold text-[#0D1B2A] uppercase tracking-widest">Receipt {idx + 1}</span>
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); setBatchItems(batchItems.filter((_, i) => i !== idx)); if (batchPreviewIdx === idx) setBatchPreviewIdx(null); else if (batchPreviewIdx !== null && batchPreviewIdx > idx) setBatchPreviewIdx(batchPreviewIdx - 1); }} className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider">Remove</button>
+                    <button onClick={(e) => { e.stopPropagation(); if (batchPreviewId === item._id) setBatchPreviewId(null); setBatchItems(prev => prev.filter(it => it._id !== item._id)); }} className="text-xs font-bold text-[#F23545] hover:text-[#A81C28] uppercase tracking-wider">Remove</button>
                   </div>
                   <div className="grid grid-cols-2 gap-3" onClick={(e) => e.stopPropagation()}>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Date</label>
-                      <input type="date" value={item.claim_date} onChange={(e) => { const items = [...batchItems]; items[idx].claim_date = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                      <input type="date" value={item.claim_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, claim_date: v } : it)); }} className="input-field w-full text-sm" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Amount (RM)</label>
-                      <input type="number" step="0.01" value={item.amount} onChange={(e) => { const items = [...batchItems]; items[idx].amount = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                      <input type="number" step="0.01" value={item.amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, amount: v } : it)); }} className="input-field w-full text-sm" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Merchant</label>
-                      <input type="text" value={item.merchant} onChange={(e) => { const items = [...batchItems]; items[idx].merchant = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                      <input type="text" value={item.merchant} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, merchant: v } : it)); }} className="input-field w-full text-sm" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Category</label>
-                      <select value={item.category_id} onChange={(e) => { const items = [...batchItems]; items[idx].category_id = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm">
+                      <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-field w-full text-sm">
                         <option value="">Select</option>
                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt No.</label>
-                      <input type="text" value={item.receipt_number} onChange={(e) => { const items = [...batchItems]; items[idx].receipt_number = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" />
+                      <input type="text" value={item.receipt_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, receipt_number: v } : it)); }} className="input-field w-full text-sm" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Description</label>
-                      <input type="text" value={item.description} onChange={(e) => { const items = [...batchItems]; items[idx].description = e.target.value; setBatchItems(items); }} className="input-field w-full text-sm" placeholder="Optional" />
+                      <input type="text" value={item.description} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, description: v } : it)); }} className="input-field w-full text-sm" placeholder="Optional" />
                     </div>
                   </div>
                 </div>
@@ -947,15 +950,15 @@ export default function EmployeeClaimsPage() {
             </div>
 
             {/* File preview panel */}
-            {batchPreviewIdx !== null && batchItems[batchPreviewIdx] && (
+            {batchPreviewId && batchItems.find(it => it._id === batchPreviewId) && (
               <div className="w-[40%] border-l border-[#E0E3E5] flex flex-col bg-[#F2F4F6]">
                 <div className="h-10 flex items-center justify-between px-4 border-b border-[#E0E3E5] bg-white">
                   <span className="text-xs font-bold text-[#444650] uppercase tracking-widest">Preview</span>
-                  <button onClick={() => setBatchPreviewIdx(null)} className="text-[#444650] hover:text-[#0D1B2A] text-lg leading-none">&times;</button>
+                  <button onClick={() => setBatchPreviewId(null)} className="text-[#444650] hover:text-[#0D1B2A] text-lg leading-none">&times;</button>
                 </div>
                 <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
                   {(() => {
-                    const file = batchItems[batchPreviewIdx].file;
+                    const file = batchItems.find(it => it._id === batchPreviewId)!.file;
                     const url = URL.createObjectURL(file);
                     if (file.type === 'application/pdf') {
                       return <iframe src={url} className="w-full h-full min-h-[500px]" title="PDF Preview" />;
@@ -977,7 +980,7 @@ export default function EmployeeClaimsPage() {
                 {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
               </button>
               <button
-                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); }}
+                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); }}
                 disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-3 text-sm"
               >

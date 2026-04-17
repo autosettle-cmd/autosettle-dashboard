@@ -124,6 +124,7 @@ function AdminInvoicesPage() {
   const [ocrScanning, setOcrScanning] = useState(false);
   // Batch review state — OCR all files first, then show for review before submit
   interface BatchItem {
+    _id: string;
     file: File;
     vendor_name: string;
     invoice_number: string;
@@ -143,7 +144,7 @@ function AdminInvoicesPage() {
   const [batchScanning, setBatchScanning] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
-  const [batchPreviewIdx, setBatchPreviewIdx] = useState<number | null>(null);
+  const [batchPreviewId, setBatchPreviewId] = useState<string | null>(null);
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -241,7 +242,8 @@ function AdminInvoicesPage() {
       alert('Maximum 20 files per batch upload. Please upload in smaller batches.');
       return;
     }
-    const items: BatchItem[] = droppedFiles.map(file => ({
+    const items: BatchItem[] = droppedFiles.map((file, i) => ({
+      _id: `${Date.now()}-${i}`,
       file,
       vendor_name: '',
       invoice_number: '',
@@ -261,42 +263,42 @@ function AdminInvoicesPage() {
     setBatchScanning(true);
     setBatchScanProgress({ current: 0, total: droppedFiles.length });
 
-    // OCR each file sequentially
-    for (let i = 0; i < droppedFiles.length; i++) {
-      setBatchScanProgress({ current: i + 1, total: droppedFiles.length });
+    // OCR each file sequentially — update by _id so removals during scan are respected
+    for (let i = 0; i < items.length; i++) {
+      const itemId = items[i]._id;
+      setBatchScanProgress({ current: i + 1, total: items.length });
       try {
         const ocrFd = new FormData();
-        ocrFd.append('file', droppedFiles[i]);
+        ocrFd.append('file', items[i].file);
         ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
 
+        const updates: Partial<BatchItem> = { ocrDone: true };
         if (ocrRes.ok && ocrJson.fields) {
           const f = ocrJson.fields;
           const isInvoice = ocrJson.documentType === 'invoice';
-          items[i].vendor_name = (isInvoice ? f.vendor : f.merchant) || '';
-          items[i].invoice_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
-          items[i].issue_date = (isInvoice ? f.issueDate : f.date) || items[i].issue_date;
-          items[i].due_date = (isInvoice ? f.dueDate : '') || '';
-          items[i].total_amount = String(isInvoice ? f.totalAmount : f.amount) || '';
-          items[i].payment_terms = (isInvoice ? f.paymentTerms : '') || '';
-          items[i].notes = f.notes || '';
+          updates.vendor_name = (isInvoice ? f.vendor : f.merchant) || '';
+          updates.invoice_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
+          updates.issue_date = (isInvoice ? f.issueDate : f.date) || items[i].issue_date;
+          updates.due_date = (isInvoice ? f.dueDate : '') || '';
+          updates.total_amount = String(isInvoice ? f.totalAmount : f.amount) || '';
+          updates.payment_terms = (isInvoice ? f.paymentTerms : '') || '';
+          updates.notes = f.notes || '';
           if (f.category) {
             const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-            if (match) items[i].category_id = match.id;
+            if (match) updates.category_id = match.id;
           }
-          const vendorName = items[i].vendor_name;
+          const vendorName = updates.vendor_name;
           if (vendorName) {
             const supplierMatch = suppliers.find((s) => s.name.toLowerCase() === vendorName.toLowerCase());
-            if (supplierMatch) items[i].supplier_id = supplierMatch.id;
+            if (supplierMatch) updates.supplier_id = supplierMatch.id;
           }
         }
-        items[i].ocrDone = true;
+        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ...updates } : it));
       } catch (err) {
-        items[i].ocrDone = true;
-        items[i].ocrError = err instanceof Error ? err.message : 'OCR failed';
+        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, ocrError: err instanceof Error ? err.message : 'OCR failed' } : it));
       }
-      setBatchItems([...items]);
     }
 
     setBatchScanning(false);
@@ -871,8 +873,8 @@ function AdminInvoicesPage() {
       {/* ═══ BATCH REVIEW MODAL ═══ */}
       {showBatchReview && (
         <>
-          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); } }} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); } }}>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }}>
           <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
 
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
@@ -893,7 +895,7 @@ function AdminInvoicesPage() {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (!batchScanning && !batchSubmitting) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             {/* Scanning progress */}
@@ -911,16 +913,16 @@ function AdminInvoicesPage() {
 
             <div className="flex-1 overflow-hidden flex">
             {/* Batch items list */}
-            <div className={`flex-1 overflow-y-scroll p-5 space-y-3 ${batchPreviewIdx !== null ? 'max-w-[60%]' : ''}`}>
-              {batchItems.map((item, idx) => (
-                <div key={idx} className={`border p-4 cursor-pointer transition-colors ${batchPreviewIdx === idx ? 'ring-2 ring-[var(--primary)]' : ''} ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-[#E0E3E5] hover:border-[var(--primary)]/40') : 'border-[var(--surface-low)] bg-[var(--surface-low)] opacity-60'}`} onClick={() => item.ocrDone && setBatchPreviewIdx(batchPreviewIdx === idx ? null : idx)}>
+            <div className={`flex-1 overflow-y-scroll p-5 space-y-3 ${batchPreviewId ? 'max-w-[60%]' : ''}`}>
+              {batchItems.map((item) => (
+                <div key={item._id} className={`border p-4 cursor-pointer transition-colors ${batchPreviewId === item._id ? 'ring-2 ring-[var(--primary)]' : ''} ${item.ocrDone ? (item.ocrError ? 'border-red-200 bg-red-50/30' : 'border-[#E0E3E5] hover:border-[var(--primary)]/40') : 'border-[var(--surface-low)] bg-[var(--surface-low)] opacity-60'}`} onClick={() => item.ocrDone && setBatchPreviewId(batchPreviewId === item._id ? null : item._id)}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       {item.ocrDone && (
                         <input
                           type="checkbox"
                           checked={item.selected}
-                          onChange={(e) => { e.stopPropagation(); setBatchItems(prev => prev.map((it, i) => i === idx ? { ...it, selected: e.target.checked } : it)); }}
+                          onChange={(e) => { e.stopPropagation(); setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, selected: e.target.checked } : it)); }}
                           onClick={(e) => e.stopPropagation()}
                           className="w-4 h-4 accent-[var(--primary)] flex-shrink-0"
                         />
@@ -929,44 +931,44 @@ function AdminInvoicesPage() {
                     </div>
                     {!item.ocrDone && <span className="text-xs text-[var(--text-secondary)] ml-2">Scanning...</span>}
                     {item.ocrError && <span className="text-xs text-[var(--reject-red)] ml-2">{item.ocrError}</span>}
-                    <button onClick={(e) => { e.stopPropagation(); setBatchItems(prev => prev.filter((_, i) => i !== idx)); if (batchPreviewIdx === idx) setBatchPreviewIdx(null); else if (batchPreviewIdx !== null && batchPreviewIdx > idx) setBatchPreviewIdx(batchPreviewIdx - 1); }} className="text-xs text-[var(--reject-red)] hover:opacity-80 ml-2">Remove</button>
+                    <button onClick={(e) => { e.stopPropagation(); if (batchPreviewId === item._id) setBatchPreviewId(null); setBatchItems(prev => prev.filter(it => it._id !== item._id)); }} className="text-xs text-[var(--reject-red)] hover:opacity-80 ml-2">Remove</button>
                   </div>
                   {item.ocrDone && (
                     <div className="grid grid-cols-4 gap-2" onClick={(e) => e.stopPropagation()}>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
-                        <input value={item.vendor_name} onChange={(e) => { const next = [...batchItems]; next[idx].vendor_name = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                        <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice #</label>
-                        <input value={item.invoice_number} onChange={(e) => { const next = [...batchItems]; next[idx].invoice_number = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                        <input value={item.invoice_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, invoice_number: v } : it)); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</label>
-                        <input type="date" value={item.issue_date} onChange={(e) => { const next = [...batchItems]; next[idx].issue_date = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                        <input type="date" value={item.issue_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, issue_date: v } : it)); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</label>
-                        <input value={item.total_amount} onChange={(e) => { const next = [...batchItems]; next[idx].total_amount = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs tabular-nums" />
+                        <input value={item.total_amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, total_amount: v } : it)); }} className="input-field w-full text-xs tabular-nums" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-                        <select value={item.category_id} onChange={(e) => { const next = [...batchItems]; next[idx].category_id = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs">
+                        <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-field w-full text-xs">
                           <option value="">Select...</option>
                           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
-                        <input type="date" value={item.due_date} onChange={(e) => { const next = [...batchItems]; next[idx].due_date = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                        <input type="date" value={item.due_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, due_date: v } : it)); }} className="input-field w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Terms</label>
-                        <input value={item.payment_terms} onChange={(e) => { const next = [...batchItems]; next[idx].payment_terms = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" />
+                        <input value={item.payment_terms} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, payment_terms: v } : it)); }} className="input-field w-full text-xs" />
                       </div>
                       <div className="col-span-4">
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes</label>
-                        <input value={item.notes} onChange={(e) => { const next = [...batchItems]; next[idx].notes = e.target.value; setBatchItems(next); }} className="input-field w-full text-xs" placeholder="Phone number, account details, etc." />
+                        <input value={item.notes} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, notes: v } : it)); }} className="input-field w-full text-xs" placeholder="Phone number, account details, etc." />
                       </div>
                     </div>
                   )}
@@ -975,15 +977,15 @@ function AdminInvoicesPage() {
             </div>
 
             {/* File preview panel */}
-            {batchPreviewIdx !== null && batchItems[batchPreviewIdx] && (
+            {batchPreviewId && batchItems.find(it => it._id === batchPreviewId) && (
               <div className="w-[40%] border-l border-[#E0E3E5] flex flex-col bg-[var(--surface-low)]">
                 <div className="h-10 flex items-center justify-between px-4 border-b border-[#E0E3E5] bg-white">
                   <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Preview</span>
-                  <button onClick={() => setBatchPreviewIdx(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-lg leading-none">&times;</button>
+                  <button onClick={() => setBatchPreviewId(null)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-lg leading-none">&times;</button>
                 </div>
                 <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
                   {(() => {
-                    const file = batchItems[batchPreviewIdx].file;
+                    const file = batchItems.find(it => it._id === batchPreviewId)!.file;
                     const url = URL.createObjectURL(file);
                     if (file.type === 'application/pdf') {
                       return <iframe src={url} className="w-full h-full min-h-[500px]" title="PDF Preview" />;
@@ -999,7 +1001,7 @@ function AdminInvoicesPage() {
             <div className="px-5 py-3 bg-[var(--surface-low)] flex items-center gap-2 flex-shrink-0 border-t border-[#E0E3E5]">
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
               <button
-                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewIdx(null); }}
+                onClick={() => { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); }}
                 disabled={batchScanning || batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40"
               >
