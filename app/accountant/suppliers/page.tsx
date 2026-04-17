@@ -631,7 +631,7 @@ export default function AccountantSuppliersPage() {
             <div className="space-y-2">
               {sortedSuppliers.map((s) => (
                 <div key={s.id} className="bg-white overflow-hidden" style={{
-                  borderBottom: '5px solid #d1d5db',
+                  borderBottom: '3px solid #d1d5db',
                   borderRight: '2px solid #d1d5db',
                   borderLeft: '1px solid #f3f4f6',
                   borderTop: '1px solid #f3f4f6',
@@ -639,7 +639,7 @@ export default function AccountantSuppliersPage() {
                 }}>
                   {/* Supplier row */}
                   <div
-                    className="supplier-row flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-[var(--surface-low)] transition-all"
+                    className="supplier-row flex items-center gap-4 px-5 py-2.5 cursor-pointer hover:bg-[var(--surface-low)] transition-all"
                     onClick={() => toggleExpand(s.id)}
                   >
                     {/* Expand icon */}

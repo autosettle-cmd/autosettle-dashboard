@@ -200,13 +200,13 @@ body {
     @apply inline-flex items-center justify-center font-bold text-white
            disabled:opacity-50 disabled:cursor-not-allowed;
     background-color: #2E6999;
-    border-bottom: 4px solid #1F5280;
-    border-right: 2px solid #1F5280;
+    border-bottom: 3px solid #1F5280;
+    border-right: 1px solid #1F5280;
     border-left: 1px solid rgba(255,255,255,0.15);
     border-top: 1px solid rgba(255,255,255,0.15);
     transition: all 0.1s ease;
-    font-size: 0.75rem;
-    letter-spacing: 0.04em;
+    font-size: 0.65rem;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
   }
   .btn-thick-sidebar:hover {

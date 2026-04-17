@@ -216,11 +216,11 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
               <div key={item.label} className="space-y-1">
                 <button
                   onClick={() => setOpenDropdown(isOpen ? null : item.label)}
-                  className={`w-full flex items-center gap-3 px-4 py-2 text-sm tracking-tight transition-all btn-thick-sidebar ${
+                  className={`w-full flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
                     hasActiveChild ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
                   }`}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d={item.icon} />
                   </svg>
                   <span className="flex-1 text-left">{item.label}</span>
@@ -247,7 +247,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
                           </svg>
                           <Link
                             href={child.href}
-                            className={`flex-1 flex items-center py-1.5 px-3 text-[12px] tracking-tight transition-all btn-thick-sidebar ${
+                            className={`flex-1 flex items-center py-1 px-2.5 text-[11px] tracking-tight transition-all btn-thick-sidebar ${
                               active ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
                             }`}
                           >
@@ -274,7 +274,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-4 py-2 text-sm tracking-tight transition-all btn-thick-sidebar ${
+              className={`flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
                 active ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
               }`}
             >
