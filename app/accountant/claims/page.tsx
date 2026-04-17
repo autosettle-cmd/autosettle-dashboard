@@ -362,6 +362,10 @@ function ClaimsPage() {
       } catch { /* ignore */ }
     }
 
+    if (droppedFiles.length > 20) {
+      alert('Maximum 20 files per batch upload. Please upload in smaller batches.');
+      return;
+    }
     const items: BatchClaimItem[] = droppedFiles.map(file => ({
       file, merchant: '', amount: '', claim_date: todayStr(), receipt_number: '', category_id: '', description: '', ocrDone: false, ocrError: '', selected: true,
     }));
@@ -839,6 +843,10 @@ function ClaimsPage() {
     setShowModal(false);
 
     const fileList = Array.from(files);
+    if (fileList.length > 20) {
+      alert('Maximum 20 files per batch upload. Please upload in smaller batches.');
+      return;
+    }
     const items: BatchClaimItem[] = fileList.map(file => ({
       file, merchant: '', amount: '', claim_date: todayStr(), receipt_number: '', category_id: '', description: '', ocrDone: false, ocrError: '', selected: true,
     }));

@@ -237,6 +237,10 @@ function AdminInvoicesPage() {
     }
 
     // Multiple files — OCR all first, then show batch review
+    if (droppedFiles.length > 20) {
+      alert('Maximum 20 files per batch upload. Please upload in smaller batches.');
+      return;
+    }
     const items: BatchItem[] = droppedFiles.map(file => ({
       file,
       vendor_name: '',

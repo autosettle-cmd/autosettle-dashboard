@@ -314,6 +314,10 @@ function AccountantInvoicesPage() {
     }
 
     // Multiple files — batch upload with progress
+    if (droppedFiles.length > 20) {
+      alert('Maximum 20 files per batch upload. Please upload in smaller batches.');
+      return;
+    }
     setShowNewInvoice(true);
     setNewInv((prev) => ({ ...prev, firm_id: targetFirmId }));
     const results: { name: string; ok: boolean; msg: string }[] = [];
@@ -473,6 +477,10 @@ function AccountantInvoicesPage() {
     }
 
     const fileList = Array.from(files);
+    if (fileList.length > 20) {
+      setNewInvError('Maximum 20 files per batch upload. Please upload in smaller batches.');
+      return;
+    }
     const results: { name: string; ok: boolean; msg: string }[] = [];
     setBatchProgress({ current: 0, total: fileList.length, results });
     setNewInvSubmitting(true);
