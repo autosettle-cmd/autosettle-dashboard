@@ -20,7 +20,9 @@ Read `/docs/CLAUDE.md` for full guidelines before doing anything.
 | File | Contents |
 |------|----------|
 | `/docs/CLAUDE.md` | Full guidelines |
-| `/docs/user-roles.md` | Role permissions, JV rules, cascade behavior |
-| `/docs/database-schema.md` | Full Postgres schema |
+| `/docs/user-roles.md` | Role permissions, firm scoping, status flows |
+| `/docs/database-schema.md` | Full Postgres schema + join tables + amount_paid formulas |
+| `/docs/entity-cascade.md` | **Guardrails:** delete blockers, revert cascades, soft-delete rules |
+| `/docs/jv-rules.md` | **Guardrails:** JV source types, GL resolution, reversal mechanics |
 | `/docs/auth.md` | Login flow, middleware |
 | `/docs/whatsapp-backend.md` | WhatsApp + OCR pipeline |

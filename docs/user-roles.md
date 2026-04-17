@@ -1,29 +1,38 @@
 # Autosettle User Roles & Access Control
 
-## The Three Roles
+## The Four Roles
 
 ### Accountant
 - Assigned firms via `AccountantFirm` table (zero assignments = sees ALL firms)
-- Can approve and reject claims, receipts, invoices
+- Multi-firm access — can switch between firms via sidebar selector
+- Can approve/reject claims, receipts, invoices, sales invoices
 - Approval creates Journal Entry (JV)
-- Can manage GL accounts, COA, fiscal periods
-- Can manage all firms, employees, categories
+- Can manage: GL accounts, COA, fiscal periods, suppliers, categories, bank recon
+- Can create firms and assign admins
+- Uploads auto-skip `pending_review` → go straight to `reviewed` status
 - After login: redirect to `/accountant/dashboard`
 
 ### Admin
-- One firm only (`firm_id` on user record)
+- One firm only (`firm_id` on user record, must be set)
 - Can mark claims/receipts as **Reviewed** (not approve)
 - Review does NOT create JV
-- Can manage employees in own firm
-- Can add/deactivate categories for own firm
+- Can approve/reject all same entities as accountant (within own firm)
+- Can manage employees (create, approve, reject)
+- Can create additional admins for own firm
 - After login: redirect to `/admin/dashboard`
 
 ### Employee
 - Individual staff under a firm
-- Sees only own submissions
+- Sees only own submissions (filtered by `employee_id`)
+- Can submit claims, mileage claims via portal or WhatsApp
 - Can view: reviewed status, approved status, payment status
-- Submits via WhatsApp or employee portal
 - After login: redirect to `/employee/dashboard`
+
+### Platform Owner
+- Super-admin across ALL firms (no firm scoping)
+- Can view all firms, users, platform analytics
+- Can create firms with COA seeding, fiscal year setup, accountant assignment
+- After login: redirect to `/platform/dashboard`
 
 ---
 
@@ -43,118 +52,127 @@ const firmScope = firmIds === null
   : { firm_id: { in: firmIds } };
 ```
 
-Use the `firmScope()` helper in `lib/accountant-firms.ts`.
+Use the `firmScope()` helper in `lib/accountant-firms.ts`. It also handles `selectedFirmId` validation — checks the firm is in the allowed list before scoping, returns `__blocked__` if not.
+
+**30-second TTL cache** on `getAccountantFirmIds()` per request cycle.
 
 ---
 
-## JV Creation Rules
+## Firm Scoping Pattern
 
-| Entity | Who Approves | JV Created | Debit | Credit |
-|--------|--------------|------------|-------|--------|
-| Claim | Accountant | On approval | Expense GL | Staff Claims Payable |
-| Mileage | Accountant | On approval | Expense GL | Staff Claims Payable |
-| Receipt | Accountant | At bank recon | Expense GL | Bank Account |
-| Invoice | Accountant | On approval | Expense GL | Accounts Payable |
+Every API route must enforce firm scoping. The pattern differs by role:
 
-**Admin review = status change only, no JV.**
+### Accountant Routes
+```typescript
+const firmIds = await getAccountantFirmIds(session.user.id);
+const scope = firmScope(firmIds, requestedFirmId);
+// scope is {} for super-admin, { firm_id: x } for specific firm
+```
 
-### No Special Cases
+### Admin Routes
+```typescript
+const firmId = session.user.firm_id;  // always single firm
+// All queries use { firm_id: firmId }
+```
 
-**Approved = JV created. Always. No exceptions.**
+### Employee Routes
+```typescript
+const employeeId = session.user.employee_id;
+// All queries use { employee_id: employeeId }
+```
 
-Never create special modes, flags, or workflows that skip JV generation for approved records. This includes:
-- Migration imports
-- Bulk uploads
-- Historical data
-- God mode / admin tools
-
-If a record is approved, it gets a JV. This keeps the system predictable and the GL accurate.
+**Failure to validate = authorization bypass.** Every query touching firm data must include the scope.
 
 ---
 
-## Delete & Revert Rules
+## Full Permission Matrix
 
-### Delete
-Blocked if entity has downstream links. Only allowed if no references.
+### Entity Operations
 
-### Revert
-- Always allowed by both admin and accountant
-- Cascades backward (undoes all downstream effects)
-- Shows warning with affected records before user confirms
-- Admin can revert approved items — accountant re-approves after
+| Feature | Accountant | Admin | Employee | Platform Owner |
+|---------|-----------|-------|----------|---------------|
+| **Claims** | CRUD (multi-firm) | CRUD (single firm) | Create + read own | — |
+| **Invoices** | CRUD (multi-firm) | CRUD (single firm) | — | — |
+| **Sales Invoices** | CRUD (multi-firm) | CRUD (single firm) | — | — |
+| **Bank Recon** | Full (multi-firm) | Full (single firm) | — | — |
+| **Suppliers** | CRUD (multi-firm) | Read only | — | — |
+| **Employees** | Read (multi-firm) | CRUD + approve/reject | — | — |
+| **GL Accounts** | CRUD (multi-firm) | Read only | — | — |
+| **Journal Entries** | CRUD + reverse (multi-firm) | Read only | — | — |
+| **Categories** | CRUD (multi-firm) | Read only | Read (for submission) | — |
+| **Fiscal Years** | CRUD (multi-firm) | CRUD (single firm) | — | — |
+| **Firms** | Create + read assigned | Read own only | — | CRUD all |
+| **Admins** | Create (in assigned firms) | Create (in own firm) | — | — |
+| **Audit Logs** | Read (multi-firm) | Read (single firm) | — | — |
+| **General Ledger** | Read (multi-firm) | Read (single firm) | — | — |
 
-### Cascade Behavior
+### Key Differences: Admin vs Accountant
 
-When reverting, undo in reverse order:
-
-| Action | What Gets Undone |
-|--------|------------------|
-| Admin reverts to "not reviewed" | Approval, JV, bank recon match, invoice payment |
-| Accountant reverts to "pending approval" | JV reversed, bank recon unmatched, payment unlinked |
-| Unmatch bank recon | Bank recon JV reversed, payment link removed |
+| Capability | Accountant | Admin |
+|-----------|-----------|-------|
+| Firm scope | Multi-firm (or all if null) | Single firm only |
+| Claim upload status | Auto-set to `reviewed` | Set to `pending_review` |
+| Approve claims/invoices | Yes (creates JV) | Yes (same permissions) |
+| Create suppliers | Yes | No dedicated endpoint |
+| Manage GL accounts | Create, edit, delete | View only |
+| Create journal entries | Yes | View only |
+| Create firms | Yes | No |
+| Manage employees | View only | Full CRUD + approve/reject |
 
 ---
 
 ## Status Flow
 
-### Claims/Receipts
+### Claims/Receipts (Two-Field System)
+
+Claims use two separate fields: `status` (review) and `approval` (accountant decision).
 
 ```
-Employee submits
+Employee/WhatsApp submits
     ↓
 status: pending_review, approval: pending_approval
-    ↓ Admin reviews
+    ↓ Admin reviews (or accountant upload auto-reviews)
 status: reviewed
-    ↓ Accountant approves (JV created)
-approval: approved
-    ↓ Payment recorded
+    ↓ Accountant approves
+approval: approved → JV created (claims/mileage only)
+    ↓ Payment via bank recon
+payment_status: paid → bank_recon JV created (receipts)
+```
+
+### Invoices
+
+```
+Upload (OCR extracts data)
+    ↓
+approval: pending_approval
+    ↓ Accountant approves (GL + contra required)
+approval: approved → invoice_posting JV created
+    ↓ Payment via bank recon or receipt linking
 payment_status: paid
 ```
 
-### Admin Actions
-- `pending_review` → `reviewed`
-
-### Accountant Actions
-- `pending_approval` → `approved` or `not_approved`
-- `unpaid` → `paid`
-
----
-
-## Table Access Matrix
-
-| Table | Accountant | Admin | Employee |
-|-------|------------|-------|----------|
-| users | All | No | No |
-| firms | All | Own only | No |
-| employees | All | Own firm | No |
-| categories | All | Own firm | No |
-| claims | All | Own firm | Own only |
-| invoices | All | Own firm | No |
-| glAccounts | All | View only | No |
-| journalEntries | All | View only | No |
-
----
-
-## Role-Based Middleware
+### Bank Transactions
 
 ```
-/accountant/* → requires role = accountant
-/admin/* → requires role = admin
-/employee/* → requires role = employee
+Statement uploaded (CSV parsed)
+    ↓
+recon_status: unmatched
+    ↓ Auto-match or manual match
+recon_status: matched / manually_matched → bank_recon JV created
+    ↓ Can be unmatched
+recon_status: unmatched (JV reversed)
 ```
-
-Wrong role = redirect to their correct dashboard.
-Unauthenticated = redirect to `/login`.
 
 ---
 
 ## Who Creates Who
 
 ```
-Jeff (via seed/TablePlus)
+Platform Owner / Jeff (seed)
   └── Creates accountant accounts
 
 Accountant
+  ├── Creates firms
   └── Creates first admin for each firm
 
 Admin
@@ -165,3 +183,69 @@ Employee
   └── Self-signup via /signup
   └── Needs admin approval before login
 ```
+
+**Every user = Employee record.** All users get an Employee record on creation. Role is just permissions. Receipts auto-assign the uploader's employee record.
+
+---
+
+## Authentication Rules
+
+- **JWT strategy** via NextAuth
+- Credentials provider (email + password)
+- Password: bcryptjs hashed (10 rounds), minimum 8 characters
+- User must have `status: 'active'` AND `is_active: true` to login
+- Session carries: `id`, `email`, `name`, `role`, `firm_id`, `employee_id`
+
+### Route Protection (middleware.ts)
+
+```
+/accountant/* → requires role = accountant
+/admin/*      → requires role = admin
+/employee/*   → requires role = employee
+/platform/*   → requires role = platform_owner
+/api/whatsapp/* → public (webhook)
+/login, /signup, / → public
+```
+
+Wrong role = redirect to their correct dashboard.
+Unauthenticated = redirect to `/login`.
+
+---
+
+## JV Creation Rules
+
+See **[`/docs/jv-rules.md`](/docs/jv-rules.md)** for comprehensive JV documentation.
+
+Quick reference:
+
+| Entity | Who Approves | JV Created | source_type |
+|--------|--------------|------------|-------------|
+| Claim/Mileage | Accountant | On approval | `claim_approval` |
+| Receipt | Accountant | At bank recon | `bank_recon` |
+| Invoice | Accountant | On approval | `invoice_posting` |
+| Sales Invoice | Accountant | On approval | `sales_invoice_posting` |
+
+**Admin review = status change only, no JV.**
+
+---
+
+## Delete & Revert Rules
+
+See **[`/docs/entity-cascade.md`](/docs/entity-cascade.md)** for comprehensive cascade documentation.
+
+Quick reference:
+- **Delete** blocked if entity has downstream links
+- **Revert** always allowed, cascades backward, shows warning first
+- **Admin can revert** approved items — accountant re-approves after
+- **JVs are never deleted** — only reversed
+
+---
+
+## Duplicate Detection
+
+| Entity | Check | When |
+|--------|-------|------|
+| Claim | File SHA256 hash + merchant+amount+date+employee | On file drop (before OCR) |
+| Mileage | merchant+distance+from+to+date | On submission |
+| Invoice | File hash + invoice_number per firm | On file drop (before OCR) |
+| Bank Statement | File hash | On upload |

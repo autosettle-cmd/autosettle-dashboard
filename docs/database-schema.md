@@ -122,19 +122,92 @@ Maps accountants to their assigned firms. Zero assignments = sees all firms.
 ### SupplierAlias
 Maps variant vendor names to single supplier (OCR matching).
 
-### Payment
+### InvoiceLine
+Optional line items per invoice for mixed-GL scenarios (reimbursement, pay-on-behalf).
+
 | Field | Type | Notes |
 |-------|------|-------|
+| id | UUID PK | |
+| invoice_id | UUID FK | CASCADE delete |
+| description | String | |
+| amount | Decimal(10,2) | |
+| gl_account_id | UUID FK? | Per-line expense GL |
+
+When lines exist, JV creates multiple debit entries (one per line GL).
+
+### Supplier
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| firm_id | UUID FK | |
+| name | String | |
+| is_active | Boolean | Soft delete |
+| default_gl_account_id | UUID FK? | Auto-fill on invoices |
+| default_contra_gl_account_id | UUID FK? | Auto-fill contra GL |
+| LHDN buyer fields | Various | tin, brn, address |
+
+### SupplierAlias
+Maps variant vendor names to single supplier (OCR matching). CASCADE delete with parent Supplier.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| supplier_id | UUID FK | CASCADE delete |
+| alias_name | String | Variant name from OCR |
+
+### Payment
+Bridge entity between bank transactions and invoices/claims.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
 | firm_id, supplier_id?, employee_id? | UUID FK | |
 | amount | Decimal(10,2) | |
 | payment_date | Date | |
 | direction | Enum | outgoing / incoming |
+| notes | String? | "Auto-matched from receipt" for auto-created |
 
 ### PaymentAllocation
-Links Payment to Invoice. Triggers `recalcInvoicePayment()`.
+Links Payment to Invoice. CASCADE delete with either side. Triggers `recalcInvoicePaid()`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| payment_id | UUID FK | CASCADE delete |
+| invoice_id | UUID FK | CASCADE delete |
+| amount | Decimal(10,2) | |
 
 ### PaymentReceipt
-Links Payment to Claim (type=receipt). For attaching receipt proof.
+Links Payment to Claim. CASCADE delete with either side.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| payment_id | UUID FK | CASCADE delete |
+| claim_id | UUID FK | CASCADE delete |
+| amount | Decimal(10,2) | |
+
+### SalesPaymentAllocation
+Links Payment to SalesInvoice. CASCADE delete with either side.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| payment_id | UUID FK | CASCADE delete |
+| sales_invoice_id | UUID FK | CASCADE delete |
+| amount | Decimal(10,2) | |
+
+### SalesInvoiceItem
+Line items for sales invoices. CASCADE delete with parent.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| sales_invoice_id | UUID FK | CASCADE delete |
+| description | String | |
+| quantity | Int | |
+| unit_price | Decimal(10,2) | |
+| amount | Decimal(10,2) | |
 
 ---
 
@@ -159,7 +232,7 @@ Links Payment to Claim (type=receipt). For attaching receipt proof.
 | voucher_number | String UNIQUE per firm | Auto-generated |
 | posting_date | Date | |
 | period_id | UUID FK | Must be open period |
-| source_type | Enum | claim_approval / invoice_posting / bank_recon / manual |
+| source_type | Enum | claim_approval / invoice_posting / sales_invoice_posting / bank_recon / year_end_close / manual |
 | source_id | String? | Links to source record |
 | status | Enum | posted / reversed |
 | reversed_by_id | UUID FK? | Links to reversal JV |
@@ -205,15 +278,56 @@ Links Payment to Claim (type=receipt). For attaching receipt proof.
 ### BankTransaction
 | Field | Type | Notes |
 |-------|------|-------|
+| id | UUID PK | |
 | bank_statement_id | UUID FK | CASCADE delete |
 | transaction_date | Date | |
 | description | String | |
 | debit, credit | Decimal(12,2)? | |
 | recon_status | Enum | unmatched / matched / manually_matched / excluded |
-| matched_payment_id | UUID FK? | |
+| matched_payment_id | UUID FK? | Legacy payment link |
+| matched_sales_invoice_id | UUID FK? | Direct sales invoice match |
+| matched_at, matched_by | DateTime?, String? | Match audit |
+
+### BankTransactionInvoice
+Links bank transaction to purchase invoice(s) for allocation. CASCADE delete with either side.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| bank_transaction_id | UUID FK | CASCADE delete |
+| invoice_id | UUID FK | CASCADE delete |
+| amount | Decimal(12,2) | Allocated amount |
+
+### BankTransactionClaim
+Links bank transaction to claim for reimbursement. CASCADE delete with either side.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| bank_transaction_id | UUID FK | CASCADE delete |
+| claim_id | UUID FK | CASCADE delete |
+| amount | Decimal(12,2) | Allocated amount |
+
+### InvoiceReceiptLink
+Links claim (receipt) to invoice for aging/payment tracking. CASCADE delete with either side.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| invoice_id | UUID FK | CASCADE delete |
+| claim_id | UUID FK | CASCADE delete |
+| amount | Decimal(10,2) | Receipt amount applied |
 
 ### BankAccount
-Maps bank accounts to GL accounts for JV posting.
+Maps bank accounts to GL accounts for JV posting. Required for bank recon JVs.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| firm_id | UUID FK | |
+| bank_name | String | |
+| account_number | String | |
+| gl_account_id | UUID FK | **Required** — blocks bank recon if missing |
 
 ---
 
@@ -258,12 +372,26 @@ Logs all WhatsApp messages for debugging.
 ## Key Relationships
 
 ```
-Firm ← User, Employee, Category, Supplier, Invoice, Claim, GLAccount, JournalEntry
+Firm ← User, Employee, Category, Supplier, Invoice, Claim, GLAccount, JournalEntry, BankStatement, SalesInvoice
 Employee ← Claim, User
-Supplier ← Invoice, Payment, SupplierAlias
-Payment ← PaymentAllocation → Invoice
-Payment ← PaymentReceipt → Claim
-JournalEntry ← JournalLine → GLAccount
+Supplier ← Invoice, SalesInvoice, Payment, SupplierAlias (cascade)
+Invoice ← InvoiceLine (cascade), PaymentAllocation (cascade), BankTransactionInvoice (cascade), InvoiceReceiptLink (cascade)
+SalesInvoice ← SalesInvoiceItem (cascade), SalesPaymentAllocation (cascade)
+Claim ← PaymentReceipt (cascade), InvoiceReceiptLink (cascade), BankTransactionClaim (cascade)
+Payment ← PaymentAllocation (cascade), PaymentReceipt (cascade), SalesPaymentAllocation (cascade)
+JournalEntry ← JournalLine (cascade) → GLAccount
+JournalEntry ↔ JournalEntry (reversed_by_id / reversal_of_id)
 FiscalYear ← Period ← JournalEntry
-BankStatement ← BankTransaction → Payment
+BankStatement ← BankTransaction (cascade) ← BankTransactionInvoice (cascade), BankTransactionClaim (cascade)
 ```
+
+## amount_paid Calculation
+
+| Entity | Formula | Recalc Function |
+|--------|---------|-----------------|
+| Invoice | `MAX(SUM(InvoiceReceiptLink.amount), SUM(BankTransactionInvoice.amount))` | `recalcInvoicePaid()` |
+| Claim | `SUM(PaymentReceipt.amount) + SUM(InvoiceReceiptLink.amount)` | `recalcClaimPayment()` |
+| SalesInvoice | `SUM(SalesPaymentAllocation.amount)` | Direct update |
+
+See [`/docs/entity-cascade.md`](/docs/entity-cascade.md) for full cascade and delete rules.
+See [`/docs/jv-rules.md`](/docs/jv-rules.md) for JV creation and reversal rules.

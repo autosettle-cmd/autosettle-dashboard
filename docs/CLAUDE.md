@@ -146,8 +146,10 @@ After making changes, explain what was done so the structure is understood.
 
 | File | Contents |
 |------|----------|
-| `/docs/user-roles.md` | Detailed role permissions and flows |
-| `/docs/database-schema.md` | Full Postgres schema reference |
+| `/docs/user-roles.md` | Detailed role permissions, firm scoping, status flows |
+| `/docs/database-schema.md` | Full Postgres schema + join tables + amount_paid formulas |
+| `/docs/entity-cascade.md` | **Hard guardrails:** delete blockers, revert cascades, soft-delete rules |
+| `/docs/jv-rules.md` | **Hard guardrails:** JV source types, GL resolution, reversal mechanics |
 | `/docs/auth.md` | NextAuth login flow, middleware |
 | `/docs/categories-spec.md` | Category business rules |
 | `/docs/signup-spec.md` | User onboarding flow |
