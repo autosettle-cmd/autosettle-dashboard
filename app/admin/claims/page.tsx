@@ -177,6 +177,7 @@ function AdminClaimsPage() {
   const [batchScanning, setBatchScanning] = useState(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
   const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
+  const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number } | null>(null);
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
   const [batchPreviewType, setBatchPreviewType] = useState<string>('');
@@ -378,7 +379,8 @@ function AdminClaimsPage() {
     setBatchSubmitting(false);
     setShowBatchReview(false);
     setBatchItems([]);
-    alert(`Batch upload: ${ok} submitted${fail > 0 ? `, ${fail} failed` : ''}`);
+    setBatchPreviewId(null);
+    setBatchWarning({ ok, fail });
     refresh();
   };
 
@@ -1238,6 +1240,34 @@ function AdminClaimsPage() {
               <button onClick={submitBatchClaims} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0}
                 className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40">
                 {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
+              </button>
+            </div>
+          </div>
+          </div>
+        </>
+      )}
+
+      {/* === BATCH WARNING MODAL === */}
+      {batchWarning && (
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setBatchWarning(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setBatchWarning(null)}>
+          <div className="bg-white shadow-2xl w-full max-w-[480px] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center px-5 flex-shrink-0 bg-amber-500">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Batch Upload Complete</h2>
+            </div>
+            <div className="p-5 space-y-3">
+              <p className="text-sm text-[var(--text-primary)]">
+                <span className="font-bold text-green-700">{batchWarning.ok}</span> claim{batchWarning.ok !== 1 ? 's' : ''} submitted
+                {batchWarning.fail > 0 && <>, <span className="font-bold text-[var(--reject-red)]">{batchWarning.fail}</span> failed</>}
+              </p>
+              <div className="bg-amber-50 border border-amber-300 p-3">
+                <p className="text-sm text-amber-800 font-medium">Please review the uploaded claims to ensure all details are correct before approving.</p>
+              </div>
+            </div>
+            <div className="px-5 py-3 bg-[var(--surface-low)]">
+              <button onClick={() => setBatchWarning(null)} className="btn-thick-navy w-full py-2.5 text-sm font-semibold">
+                Got it — I will review
               </button>
             </div>
           </div>
