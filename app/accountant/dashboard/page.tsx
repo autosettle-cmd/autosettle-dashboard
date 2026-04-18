@@ -495,9 +495,9 @@ export default function AccountantDashboard() {
                 </div>
               ) : (
                 <>
-                  <table className="w-full">
+                  <table className="w-full ds-table-chassis">
                     <thead>
-                      <tr className="bg-[#E6E8EA] text-left">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Employee</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Merchant</th>
@@ -510,7 +510,7 @@ export default function AccountantDashboard() {
                       {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c, idx) => {
                         const cfg = STATUS_CFG[c.status];
                         return (
-                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
+                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`ds-table-row group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-medium">{c.employee_name}</td>
                             <td className="px-6 py-3 text-[#444650]">{c.merchant}</td>
@@ -540,9 +540,9 @@ export default function AccountantDashboard() {
                 </div>
               ) : (
                 <>
-                  <table className="w-full">
+                  <table className="w-full ds-table-chassis">
                     <thead>
-                      <tr className="bg-[#E6E8EA]">
+                      <tr className="ds-table-header">
                         <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
                         <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Merchant</th>
                         <th className="px-6 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[#444650]">Amount</th>
@@ -553,7 +553,7 @@ export default function AccountantDashboard() {
                       {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => (
                         <tr
                           key={r.id}
-                          className={`group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}
+                          className={`ds-table-row group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}
                           onClick={() => setPreviewClaim(r)}
                         >
                           <td className="px-6 py-2.5 text-[#444650]">{formatDate(r.claim_date)}</td>
@@ -580,9 +580,9 @@ export default function AccountantDashboard() {
                 </div>
               ) : (
                 <>
-                  <table className="w-full">
+                  <table className="w-full ds-table-chassis">
                     <thead>
-                      <tr className="bg-[#E6E8EA] text-left">
+                      <tr className="ds-table-header text-left">
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Issue Date</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Vendor</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Invoice #</th>
@@ -597,7 +597,7 @@ export default function AccountantDashboard() {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
-                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
+                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`ds-table-row group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(inv.issue_date)}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-medium">{inv.vendor_name_raw}</td>
                             <td className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>

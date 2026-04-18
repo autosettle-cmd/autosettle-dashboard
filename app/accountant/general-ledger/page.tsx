@@ -305,9 +305,9 @@ export default function GeneralLedgerPage() {
             ) : tree.length === 0 ? (
               <div className="text-center py-12 text-sm text-[var(--text-muted)]">No accounts with activity found.</div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm ds-table-chassis">
                 <thead>
-                  <tr className="bg-[var(--surface-header)] text-left">
+                  <tr className="ds-table-header text-left">
                     <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
                     <th className="px-3 py-2.5 text-right w-[140px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
                     <th className="px-3 py-2.5 text-right w-[140px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
@@ -488,9 +488,9 @@ export default function GeneralLedgerPage() {
                       }
 
                       return (
-                        <table className="w-full text-sm">
+                        <table className="w-full text-sm ds-table-chassis">
                           <thead>
-                            <tr className="bg-[var(--surface-header)] text-left">
+                            <tr className="ds-table-header text-left">
                               <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
                               <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Voucher #</th>
                               <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>

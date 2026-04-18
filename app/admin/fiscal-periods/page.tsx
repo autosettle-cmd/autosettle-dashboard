@@ -125,9 +125,9 @@ export default function AdminFiscalPeriodsPage() {
 
                     {isExpanded && (
                       <div>
-                        <table className="w-full">
+                        <table className="ds-table-chassis w-full">
                           <thead>
-                            <tr className="bg-[var(--surface-header)] text-left">
+                            <tr className="ds-table-header text-left">
                               <th className="px-5 py-2.5 w-16 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">#</th>
                               <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Period</th>
                               <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Start Date</th>
@@ -137,7 +137,7 @@ export default function AdminFiscalPeriodsPage() {
                           </thead>
                           <tbody>
                             {fy.periods.map((p, idx) => (
-                              <tr key={p.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                              <tr key={p.id} className={`ds-table-row text-body-sm hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                                 <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{p.period_number}</td>
                                 <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{formatPeriodLabel(p.start_date)}</td>
                                 <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.start_date)}</td>

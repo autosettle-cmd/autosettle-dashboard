@@ -212,9 +212,9 @@ export default function AdminCategoriesPage() {
                   {defaultCats.length === 0 ? (
                     <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">No default categories available.</div>
                   ) : (
-                    <table className="w-full">
+                    <table className="ds-table-chassis w-full">
                       <thead>
-                        <tr className="bg-[var(--surface-header)] text-left">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
                           <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
                           <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
@@ -225,7 +225,7 @@ export default function AdminCategoriesPage() {
                       </thead>
                       <tbody>
                         {defaultCats.map((cat, idx) => (
-                          <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                          <tr key={cat.id} className={`ds-table-row group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{cat.name}</td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
                             <td className="px-6 py-3 text-[var(--text-secondary)]">{cat.tax_code ?? '---'}</td>
@@ -260,9 +260,9 @@ export default function AdminCategoriesPage() {
                   {customCats.length === 0 ? (
                     <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">No custom categories yet. Add one above.</div>
                   ) : (
-                    <table className="w-full">
+                    <table className="ds-table-chassis w-full">
                       <thead>
-                        <tr className="bg-[var(--surface-header)] text-left">
+                        <tr className="ds-table-header text-left">
                           <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Category Name</th>
                           <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
                           <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Tax Code</th>
@@ -273,7 +273,7 @@ export default function AdminCategoriesPage() {
                       </thead>
                       <tbody>
                         {customCats.map((cat, idx) => (
-                          <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                          <tr key={cat.id} className={`ds-table-row group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
                                 <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full text-body-md" autoFocus />

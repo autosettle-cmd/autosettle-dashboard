@@ -314,9 +314,9 @@ export default function AdminEmployeesPage() {
                 <span className="badge-amber">{pending.length}</span>
               </div>
               <div className="overflow-auto">
-                <table className="w-full">
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Name</th>
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Email</th>
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Phone</th>
@@ -326,7 +326,7 @@ export default function AdminEmployeesPage() {
                   </thead>
                   <tbody>
                     {pending.map((row, idx) => (
-                      <tr key={row.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                      <tr key={row.id} className={`ds-table-row group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                         <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{row.name}</td>
                         <td className="px-6 py-3 text-[var(--text-secondary)]">{row.email}</td>
                         <td className="px-6 py-3 text-[var(--text-secondary)]">{row.phone || '\u2014'}</td>
@@ -370,9 +370,9 @@ export default function AdminEmployeesPage() {
               <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
             ) : (
               <div className="overflow-auto">
-                <table className="w-full">
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('is_active')}>Status{adminSortIndicator('is_active')}</th>
@@ -380,7 +380,7 @@ export default function AdminEmployeesPage() {
                   </thead>
                   <tbody>
                     {sortedAdmins.map((admin, idx) => (
-                      <tr key={admin.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                      <tr key={admin.id} className={`ds-table-row group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                         <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
                         <td className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
                         <td className="px-6 py-3">
@@ -424,9 +424,9 @@ export default function AdminEmployeesPage() {
               <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">No employees found.</div>
             ) : (
               <div className="overflow-auto">
-                <table className="w-full">
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
                       <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
@@ -438,7 +438,7 @@ export default function AdminEmployeesPage() {
                   </thead>
                   <tbody>
                     {sortedEmployees.map((emp, idx) => (
-                      <tr key={emp.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                      <tr key={emp.id} className={`ds-table-row group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                         <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{emp.name}</td>
                         <td className="px-6 py-3 text-[var(--text-secondary)]">{emp.phone}</td>
                         <td className="px-6 py-3 text-[var(--text-secondary)]">{emp.email ?? '\u2014'}</td>

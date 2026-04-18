@@ -138,9 +138,9 @@ export default function AuditLogPage() {
           ) : (
             <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
-                <table className="w-full">
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Timestamp</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">User</th>
                       <th className="px-3 py-2.5 w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Action</th>
@@ -154,7 +154,7 @@ export default function AuditLogPage() {
                       <>
                         <tr
                           key={log.id}
-                          className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                          className={`ds-table-row text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                         >
                           <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums text-xs">{formatTimestamp(log.timestamp)}</td>

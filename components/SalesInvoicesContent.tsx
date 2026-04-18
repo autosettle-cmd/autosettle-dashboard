@@ -461,7 +461,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
       {/* ── Table ────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-auto rounded-lg bg-white">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm ds-table-chassis">
           <thead>
             <tr className="ds-table-header text-left">
               <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
@@ -490,7 +490,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 return (
                   <tr
                     key={inv.id}
-                    className="group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                    className="ds-table-row group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
                     onClick={() => setPreview(inv)}
                   >
                     <td className="px-6 py-3 font-medium text-[#191C1E]">{inv.invoice_number || '-'}</td>
@@ -826,7 +826,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 <div>
                   <h3 className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide mb-2">Line Items</h3>
                   <div className="rounded-lg overflow-hidden">
-                    <table className="w-full text-xs">
+                    <table className="w-full text-xs ds-table-chassis">
                       <thead>
                         <tr className="ds-table-header text-left">
                           <th className="px-3 py-2">Description</th>
@@ -838,7 +838,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       </thead>
                       <tbody>
                         {preview.items.map((item) => (
-                          <tr key={item.id}>
+                          <tr key={item.id} className="ds-table-row">
                             <td className="px-3 py-2 text-[#434654]">{item.description}</td>
                             <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{Number(item.quantity)}</td>
                             <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.unit_price)}</td>

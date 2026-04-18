@@ -122,9 +122,9 @@ export default function AdminAuditLogPage() {
           ) : (
             <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
-                <table className="w-full">
+                <table className="ds-table-chassis w-full">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Timestamp</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">User</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-[80px]">Action</th>
@@ -138,7 +138,7 @@ export default function AdminAuditLogPage() {
                       <>
                         <tr
                           key={log.id}
-                          className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                          className={`ds-table-row text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                         >
                           <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums text-xs">{formatTimestamp(log.timestamp)}</td>

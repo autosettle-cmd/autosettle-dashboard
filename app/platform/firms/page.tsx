@@ -172,9 +172,9 @@ export default function PlatformFirmsPage() {
               <div className="text-center py-12 text-sm text-[var(--text-secondary)]">Loading...</div>
             ) : (
               <div className="bg-white card-popped overflow-hidden">
-                <table className="w-full text-sm">
+                <table className="ds-table-chassis w-full text-sm">
                   <thead>
-                    <tr className="bg-[var(--surface-header)]">
+                    <tr className="ds-table-header">
                       <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Firm</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left w-[80px]">Status</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right w-[70px]">Users</th>
@@ -190,7 +190,7 @@ export default function PlatformFirmsPage() {
                     {firms.map((f, i) => (
                       <tr
                         key={f.id}
-                        className={`hover:bg-[var(--surface-header)] cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}
+                        className={`ds-table-row hover:bg-[var(--surface-header)] cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}
                         onClick={() => setExpandedFirm(expandedFirm === f.id ? null : f.id)}
                       >
                         <td className="px-5 py-2.5">

@@ -160,9 +160,9 @@ export default function AccountantAgingReportPage() {
             </div>
           ) : (
             <div className="bg-white overflow-hidden">
-              <table className="w-full">
+              <table className="w-full ds-table-chassis">
                 <thead>
-                  <tr className="bg-[var(--surface-header)]">
+                  <tr className="ds-table-header">
                     <th className="px-6 py-3 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]" style={{ width: '28%' }}>Supplier</th>
                     <th className="px-6 py-3 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">0-30 Days</th>
                     <th className="px-6 py-3 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">31-60 Days</th>
@@ -178,7 +178,7 @@ export default function AccountantAgingReportPage() {
                       <tr
                         key={s.supplier_id}
                         onClick={() => setExpandedId(expandedId === s.supplier_id ? null : s.supplier_id)}
-                        className={`group hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${si % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                        className={`ds-table-row group hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${si % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
                         <td className="px-6 py-3">
                           <div className="flex items-center gap-2">

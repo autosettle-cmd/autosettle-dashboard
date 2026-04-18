@@ -461,8 +461,11 @@ body {
   }
 
   /* ─── Tables: Physical Machine Chassis ──────────────────────────────────── */
+  /* Auto-applies to ALL tables inside main content areas (ledger-binding).
+     Also available as explicit classes for use anywhere. */
 
   /* 5. The Chassis — molded casing housing the entire table */
+  .ledger-binding table,
   .ds-table-chassis {
     border: 3px solid #C0C4CA;
     border-top-color: #D0D3D8;
@@ -478,6 +481,7 @@ body {
   }
 
   /* 1. The Header: Metal Faceplate — brushed aluminum control bar */
+  .ledger-binding thead tr,
   .ds-table-header {
     background: linear-gradient(180deg, #E8EAED 0%, #D8DBDF 50%, #CCCFD4 100%);
     font-size: 0.75rem;
@@ -499,6 +503,7 @@ body {
   }
 
   /* 2. Rows: Removable slabs in a rack */
+  .ledger-binding tbody tr,
   .ds-table-row {
     transition: all 120ms ease;
     /* Double-line seam between slabs: dark line + light line */

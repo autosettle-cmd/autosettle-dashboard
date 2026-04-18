@@ -226,9 +226,9 @@ export default function ClientsPage() {
               <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No clients found.</div>
             ) : (
               <div className="overflow-auto flex-1 min-h-0">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm ds-table-chassis">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Firm Name</th>
                       <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Reg. Number</th>
                       <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Employees</th>
@@ -240,7 +240,7 @@ export default function ClientsPage() {
                   </thead>
                   <tbody>
                     {firms.map((firm, i) => (
-                      <tr key={firm.id} className={`group hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                      <tr key={firm.id} className={`ds-table-row group hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                         <td className="px-6 py-3 font-medium">
                           <Link
                             href={`/accountant/clients/${firm.id}`}

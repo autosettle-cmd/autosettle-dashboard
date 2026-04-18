@@ -130,7 +130,19 @@
       "Bash(npx create-next-app@latest richera-dashboard --typescript --tailwind --eslint --app --src-dir=false --import-alias=\"@/*\" --use-npm)",
       "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.ts ~/richera-dashboard/tailwind.config.ts)",
       "Bash(cp /Users/jeffrylau/autosettle-dashboard/tailwind.config.js ~/richera-dashboard/tailwind.config.js)",
-      "Bash(curl -s http://localhost:3000/api/suppliers)"
+      "Bash(curl -s http://localhost:3000/api/suppliers)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/admin -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) ! -path \"*/api/*\" -exec wc -l {} +)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/accountant -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) ! -path \"*/api/*\" -exec wc -l {} +)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/employee -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.jsx -o -name *.js \\\\\\) ! -path */api/* -exec wc -l {} +)",
+      "Bash(npx playwright:*)",
+      "Bash(curl:*)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/api/*\" -exec wc -l {} +)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app -type f -name *claims*account*)",
+      "Bash(lsof:*)",
+      "WebFetch(domain:www.bukku.my)",
+      "WebFetch(domain:www.sql.com.my)",
+      "WebFetch(domain:bukku.my)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/api -type f -name *invoice*)"
     ]
   }
 }

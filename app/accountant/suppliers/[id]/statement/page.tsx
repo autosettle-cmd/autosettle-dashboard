@@ -173,9 +173,9 @@ export default function AccountantSupplierStatementPage() {
 
                 {/* Statement table */}
                 <div className="mt-4 bg-white card-popped overflow-hidden">
-                  <table className="w-full text-left">
+                  <table className="w-full text-left ds-table-chassis">
                     <thead>
-                      <tr className="bg-[var(--surface-header)]">
+                      <tr className="ds-table-header">
                         <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
                         <th className="px-3 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Reference</th>
                         <th className="px-3 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
@@ -199,7 +199,7 @@ export default function AccountantSupplierStatementPage() {
                         const isReceivable = entry.type === 'sales_invoice' || entry.type === 'incoming_payment';
                         const rowBg = isReceivable ? 'bg-[var(--surface-low)]' : (i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]');
                         return (
-                          <tr key={i} className={`text-sm hover:bg-[var(--surface-header)] transition-colors ${rowBg}`}>
+                          <tr key={i} className={`ds-table-row text-sm hover:bg-[var(--surface-header)] transition-colors ${rowBg}`}>
                             <td className="px-6 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(entry.date)}</td>
                             <td className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{entry.reference}</td>
                             <td className="px-3 py-2.5 text-[var(--text-secondary)]">{entry.description}</td>

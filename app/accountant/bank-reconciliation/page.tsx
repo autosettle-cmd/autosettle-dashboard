@@ -636,9 +636,9 @@ export default function AccountantBankReconciliationPage() {
 
                     {/* Expanded statement list */}
                     {isOpen && (
-                      <table className="w-full">
+                      <table className="w-full ds-table-chassis">
                         <thead>
-                          <tr className="bg-[var(--surface-header)]">
+                          <tr className="ds-table-header">
                             <th className="px-6 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Period</th>
                             <th className="px-4 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Closing Balance</th>
                             <th className="px-4 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Txns</th>
@@ -655,7 +655,7 @@ export default function AccountantBankReconciliationPage() {
                             const isComplete = s.unmatched === 0;
                             return (
                               <tr key={s.id} onClick={() => router.push(`/accountant/bank-reconciliation/${s.id}`)}
-                                className={`group transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40'}`}>
+                                className={`ds-table-row group transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40'}`}>
                                 <td className="px-6 py-2.5">
                                   <p className="text-body-md font-medium text-[var(--text-primary)] tabular-nums">{formatDate(s.statement_date)}</p>
                                   {!isComplete && <p className="text-label-sm text-amber-600 font-medium">Needs attention</p>}

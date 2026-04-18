@@ -274,9 +274,9 @@ export default function AdminEmployeeClaimsAccountPage() {
 
                 {/* Statement table */}
                 <div className="mt-4 bg-white card-popped overflow-hidden">
-                  <table className="w-full text-left">
+                  <table className="ds-table-chassis w-full text-left">
                     <thead>
-                      <tr className="bg-[var(--surface-header)]">
+                      <tr className="ds-table-header">
                         <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
                         <th className="px-3 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Reference</th>
                         <th className="px-3 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
@@ -287,7 +287,7 @@ export default function AdminEmployeeClaimsAccountPage() {
                     </thead>
                     <tbody>
                       {/* Opening balance row */}
-                      <tr className="bg-[var(--surface-low)]">
+                      <tr className="ds-table-row bg-[var(--surface-low)]">
                         <td className="px-6 py-2.5 text-sm text-[var(--text-secondary)] tabular-nums">{formatDate(data.period.from)}</td>
                         <td className="px-3 py-2.5 text-sm text-[var(--text-secondary)]" colSpan={2}>Opening Balance</td>
                         <td className="px-3 py-2.5 text-sm text-right tabular-nums text-[var(--text-secondary)]">—</td>
@@ -296,7 +296,7 @@ export default function AdminEmployeeClaimsAccountPage() {
                       </tr>
 
                       {data.entries.map((entry, i) => (
-                        <tr key={i} className={`text-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
+                        <tr key={i} className={`ds-table-row text-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
                           <td className="px-6 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(entry.date)}</td>
                           <td className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{entry.reference}</td>
                           <td className="px-3 py-2.5 text-[var(--text-secondary)]">{entry.description}</td>
@@ -307,7 +307,7 @@ export default function AdminEmployeeClaimsAccountPage() {
                       ))}
 
                       {/* Closing balance row */}
-                      <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
+                      <tr className="ds-table-row bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
                         <td className="px-6 py-3 text-sm font-semibold text-[var(--text-primary)] tabular-nums">{formatDate(data.period.to)}</td>
                         <td className="px-3 py-3 text-sm font-semibold text-[var(--text-primary)]" colSpan={2}>Closing Balance</td>
                         <td className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-[var(--match-green)]">{formatRM(data.totals.total_debit)}</td>
@@ -387,9 +387,9 @@ export default function AdminEmployeeClaimsAccountPage() {
                 <div className="py-6 text-center text-sm text-[var(--text-secondary)]">No unpaid claims found.</div>
               ) : (
                 <div className="overflow-hidden mb-4">
-                  <table className="w-full">
+                  <table className="ds-table-chassis w-full">
                     <thead>
-                      <tr className="bg-[var(--surface-header)]">
+                      <tr className="ds-table-header">
                         <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Date</th>
                         <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Category</th>
                         <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Merchant</th>
@@ -402,7 +402,7 @@ export default function AdminEmployeeClaimsAccountPage() {
                       {unpaidClaims.map((c, i) => {
                         const outstanding = Number(c.amount) - Number(c.amount_paid);
                         return (
-                          <tr key={c.id} className={`text-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
+                          <tr key={c.id} className={`ds-table-row text-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
                             <td className="px-4 py-2 text-[var(--text-secondary)] tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-3 py-2 text-[var(--text-secondary)]">{c.category.name}</td>
                             <td className="px-3 py-2 text-[var(--text-secondary)]">{c.merchant}</td>
