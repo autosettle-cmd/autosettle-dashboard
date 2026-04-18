@@ -465,7 +465,7 @@ body {
   /* The Housing — recessed panel (a well), fixed part of the dashboard */
   .dash-housing {
     background: #ECEEF1;
-    padding: 16px;
+    padding: 10px 12px;
     /* Recessed into the dashboard surface */
     box-shadow:
       inset 0 2px 4px rgba(0,0,0,0.08),
@@ -487,32 +487,41 @@ body {
       0 -1px 0 rgba(0,0,0,0.04);
   }
 
-  /* Inner Tiles — individual pressable keys floating above the housing floor */
+  /* Inner Tiles — physical keycap buttons (same as btn-thick-white) */
   .dash-tile {
-    background: white;
-    padding: 12px 16px;
-    transition: all 120ms ease;
-    /* Tile sits above housing floor — drop shadow + side wall */
-    border-top: 1px solid rgba(255,255,255,0.9);
-    border-bottom: 2px solid #C5C8CE;
-    border-left: 1px solid rgba(255,255,255,0.6);
-    border-right: 1px solid #D8DBDF;
+    @apply btn-texture;
+    background: linear-gradient(180deg, #FFFFFF 0%, #EDEFF1 100%);
+    padding: 8px 12px;
+    min-height: 68px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.08s ease;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.95);
     box-shadow:
-      0 2px 4px rgba(0,0,0,0.06),
-      0 1px 2px rgba(0,0,0,0.04);
+      0 4px 0 0 #b8bcc2,
+      2px 0 0 0 #d1d5db,
+      2px 4px 0 0 #b8bcc2,
+     -1px 0 0 0 #dfe1e5,
+      inset 1px 1px 0 0 rgba(255,255,255,0.9),
+      inset -1px -1px 0 0 rgba(0,0,0,0.06);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.8);
   }
   .dash-tile:hover {
-    /* Tile lifts — shadow grows */
     box-shadow:
-      0 4px 8px rgba(0,0,0,0.10),
-      0 2px 4px rgba(0,0,0,0.06);
-    transform: translateY(-1px);
+      0 4px 0 0 #A8ADB5,
+      2px 0 0 0 #C5C9CF,
+      2px 4px 0 0 #A8ADB5,
+     -1px 0 0 0 #D5D8DD,
+      inset 1px 1px 0 0 rgba(255,255,255,0.9),
+      inset -1px -1px 0 0 rgba(0,0,0,0.06);
   }
   .dash-tile:active {
-    /* Tile bottoms out against housing floor */
-    transform: translateY(2px);
-    border-bottom-width: 1px;
-    box-shadow: none;
+    background: linear-gradient(180deg, #E8EAEC 0%, #EDEFF1 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
+    text-shadow: none;
   }
 
   /* ─── Tables: Physical Machine Chassis ──────────────────────────────────── */

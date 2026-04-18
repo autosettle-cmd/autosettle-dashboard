@@ -267,10 +267,10 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-y-auto p-8 pl-14 paper-texture animate-in">
 
           {/* ── Stats ─────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-5 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             <div className="dash-housing">
-              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Expense Claims</p>
-              <div className="grid grid-cols-3 gap-3 card-stagger">
+              <p className="text-[10px] font-label font-bold uppercase tracking-widest mb-2" style={{ color: '#234B6E' }}>Expense Claims</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
                 <StatCard label="This Month"        value={stats?.claims.thisMonth ?? null}        amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}            color="default" href="/admin/claims?type=claim" />
                 <StatCard label="Pending Review"     value={stats?.claims.pendingReview ?? null}    amount={stats ? formatRM(stats.claims.pendingAmount) : null}              color="amber"   href="/admin/claims?type=claim&status=pending_review" />
                 <StatCard label="Pending Approval"   value={stats?.claims.pendingApproval ?? null}  amount={stats ? formatRM(stats.claims.pendingApprovalAmount) : null}      color="primary" href="/admin/claims?type=claim&status=pending_approval" />
@@ -278,8 +278,8 @@ export default function AdminDashboard() {
             </div>
 
             <div className="dash-housing">
-              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Receipts</p>
-              <div className="grid grid-cols-3 gap-3 card-stagger">
+              <p className="text-[10px] font-label font-bold uppercase tracking-widest mb-2" style={{ color: '#234B6E' }}>Receipts</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
                 <StatCard label="This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null}   color="default" href="/admin/claims?type=receipt" />
                 <StatCard label="Unallocated"    value={stats?.receipts.unlinked ?? null}     amount={stats ? formatRM(stats.receipts.unlinkedAmount) : null}    color="amber"   href="/admin/claims?type=receipt" />
                 <StatCard label="Not Approved"   value={stats?.receipts.notApproved ?? null}  amount={stats ? formatRM(stats.receipts.notApprovedAmount) : null} color="primary" href="/admin/claims?type=receipt" />
@@ -287,8 +287,8 @@ export default function AdminDashboard() {
             </div>
 
             <div className="dash-housing">
-              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Invoices</p>
-              <div className="grid grid-cols-3 gap-3 card-stagger">
+              <p className="text-[10px] font-label font-bold uppercase tracking-widest mb-2" style={{ color: '#234B6E' }}>Invoices</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
                 <StatCard label="This Month"       value={stats?.invoices.thisMonth ?? null}       amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null}           color="default" href="/admin/invoices?tab=received" />
                 <StatCard label="Pending Review"   value={stats?.invoices.pendingReview ?? null}   amount={stats ? formatRM(stats.invoices.pendingAmount) : null}             color="amber"   href="/admin/invoices?tab=received&status=pending_review" />
                 <StatCard label="Pending Approval" value={stats?.invoices.pendingApproval ?? null} amount={stats ? formatRM(stats.invoices.pendingApprovalAmount) : null}     color="primary" href="/admin/invoices?tab=received&status=pending_approval" />
@@ -296,11 +296,11 @@ export default function AdminDashboard() {
             </div>
 
             <div className="dash-housing">
-              <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Bank Reconciliation</p>
-              <div className="grid grid-cols-3 gap-3 card-stagger">
-                <StatCard label="Statements"           value={bankReconStats?.totalStatements ?? null}  color="default" href="/admin/bank-reconciliation" />
-                <StatCard label="Unmatched"            value={bankReconStats?.unmatched ?? null}         color={bankReconStats && bankReconStats.unmatched > 0 ? 'amber' : 'green'} href="/admin/bank-reconciliation" />
-                <StatCard label="Pending Confirmation" value={bankReconStats?.suggestedMatch ?? null}    color={bankReconStats && bankReconStats.suggestedMatch > 0 ? 'primary' : 'green'} href="/admin/bank-reconciliation" />
+              <p className="text-[10px] font-label font-bold uppercase tracking-widest mb-2" style={{ color: '#234B6E' }}>Bank Reconciliation</p>
+              <div className="grid grid-cols-3 gap-2 card-stagger">
+                <StatCard label="Statements"        value={bankReconStats?.totalStatements ?? null}  color="default" href="/admin/bank-reconciliation" />
+                <StatCard label="Unmatched"         value={bankReconStats?.unmatched ?? null}         color={bankReconStats && bankReconStats.unmatched > 0 ? 'amber' : 'green'} href="/admin/bank-reconciliation" />
+                <StatCard label="Pending Confirm"   value={bankReconStats?.suggestedMatch ?? null}    color={bankReconStats && bankReconStats.suggestedMatch > 0 ? 'primary' : 'green'} href="/admin/bank-reconciliation" />
               </div>
             </div>
           </div>
@@ -765,15 +765,15 @@ function StatCard({ label, value, amount, color, href }: {
     <div
       className={`dash-tile group ${href ? 'cursor-pointer' : ''}`}
     >
-      <div className="flex items-center gap-1.5 mb-2">
+      <div className="flex items-center gap-1.5 mb-1">
         <div className={`w-1.5 h-1.5 flex-shrink-0 ${accent.dot}`} style={isPrimary ? { backgroundColor: '#234B6E' } : undefined} />
-        <p className="text-[11px] font-semibold text-[#444650] uppercase tracking-wide">{label}</p>
+        <p className="text-[10px] font-bold text-[#444650] uppercase tracking-wide leading-tight">{label}</p>
       </div>
-      <div className="flex items-baseline justify-between gap-3">
-        <p className={`text-2xl font-extrabold tracking-tight tabular-nums ${accent.value}`} style={isPrimary ? { color: '#234B6E' } : undefined}>
+      <div className="flex items-baseline justify-between gap-2">
+        <p className={`text-xl font-extrabold tracking-tight tabular-nums ${accent.value}`} style={isPrimary ? { color: '#234B6E' } : undefined}>
           {value ?? <span className="text-gray-200">&mdash;</span>}
         </p>
-        {amount && <p className="text-xs font-medium text-[#444650] tabular-nums whitespace-nowrap">{amount}</p>}
+        {amount && <p className="text-[10px] font-medium text-[#444650] tabular-nums whitespace-nowrap">{amount}</p>}
       </div>
     </div>
   );
