@@ -322,14 +322,14 @@ The outer card is a fixed, non-pressable recessed panel — a window into the ma
 - **Stamped label:** section title (EXPENSE CLAIMS, etc.) has debossed text-shadow
 
 #### Inner Tiles (`dash-tile`)
-Individual pressable keys sitting inside the housing. These are the action points.
-- **White background** on gray housing = clear visual separation
-- **Side wall:** `border-bottom: 2px solid #C5C8CE` + `border-right: 1px solid #D8DBDF` — frustum depth
-- **Drop shadow:** `0 2px 4px rgba(0,0,0,0.06)` — tile floats above housing floor
-- **Hover:** tile lifts (`translateY(-1px)`, shadow grows)
-- **Active:** tile bottoms out (`translateY(2px)`, shadow disappears, border-bottom shrinks)
-- **Labels:** Lato 11px semibold uppercase
-- **Values:** Lato extrabold `text-2xl tabular-nums`
+Individual pressable keycap keys sitting inside the housing — same physical style as `btn-thick-white`.
+- **Keycap style:** gradient face `#FFFFFF → #EDEFF1`, 4px side walls (`#b8bcc2` bottom, `#d1d5db` right), frustum bevel, matte texture
+- **Fixed height:** `min-height: 68px` with flexbox centering — all tiles same height regardless of label length
+- **Hover:** side walls darken slightly
+- **Active:** presses IN (inset shadow, no translateY) — same as all physical buttons
+- **Labels:** Lato 10px bold uppercase
+- **Values:** Lato extrabold `text-xl tabular-nums`
+- **Amounts:** 10px medium, right-aligned
 
 ### Status Badges (Acrylic Block — sits ON surface)
 Physical frosted acrylic blocks fused to the panel surface. No keywell/pit. LED dot blooms color through the block.
