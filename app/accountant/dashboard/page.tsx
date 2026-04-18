@@ -455,8 +455,8 @@ export default function AccountantDashboard() {
           {/* ── Needs Attention ────────────────────────────── */}
           <div className="bg-white">
             {/* Tab header */}
-            <div className="flex items-center justify-between px-5">
-              <div className="flex gap-0.5 py-2 px-1.5 bg-[#D0D3D8] rounded-sm" style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.12), inset 0 1px 2px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.5)' }}>
+            <div className="flex items-center justify-between px-5 py-2.5 bg-[#D0D3D8]" style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.12), inset 0 1px 2px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.5)' }}>
+              <div className="flex gap-2">
                 {([
                   ['claims', 'Claims', pendingClaims.length],
                   ['receipts', 'Receipts', unlinkedReceipts.length],
@@ -465,7 +465,7 @@ export default function AccountantDashboard() {
                   <button
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
-                    className={`relative px-3 py-1.5 text-label-sm font-bold uppercase tracking-wider transition-colors ${
+                    className={`relative px-4 py-1.5 text-label-sm font-bold uppercase tracking-wider transition-colors ${
                       activeTab === key ? 'btn-thick-navy' : 'btn-thick-white'
                     }`}
                   >
