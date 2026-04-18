@@ -216,8 +216,8 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
               <div key={item.label} className="space-y-1">
                 <button
                   onClick={() => setOpenDropdown(isOpen ? null : item.label)}
-                  className={`w-full flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
-                    hasActiveChild ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
+                  className={`relative w-full flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
+                    hasActiveChild ? 'btn-thick-sidebar-active' : ''
                   }`}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -225,9 +225,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
                   </svg>
                   <span className="flex-1 text-left">{item.label}</span>
                   {!isOpen && totalPending > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[var(--reject-red)] text-white rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center leading-none">
-                      {totalPending}
-                    </span>
+                    <span className="sidebar-badge">{totalPending}</span>
                   )}
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                     className={`transition-transform duration-200 opacity-60 ${isOpen ? 'rotate-180' : ''}`}>
@@ -247,15 +245,13 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
                           </svg>
                           <Link
                             href={child.href}
-                            className={`flex-1 flex items-center py-1 px-2.5 text-[11px] tracking-tight transition-all btn-thick-sidebar ${
-                              active ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
+                            className={`relative flex-1 flex items-center py-1 px-2.5 text-[11px] tracking-tight transition-all btn-thick-sidebar ${
+                              active ? 'btn-thick-sidebar-active' : ''
                             }`}
                           >
                             {child.label}
                             {child.countKey && counts[child.countKey] > 0 && (
-                              <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 bg-[var(--reject-red)] text-white rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center leading-none">
-                                {counts[child.countKey]}
-                              </span>
+                              <span className="sidebar-badge">{counts[child.countKey]}</span>
                             )}
                           </Link>
                         </div>
@@ -274,8 +270,8 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
-                active ? '!bg-white !text-[var(--primary)] !border-b-[#d1d5db] !border-r-[#d1d5db] !border-t-[#f3f4f6] !border-l-[#f3f4f6]' : ''
+              className={`relative flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
+                active ? 'btn-thick-sidebar-active' : ''
               }`}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -283,9 +279,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
               </svg>
               <span className="flex-1">{label}</span>
               {badgeCount > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[var(--reject-red)] text-white rounded-full min-w-[18px] h-[18px] inline-flex items-center justify-center leading-none">
-                  {badgeCount}
-                </span>
+                <span className="sidebar-badge">{badgeCount}</span>
               )}
             </Link>
           );

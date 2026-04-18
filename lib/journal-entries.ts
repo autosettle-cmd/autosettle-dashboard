@@ -215,7 +215,10 @@ export async function reverseJournalEntry(
     });
 
     if (!original) throw new Error(`Journal entry ${journalEntryId} not found`);
-    if (original.reversed_by_id) throw new Error(`Journal entry ${original.voucher_number} is already reversed`);
+    if (original.reversed_by_id) {
+      console.warn(`Journal entry ${original.voucher_number} is already reversed — skipping`);
+      return original;
+    }
 
     // Try original posting date first, then today — use whichever has an open period
     let postingDate = original.posting_date;
@@ -449,7 +452,7 @@ export async function findJVBySource(
 ) {
   const client = tx ?? prisma;
   return client.journalEntry.findMany({
-    where: { source_type: sourceType, source_id: sourceId, status: 'posted' },
+    where: { source_type: sourceType, source_id: sourceId, status: 'posted', reversed_by_id: null },
     include: { lines: true },
     orderBy: { created_at: 'desc' },
   });

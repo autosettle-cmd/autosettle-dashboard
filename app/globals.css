@@ -98,80 +98,96 @@ body {
 
   /* ─── Thick 3D Buttons (Signature Element) ──────────────────────────────── */
 
-  /* Primary: steel blue CTA */
+  /* Primary: steel blue CTA — square frustum */
   .btn-thick-navy {
     @apply inline-flex items-center justify-center font-bold text-white
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background-color: #234B6E;
-    border: 1px solid rgba(255,255,255,0.25);
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    box-shadow: 0 4px 0 0 #1A3D5C, 2px 0 0 0 #1A3D5C, 2px 4px 0 0 #1A3D5C;
+    background: linear-gradient(135deg, #2D5F8A 0%, #234B6E 40%, #1C3E5C 100%);
+    border: none;
+    box-shadow:
+      0 4px 0 0 #1A3D5C, 2px 0 0 0 #1A3D5C, 2px 4px 0 0 #1A3D5C,
+      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      inset -1px -1px 0 0 rgba(0,0,0,0.2);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-navy:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 #1A3D5C, 1px 0 0 0 #1A3D5C, 1px 1px 0 0 #1A3D5C;
+    background: linear-gradient(135deg, #1C3E5C 0%, #234B6E 100%);
+    box-shadow:
+      0 1px 0 0 #1A3D5C, 1px 0 0 0 #1A3D5C, 1px 1px 0 0 #1A3D5C,
+      inset 0 1px 2px rgba(0,0,0,0.25);
     transform: translateY(3px);
   }
 
-  /* White: secondary actions */
+  /* White: secondary actions — square frustum */
   .btn-thick-white {
     @apply inline-flex items-center justify-center font-bold
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background-color: #ffffff;
+    background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FB 40%, #EEF1F3 100%);
     color: var(--text-primary);
-    border: 1px solid #f3f4f6;
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    box-shadow: 0 4px 0 0 #d1d5db, 2px 0 0 0 #d1d5db, 2px 4px 0 0 #d1d5db;
+    border: none;
+    box-shadow:
+      0 4px 0 0 #d1d5db, 2px 0 0 0 #d1d5db, 2px 4px 0 0 #d1d5db,
+      inset 1px 1px 0 0 rgba(255,255,255,0.9),
+      inset -1px -1px 0 0 rgba(0,0,0,0.08);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-white:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 #d1d5db, 1px 0 0 0 #d1d5db, 1px 1px 0 0 #d1d5db;
+    background: linear-gradient(135deg, #EEF1F3 0%, #F7F9FB 100%);
+    box-shadow:
+      0 1px 0 0 #d1d5db, 1px 0 0 0 #d1d5db, 1px 1px 0 0 #d1d5db,
+      inset 0 1px 2px rgba(0,0,0,0.1);
     transform: translateY(3px);
   }
 
-  /* Green: approve/confirm actions */
+  /* Green: approve/confirm actions — square frustum */
   .btn-thick-green {
     @apply inline-flex items-center justify-center font-bold text-white
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background-color: #0A9981;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    box-shadow: 0 4px 0 0 #066656, 2px 0 0 0 #066656, 2px 4px 0 0 #066656;
+    background: linear-gradient(135deg, #0DB897 0%, #0A9981 40%, #07806B 100%);
+    border: none;
+    box-shadow:
+      0 4px 0 0 #066656, 2px 0 0 0 #066656, 2px 4px 0 0 #066656,
+      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      inset -1px -1px 0 0 rgba(0,0,0,0.2);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-green:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 #066656, 1px 0 0 0 #066656, 1px 1px 0 0 #066656;
+    background: linear-gradient(135deg, #07806B 0%, #0A9981 100%);
+    box-shadow:
+      0 1px 0 0 #066656, 1px 0 0 0 #066656, 1px 1px 0 0 #066656,
+      inset 0 1px 2px rgba(0,0,0,0.25);
     transform: translateY(3px);
   }
 
-  /* Red: reject/delete actions */
+  /* Red: reject/delete actions — square frustum */
   .btn-thick-red {
     @apply inline-flex items-center justify-center font-bold text-white
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background-color: #F23545;
-    border: 1px solid rgba(255,255,255,0.2);
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    box-shadow: 0 4px 0 0 #A81C28, 2px 0 0 0 #A81C28, 2px 4px 0 0 #A81C28;
+    background: linear-gradient(135deg, #F75565 0%, #F23545 40%, #D42A3A 100%);
+    border: none;
+    box-shadow:
+      0 4px 0 0 #A81C28, 2px 0 0 0 #A81C28, 2px 4px 0 0 #A81C28,
+      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      inset -1px -1px 0 0 rgba(0,0,0,0.2);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-red:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 #A81C28, 1px 0 0 0 #A81C28, 1px 1px 0 0 #A81C28;
+    background: linear-gradient(135deg, #D42A3A 0%, #F23545 100%);
+    box-shadow:
+      0 1px 0 0 #A81C28, 1px 0 0 0 #A81C28, 1px 1px 0 0 #A81C28,
+      inset 0 1px 2px rgba(0,0,0,0.25);
     transform: translateY(3px);
   }
 
@@ -179,23 +195,38 @@ body {
   .btn-thick-sidebar {
     @apply inline-flex items-center justify-center font-bold text-white
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background-color: #2E6999;
-    border: 1px solid rgba(255,255,255,0.15);
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    box-shadow: 0 3px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 3px 0 0 #1F5280;
+    background: linear-gradient(135deg, #3575A3 0%, #2E6999 40%, #26587F 100%);
+    border: none;
+    box-shadow:
+      0 3px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 3px 0 0 #1F5280,
+      inset 1px 1px 0 0 rgba(255,255,255,0.15),
+      inset -1px -1px 0 0 rgba(0,0,0,0.2);
     transition: all 0.08s ease;
     font-size: 0.65rem;
     letter-spacing: 0.03em;
     text-transform: uppercase;
   }
   .btn-thick-sidebar:hover {
-    background-color: #3878AD;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.15);
+    background: linear-gradient(135deg, #3F85B8 0%, #3575A3 40%, #2E6999 100%);
+    box-shadow:
+      0 3px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 3px 0 0 #1F5280,
+      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      inset -1px -1px 0 0 rgba(0,0,0,0.15);
   }
   .btn-thick-sidebar:active:not(:disabled) {
-    box-shadow: 0 1px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 1px 0 0 #1F5280;
+    background: linear-gradient(135deg, #26587F 0%, #2E6999 100%);
+    box-shadow:
+      0 1px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 1px 0 0 #1F5280,
+      inset 0 1px 2px rgba(0,0,0,0.2);
     transform: translateY(2px);
+  }
+  .btn-thick-sidebar-active {
+    background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FB 100%) !important;
+    color: var(--primary) !important;
+    box-shadow:
+      0 3px 0 0 #d1d5db, 1px 0 0 0 #d1d5db, 1px 3px 0 0 #d1d5db,
+      inset 1px 1px 0 0 rgba(255,255,255,0.8),
+      inset -1px -1px 0 0 rgba(0,0,0,0.06) !important;
   }
 
   /* ─── Legacy Button Aliases (map old classes → thick style) ─────────────── */
@@ -397,9 +428,16 @@ body {
   }
 }
 
-/* ─── Supplier row: press down only when not clicking inner buttons ────────── */
-.supplier-row:active:not(:has(button:active, a:active)) {
-  transform: translateY(3px);
+/* ─── Notification badge (iOS-style overlay) — use on any relative parent ── */
+.notification-badge, .sidebar-badge {
+  @apply absolute -top-1.5 -right-1 text-white font-bold rounded-full
+         inline-flex items-center justify-center leading-none;
+  font-size: 0.625rem;
+  min-width: 18px;
+  height: 18px;
+  padding: 1px 5px;
+  background-color: var(--reject-red);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
