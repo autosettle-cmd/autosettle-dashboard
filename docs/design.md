@@ -440,9 +440,18 @@ The sidebar is a thick slab of material sitting ON TOP of the page. The main con
 </div>
 ```
 
+### Header Console (L-Frame Upper Panel)
+The header is part of the L-shaped frame (sidebar + header) that wraps around the milled workspace. Same elevated material as the sidebar slab — auto-applied via `.ledger-binding > header`.
+
+- **L-frame:** header shares the sidebar's elevated plane, creating a solid molded shell around top + left
+- **Etched greeting:** dark grey `#2A3440` + `text-shadow: 0 1px 0 rgba(255,255,255,0.8)` — letterpress effect, text physically indented into the console surface
+- **Date readout:** recessed LCD strip — `background: #EEF0F3`, inset shadow, thin border with directional colors. Soft LCD-grey text `#6B7A8A`
+- **Horizon seam:** double-line crease where console meets workspace — `0 1px 0 #D0D3D8` (dark line) + `0 2px 0 rgba(255,255,255,0.7)` (light highlight) = physical crease in the material
+- **Console shadow:** `0 4px 8px rgba(0,0,0,0.06)` — header casts shadow down onto the workspace
+
 ### Signature Effects
 - **Paper texture:** subtle dot-grid on main content (`paper-texture` class)
-- **Milled well:** The main content area is carved below the sidebar and header. `ledger-binding::before` adds inset shadow on the left edge (sidebar overhangs), `::after` adds inset shadow on the top (header overhangs). Makes the content look like a different, recessed material.
+- **Milled well:** `ledger-binding::before` adds inset shadow on the left edge (sidebar overhangs), `::after` adds inset shadow below the header (console overhangs). Content is a different, recessed material.
 - **Inset shadow:** engraved feel on badges (`inset-shadow` class)
 
 ---

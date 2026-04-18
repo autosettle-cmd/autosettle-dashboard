@@ -73,12 +73,12 @@ body {
     rgba(0,0,0,0.02) 18px,
     transparent 100%);
 }
-/* Milled well — inset shadow on top edge where header overhangs */
+/* Milled well — inset shadow below header where console overhangs workspace */
 .ledger-binding::after {
   content: "";
   position: absolute;
   left: 0;
-  top: 0;
+  top: 64px; /* h-16 header height */
   right: 0;
   height: 30px;
   pointer-events: none;
@@ -88,6 +88,50 @@ body {
     rgba(0,0,0,0.03) 8px,
     rgba(0,0,0,0.01) 16px,
     transparent 100%);
+}
+
+/* ─── Header Console: L-Frame Upper Panel ──────────────────────────────────
+   The header is part of the L-shaped frame (sidebar + header) that wraps
+   around the milled workspace. Same elevated material as the sidebar slab. */
+
+/* L-frame: header shares sidebar's elevated plane */
+.ledger-binding > header {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F7F9FB 100%) !important;
+  border-bottom: none !important;
+  /* Horizon seam — double-line crease between console and workspace */
+  box-shadow:
+    /* Dark seam line */
+    0 1px 0 #D0D3D8,
+    /* Light highlight line immediately below = physical crease */
+    0 2px 0 rgba(255,255,255,0.7),
+    /* Console casts shadow down onto workspace */
+    0 4px 8px rgba(0,0,0,0.06);
+  position: relative;
+  z-index: 5;
+}
+
+/* Etched greeting — letterpress indented into the console surface */
+.ledger-binding > header h1,
+.ledger-binding > header > h1 {
+  color: #2A3440;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+}
+
+/* Date readout — recessed LCD strip in the console */
+.ledger-binding > header p,
+.ledger-binding > header > p {
+  color: #6B7A8A;
+  background: #EEF0F3;
+  padding: 4px 12px;
+  font-variant-numeric: tabular-nums;
+  /* Recessed groove for the readout */
+  box-shadow:
+    inset 0 1px 2px rgba(0,0,0,0.08),
+    inset 1px 0 1px rgba(0,0,0,0.03),
+    0 1px 0 rgba(255,255,255,0.6);
+  border: 1px solid #D8DBDF;
+  border-top-color: #C8CCD0;
+  border-bottom-color: rgba(255,255,255,0.5);
 }
 
 /* Card-popped: directional light/shadow borders for tactile depth */
