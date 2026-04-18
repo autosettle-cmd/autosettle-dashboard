@@ -399,7 +399,7 @@ Physical translucent acrylic jewels with internal glow. Use `.notification-badge
 
 **Expand-to-preview fallback:** When a clickable entity card has no document (no `file_url`), show inline detail panel (type, number, date, total, remaining) instead of empty space
 
-**Dashboard tab buttons:** Small punchy 3D buttons (`px-3 py-1.5 text-label-sm btn-thick-navy/btn-thick-white`), not large tabs. Count badges use `.notification-badge` overlay, not inline.
+**Dashboard tab buttons:** Keycap tiles sliding in a milled track. The track is a darker recessed groove (`bg-[#D0D3D8]`, inset shadow, `gap-0.5`) so the darker channel shows between tiles as a 2px seam. Active tab = `btn-thick-navy`, inactive = `btn-thick-white`. Count badges use `.notification-badge` overlay.
 
 ### Sidebar — Raised Slab
 The sidebar is a thick slab of material sitting ON TOP of the page. The main content area is a milled well carved below it.

@@ -456,7 +456,7 @@ export default function AccountantDashboard() {
           <div className="bg-white">
             {/* Tab header */}
             <div className="flex items-center justify-between px-5">
-              <div className="flex gap-2 py-3">
+              <div className="flex gap-0.5 py-2 px-1.5 bg-[#D0D3D8] rounded-sm" style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.12), inset 0 1px 2px rgba(0,0,0,0.06), 0 1px 0 rgba(255,255,255,0.5)' }}>
                 {([
                   ['claims', 'Claims', pendingClaims.length],
                   ['receipts', 'Receipts', unlinkedReceipts.length],
