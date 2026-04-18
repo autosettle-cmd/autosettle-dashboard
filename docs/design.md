@@ -445,7 +445,7 @@ The header is part of the L-shaped frame (sidebar + header) that wraps around th
 
 - **L-frame:** header shares the sidebar's elevated plane, creating a solid molded shell around top + left
 - **Etched greeting:** dark grey `#2A3440` + `text-shadow: 0 1px 0 rgba(255,255,255,0.8)` — letterpress effect, text physically indented into the console surface
-- **Date readout:** recessed LCD strip — `background: #EEF0F3`, inset shadow, thin border with directional colors. Soft LCD-grey text `#6B7A8A`
+- **Date readout:** recessed LCD strip — `background: #EEF0F3`, inset shadow, thin border with directional colors. Dark text `#2A3440`, `0.875rem` bold — same visual weight as the greeting
 - **Horizon seam:** double-line crease where console meets workspace — `0 1px 0 #D0D3D8` (dark line) + `0 2px 0 rgba(255,255,255,0.7)` (light highlight) = physical crease in the material
 - **Console shadow:** `0 4px 8px rgba(0,0,0,0.06)` — header casts shadow down onto the workspace
 
