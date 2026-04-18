@@ -73,22 +73,7 @@ body {
     rgba(0,0,0,0.02) 18px,
     transparent 100%);
 }
-/* Milled well — inset shadow below header where console overhangs workspace */
-.ledger-binding::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 64px; /* h-16 header height */
-  right: 0;
-  height: 30px;
-  pointer-events: none;
-  z-index: 1; /* behind filter buttons and content */
-  background: linear-gradient(to bottom,
-    rgba(0,0,0,0.06) 0px,
-    rgba(0,0,0,0.03) 8px,
-    rgba(0,0,0,0.01) 16px,
-    transparent 100%);
-}
+/* Milled well top shadow removed — header box-shadow handles the overhang */
 
 /* ─── Header Console: L-Frame Upper Panel ──────────────────────────────────
    The header is part of the L-shaped frame (sidebar + header) that wraps
