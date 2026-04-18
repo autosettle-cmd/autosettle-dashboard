@@ -75,7 +75,9 @@ body {
 }
 /* Tighter layout — reduce gap between header and content */
 .ledger-binding > main,
-.ledger-binding > div {
+.ledger-binding > div,
+main.ledger-binding,
+div.ledger-binding {
   padding-top: 12px !important;
   gap: 8px !important;
 }
