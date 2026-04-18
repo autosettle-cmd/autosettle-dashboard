@@ -1341,7 +1341,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         <textarea
                           value={txnDescDraft}
                           onChange={(e) => setTxnDescDraft(e.target.value)}
-                          className="input-field w-full text-sm"
+                          className="input-recessed w-full text-sm"
                           rows={6}
                         />
                         {txnDescDraft.trim().split('\n').join(' | ') !== matchingTxn.description && (
@@ -1434,7 +1434,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                             setClaimSearch(val);
                             searchOutstandingItems(val);
                           }}
-                          className="input-field w-full"
+                          className="input-recessed w-full"
                         />
                       </div>
 
@@ -1758,7 +1758,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                   const name = voucherSuppliers.find(s => s.id === sid)?.name || 'Walk-in Customer';
                                   fetchNextReceiptNumber(name, sid || undefined);
                                 }}
-                                className="input-field flex-1"
+                                className="input-recessed flex-1"
                               >
                                 <option value="">Walk-in Customer (default)</option>
                                 {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1778,7 +1778,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                 value={voucherData.new_supplier_name}
                                 onChange={(e) => setVoucherData({ ...voucherData, new_supplier_name: e.target.value, supplier_id: '' })}
                                 onBlur={() => { if (voucherData.new_supplier_name.trim()) fetchNextReceiptNumber(voucherData.new_supplier_name); }}
-                                className="input-field flex-1"
+                                className="input-recessed flex-1"
                                 placeholder="Enter new supplier name..."
                                 autoFocus
                               />
@@ -1794,7 +1794,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         </div>
                         <div>
                           <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt No.</label>
-                          <input type="text" value={voucherData.reference} onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })} className="input-field w-full" placeholder="Auto-generated" />
+                          <input type="text" value={voucherData.reference} onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })} className="input-recessed w-full" placeholder="Auto-generated" />
                         </div>
                         <div>
                           <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">CR Account (Sales/Income GL)</label>
@@ -1810,7 +1810,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         </div>
                         <div>
                           <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes (optional)</label>
-                          <input type="text" value={voucherData.notes} onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })} className="input-field w-full" placeholder="e.g. Payment received for invoice #123" />
+                          <input type="text" value={voucherData.notes} onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })} className="input-recessed w-full" placeholder="e.g. Payment received for invoice #123" />
                         </div>
                         {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                         <div className="flex gap-3">
@@ -1856,7 +1856,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                   const name = voucherSuppliers.find(s => s.id === sid)?.name || 'Walk-in Customer';
                                   fetchNextVoucherNumber(name, sid || undefined);
                                 }}
-                                className="input-field flex-1"
+                                className="input-recessed flex-1"
                               >
                                 <option value="">Walk-in Customer (default)</option>
                                 {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1874,7 +1874,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                 value={voucherData.new_supplier_name}
                                 onChange={(e) => setVoucherData({ ...voucherData, new_supplier_name: e.target.value, supplier_id: '' })}
                                 onBlur={() => { if (voucherData.new_supplier_name.trim()) fetchNextVoucherNumber(voucherData.new_supplier_name); }}
-                                className="input-field flex-1"
+                                className="input-recessed flex-1"
                                 placeholder="Enter new supplier name..."
                                 autoFocus
                               />
@@ -1888,11 +1888,11 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         </div>
                         <div>
                           <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Voucher No.</label>
-                          <input type="text" value={voucherData.reference} onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })} className="input-field w-full" placeholder="Auto-generated" />
+                          <input type="text" value={voucherData.reference} onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })} className="input-recessed w-full" placeholder="Auto-generated" />
                         </div>
                         <div>
                           <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-                          <select value={voucherData.category_id} onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })} className="input-field w-full">
+                          <select value={voucherData.category_id} onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })} className="input-recessed w-full">
                             <option value="">Select category...</option>
                             {voucherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                           </select>
@@ -1911,7 +1911,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         </div>
                         <div>
                           <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes (optional)</label>
-                          <input type="text" value={voucherData.notes} onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })} className="input-field w-full" placeholder="e.g. Supplier payment for invoice #123" />
+                          <input type="text" value={voucherData.notes} onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })} className="input-recessed w-full" placeholder="e.g. Supplier payment for invoice #123" />
                         </div>
                         {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                         <div className="flex gap-3">

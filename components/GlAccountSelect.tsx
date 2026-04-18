@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 interface GlAccount {
   id: string;
@@ -79,18 +80,25 @@ export default function GlAccountSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(0);
   const [dropUp, setDropUp] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Calculate if dropdown should appear above or below
-  const calculateDropDirection = () => {
-    if (!inputRef.current) return;
-    const rect = inputRef.current.getBoundingClientRect();
+  // Calculate fixed position for dropdown so it escapes overflow containers
+  const calculateDropPosition = useCallback(() => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    // If less than 200px below but more space above, drop up
-    setDropUp(spaceBelow < 200 && spaceAbove > spaceBelow);
-  };
+    const up = spaceBelow < 200 && spaceAbove > spaceBelow;
+    setDropUp(up);
+    setDropdownPos({
+      top: up ? rect.top : rect.bottom,
+      left: rect.left,
+      width: rect.width,
+    });
+  }, []);
 
   const lookup = allAccounts ?? accounts;
 
@@ -113,10 +121,12 @@ export default function GlAccountSelect({
   // Infer parent from code as user types
   const inferredParent = newCode.trim() ? findParentByCode(newCode.trim(), lookup) : null;
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (check both container and portal dropdown)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target) &&
+          dropdownRef.current && !dropdownRef.current.contains(target)) {
         setIsOpen(false);
         setSearch('');
       }
@@ -137,7 +147,7 @@ export default function GlAccountSelect({
   };
 
   const openDropdown = () => {
-    calculateDropDirection();
+    calculateDropPosition();
     setIsOpen(true);
   };
 
@@ -206,41 +216,62 @@ export default function GlAccountSelect({
   };
 
   return (
-    <div ref={containerRef} className="relative">
-      {/* Search input */}
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={isOpen ? search : (selectedAccount ? `${selectedAccount.account_code} — ${selectedAccount.name}` : '')}
-          onChange={(e) => { setSearch(e.target.value); if (!isOpen) openDropdown(); }}
-          onFocus={() => { openDropdown(); setSearch(''); }}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-          className={`input-field w-full text-sm pr-8 ${className}`}
-        />
+    <div ref={containerRef} className="relative" style={{ marginBottom: '6px' }}>
+      {/* Trigger — styled as physical keycap button matching action buttons */}
+      {!isOpen ? (
         <button
           type="button"
-          onClick={() => { if (!disabled) { if (isOpen) { setIsOpen(false); } else { openDropdown(); inputRef.current?.focus(); } } }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8E9196] hover:text-[#434654] transition-colors"
-          tabIndex={-1}
+          onClick={() => { if (!disabled) { openDropdown(); setTimeout(() => inputRef.current?.focus(), 0); } }}
+          disabled={disabled}
+          className={`btn-thick-navy w-full py-2.5 text-xs relative ${className}`}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points={isOpen ? "18 15 12 9 6 15" : "6 9 12 15 18 9"} />
+          <span className="truncate block pr-6">
+            {selectedAccount ? `${selectedAccount.account_code} — ${selectedAccount.name}` : placeholder}
+          </span>
+          <svg className="absolute right-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
-      </div>
+      ) : (
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type to search..."
+            className="btn-thick-navy w-full py-2.5 text-xs text-left pr-8 !text-white placeholder-white/60 !bg-[#1C3E5C]"
+            style={{ caretColor: 'white', transform: 'translateY(4px)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)', borderTopColor: 'transparent', textShadow: 'none' }}
+          />
+          <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </div>
+      )}
 
-      {/* Dropdown */}
-      {isOpen && !disabled && (
-        <div className={`absolute z-50 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-60 overflow-y-auto ${dropUp ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+      {/* Dropdown — rendered via portal so it escapes overflow containers */}
+      {isOpen && !disabled && dropdownPos && createPortal(
+        <div
+          ref={dropdownRef}
+          className="bg-white border border-[#E0E3E5] max-h-60 overflow-y-auto"
+          style={{
+            position: 'fixed',
+            zIndex: 9999,
+            left: dropdownPos.left,
+            width: dropdownPos.width,
+            ...(dropUp
+              ? { bottom: window.innerHeight - dropdownPos.top + 2 }
+              : { top: dropdownPos.top }),
+            boxShadow: '0 6px 16px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.08)',
+          }}
+        >
           {sortedFiltered.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-[#8E9196]">No accounts found</div>
+            <div className="px-3 py-2 text-sm text-[var(--text-muted)]">No accounts found</div>
           ) : (
             <>
               {preferred.length > 0 && preferredType && (
-                <div className="px-3 py-1.5 text-xs font-medium text-[#8E9196] uppercase tracking-wide bg-gray-50 border-b">
+                <div className="px-3 py-1.5 text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest bg-[var(--surface-low)] border-b border-[#E0E3E5]">
                   {preferredType}
                 </div>
               )}
@@ -251,16 +282,16 @@ export default function GlAccountSelect({
                   onClick={() => handleSelect(a)}
                   className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                     highlightIndex === idx ? 'bg-[var(--primary)]/10 text-[var(--primary)]' :
-                    a.id === value ? 'bg-gray-50 font-medium' : 'hover:bg-gray-50'
+                    a.id === value ? 'bg-[var(--surface-low)] font-medium' : 'hover:bg-[var(--surface-low)]'
                   }`}
                 >
-                  <span className="font-medium">{a.account_code}</span>
-                  <span className="text-[#8E9196]"> — </span>
-                  {a.name}
+                  <span className="font-medium text-[var(--primary)]">{a.account_code}</span>
+                  <span className="text-[var(--text-muted)]"> — </span>
+                  <span className="text-[var(--text-primary)]">{a.name}</span>
                 </button>
               ))}
               {preferred.length > 0 && rest.length > 0 && (
-                <div className="px-3 py-1.5 text-xs font-medium text-[#8E9196] uppercase tracking-wide bg-gray-50 border-y">
+                <div className="px-3 py-1.5 text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest bg-[var(--surface-low)] border-y border-[#E0E3E5]">
                   Other
                 </div>
               )}
@@ -271,17 +302,18 @@ export default function GlAccountSelect({
                   onClick={() => handleSelect(a)}
                   className={`w-full text-left px-3 py-2 text-sm transition-colors ${
                     highlightIndex === preferred.length + idx ? 'bg-[var(--primary)]/10 text-[var(--primary)]' :
-                    a.id === value ? 'bg-gray-50 font-medium' : 'hover:bg-gray-50'
+                    a.id === value ? 'bg-[var(--surface-low)] font-medium' : 'hover:bg-[var(--surface-low)]'
                   }`}
                 >
-                  <span className="font-medium">{a.account_code}</span>
-                  <span className="text-[#8E9196]"> — </span>
-                  {a.name}
+                  <span className="font-medium text-[var(--primary)]">{a.account_code}</span>
+                  <span className="text-[var(--text-muted)]"> — </span>
+                  <span className="text-[var(--text-primary)]">{a.name}</span>
                 </button>
               ))}
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Add new account */}
@@ -304,14 +336,14 @@ export default function GlAccountSelect({
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
                   placeholder="Code (e.g. 111-001)"
-                  className="input-field text-xs w-[130px]"
+                  className="input-recessed text-xs w-[130px]"
                 />
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Account name"
-                  className="input-field text-xs flex-1"
+                  className="input-recessed text-xs flex-1"
                   onKeyDown={(e) => { if (e.key === 'Enter') createAccount(); }}
                 />
                 <button

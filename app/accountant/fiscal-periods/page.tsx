@@ -420,19 +420,19 @@ export default function FiscalPeriodsPage() {
 
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Label *</label>
-                  <input type="text" value={modalLabel} onChange={(e) => setModalLabel(e.target.value)} className="input-field w-full" placeholder="e.g. FY2026" autoFocus />
+                  <input type="text" value={modalLabel} onChange={(e) => setModalLabel(e.target.value)} className="input-recessed w-full" placeholder="e.g. FY2026" autoFocus />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Start Month</label>
-                    <select value={modalMonth} onChange={(e) => setModalMonth(Number(e.target.value))} className="input-field w-full">
+                    <select value={modalMonth} onChange={(e) => setModalMonth(Number(e.target.value))} className="input-recessed w-full">
                       {FULL_MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Start Year</label>
-                    <input type="number" value={modalYear} onChange={(e) => setModalYear(Number(e.target.value))} className="input-field w-full" min={2020} max={2040} />
+                    <input type="number" value={modalYear} onChange={(e) => setModalYear(Number(e.target.value))} className="input-recessed w-full" min={2020} max={2040} />
                   </div>
                 </div>
 
@@ -469,16 +469,16 @@ export default function FiscalPeriodsPage() {
                 {editError && <p className="text-sm text-[var(--on-error-container)] bg-[var(--error-container)] px-3 py-2">{editError}</p>}
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Label</label>
-                  <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="input-field w-full" />
+                  <input type="text" value={editLabel} onChange={(e) => setEditLabel(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Start Date</label>
-                    <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="input-field w-full" />
+                    <input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">End Date</label>
-                    <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="input-field w-full" />
+                    <input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="input-recessed w-full" />
                   </div>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)]">Monthly periods will be regenerated based on the new dates.</p>

@@ -1113,22 +1113,22 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Payment Amount (RM)</label>
-                  <input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="input-field w-full" placeholder="0.00" />
+                  <input type="number" step="0.01" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} className="input-recessed w-full" placeholder="0.00" />
                 </div>
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Payment Date</label>
-                  <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="input-field w-full" />
+                  <input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="input-recessed w-full" />
                 </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Reference (optional)</label>
-                <input type="text" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} className="input-field w-full" placeholder="e.g. cheque number, transfer ref" />
+                <input type="text" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} className="input-recessed w-full" placeholder="e.g. cheque number, transfer ref" />
               </div>
 
               <div>
                 <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Notes (optional)</label>
-                <textarea value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} className="input-field w-full" rows={2} placeholder="Optional notes" />
+                <textarea value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} className="input-recessed w-full" rows={2} placeholder="Optional notes" />
               </div>
 
               <ReceiptSelector
@@ -1189,7 +1189,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                                   updated[i] = { ...inv, allocation: e.target.value };
                                   setPaymentInvoices(updated);
                                 }}
-                                className="input-field w-[100px] text-right text-body-sm py-1"
+                                className="input-recessed w-[100px] text-right text-body-sm py-1"
                                 placeholder="0.00"
                               />
                             </td>
@@ -1244,19 +1244,19 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
               <div className="space-y-3">
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Supplier Name</label>
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" />
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Email</label>
-                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Phone</label>
-                  <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Notes</label>
-                  <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input-field w-full" rows={3} placeholder="Optional" />
+                  <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input-recessed w-full" rows={3} placeholder="Optional" />
                 </div>
               </div>
 
@@ -1279,7 +1279,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                     value={newAlias}
                     onChange={(e) => setNewAlias(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') addAlias(); }}
-                    className="input-field flex-1"
+                    className="input-recessed flex-1"
                     placeholder="Add alias..."
                   />
                   <button onClick={addAlias} className="btn-thick-navy px-3 py-1.5 text-xs font-medium">
@@ -1294,7 +1294,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                   <h3 className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">GL Account Mapping</h3>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
-                    <select value={editExpenseGlId} onChange={(e) => setEditExpenseGlId(e.target.value)} className="input-field w-full text-sm">
+                    <select value={editExpenseGlId} onChange={(e) => setEditExpenseGlId(e.target.value)} className="input-recessed w-full text-sm">
                       <option value="">Not assigned</option>
                       {editGlAccounts.filter(a => ['Expense', 'CostOfSales'].includes(a.account_type)).map(a => (
                         <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
@@ -1303,7 +1303,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit — Supplier Account)</label>
-                    <select value={editContraGlId} onChange={(e) => setEditContraGlId(e.target.value)} className="input-field w-full text-sm">
+                    <select value={editContraGlId} onChange={(e) => setEditContraGlId(e.target.value)} className="input-recessed w-full text-sm">
                       <option value="">Not assigned</option>
                       {editGlAccounts.filter(a => a.account_type === 'Liability').map(a => (
                         <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>

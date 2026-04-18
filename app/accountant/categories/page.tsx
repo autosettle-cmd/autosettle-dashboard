@@ -337,18 +337,18 @@ export default function CategoriesPage() {
                           <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
-                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-blue">Default</span></td>
                             <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
-                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-recessed w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
-                                <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-field w-full text-body-md">
+                                <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-recessed w-full text-body-md">
                                   <option value="">No GL assigned</option>
                                   {glAccounts.map((gl) => (
                                     <option key={gl.id} value={gl.id}>{gl.account_code} — {gl.name}</option>
@@ -421,18 +421,18 @@ export default function CategoriesPage() {
                           <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
-                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
                             <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
-                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-recessed w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
-                                <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-field w-full text-body-md">
+                                <select value={editGlAccountId} onChange={(e) => setEditGlAccountId(e.target.value)} className="input-recessed w-full text-body-md">
                                   <option value="">No GL assigned</option>
                                   {glAccounts.map((gl) => (
                                     <option key={gl.id} value={gl.id}>{gl.account_code} — {gl.name}</option>
@@ -533,7 +533,7 @@ export default function CategoriesPage() {
                   type="text"
                   value={modalName}
                   onChange={(e) => setModalName(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                   placeholder="Category name"
                   autoFocus
                 />
@@ -544,7 +544,7 @@ export default function CategoriesPage() {
                   type="text"
                   value={modalTaxCode}
                   onChange={(e) => setModalTaxCode(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                   placeholder="Optional"
                 />
               </div>
@@ -553,7 +553,7 @@ export default function CategoriesPage() {
                 <select
                   value={modalGlAccountId}
                   onChange={(e) => setModalGlAccountId(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                 >
                   <option value="">No GL assigned</option>
                   {glAccounts.map((gl) => (

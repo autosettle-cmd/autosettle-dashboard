@@ -1200,11 +1200,11 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               <div className="text-center text-sm text-[var(--text-secondary)] py-12">No invoices found for the selected filters.</div>
             ) : (
               <>
-                <table className="w-full">
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="bg-[var(--surface-header)] text-left">
+                    <tr className="ds-table-header text-left">
                       {config.showApproval && (
-                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-10"><input type="checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
+                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-10"><input type="checkbox" className="ds-table-checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
                       )}
                       <th className={`${config.showApproval ? 'px-3' : 'px-5'} py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none`} onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('vendor_name_raw')}>Vendor{sortIndicator('vendor_name_raw')}</th>
@@ -1226,11 +1226,11 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                       <tr
                         key={inv.id}
                         onClick={() => setPreviewInvoice(inv)}
-                        className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                        className={`ds-table-row text-body-sm cursor-pointer ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
                         {config.showApproval && (
                           <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
-                            <input type="checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
+                            <input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
                           </td>
                         )}
                         <td className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-[var(--text-secondary)] tabular-nums`}>{formatDateDot(inv.issue_date)}</td>
@@ -1300,7 +1300,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 {config.role === 'accountant' && config.firms && (
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Firm *</label>
-                    <select value={newInv.firm_id} onChange={(e) => setNewInv({ ...newInv, firm_id: e.target.value })} className="input-field w-full">
+                    <select value={newInv.firm_id} onChange={(e) => setNewInv({ ...newInv, firm_id: e.target.value })} className="input-recessed w-full">
                       <option value="">Select firm</option>
                       {config.firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
@@ -1319,7 +1319,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                     }}
                     onFocus={() => setVendorDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setVendorDropdownOpen(false), 150)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="Type or select existing supplier"
                     autoComplete="off"
                   />
@@ -1358,31 +1358,31 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Number</label>
-                  <input type="text" value={newInv.invoice_number} onChange={(e) => setNewInv({ ...newInv, invoice_number: e.target.value })} className="input-field w-full" placeholder="Optional" />
+                  <input type="text" value={newInv.invoice_number} onChange={(e) => setNewInv({ ...newInv, invoice_number: e.target.value })} className="input-recessed w-full" placeholder="Optional" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Issue Date *</label>
-                    <input type="date" value={newInv.issue_date} onChange={(e) => setNewInv({ ...newInv, issue_date: e.target.value })} className="input-field w-full" />
+                    <input type="date" value={newInv.issue_date} onChange={(e) => setNewInv({ ...newInv, issue_date: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
-                    <input type="date" value={newInv.due_date} onChange={(e) => setNewInv({ ...newInv, due_date: e.target.value })} className="input-field w-full" />
+                    <input type="date" value={newInv.due_date} onChange={(e) => setNewInv({ ...newInv, due_date: e.target.value })} className="input-recessed w-full" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total Amount (RM) *</label>
-                    <input type="number" step="0.01" value={newInv.total_amount} onChange={(e) => setNewInv({ ...newInv, total_amount: e.target.value })} className="input-field w-full tabular-nums" placeholder="0.00" />
+                    <input type="number" step="0.01" value={newInv.total_amount} onChange={(e) => setNewInv({ ...newInv, total_amount: e.target.value })} className="input-recessed w-full tabular-nums" placeholder="0.00" />
                     {parseFloat(newInv.total_amount) < 0 && (
                       <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 mt-1">Credit Note -- negative amount will offset against this supplier</p>
                     )}
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Payment Terms</label>
-                    <input type="text" value={newInv.payment_terms} onChange={(e) => setNewInv({ ...newInv, payment_terms: e.target.value })} className="input-field w-full" placeholder="e.g. Net 30" />
+                    <input type="text" value={newInv.payment_terms} onChange={(e) => setNewInv({ ...newInv, payment_terms: e.target.value })} className="input-recessed w-full" placeholder="e.g. Net 30" />
                   </div>
                 </div>
 
@@ -1423,7 +1423,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 {!config.showGlFields && (
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category *</label>
-                    <select value={newInv.category_id} onChange={(e) => setNewInv({ ...newInv, category_id: e.target.value })} className="input-field w-full">
+                    <select value={newInv.category_id} onChange={(e) => setNewInv({ ...newInv, category_id: e.target.value })} className="input-recessed w-full">
                       <option value="">Select category</option>
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -1435,7 +1435,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   <textarea
                     value={newInv.notes}
                     onChange={(e) => setNewInv({ ...newInv, notes: e.target.value })}
-                    className="input-field w-full text-sm"
+                    className="input-recessed w-full text-sm"
                     rows={2}
                     placeholder="Phone number, account details, service period, etc."
                   />
@@ -1456,7 +1456,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                         accept="image/*,application/pdf"
                         {...(config.role === 'accountant' ? { multiple: true } : {})}
                         onChange={handleInvFileChange}
-                        className="input-field w-full text-sm file:mr-3 file:py-1 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-[var(--surface-low)] file:text-[var(--text-secondary)] hover:file:bg-[var(--surface-header)]"
+                        className="input-recessed w-full text-sm file:mr-3 file:py-1 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-[var(--surface-low)] file:text-[var(--text-secondary)] hover:file:bg-[var(--surface-header)]"
                       />
                       {config.role === 'accountant' && (
                         <p className="text-xs text-[var(--text-secondary)] mt-1">Select multiple files to batch upload with auto OCR</p>
@@ -1562,38 +1562,38 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                     <div className="grid grid-cols-4 gap-2" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
-                        <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className="input-field w-full text-xs" />
+                        <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className="input-recessed w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice #</label>
-                        <input value={item.invoice_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, invoice_number: v } : it)); }} className="input-field w-full text-xs" />
+                        <input value={item.invoice_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, invoice_number: v } : it)); }} className="input-recessed w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</label>
-                        <input type="date" value={item.issue_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, issue_date: v } : it)); }} className="input-field w-full text-xs" />
+                        <input type="date" value={item.issue_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, issue_date: v } : it)); }} className="input-recessed w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</label>
-                        <input value={item.total_amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, total_amount: v } : it)); }} className="input-field w-full text-xs tabular-nums" />
+                        <input value={item.total_amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, total_amount: v } : it)); }} className="input-recessed w-full text-xs tabular-nums" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-                        <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-field w-full text-xs">
+                        <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-recessed w-full text-xs">
                           <option value="">Select...</option>
                           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
-                        <input type="date" value={item.due_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, due_date: v } : it)); }} className="input-field w-full text-xs" />
+                        <input type="date" value={item.due_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, due_date: v } : it)); }} className="input-recessed w-full text-xs" />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Terms</label>
-                        <input value={item.payment_terms} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, payment_terms: v } : it)); }} className="input-field w-full text-xs" />
+                        <input value={item.payment_terms} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, payment_terms: v } : it)); }} className="input-recessed w-full text-xs" />
                       </div>
                       <div className="col-span-4">
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes</label>
-                        <input value={item.notes} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, notes: v } : it)); }} className="input-field w-full text-xs" placeholder="Phone number, account details, etc." />
+                        <input value={item.notes} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, notes: v } : it)); }} className="input-recessed w-full text-xs" placeholder="Phone number, account details, etc." />
                       </div>
                     </div>
                   )}
@@ -1686,43 +1686,43 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
-                    <input type="text" value={editData.vendor_name_raw} onChange={(e) => setEditData({ ...editData, vendor_name_raw: e.target.value })} className="input-field w-full" />
+                    <input type="text" value={editData.vendor_name_raw} onChange={(e) => setEditData({ ...editData, vendor_name_raw: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Number</label>
-                    <input type="text" value={editData.invoice_number} onChange={(e) => setEditData({ ...editData, invoice_number: e.target.value })} className="input-field w-full" />
+                    <input type="text" value={editData.invoice_number} onChange={(e) => setEditData({ ...editData, invoice_number: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Issue Date</label>
-                      <input type="date" value={editData.issue_date} onChange={(e) => setEditData({ ...editData, issue_date: e.target.value })} className="input-field w-full" />
+                      <input type="date" value={editData.issue_date} onChange={(e) => setEditData({ ...editData, issue_date: e.target.value })} className="input-recessed w-full" />
                     </div>
                     <div>
                       <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
-                      <input type="date" value={editData.due_date} onChange={(e) => setEditData({ ...editData, due_date: e.target.value })} className="input-field w-full" />
+                      <input type="date" value={editData.due_date} onChange={(e) => setEditData({ ...editData, due_date: e.target.value })} className="input-recessed w-full" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Payment Terms</label>
-                    <input type="text" value={editData.payment_terms} onChange={(e) => setEditData({ ...editData, payment_terms: e.target.value })} className="input-field w-full" placeholder="e.g. Net 30" />
+                    <input type="text" value={editData.payment_terms} onChange={(e) => setEditData({ ...editData, payment_terms: e.target.value })} className="input-recessed w-full" placeholder="e.g. Net 30" />
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Subtotal</label>
-                      <input type="number" step="0.01" value={editData.subtotal} onChange={(e) => setEditData({ ...editData, subtotal: e.target.value })} className="input-field w-full tabular-nums" />
+                      <input type="number" step="0.01" value={editData.subtotal} onChange={(e) => setEditData({ ...editData, subtotal: e.target.value })} className="input-recessed w-full tabular-nums" />
                     </div>
                     <div>
                       <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Tax</label>
-                      <input type="number" step="0.01" value={editData.tax_amount} onChange={(e) => setEditData({ ...editData, tax_amount: e.target.value })} className="input-field w-full tabular-nums" />
+                      <input type="number" step="0.01" value={editData.tax_amount} onChange={(e) => setEditData({ ...editData, tax_amount: e.target.value })} className="input-recessed w-full tabular-nums" />
                     </div>
                     <div>
                       <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Total</label>
-                      <input type="number" step="0.01" value={editData.total_amount} onChange={(e) => setEditData({ ...editData, total_amount: e.target.value })} className="input-field w-full tabular-nums" />
+                      <input type="number" step="0.01" value={editData.total_amount} onChange={(e) => setEditData({ ...editData, total_amount: e.target.value })} className="input-recessed w-full tabular-nums" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-recessed w-full">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
@@ -1735,7 +1735,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                           value={newSupplierName}
                           onChange={(e) => setNewSupplierName(e.target.value)}
                           placeholder="New supplier name"
-                          className="input-field flex-1"
+                          className="input-recessed flex-1"
                           autoFocus
                         />
                         <button
@@ -1766,7 +1766,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                       </div>
                     ) : (
                       <>
-                        <select value={editData.supplier_id} onChange={(e) => setEditData({ ...editData, supplier_id: e.target.value })} className="input-field w-full">
+                        <select value={editData.supplier_id} onChange={(e) => setEditData({ ...editData, supplier_id: e.target.value })} className="input-recessed w-full">
                           <option value="">{config.role === 'accountant' ? '-- Not assigned --' : 'No supplier assigned'}</option>
                           {(config.role === 'accountant' ? suppliers.filter(s => s.firm_id === previewInvoice.firm_id) : suppliers).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                         </select>
@@ -1813,10 +1813,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   {/* Status row */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
-                      <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                      <span key={cfg!.label} className={`${cfg!.cls} inline-flex items-center gap-1`}>
+                        <span className={cfg!.label === 'Reviewed' || cfg!.label === 'Paid' ? 'led-green' : cfg!.label === 'Unpaid' ? 'led-off' : 'led-amber'} />
+                        {cfg!.label}
+                      </span>
                     ))}
                     {config.showApproval && APPROVAL_CFG[previewInvoice.approval] && (
-                      <span className={APPROVAL_CFG[previewInvoice.approval].cls}>
+                      <span className={`${APPROVAL_CFG[previewInvoice.approval].cls} inline-flex items-center gap-1`}>
+                        <span className={previewInvoice.approval === 'approved' ? 'led-green' : previewInvoice.approval === 'not_approved' ? 'led-red' : 'led-amber'} />
                         {APPROVAL_CFG[previewInvoice.approval].label}
                       </span>
                     )}
@@ -1874,7 +1878,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                           </button>
                         )}
                         <select
-                          className={`input-field text-xs ${config.showGlFields ? 'flex-1' : ''}`}
+                          className={`input-recessed text-xs ${config.showGlFields ? 'flex-1' : ''}`}
                           defaultValue=""
                           onChange={(e) => {
                             if (e.target.value === '__new__') {
@@ -1896,7 +1900,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                               value={newSupplierName}
                               onChange={(e) => setNewSupplierName(e.target.value)}
                               onKeyDown={(e) => { if (e.key === 'Enter') createAndAssignSupplier(); }}
-                              className="input-field flex-1 text-xs"
+                              className="input-recessed flex-1 text-xs"
                               placeholder="Supplier name"
                             />
                             <button onClick={createAndAssignSupplier} className={`${config.showGlFields ? 'btn-thick-green text-[10px] px-2.5 py-1' : 'btn-thick-green text-xs px-3 py-1.5 font-medium'}`}>
@@ -1924,9 +1928,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 </>
               )}
 
-            {/* GL Account Assignment (accountant only) */}
+            {/* GL Account Assignment (accountant only) — keywell container */}
             {config.showGlFields && !editMode && glAccounts.length > 0 && (
-              <div className="space-y-2 border-t border-[#E0E3E5] pt-3">
+              <div className="space-y-2 pt-3 mt-2 px-3 pb-3 keywell-rimmed">
                 {config.showLineItems && showLineItems ? (
                   /* Editing line items */
                   <div className="space-y-2">
@@ -1948,7 +1952,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                               value={line.description}
                               onChange={(e) => updateLineItem(i, 'description', e.target.value)}
                               placeholder="Description"
-                              className="input-field flex-1 text-sm"
+                              className="input-recessed flex-1 text-sm"
                             />
                             <button onClick={() => removeLineItem(i)} className="text-[var(--reject-red)] hover:opacity-70 px-1" title="Remove line">
                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
@@ -1963,7 +1967,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                                 value={line.unit_price}
                                 onChange={(e) => updateLineItem(i, 'unit_price', e.target.value)}
                                 placeholder="0.00"
-                                className="input-field w-full text-sm tabular-nums"
+                                className="input-recessed w-full text-sm tabular-nums"
                               />
                             </div>
                             <div>
@@ -1974,12 +1978,12 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                                 value={line.tax_amount}
                                 onChange={(e) => updateLineItem(i, 'tax_amount', e.target.value)}
                                 placeholder="0.00"
-                                className="input-field w-full text-sm tabular-nums"
+                                className="input-recessed w-full text-sm tabular-nums"
                               />
                             </div>
                             <div>
                               <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Line Total</label>
-                              <div className="input-field w-full text-sm tabular-nums bg-[var(--surface-base)] cursor-default">
+                              <div className="input-recessed w-full text-sm tabular-nums bg-[var(--surface-base)] cursor-default">
                                 {Number(line.line_total || 0).toFixed(2)}
                               </div>
                             </div>
@@ -2050,7 +2054,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   /* Single GL mode */
                   <>
                     <div>
-                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1 label-stamped">Expense GL (Debit)</label>
                       {previewInvoice.approval === 'approved' ? (
                         <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5]">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2085,7 +2089,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
                 {/* Contra GL */}
                 <div>
-                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1 label-stamped">Contra GL (Credit)</label>
                   {previewInvoice.approval === 'approved' ? (
                     <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[#E0E3E5]">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--match-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -2137,8 +2141,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 })()}
               </div>
 
-              {/* Action buttons */}
-              <div className="p-3 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5] space-y-1.5">
+              {/* Action buttons — keywell recessed container */}
+              <div className="p-3 flex-shrink-0 border-t border-[#E0E3E5] space-y-1.5 keywell-rimmed">
                 {editMode ? (
                   <div className="flex gap-2">
                     <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy flex-1 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
@@ -2373,7 +2377,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 onChange={(e) => setRejectModal((prev) => ({ ...prev, reason: e.target.value }))}
                 placeholder="Enter rejection reason..."
                 rows={3}
-                className="input-field w-full resize-none"
+                className="input-recessed w-full resize-none"
               />
             </div>
             <div className="flex gap-3 px-5 py-4 bg-[var(--surface-low)]">

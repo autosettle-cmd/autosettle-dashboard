@@ -615,28 +615,28 @@ export default function ChartOfAccountsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Trade Payables (invoices)</label>
-                  <select value={tradePayablesId} onChange={(e) => setTradePayablesId(e.target.value)} className="input-field w-full text-sm">
+                  <select value={tradePayablesId} onChange={(e) => setTradePayablesId(e.target.value)} className="input-recessed w-full text-sm">
                     <option value="">Not configured</option>
                     {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Staff Claims Payable (claims)</label>
-                  <select value={staffClaimsId} onChange={(e) => setStaffClaimsId(e.target.value)} className="input-field w-full text-sm">
+                  <select value={staffClaimsId} onChange={(e) => setStaffClaimsId(e.target.value)} className="input-recessed w-full text-sm">
                     <option value="">Not configured</option>
                     {liabilityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Trade Receivables (sales invoices)</label>
-                  <select value={tradeReceivablesId} onChange={(e) => setTradeReceivablesId(e.target.value)} className="input-field w-full text-sm">
+                  <select value={tradeReceivablesId} onChange={(e) => setTradeReceivablesId(e.target.value)} className="input-recessed w-full text-sm">
                     <option value="">Not configured</option>
                     {assetAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Retained Earnings (year-end close)</label>
-                  <select value={retainedEarningsId} onChange={(e) => setRetainedEarningsId(e.target.value)} className="input-field w-full text-sm">
+                  <select value={retainedEarningsId} onChange={(e) => setRetainedEarningsId(e.target.value)} className="input-recessed w-full text-sm">
                     <option value="">Not configured</option>
                     {equityAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>
@@ -816,11 +816,11 @@ export default function ChartOfAccountsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Account Code *</label>
-                    <input type="text" value={modalCode} onChange={(e) => setModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. 615-001" autoFocus />
+                    <input type="text" value={modalCode} onChange={(e) => setModalCode(e.target.value)} className="input-recessed w-full" placeholder="e.g. 615-001" autoFocus />
                   </div>
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Account Name *</label>
-                    <input type="text" value={modalName} onChange={(e) => setModalName(e.target.value)} className="input-field w-full" placeholder="e.g. Fuel Expenses" />
+                    <input type="text" value={modalName} onChange={(e) => setModalName(e.target.value)} className="input-recessed w-full" placeholder="e.g. Fuel Expenses" />
                   </div>
                 </div>
 
@@ -831,7 +831,7 @@ export default function ChartOfAccountsPage() {
                       setModalType(e.target.value);
                       if (['Asset', 'Expense'].includes(e.target.value)) setModalBalance('Debit');
                       else setModalBalance('Credit');
-                    }} className="input-field w-full">
+                    }} className="input-recessed w-full">
                       <option value="Asset">Asset</option>
                       <option value="Liability">Liability</option>
                       <option value="Equity">Equity</option>
@@ -841,7 +841,7 @@ export default function ChartOfAccountsPage() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Normal Balance</label>
-                    <select value={modalBalance} onChange={(e) => setModalBalance(e.target.value)} className="input-field w-full">
+                    <select value={modalBalance} onChange={(e) => setModalBalance(e.target.value)} className="input-recessed w-full">
                       <option value="Debit">Debit</option>
                       <option value="Credit">Credit</option>
                     </select>
@@ -850,7 +850,7 @@ export default function ChartOfAccountsPage() {
 
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Parent Account</label>
-                  <select value={modalParent} onChange={(e) => setModalParent(e.target.value)} className="input-field w-full">
+                  <select value={modalParent} onChange={(e) => setModalParent(e.target.value)} className="input-recessed w-full">
                     <option value="">None (Top Level)</option>
                     {accounts
                       .filter((a) => a.id !== editId)
@@ -862,7 +862,7 @@ export default function ChartOfAccountsPage() {
 
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description</label>
-                  <input type="text" value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" placeholder="Optional description" />
+                  <input type="text" value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-recessed w-full" placeholder="Optional description" />
                 </div>
               </div>
 
@@ -891,13 +891,13 @@ export default function ChartOfAccountsPage() {
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {taxModalError && <div className="bg-[var(--error-container)] p-3"><p className="text-sm text-[var(--on-error-container)]">{taxModalError}</p></div>}
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Code *</label><input type="text" value={taxModalCode} onChange={(e) => setTaxModalCode(e.target.value)} className="input-field w-full" placeholder="e.g. SR-6" autoFocus /></div>
-                  <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Rate (%)</label><input type="number" value={taxModalRate} onChange={(e) => setTaxModalRate(e.target.value)} className="input-field w-full" step="0.01" min="0" max="100" /></div>
+                  <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Code *</label><input type="text" value={taxModalCode} onChange={(e) => setTaxModalCode(e.target.value)} className="input-recessed w-full" placeholder="e.g. SR-6" autoFocus /></div>
+                  <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Rate (%)</label><input type="number" value={taxModalRate} onChange={(e) => setTaxModalRate(e.target.value)} className="input-recessed w-full" step="0.01" min="0" max="100" /></div>
                 </div>
-                <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description *</label><input type="text" value={taxModalDesc} onChange={(e) => setTaxModalDesc(e.target.value)} className="input-field w-full" placeholder="e.g. Standard Rate SST 6%" /></div>
+                <div><label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description *</label><input type="text" value={taxModalDesc} onChange={(e) => setTaxModalDesc(e.target.value)} className="input-recessed w-full" placeholder="e.g. Standard Rate SST 6%" /></div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Tax Type *</label>
-                  <select value={taxModalType} onChange={(e) => setTaxModalType(e.target.value)} className="input-field w-full">
+                  <select value={taxModalType} onChange={(e) => setTaxModalType(e.target.value)} className="input-recessed w-full">
                     <option value="">Select type</option>
                     <option value="SST">SST</option>
                     <option value="Service Tax">Service Tax</option>
@@ -908,7 +908,7 @@ export default function ChartOfAccountsPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">GL Account (Tax Payable/Receivable)</label>
-                  <select value={taxModalGlId} onChange={(e) => setTaxModalGlId(e.target.value)} className="input-field w-full">
+                  <select value={taxModalGlId} onChange={(e) => setTaxModalGlId(e.target.value)} className="input-recessed w-full">
                     <option value="">None</option>
                     {taxGlAccounts.map((a) => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
                   </select>

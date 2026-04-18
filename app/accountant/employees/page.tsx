@@ -640,23 +640,23 @@ export default function PeoplePage() {
 
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Full Name *</label>
-                <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
+                <input type="text" value={adminName} onChange={(e) => setAdminName(e.target.value)} className="input-recessed w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email *</label>
-                <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
+                <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} className="input-recessed w-full" placeholder="admin@example.com" />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Phone</label>
-                <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                <input type="text" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Temporary Password *</label>
-                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-field w-full" placeholder="Min 8 characters" />
+                <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} className="input-recessed w-full" placeholder="Min 8 characters" />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Firm *</label>
-                <select value={adminFirmId} onChange={(e) => setAdminFirmId(e.target.value)} className="input-field w-full">
+                <select value={adminFirmId} onChange={(e) => setAdminFirmId(e.target.value)} className="input-recessed w-full">
                   <option value="">Select a firm</option>
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
@@ -693,19 +693,19 @@ export default function PeoplePage() {
 
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
-                <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
+                <input type="text" value={empName} onChange={(e) => setEmpName(e.target.value)} className="input-recessed w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Phone *</label>
-                <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
+                <input type="text" value={empPhone} onChange={(e) => setEmpPhone(e.target.value)} className="input-recessed w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email</label>
-                <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                <input type="email" value={empEmail} onChange={(e) => setEmpEmail(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Firm *</label>
-                <select value={empFirmId} onChange={(e) => setEmpFirmId(e.target.value)} className="input-field w-full">
+                <select value={empFirmId} onChange={(e) => setEmpFirmId(e.target.value)} className="input-recessed w-full">
                   <option value="">Select a firm</option>
                   {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
@@ -743,15 +743,15 @@ export default function PeoplePage() {
               )}
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
-                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" placeholder="Employee name" autoFocus />
+                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full" placeholder="Employee name" autoFocus />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Phone *</label>
-                <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="e.g. +60123456789" />
+                <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-recessed w-full" placeholder="e.g. +60123456789" />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email</label>
-                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
               </div>
             </div>
 
@@ -786,11 +786,11 @@ export default function PeoplePage() {
               )}
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Name *</label>
-                <input type="text" value={editAdminName} onChange={(e) => setEditAdminName(e.target.value)} className="input-field w-full" placeholder="Admin name" autoFocus />
+                <input type="text" value={editAdminName} onChange={(e) => setEditAdminName(e.target.value)} className="input-recessed w-full" placeholder="Admin name" autoFocus />
               </div>
               <div>
                 <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email *</label>
-                <input type="email" value={editAdminEmail} onChange={(e) => setEditAdminEmail(e.target.value)} className="input-field w-full" placeholder="admin@example.com" />
+                <input type="email" value={editAdminEmail} onChange={(e) => setEditAdminEmail(e.target.value)} className="input-recessed w-full" placeholder="admin@example.com" />
               </div>
             </div>
 

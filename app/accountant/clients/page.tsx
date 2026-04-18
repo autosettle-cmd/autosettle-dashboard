@@ -315,23 +315,23 @@ export default function ClientsPage() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Firm Name *</label>
-                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full" />
+                  <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Registration Number</label>
-                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Email</label>
-                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Phone</label>
-                  <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="text" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Plan</label>
-                  <select value={editPlan} onChange={(e) => setEditPlan(e.target.value)} className="input-field w-full">
+                  <select value={editPlan} onChange={(e) => setEditPlan(e.target.value)} className="input-recessed w-full">
                     <option value="free">Free</option>
                     <option value="paid">Paid</option>
                   </select>
@@ -345,21 +345,21 @@ export default function ClientsPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">TIN</label>
-                      <input type="text" value={editTin} onChange={(e) => setEditTin(e.target.value)} className="input-field w-full" placeholder="Tax ID Number" />
+                      <input type="text" value={editTin} onChange={(e) => setEditTin(e.target.value)} className="input-recessed w-full" placeholder="Tax ID Number" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">BRN</label>
-                      <input type="text" value={editBrn} onChange={(e) => setEditBrn(e.target.value)} className="input-field w-full" placeholder="Business Reg No" />
+                      <input type="text" value={editBrn} onChange={(e) => setEditBrn(e.target.value)} className="input-recessed w-full" placeholder="Business Reg No" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">MSIC Code</label>
-                      <input type="text" value={editMsic} onChange={(e) => setEditMsic(e.target.value)} className="input-field w-full" placeholder="5-digit code" />
+                      <input type="text" value={editMsic} onChange={(e) => setEditMsic(e.target.value)} className="input-recessed w-full" placeholder="5-digit code" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">SST Registration</label>
-                      <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                      <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                     </div>
                   </div>
                 </div>
@@ -371,30 +371,30 @@ export default function ClientsPage() {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Address Line 1</label>
-                    <input type="text" value={editAddr1} onChange={(e) => setEditAddr1(e.target.value)} className="input-field w-full" placeholder="Street address" />
+                    <input type="text" value={editAddr1} onChange={(e) => setEditAddr1(e.target.value)} className="input-recessed w-full" placeholder="Street address" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Address Line 2</label>
-                    <input type="text" value={editAddr2} onChange={(e) => setEditAddr2(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                    <input type="text" value={editAddr2} onChange={(e) => setEditAddr2(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">City</label>
-                      <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} className="input-field w-full" />
+                      <input type="text" value={editCity} onChange={(e) => setEditCity(e.target.value)} className="input-recessed w-full" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Postal Code</label>
-                      <input type="text" value={editPostal} onChange={(e) => setEditPostal(e.target.value)} className="input-field w-full" />
+                      <input type="text" value={editPostal} onChange={(e) => setEditPostal(e.target.value)} className="input-recessed w-full" />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">State</label>
-                      <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} className="input-field w-full" />
+                      <input type="text" value={editState} onChange={(e) => setEditState(e.target.value)} className="input-recessed w-full" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Country</label>
-                      <input type="text" value={editCountry} onChange={(e) => setEditCountry(e.target.value)} className="input-field w-full" placeholder="MYS" />
+                      <input type="text" value={editCountry} onChange={(e) => setEditCountry(e.target.value)} className="input-recessed w-full" placeholder="MYS" />
                     </div>
                   </div>
                 </div>
@@ -407,11 +407,11 @@ export default function ClientsPage() {
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Client ID</label>
-                    <input type="text" value={editLhdnId} onChange={(e) => setEditLhdnId(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                    <input type="text" value={editLhdnId} onChange={(e) => setEditLhdnId(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Client Secret</label>
-                    <input type="password" value={editLhdnSecret} onChange={(e) => setEditLhdnSecret(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                    <input type="password" value={editLhdnSecret} onChange={(e) => setEditLhdnSecret(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                   </div>
                 </div>
               </div>
@@ -459,7 +459,7 @@ export default function ClientsPage() {
                   type="text"
                   value={modalName}
                   onChange={(e) => setModalName(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                   placeholder="Firm name"
                   autoFocus
                 />
@@ -470,7 +470,7 @@ export default function ClientsPage() {
                   type="text"
                   value={modalRegNumber}
                   onChange={(e) => setModalRegNumber(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                   placeholder="Optional"
                 />
               </div>
@@ -480,7 +480,7 @@ export default function ClientsPage() {
                   type="email"
                   value={modalEmail}
                   onChange={(e) => setModalEmail(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                   placeholder="Optional"
                 />
               </div>
@@ -490,7 +490,7 @@ export default function ClientsPage() {
                   type="text"
                   value={modalPhone}
                   onChange={(e) => setModalPhone(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                   placeholder="Optional"
                 />
               </div>
@@ -499,7 +499,7 @@ export default function ClientsPage() {
                 <select
                   value={modalPlan}
                   onChange={(e) => setModalPlan(e.target.value)}
-                  className="input-field w-full"
+                  className="input-recessed w-full"
                 >
                   <option value="free">Free</option>
                   <option value="paid">Paid</option>

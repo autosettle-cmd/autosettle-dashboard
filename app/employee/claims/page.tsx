@@ -692,7 +692,7 @@ export default function EmployeeClaimsPage() {
                     type="date"
                     value={modalDate}
                     onChange={(e) => setModalDate(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     required
                   />
                 </div>
@@ -705,7 +705,7 @@ export default function EmployeeClaimsPage() {
                         type="text"
                         value={mileageFrom}
                         onChange={(e) => setMileageFrom(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="e.g. PJ Office"
                         autoFocus
                       />
@@ -716,7 +716,7 @@ export default function EmployeeClaimsPage() {
                         type="text"
                         value={mileageTo}
                         onChange={(e) => setMileageTo(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="e.g. Shah Alam client office"
                       />
                     </div>
@@ -726,7 +726,7 @@ export default function EmployeeClaimsPage() {
                         type="number"
                         value={mileageDistance}
                         onChange={(e) => setMileageDistance(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="e.g. 25"
                         step="0.1"
                         min="0"
@@ -738,7 +738,7 @@ export default function EmployeeClaimsPage() {
                         type="text"
                         value={mileagePurpose}
                         onChange={(e) => setMileagePurpose(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="e.g. Client meeting with ABC Sdn Bhd"
                       />
                     </div>
@@ -761,7 +761,7 @@ export default function EmployeeClaimsPage() {
                         type="text"
                         value={modalMerchant}
                         onChange={(e) => setModalMerchant(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="e.g. Petronas, Grab, etc."
                         autoFocus
                       />
@@ -772,7 +772,7 @@ export default function EmployeeClaimsPage() {
                         type="number"
                         value={modalAmount}
                         onChange={(e) => setModalAmount(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="0.00"
                         step="0.01"
                         min="0"
@@ -783,7 +783,7 @@ export default function EmployeeClaimsPage() {
                       <select
                         value={modalCategory}
                         onChange={(e) => setModalCategory(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                       >
                         <option value="">Select a category</option>
                         {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
@@ -795,7 +795,7 @@ export default function EmployeeClaimsPage() {
                         type="text"
                         value={modalReceipt}
                         onChange={(e) => setModalReceipt(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         placeholder="Optional"
                       />
                     </div>
@@ -804,7 +804,7 @@ export default function EmployeeClaimsPage() {
                       <textarea
                         value={modalDesc}
                         onChange={(e) => setModalDesc(e.target.value)}
-                        className="input-field w-full"
+                        className="input-recessed w-full"
                         rows={2}
                         placeholder="Optional"
                       />
@@ -948,30 +948,30 @@ export default function EmployeeClaimsPage() {
                   <div className="grid grid-cols-2 gap-3" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Date</label>
-                      <input type="date" value={item.claim_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, claim_date: v } : it)); }} className="input-field w-full text-sm" />
+                      <input type="date" value={item.claim_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, claim_date: v } : it)); }} className="input-recessed w-full text-sm" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Amount (RM)</label>
-                      <input type="number" step="0.01" value={item.amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, amount: v } : it)); }} className="input-field w-full text-sm" />
+                      <input type="number" step="0.01" value={item.amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, amount: v } : it)); }} className="input-recessed w-full text-sm" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Merchant</label>
-                      <input type="text" value={item.merchant} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, merchant: v } : it)); }} className="input-field w-full text-sm" />
+                      <input type="text" value={item.merchant} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, merchant: v } : it)); }} className="input-recessed w-full text-sm" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Category</label>
-                      <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-field w-full text-sm">
+                      <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-recessed w-full text-sm">
                         <option value="">Select</option>
                         {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt No.</label>
-                      <input type="text" value={item.receipt_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, receipt_number: v } : it)); }} className="input-field w-full text-sm" />
+                      <input type="text" value={item.receipt_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, receipt_number: v } : it)); }} className="input-recessed w-full text-sm" />
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Description</label>
-                      <input type="text" value={item.description} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, description: v } : it)); }} className="input-field w-full text-sm" placeholder="Optional" />
+                      <input type="text" value={item.description} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, description: v } : it)); }} className="input-recessed w-full text-sm" placeholder="Optional" />
                     </div>
                   </div>
                 </div>
@@ -1112,29 +1112,29 @@ export default function EmployeeClaimsPage() {
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Date</dt>
-                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Merchant</dt>
-                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Amount (RM)</dt>
-                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Category</dt>
-                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full mt-0.5">
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-recessed w-full mt-0.5">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Receipt No.</dt>
-                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Description</dt>
-                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div className="flex items-start gap-2.5 bg-[#FFF3E0] px-4 py-3 inset-shadow">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E65100" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">

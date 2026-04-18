@@ -246,7 +246,7 @@ export default function AdminsPage() {
                     type="text"
                     value={modalName}
                     onChange={(e) => setModalName(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="Admin name"
                     autoFocus
                   />
@@ -257,7 +257,7 @@ export default function AdminsPage() {
                     type="email"
                     value={modalEmail}
                     onChange={(e) => setModalEmail(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="admin@example.com"
                   />
                 </div>
@@ -267,7 +267,7 @@ export default function AdminsPage() {
                     type="text"
                     value={modalPhone}
                     onChange={(e) => setModalPhone(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="e.g. +60123456789"
                   />
                 </div>
@@ -277,7 +277,7 @@ export default function AdminsPage() {
                     type="password"
                     value={modalPassword}
                     onChange={(e) => setModalPassword(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="Min 8 characters"
                   />
                 </div>

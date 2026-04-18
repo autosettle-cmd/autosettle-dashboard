@@ -187,7 +187,11 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     <aside
       className="w-52 flex-shrink-0 flex flex-col bg-[#234B6E] relative"
       style={{
-        boxShadow: '4px 0 16px rgba(35,75,110,0.3), 10px 0 32px rgba(35,75,110,0.12), 18px 0 48px rgba(35,75,110,0.05)',
+        /* Slab sitting ON TOP — casts shadow right onto the milled well */
+        boxShadow: '10px 0 20px -5px rgba(0,0,0,0.15), 4px 0 8px -2px rgba(0,0,0,0.1)',
+        /* Leading edge highlight — slab corner catching overhead light */
+        borderRight: '1px solid rgba(255,255,255,0.15)',
+        zIndex: 10,
       }}
     >
       {/* Logo + Brand */}

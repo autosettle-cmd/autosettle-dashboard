@@ -463,7 +463,7 @@ export default function AccountantBankReconciliationPage() {
                   {!isSingleFirm && (
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Client Firm</label>
-                    <select value={uploadFirmId} onChange={(e) => setUploadFirmId(e.target.value)} className="input-field w-full text-body-md">
+                    <select value={uploadFirmId} onChange={(e) => setUploadFirmId(e.target.value)} className="input-recessed w-full text-body-md">
                       <option value="">Select firm...</option>
                       {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                     </select>
@@ -471,12 +471,12 @@ export default function AccountantBankReconciliationPage() {
                   )}
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">PDF File</label>
-                    <input ref={fileRef} type="file" accept=".pdf" multiple className="input-field w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); setBatchProgress(null); }} />
+                    <input ref={fileRef} type="file" accept=".pdf" multiple className="input-recessed w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); setBatchProgress(null); }} />
                   </div>
                   {needsPassword && (
                     <div>
                       <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">PDF Password</label>
-                      <input type="password" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} placeholder="Enter PDF password" className="input-field w-full text-body-md" autoFocus />
+                      <input type="password" value={pdfPassword} onChange={(e) => setPdfPassword(e.target.value)} placeholder="Enter PDF password" className="input-recessed w-full text-body-md" autoFocus />
                     </div>
                   )}
                   {uploadError && <p className="text-body-sm text-[var(--reject-red)]">{uploadError}</p>}

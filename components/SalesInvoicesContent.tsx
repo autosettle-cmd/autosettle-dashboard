@@ -540,7 +540,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                   <select
                     value={createData.supplier_id}
                     onChange={(e) => setCreateData({ ...createData, supplier_id: e.target.value })}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                   >
                     <option value="">Select buyer</option>
                     {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -550,7 +550,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       type="text"
                       value={newBuyerName}
                       onChange={(e) => setNewBuyerName(e.target.value)}
-                      className="input-field flex-1 text-body-sm"
+                      className="input-recessed flex-1 text-body-sm"
                       placeholder="Or type new buyer name..."
                     />
                     <button
@@ -588,7 +588,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     type="text"
                     value={createData.invoice_number}
                     onChange={(e) => setCreateData({ ...createData, invoice_number: e.target.value })}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="e.g. SI-2026-001"
                   />
                 </div>
@@ -600,7 +600,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       type="date"
                       value={createData.issue_date}
                       onChange={(e) => setCreateData({ ...createData, issue_date: e.target.value })}
-                      className="input-field w-full"
+                      className="input-recessed w-full"
                     />
                   </div>
                   <div>
@@ -609,7 +609,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       type="date"
                       value={createData.due_date}
                       onChange={(e) => setCreateData({ ...createData, due_date: e.target.value })}
-                      className="input-field w-full"
+                      className="input-recessed w-full"
                     />
                   </div>
                 </div>
@@ -619,7 +619,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                   <textarea
                     value={createData.notes}
                     onChange={(e) => setCreateData({ ...createData, notes: e.target.value })}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     rows={2}
                     placeholder="Optional notes"
                   />
@@ -629,7 +629,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 {role === 'admin' && createCategories.length > 0 && (
                   <div>
                     <label className="input-label">Category</label>
-                    <select value={createCategoryId} onChange={(e) => setCreateCategoryId(e.target.value)} className="input-field w-full">
+                    <select value={createCategoryId} onChange={(e) => setCreateCategoryId(e.target.value)} className="input-recessed w-full">
                       <option value="">Select category</option>
                       {createCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -695,7 +695,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                             placeholder="Description"
                             value={li.description}
                             onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
-                            className="input-field w-full text-sm"
+                            className="input-recessed w-full text-sm"
                           />
                           <div className="grid grid-cols-3 gap-2">
                             <div>
@@ -706,7 +706,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                                 min="1"
                                 value={li.quantity}
                                 onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)}
-                                className="input-field w-full text-sm"
+                                className="input-recessed w-full text-sm"
                               />
                             </div>
                             <div>
@@ -716,7 +716,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                                 step="0.01"
                                 value={li.unit_price}
                                 onChange={(e) => updateLineItem(idx, 'unit_price', e.target.value)}
-                                className="input-field w-full text-sm"
+                                className="input-recessed w-full text-sm"
                                 placeholder="0.00"
                               />
                             </div>
@@ -727,7 +727,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                                 step="0.01"
                                 value={li.tax_rate}
                                 onChange={(e) => updateLineItem(idx, 'tax_rate', e.target.value)}
-                                className="input-field w-full text-sm"
+                                className="input-recessed w-full text-sm"
                                 placeholder="0"
                               />
                             </div>

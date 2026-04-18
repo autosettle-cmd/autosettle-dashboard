@@ -87,6 +87,10 @@ interface InvoiceRow {
   thumbnail_url: string | null;
   file_url: string | null;
   gl_account_id: string | null;
+  contra_gl_account_id: string | null;
+  supplier_id: string | null;
+  supplier_default_gl_id: string | null;
+  supplier_default_contra_gl_id: string | null;
 }
 
 interface EditData {
@@ -237,25 +241,54 @@ export default function AccountantDashboard() {
     }
   }, [previewClaim]);
 
-  // Fetch GL accounts when invoice preview opens
+  // Fetch GL accounts when invoice preview opens — full resolution chain
   useEffect(() => {
     if (previewInvoice) {
+      const aliasPromise = previewInvoice.vendor_name_raw
+        ? fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw)}&firmId=${previewInvoice.firm_id}`).then(r => r.json()).catch(() => ({ data: null }))
+        : Promise.resolve({ data: null });
+
       Promise.all([
         fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
         fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
         fetch(`/api/accounting-settings?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
-      ]).then(([glJson, catJson, settingsJson]) => {
+        aliasPromise,
+      ]).then(([glJson, catJson, settingsJson, aliasJson]) => {
         const accounts = glJson.data ?? [];
         setGlAccounts(accounts);
+        const aliasGl = aliasJson.data?.default_gl_account_id || '';
+        const aliasContraGl = aliasJson.data?.default_contra_gl_account_id || '';
+
+        // Expense GL: invoice → supplier default → alias match → category → empty
         if (previewInvoice.gl_account_id) {
           setSelectedGlAccountId(previewInvoice.gl_account_id);
+        } else if (previewInvoice.supplier_default_gl_id) {
+          setSelectedGlAccountId(previewInvoice.supplier_default_gl_id);
+        } else if (aliasGl) {
+          setSelectedGlAccountId(aliasGl);
         } else {
           const catData = catJson.data ?? [];
           const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
           setSelectedGlAccountId(match?.gl_account_id ?? '');
         }
-        const contraId = settingsJson.data?.default_trade_payables_gl_id ?? '';
-        setDefaultContraGlId(contraId);
+
+        // Contra GL: invoice → supplier default → alias match → vendor-name fuzzy match → firm default
+        const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || settingsJson.data?.default_trade_payables_gl_id || '';
+        let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
+
+        // Fuzzy match: vendor name against Liability GL account names
+        if (!resolvedContra) {
+          const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const liabilityGls = accounts.filter((g: { account_type: string }) => g.account_type === 'Liability');
+          const nameMatch = liabilityGls.find((g: { name: string }) => {
+            const glLower = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return glLower.length > 2 && (vendorLower.includes(glLower) || glLower.includes(vendorLower));
+          });
+          if (nameMatch) resolvedContra = nameMatch.id;
+        }
+
+        const contraId = resolvedContra || firmDefaultContra;
+        setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || aliasContraGl || firmDefaultContra);
         setSelectedContraGlId(contraId);
       }).catch(console.error);
     } else if (!previewClaim) {
@@ -432,17 +465,13 @@ export default function AccountantDashboard() {
                   <button
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
-                    className={`px-5 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+                    className={`relative px-3 py-1.5 text-label-sm font-bold uppercase tracking-wider transition-colors ${
                       activeTab === key ? 'btn-thick-navy' : 'btn-thick-white'
                     }`}
                   >
                     {label}
                     {count > 0 && (
-                      <span className={`ml-1.5 px-1.5 py-0.5 text-[10px] font-bold ${
-                        activeTab === key ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {count}
-                      </span>
+                      <span className="notification-badge">{count}</span>
                     )}
                   </button>
                 ))}
@@ -591,55 +620,51 @@ export default function AccountantDashboard() {
       </div>
 
       {/* ═══ CLAIM PREVIEW PANEL ═══ */}
-      {previewClaim && (
+      {previewClaim && (() => {
+        const claimDriveMatch = previewClaim.file_url?.match(/\/d\/([^/]+)/);
+        const claimFileId = claimDriveMatch?.[1];
+        return (
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[#234B6E]">
-              <h2 className="text-white font-bold text-sm uppercase tracking-wider">Claim Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {previewClaim.thumbnail_url ? (
-                previewClaim.file_url ? (
-                  <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
-                  </a>
-                ) : (
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-gray-200" />
-                )
-              ) : (
-                <div className="w-full h-40 border border-gray-200 bg-gray-50 flex items-center justify-center text-[#444650] text-sm">No image available</div>
-              )}
+
+            {/* Two-panel body */}
+            <div className="flex-1 flex min-h-0">
+              {/* Left panel — details */}
+              <div className="w-2/5 flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
 
               {editMode && editData ? (
                 <div className="space-y-3">
                   <div>
                     <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Date</label>
-                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full" />
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Merchant</label>
-                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full" />
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Amount (RM)</label>
-                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full" />
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Category</label>
-                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-recessed w-full">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Receipt Number</label>
-                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full" />
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Description</label>
-                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-3 py-2">
@@ -675,271 +700,301 @@ export default function AccountantDashboard() {
                       <p className="text-sm text-red-700">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
-                  {previewClaim.file_url && (
-                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#234B6E] font-bold hover:opacity-80 block">
-                      View full document &rarr;
-                    </a>
-                  )}
                 </>
               )}
-            </div>
 
-            {/* GL Account Assignment */}
-            {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
-              <div className="px-5 pb-2 space-y-2">
-                <div>
-                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
-                  {previewClaim.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{previewClaim.gl_account_label ?? 'Not assigned'}</span>
+              {/* GL Account Assignment */}
+              {!editMode && previewClaim.approval !== 'not_approved' && glAccounts.length > 0 && (
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
+                    {previewClaim.approval === 'approved' ? (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[var(--surface-header)]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                        </svg>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{previewClaim.gl_account_label ?? 'Not assigned'}</span>
+                      </div>
+                    ) : (
+                      <GlAccountSelect
+                        value={selectedGlAccountId}
+                        onChange={setSelectedGlAccountId}
+                        accounts={glAccounts}
+                        firmId={previewClaim.firm_id}
+                        placeholder="Select GL Account"
+                        preferredType="Expense"
+                        defaultType="Expense"
+                        onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
+                    {previewClaim.approval === 'approved' ? (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[var(--surface-header)]">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                        </svg>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                      </div>
+                    ) : (
+                      <GlAccountSelect
+                        value={selectedContraGlId}
+                        onChange={setSelectedContraGlId}
+                        accounts={glAccounts}
+                        firmId={previewClaim.firm_id}
+                        placeholder="Select Contra GL Account"
+                        preferredType="Liability"
+                        defaultType="Liability"
+                        defaultBalance="Credit"
+                        onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+              </div>{/* close left panel */}
+
+              {/* Right panel — document preview + actions */}
+              <div className="w-3/5 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
+                  {claimFileId ? (
+                    <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-full min-h-[400px]" title="Document Preview" allow="autoplay" />
+                  ) : previewClaim.thumbnail_url ? (
+                    <div className="flex items-center justify-center h-full p-5">
+                      {previewClaim.file_url ? (
+                        <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                          <img src={previewClaim.thumbnail_url} alt="Receipt" className="max-w-full max-h-[60vh] object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                        </a>
+                      ) : (
+                        <img src={previewClaim.thumbnail_url} alt="Receipt" className="max-w-full max-h-[60vh] object-contain" />
+                      )}
                     </div>
                   ) : (
-                    <GlAccountSelect
-                      value={selectedGlAccountId}
-                      onChange={setSelectedGlAccountId}
-                      accounts={glAccounts}
-                      firmId={previewClaim.firm_id}
-                      placeholder="Select GL Account"
-                      preferredType="Expense"
-                      defaultType="Expense"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
+                    <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">No document available</div>
                   )}
                 </div>
-                <div>
-                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
-                  {previewClaim.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
-                    </div>
+
+                {/* Action buttons */}
+                <div className="flex-shrink-0 p-4 flex gap-3 bg-[var(--surface-low)]">
+                  {editMode ? (
+                    <>
+                      <button onClick={saveClaimEdit} disabled={editSaving} className="btn-thick-navy flex-1 px-5 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                        {editSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 px-5 py-2.5 text-sm font-semibold">
+                        Cancel
+                      </button>
+                    </>
                   ) : (
-                    <GlAccountSelect
-                      value={selectedContraGlId}
-                      onChange={setSelectedContraGlId}
-                      accounts={glAccounts}
-                      firmId={previewClaim.firm_id}
-                      placeholder="Select Contra GL Account"
-                      preferredType="Liability"
-                      defaultType="Liability"
-                      defaultBalance="Credit"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditMode(true);
+                          setEditData({
+                            claim_date: previewClaim.claim_date.split('T')[0],
+                            merchant: previewClaim.merchant,
+                            amount: previewClaim.amount,
+                            category_id: previewClaim.category_id,
+                            receipt_number: previewClaim.receipt_number ?? '',
+                            description: previewClaim.description ?? '',
+                          });
+                        }}
+                        className="btn-thick-navy px-5 py-2.5 text-sm font-semibold"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => approveClaim(previewClaim.id, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
+                        disabled={previewClaim.approval === 'approved'}
+                        className="btn-thick-green flex-1 px-5 py-2.5 text-sm"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => rejectClaim(previewClaim.id)}
+                        disabled={previewClaim.approval === 'not_approved'}
+                        className="btn-thick-red flex-1 px-5 py-2.5 text-sm"
+                      >
+                        Reject
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
-            )}
-
-            <div className="p-4 flex-shrink-0 flex gap-3 bg-[#F2F4F6]">
-              {editMode ? (
-                <>
-                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-opacity">
-                    {editSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold transition-colors">
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setEditMode(true);
-                      setEditData({
-                        claim_date: previewClaim.claim_date.split('T')[0],
-                        merchant: previewClaim.merchant,
-                        amount: previewClaim.amount,
-                        category_id: previewClaim.category_id,
-                        receipt_number: previewClaim.receipt_number ?? '',
-                        description: previewClaim.description ?? '',
-                      });
-                    }}
-                    className="btn-thick-navy px-5 py-3 text-sm font-semibold transition-opacity"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => approveClaim(previewClaim.id, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                    disabled={previewClaim.approval === 'approved'}
-                    className="btn-thick-green flex-1 px-5 py-3 text-sm"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    onClick={() => rejectClaim(previewClaim.id)}
-                    disabled={previewClaim.approval === 'not_approved'}
-                    className="btn-thick-red flex-1 px-5 py-3 text-sm"
-                  >
-                    Reject
-                  </button>
-                </>
-              )}
-            </div>
+            </div>{/* close two-panel body */}
           </div>
           </div>
         </>
-      )}
+        );
+      })()}
 
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
-      {previewInvoice && (
+      {previewInvoice && (() => {
+        const driveMatch = previewInvoice.file_url?.match(/\/d\/([^/]+)/);
+        const fileId = driveMatch?.[1];
+        return (
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[#234B6E]">
-              <h2 className="text-white font-bold text-sm uppercase tracking-wider">Invoice Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {previewInvoice.thumbnail_url ? (
-                previewInvoice.file_url ? (
-                  <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
-                  </a>
-                ) : (
-                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain border border-gray-200" />
-                )
-              ) : (
-                <div className="w-full h-40 border border-gray-200 bg-gray-50 flex items-center justify-center text-[#444650] text-sm">No image available</div>
-              )}
-              <dl className="space-y-3">
-                <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
-                <Field label="Invoice No."   value={previewInvoice.invoice_number} />
-                <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
-                <Field label="Due Date"      value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
-                <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
-                <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
-                <Field label="Category"      value={previewInvoice.category_name} />
-              </dl>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
-                  <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
-                ))}
-              </div>
-              {/* Supplier link */}
-              <div className="bg-gray-50 p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Supplier</span>
-                  {(() => {
-                    const cfg = LINK_CFG[previewInvoice.supplier_link_status];
-                    return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
-                  })()}
-                </div>
-                <p className="text-sm font-medium text-[#191C1E]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
-              </div>
-              {previewInvoice.file_url && (
-                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#234B6E] font-bold hover:opacity-80 block">
-                  View full document &rarr;
-                </a>
-              )}
-            </div>
 
-            {/* GL Account Assignment */}
-            {glAccounts.length > 0 && previewInvoice.approval !== 'not_approved' && (
-              <div className="px-5 pb-2 space-y-2">
-                <div>
-                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
-                  {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedGlAccountId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedGlAccountId)?.name ?? 'Not assigned'}</span>
-                    </div>
-                  ) : (
-                    <GlAccountSelect
-                      value={selectedGlAccountId}
-                      onChange={setSelectedGlAccountId}
-                      accounts={glAccounts}
-                      firmId={previewInvoice.firm_id}
-                      placeholder="Select GL Account"
-                      preferredType="Expense"
-                      defaultType="Expense"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  )}
+            {/* Two-panel body */}
+            <div className="flex-1 flex min-h-0">
+              {/* Left panel — details */}
+              <div className="w-2/5 flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
+                <dl className="grid grid-cols-2 gap-3">
+                  <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
+                  <Field label="Invoice No."   value={previewInvoice.invoice_number} />
+                  <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
+                  <Field label="Due Date"      value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
+                  <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
+                  <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
+                  <Field label="Category"      value={previewInvoice.category_name} />
+                </dl>
+                <div className="flex flex-wrap gap-2">
+                  {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
+                    <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                  ))}
                 </div>
-                <div>
-                  <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
-                  {previewInvoice.approval === 'approved' ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-[#F5F6F8] border border-gray-200">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                      <span className="text-sm font-medium text-[#191C1E]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
-                    </div>
-                  ) : (
-                    <GlAccountSelect
-                      value={selectedContraGlId}
-                      onChange={setSelectedContraGlId}
-                      accounts={glAccounts}
-                      firmId={previewInvoice.firm_id}
-                      placeholder="Select Contra GL Account"
-                      preferredType="Liability"
-                      defaultType="Liability"
-                      defaultBalance="Credit"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  )}
+                {/* Supplier link */}
+                <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</span>
+                    {(() => {
+                      const cfg = LINK_CFG[previewInvoice.supplier_link_status];
+                      return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
+                    })()}
+                  </div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
                 </div>
-              </div>
-            )}
 
-            <div className="p-4 flex-shrink-0 space-y-2 bg-[#F2F4F6]">
-              {/* ── Primary action based on status ── */}
-              <div className="flex gap-3">
-                {previewInvoice.status === 'pending_review' ? (
-                  <button
-                    onClick={() => markInvoiceReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                    className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold"
-                  >
-                    Mark as Reviewed
-                  </button>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center py-3 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
-                    Reviewed
+                {/* GL Account Assignment */}
+                {glAccounts.length > 0 && previewInvoice.approval !== 'not_approved' && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
+                      {previewInvoice.approval === 'approved' ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[var(--surface-header)]">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                          <span className="text-sm font-medium text-[var(--text-primary)]">{glAccounts.find(a => a.id === selectedGlAccountId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedGlAccountId)?.name ?? 'Not assigned'}</span>
+                        </div>
+                      ) : (
+                        <GlAccountSelect
+                          value={selectedGlAccountId}
+                          onChange={setSelectedGlAccountId}
+                          accounts={glAccounts}
+                          firmId={previewInvoice.firm_id}
+                          placeholder="Select GL Account"
+                          preferredType="Expense"
+                          defaultType="Expense"
+                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
+                      {previewInvoice.approval === 'approved' ? (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[var(--surface-header)]">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                          <span className="text-sm font-medium text-[var(--text-primary)]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
+                        </div>
+                      ) : (
+                        <GlAccountSelect
+                          value={selectedContraGlId}
+                          onChange={setSelectedContraGlId}
+                          accounts={glAccounts}
+                          firmId={previewInvoice.firm_id}
+                          placeholder="Select Contra GL Account"
+                          preferredType="Liability"
+                          defaultType="Liability"
+                          defaultBalance="Credit"
+                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-              {/* ── Secondary actions ── */}
-              <div className="flex gap-3">
-                <Link
-                  href="/accountant/invoices"
-                  className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold text-center"
-                >
-                  Open in Invoices
-                </Link>
-                {previewInvoice.status === 'reviewed' && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ status: 'pending_review' }),
-                        });
-                        if (res.ok) {
-                          refresh();
-                          setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
-                        }
-                      } catch (e) { console.error(e); }
-                    }}
-                    className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold transition-colors"
+
+              {/* Right panel — document preview + actions */}
+              <div className="w-3/5 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
+                  {fileId ? (
+                    <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-full min-h-[400px]" title="Invoice Preview" allow="autoplay" />
+                  ) : previewInvoice.thumbnail_url ? (
+                    <div className="flex items-center justify-center h-full p-5">
+                      {previewInvoice.file_url ? (
+                        <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
+                          <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                        </a>
+                      ) : (
+                        <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">No document available</div>
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex-shrink-0 p-4 space-y-2 bg-[var(--surface-low)]">
+                  <div className="flex gap-3">
+                    {previewInvoice.status === 'pending_review' ? (
+                      <button
+                        onClick={() => markInvoiceReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
+                        className="btn-thick-navy flex-1 px-5 py-2.5 text-sm font-semibold"
+                      >
+                        Mark as Reviewed
+                      </button>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
+                        Reviewed
+                      </div>
+                    )}
+                    {previewInvoice.status === 'reviewed' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: 'pending_review' }),
+                            });
+                            if (res.ok) {
+                              refresh();
+                              setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
+                            }
+                          } catch (e) { console.error(e); }
+                        }}
+                        className="btn-thick-white flex-1 px-5 py-2.5 text-sm font-semibold"
+                      >
+                        Revert Review
+                      </button>
+                    )}
+                  </div>
+                  <Link
+                    href="/accountant/invoices"
+                    className="btn-thick-white w-full px-5 py-2.5 text-sm font-semibold text-center block"
                   >
-                    Revert Review
-                  </button>
-                )}
+                    Open in Invoices
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
           </div>
         </>
-      )}
+        );
+      })()}
 
     </div>
   );

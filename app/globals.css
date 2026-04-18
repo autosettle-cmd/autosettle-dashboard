@@ -42,10 +42,15 @@ body {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Paper dot-grid texture for content areas */
+/* Surface texture — linen/paper grain overlay */
 .paper-texture {
   background-color: var(--surface-base, #F7F9FB);
-  background-image: radial-gradient(#e0e3e5 0.5px, transparent 0.5px);
-  background-size: 24px 24px;
+  background-image:
+    /* fine grain noise */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23F7F9FB'/%3E%3Crect x='0' y='0' width='1' height='1' fill='%23e8eaed' fill-opacity='0.4'/%3E%3Crect x='2' y='2' width='1' height='1' fill='%23dfe1e4' fill-opacity='0.3'/%3E%3C/svg%3E"),
+    /* subtle dot grid */
+    radial-gradient(#e0e3e5 0.5px, transparent 0.5px);
+  background-size: 4px 4px, 24px 24px;
 }
 
 /* Ledger binding / book spine effect on main content */
@@ -60,13 +65,29 @@ body {
   bottom: 0;
   width: 40px;
   pointer-events: none;
-  background: linear-gradient(to right,
-    rgba(0,0,0,0.12) 0%,
-    rgba(0,0,0,0.06) 15%,
-    rgba(0,0,0,0.02) 40%,
-    transparent 100%);
-  box-shadow: inset 12px 0 15px -10px rgba(0,0,0,0.15);
   z-index: 30;
+  /* Milled well — inset shadow on left edge where sidebar overhangs */
+  background: linear-gradient(to right,
+    rgba(0,0,0,0.10) 0px,
+    rgba(0,0,0,0.06) 6px,
+    rgba(0,0,0,0.02) 18px,
+    transparent 100%);
+}
+/* Milled well — inset shadow on top edge where header overhangs */
+.ledger-binding::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 30px;
+  pointer-events: none;
+  z-index: 30;
+  background: linear-gradient(to bottom,
+    rgba(0,0,0,0.06) 0px,
+    rgba(0,0,0,0.03) 8px,
+    rgba(0,0,0,0.01) 16px,
+    transparent 100%);
 }
 
 /* Card-popped: directional light/shadow borders for tactile depth */
@@ -90,6 +111,20 @@ body {
   75% { transform: translateX(0.5px) rotate(0.2deg); }
 }
 
+/* ─── Noise texture for matte plastic feel on buttons ─────────────────────── */
+.btn-texture {
+  position: relative;
+}
+.btn-texture::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Crect x='0' y='0' width='1' height='1' fill='white' fill-opacity='0.06'/%3E%3Crect x='3' y='1' width='1' height='1' fill='black' fill-opacity='0.05'/%3E%3Crect x='1' y='3' width='1' height='1' fill='white' fill-opacity='0.04'/%3E%3Crect x='4' y='4' width='1' height='1' fill='black' fill-opacity='0.04'/%3E%3Crect x='5' y='2' width='1' height='1' fill='white' fill-opacity='0.03'/%3E%3Crect x='2' y='5' width='1' height='1' fill='black' fill-opacity='0.03'/%3E%3C/svg%3E");
+  background-size: 6px 6px;
+  pointer-events: none;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    COMPONENT CLASSES
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -98,135 +133,166 @@ body {
 
   /* ─── Thick 3D Buttons (Signature Element) ──────────────────────────────── */
 
-  /* Primary: steel blue CTA — square frustum */
+  /* Primary: steel blue CTA — physical keycap */
   .btn-thick-navy {
     @apply inline-flex items-center justify-center font-bold text-white
-           disabled:opacity-50 disabled:cursor-not-allowed;
-    background: linear-gradient(135deg, #2D5F8A 0%, #234B6E 40%, #1C3E5C 100%);
+           disabled:opacity-50 disabled:cursor-not-allowed btn-texture;
+    background: linear-gradient(180deg, #2D5F8A 0%, #234B6E 100%);
     border: none;
+    border-top: 1px solid rgba(255,255,255,0.25);
     box-shadow:
-      0 4px 0 0 #1A3D5C, 2px 0 0 0 #1A3D5C, 2px 4px 0 0 #1A3D5C,
-      inset 1px 1px 0 0 rgba(255,255,255,0.2),
-      inset -1px -1px 0 0 rgba(0,0,0,0.2);
+      /* bottom wall */   0 4px 0 0 #142F47,
+      /* right wall */    2px 0 0 0 #1A3D5C,
+      /* corner */        2px 4px 0 0 #142F47,
+      /* left wall */    -1px 0 0 0 #1E4668,
+      /* frustum bevel */ inset 1px 1px 0 0 rgba(255,255,255,0.15),
+                          inset -1px -1px 0 0 rgba(0,0,0,0.2);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-navy:active:not(:disabled) {
-    background: linear-gradient(135deg, #1C3E5C 0%, #234B6E 100%);
-    box-shadow:
-      0 1px 0 0 #1A3D5C, 1px 0 0 0 #1A3D5C, 1px 1px 0 0 #1A3D5C,
-      inset 0 1px 2px rgba(0,0,0,0.25);
-    transform: translateY(3px);
+    background: linear-gradient(180deg, #1C3E5C 0%, #234B6E 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: none;
   }
 
-  /* White: secondary actions — square frustum */
+  /* White: secondary actions — physical keycap */
   .btn-thick-white {
     @apply inline-flex items-center justify-center font-bold
-           disabled:opacity-50 disabled:cursor-not-allowed;
-    background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FB 40%, #EEF1F3 100%);
+           disabled:opacity-50 disabled:cursor-not-allowed btn-texture;
+    background: linear-gradient(180deg, #FFFFFF 0%, #EDEFF1 100%);
     color: var(--text-primary);
     border: none;
+    border-top: 1px solid rgba(255,255,255,0.95);
     box-shadow:
-      0 4px 0 0 #d1d5db, 2px 0 0 0 #d1d5db, 2px 4px 0 0 #d1d5db,
+      0 4px 0 0 #b8bcc2,
+      2px 0 0 0 #d1d5db,
+      2px 4px 0 0 #b8bcc2,
+     -1px 0 0 0 #dfe1e5,
       inset 1px 1px 0 0 rgba(255,255,255,0.9),
-      inset -1px -1px 0 0 rgba(0,0,0,0.08);
+      inset -1px -1px 0 0 rgba(0,0,0,0.06);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.8);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-white:active:not(:disabled) {
-    background: linear-gradient(135deg, #EEF1F3 0%, #F7F9FB 100%);
-    box-shadow:
-      0 1px 0 0 #d1d5db, 1px 0 0 0 #d1d5db, 1px 1px 0 0 #d1d5db,
-      inset 0 1px 2px rgba(0,0,0,0.1);
-    transform: translateY(3px);
+    background: linear-gradient(180deg, #E8EAEC 0%, #EDEFF1 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
+    text-shadow: none;
   }
 
-  /* Green: approve/confirm actions — square frustum */
+  /* Green: approve/confirm actions — physical keycap */
   .btn-thick-green {
     @apply inline-flex items-center justify-center font-bold text-white
-           disabled:opacity-50 disabled:cursor-not-allowed;
-    background: linear-gradient(135deg, #0DB897 0%, #0A9981 40%, #07806B 100%);
+           disabled:opacity-50 disabled:cursor-not-allowed btn-texture;
+    background: linear-gradient(180deg, #0DB897 0%, #0A9981 100%);
     border: none;
+    border-top: 1px solid rgba(255,255,255,0.25);
     box-shadow:
-      0 4px 0 0 #066656, 2px 0 0 0 #066656, 2px 4px 0 0 #066656,
-      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      0 4px 0 0 #044D3F,
+      2px 0 0 0 #066656,
+      2px 4px 0 0 #044D3F,
+     -1px 0 0 0 #07806B,
+      inset 1px 1px 0 0 rgba(255,255,255,0.15),
       inset -1px -1px 0 0 rgba(0,0,0,0.2);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-green:active:not(:disabled) {
-    background: linear-gradient(135deg, #07806B 0%, #0A9981 100%);
-    box-shadow:
-      0 1px 0 0 #066656, 1px 0 0 0 #066656, 1px 1px 0 0 #066656,
-      inset 0 1px 2px rgba(0,0,0,0.25);
-    transform: translateY(3px);
+    background: linear-gradient(180deg, #07806B 0%, #0A9981 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: none;
   }
 
-  /* Red: reject/delete actions — square frustum */
+  /* Red: reject/delete actions — physical keycap */
   .btn-thick-red {
     @apply inline-flex items-center justify-center font-bold text-white
-           disabled:opacity-50 disabled:cursor-not-allowed;
-    background: linear-gradient(135deg, #F75565 0%, #F23545 40%, #D42A3A 100%);
+           disabled:opacity-50 disabled:cursor-not-allowed btn-texture;
+    background: linear-gradient(180deg, #F75565 0%, #F23545 100%);
     border: none;
+    border-top: 1px solid rgba(255,255,255,0.25);
     box-shadow:
-      0 4px 0 0 #A81C28, 2px 0 0 0 #A81C28, 2px 4px 0 0 #A81C28,
-      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      0 4px 0 0 #8A1620,
+      2px 0 0 0 #A81C28,
+      2px 4px 0 0 #8A1620,
+     -1px 0 0 0 #D42A3A,
+      inset 1px 1px 0 0 rgba(255,255,255,0.15),
       inset -1px -1px 0 0 rgba(0,0,0,0.2);
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
     transition: all 0.08s ease;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .btn-thick-red:active:not(:disabled) {
-    background: linear-gradient(135deg, #D42A3A 0%, #F23545 100%);
-    box-shadow:
-      0 1px 0 0 #A81C28, 1px 0 0 0 #A81C28, 1px 1px 0 0 #A81C28,
-      inset 0 1px 2px rgba(0,0,0,0.25);
-    transform: translateY(3px);
+    background: linear-gradient(180deg, #D42A3A 0%, #F23545 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: none;
   }
 
-  /* Sidebar nav: lighter blue on dark blue bg */
+  /* Sidebar nav: molded keycap tiles on slab surface */
   .btn-thick-sidebar {
     @apply inline-flex items-center justify-center font-bold text-white
            disabled:opacity-50 disabled:cursor-not-allowed;
-    background: linear-gradient(135deg, #3575A3 0%, #2E6999 40%, #26587F 100%);
+    background: linear-gradient(180deg, #3272A0 0%, #2A6088 50%, #234B6E 100%);
     border: none;
+    /* Molded bevel — light catches the shoulder of the keycap */
+    border-top: 1px solid rgba(255,255,255,0.18);
+    border-bottom: 1px solid rgba(0,0,0,0.25);
+    /* Seam gap between modules — dark line + light line = v-groove */
+    margin-bottom: 1px;
     box-shadow:
-      0 3px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 3px 0 0 #1F5280,
-      inset 1px 1px 0 0 rgba(255,255,255,0.15),
-      inset -1px -1px 0 0 rgba(0,0,0,0.2);
+      /* Bottom seam highlight (light line after dark border) */
+      0 2px 0 rgba(255,255,255,0.06),
+      /* Subtle tile depth */
+      inset 0 1px 0 rgba(255,255,255,0.1),
+      inset 0 -1px 0 rgba(0,0,0,0.15);
     transition: all 0.08s ease;
     font-size: 0.65rem;
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    text-shadow: 0 -1px 0 rgba(0,0,0,0.3);
   }
   .btn-thick-sidebar:hover {
-    background: linear-gradient(135deg, #3F85B8 0%, #3575A3 40%, #2E6999 100%);
+    background: linear-gradient(180deg, #3A82B4 0%, #3272A0 50%, #2A6088 100%);
+    border-top-color: rgba(255,255,255,0.25);
     box-shadow:
-      0 3px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 3px 0 0 #1F5280,
-      inset 1px 1px 0 0 rgba(255,255,255,0.2),
-      inset -1px -1px 0 0 rgba(0,0,0,0.15);
+      0 2px 0 rgba(255,255,255,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.15),
+      inset 0 -1px 0 rgba(0,0,0,0.1);
   }
   .btn-thick-sidebar:active:not(:disabled) {
-    background: linear-gradient(135deg, #26587F 0%, #2E6999 100%);
-    box-shadow:
-      0 1px 0 0 #1F5280, 1px 0 0 0 #1F5280, 1px 1px 0 0 #1F5280,
-      inset 0 1px 2px rgba(0,0,0,0.2);
-    transform: translateY(2px);
+    background: linear-gradient(180deg, #1F4B6B 0%, #234B6E 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.35);
   }
+  /* Active — pressed in + backlit translucent panel */
   .btn-thick-sidebar-active {
-    background: linear-gradient(135deg, #FFFFFF 0%, #F7F9FB 100%) !important;
+    background: linear-gradient(180deg, #FFFFFF 0%, #F4F6F8 100%) !important;
     color: var(--primary) !important;
+    border-top: 1px solid rgba(255,255,255,0.95) !important;
+    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
     box-shadow:
-      0 3px 0 0 #d1d5db, 1px 0 0 0 #d1d5db, 1px 3px 0 0 #d1d5db,
-      inset 1px 1px 0 0 rgba(255,255,255,0.8),
-      inset -1px -1px 0 0 rgba(0,0,0,0.06) !important;
+      /* Pressed into slab */
+      inset 0 2px 4px rgba(0,0,0,0.08),
+      /* Backlit glow — powered on */
+      0 0 8px rgba(255,255,255,0.3),
+      0 0 2px rgba(255,255,255,0.15),
+      /* Seam highlight */
+      0 2px 0 rgba(255,255,255,0.06) !important;
+    text-shadow: none !important;
   }
 
   /* ─── Legacy Button Aliases (map old classes → thick style) ─────────────── */
@@ -268,25 +334,102 @@ body {
 
   /* ─── Form Inputs ───────────────────────────────────────────────────────── */
 
+  /* ─── Filter/Control Inputs (Keycap — pops OUT) ──────────────────────────
+     Used for filter bars, selects, date pickers — interactive controls that
+     behave like buttons. Same keycap treatment as btn-thick-white.
+     ──────────────────────────────────────────────────────────────────────── */
   .input-field {
-    @apply text-sm bg-white placeholder-gray-400
-           focus:outline-none transition-all duration-100;
-    padding: 8px 12px;
+    @apply text-sm font-semibold placeholder-gray-400
+           focus:outline-none transition-all duration-100 btn-texture;
+    padding: 8px 14px;
     color: var(--text-primary);
-    border: 1px solid #f3f4f6;
-    border-bottom-color: transparent;
-    border-right-color: transparent;
-    box-shadow: 0 3px 0 0 #d1d5db, 2px 0 0 0 #d1d5db, 2px 3px 0 0 #d1d5db;
+    background: linear-gradient(180deg, #FFFFFF 0%, #EDEFF1 100%);
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.95);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+    letter-spacing: 0.02em;
+    box-shadow:
+      /* bottom wall (darkest) */   0 4px 0 0 #888D95,
+      /* right wall */              2px 0 0 0 #9EA3AB,
+      /* corner */                  2px 4px 0 0 #888D95,
+      /* left wall (lighter) */    -1px 0 0 0 #B0B5BD,
+      /* frustum bevel */           inset 1px 1px 0 0 rgba(255,255,255,0.9),
+                                    inset -1px -1px 0 0 rgba(0,0,0,0.1);
   }
   .input-field:hover {
-    box-shadow: 0 3px 0 0 #d1d5db, 2px 0 0 0 #d1d5db, 2px 3px 0 0 #d1d5db, 2px 2px 6px rgba(0,0,0,0.06);
+    background: linear-gradient(180deg, #FFFFFF 0%, #E8EAED 100%);
+    box-shadow:
+      0 4px 0 0 #7D828A,
+      2px 0 0 0 #93989F,
+      2px 4px 0 0 #7D828A,
+     -1px 0 0 0 #A5AAB2,
+      inset 1px 1px 0 0 rgba(255,255,255,0.9),
+      inset -1px -1px 0 0 rgba(0,0,0,0.1);
   }
   .input-field:active {
-    box-shadow: 0 1px 0 0 #d1d5db, 1px 0 0 0 #d1d5db, 1px 1px 0 0 #d1d5db;
-    transform: translateY(2px);
+    background: linear-gradient(180deg, #E0E2E5 0%, #EDEFF1 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.18);
+    text-shadow: none;
   }
   .input-field:focus {
-    box-shadow: 0 3px 0 0 var(--primary), 2px 0 0 0 var(--primary), 2px 3px 0 0 var(--primary), 2px 2px 6px rgba(var(--primary-rgb), 0.12);
+    box-shadow:
+      0 4px 0 0 var(--primary),
+      2px 0 0 0 var(--primary),
+      2px 4px 0 0 var(--primary),
+     -1px 0 0 0 var(--primary),
+      inset 1px 1px 0 0 rgba(255,255,255,0.9),
+      inset -1px -1px 0 0 rgba(0,0,0,0.1);
+  }
+
+  /* ─── Recessed Input Field (sinks IN) ───────────────────────────────────
+     Opposite of keycap buttons: sinks INTO the surface like a slot/hole.
+     Used for text inputs, textareas, number fields in edit forms.
+     - Dark inset shadow at top/left = wall of the hole casting shadow
+     - Light highlight at bottom = light hitting the bottom lip
+     - Off-white interior = paper surface for digital ink
+     ──────────────────────────────────────────────────────────────────────── */
+  .input-recessed {
+    @apply text-sm placeholder-gray-400
+           focus:outline-none transition-all duration-150;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    background: #FAFBFC;
+    border: 1px solid #C5C8CE;
+    border-top-color: #A8ABB2;
+    border-left-color: #B0B3BA;
+    border-bottom-color: rgba(255,255,255,0.7);
+    border-right-color: #C5C8CE;
+    box-shadow:
+      /* inner shadow — top wall casting shadow down */
+      inset 0 2px 4px rgba(0,0,0,0.12),
+      inset 0 1px 2px rgba(0,0,0,0.06),
+      /* inner shadow — left wall */
+      inset 2px 0 3px rgba(0,0,0,0.04),
+      /* bottom highlight — light hitting bottom lip of the hole */
+      0 1px 0 0 rgba(255,255,255,0.85);
+  }
+  .input-recessed:hover {
+    border-color: #A0A4AB;
+    border-top-color: #909399;
+    box-shadow:
+      inset 0 2px 5px rgba(0,0,0,0.14),
+      inset 0 1px 2px rgba(0,0,0,0.08),
+      inset 2px 0 3px rgba(0,0,0,0.05),
+      0 1px 0 0 rgba(255,255,255,0.85);
+  }
+  .input-recessed:focus {
+    border-color: var(--primary);
+    border-top-color: #1A3D5C;
+    box-shadow:
+      inset 0 2px 5px rgba(0,0,0,0.15),
+      inset 0 1px 2px rgba(0,0,0,0.08),
+      inset 2px 0 3px rgba(0,0,0,0.05),
+      0 1px 0 0 rgba(255,255,255,0.85),
+      0 0 0 2px rgba(var(--primary-rgb), 0.15);
+  }
+  .input-recessed:active {
+    background: #F5F6F8;
   }
 
   .input-label {
@@ -317,24 +460,105 @@ body {
     padding: 24px;
   }
 
-  /* ─── Tables (no dividers, tonal row separation) ────────────────────────── */
+  /* ─── Tables: Physical Machine Chassis ──────────────────────────────────── */
 
+  /* 5. The Chassis — molded casing housing the entire table */
+  .ds-table-chassis {
+    border: 3px solid #C0C4CA;
+    border-top-color: #D0D3D8;
+    border-bottom-color: #A0A4AA;
+    box-shadow:
+      /* heavy drop shadow — unit sitting on the page */
+      0 4px 12px rgba(0,0,0,0.12),
+      0 2px 4px rgba(0,0,0,0.08),
+      /* inner bevel — molded plastic rim */
+      inset 0 1px 0 rgba(255,255,255,0.5),
+      inset 0 -1px 0 rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+
+  /* 1. The Header: Metal Faceplate — brushed aluminum control bar */
   .ds-table-header {
-    background: var(--surface-header);
+    background: linear-gradient(180deg, #E8EAED 0%, #D8DBDF 50%, #CCCFD4 100%);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text-secondary);
     font-family: var(--font-lato), 'Lato', var(--font-inter), 'Inter', sans-serif;
+    /* Debossed/stamped text — etched into metal */
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.6),
+      0 -1px 0 rgba(0,0,0,0.06);
+    /* 1px highlight on top + groove at bottom where it meets first row */
+    border-top: 1px solid rgba(255,255,255,0.7);
+    border-bottom: 1px solid #A8ABB0;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.4),
+      0 1px 0 rgba(255,255,255,0.5);
   }
 
+  /* 2. Rows: Removable slabs in a rack */
   .ds-table-row {
-    transition: background-color 150ms ease;
+    transition: all 120ms ease;
+    /* Double-line seam between slabs: dark line + light line */
+    border-bottom: 1px solid #D8DBDF;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,0.7);
   }
   .ds-table-row:hover {
     background: var(--surface-low);
+    /* Drawer pulled out slightly — tiny lift shadow */
+    box-shadow:
+      0 -1px 3px rgba(0,0,0,0.06),
+      0 2px 4px rgba(0,0,0,0.08),
+      inset 0 -1px 0 rgba(255,255,255,0.7);
+    transform: translateY(-1px);
+    position: relative;
+    z-index: 1;
   }
+
+  /* 3. Checkboxes: Recessed toggle switches */
+  .ds-table-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #F0F1F3;
+    border: 1px solid #B0B3BA;
+    border-top-color: #999DA4;
+    border-bottom-color: rgba(255,255,255,0.6);
+    box-shadow:
+      inset 0 2px 3px rgba(0,0,0,0.12),
+      inset 1px 0 2px rgba(0,0,0,0.04),
+      0 1px 0 rgba(255,255,255,0.6);
+    cursor: pointer;
+    transition: all 0.1s ease;
+    position: relative;
+  }
+  .ds-table-checkbox:checked {
+    background: linear-gradient(180deg, #0DB897 0%, #0A9981 100%);
+    border-color: #066656;
+    border-top-color: #055A4A;
+    box-shadow:
+      inset 0 1px 2px rgba(0,0,0,0.2),
+      0 0 4px 1px rgba(10,153,129,0.35),
+      0 1px 0 rgba(255,255,255,0.4);
+  }
+  /* LED glow dot when checked */
+  .ds-table-checkbox:checked::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, #5DFFC8 0%, #2EE6B6 50%, #0DB897 100%);
+    box-shadow: 0 0 3px 1px rgba(45,230,182,0.6);
+  }
+
+  /* ─── Sidebar: Milled Groove Channel ──────────────────────────────────── */
+  /* The sidebar is a deep groove milled into the chassis.
+     Nav items are control modules sitting on the groove floor.
+     Active item pops up out of the groove. Vertical rails run the edges. */
 
   /* ─── Status Chips (sharp corners, inset shadow, engraved) ─────────────── */
 
@@ -368,51 +592,159 @@ body {
     color: #444650;
   }
 
-  /* ─── Badges (sharp corners, inset shadow) ──────────────────────────────── */
+  /* ─── Status Badges (Acrylic Block — sits ON surface) ─────────────────── */
+  /* Physical acrylic/frosted block fused to the panel surface.
+     No keywell pit. Subtle bezel at base where block meets panel.
+     LED dot blooms color through the block. Text etched into surface. */
 
   .badge {
     @apply inline-flex items-center leading-tight tracking-wide;
-    padding: 2px 8px;
+    position: relative;
+    padding: 3px 10px;
     font-size: 0.625rem;
     font-weight: 700;
     text-transform: uppercase;
-    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.05);
+    letter-spacing: 0.06em;
+    /* Etched text — pressed into polished acrylic surface */
+    text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+    /* Specular highlight — sharp 1px bright white line at top edge (polished glass) */
+    border-top: 1px solid rgba(255,255,255,0.95);
+    /* Fused to panel — tight dark contact shadow, no soft float shadow */
+    border-bottom: 1px solid rgba(0,0,0,0.18);
+    border-left: 1px solid rgba(0,0,0,0.08);
+    border-right: 1px solid rgba(0,0,0,0.08);
+    box-shadow:
+      /* Tight contact shadow — fused to chassis, no travel distance */
+      0 1px 1px rgba(0,0,0,0.12),
+      1px 0 1px rgba(0,0,0,0.04),
+      /* Light bead at bottom — reflection where clear plastic meets panel */
+      0 2px 0 rgba(255,255,255,0.4),
+      /* Interior specular: bright top-edge highlight + corner glint */
+      inset 0 1px 0 rgba(255,255,255,0.85),
+      inset 1px 0 0 rgba(255,255,255,0.3);
+  }
+  /* Corner glint — tiny light-flare in top-left corner (polished shine) */
+  .badge::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 4px;
+    width: 6px; height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.9) 50%, transparent 100%);
+    pointer-events: none;
   }
 
   .badge-amber {
     @apply badge;
-    background: #FFF3E0;
-    color: #E65100;
+    background: linear-gradient(180deg, #FFF8EE 0%, #FFF0DB 100%);
+    color: #C43E00;
+    border-bottom-color: rgba(230,81,0,0.15);
   }
 
   .badge-blue {
     @apply badge;
-    background: #D6E0F1;
-    color: var(--primary);
+    background: linear-gradient(180deg, #E8EEF8 0%, #D6E0F1 100%);
+    color: #1A3D5C;
+    border-bottom-color: rgba(35,75,110,0.12);
   }
 
   .badge-green {
     @apply badge;
-    background: #E8F5E9;
-    color: #1B5E20;
+    background: linear-gradient(180deg, #F0FAF0 0%, #E0F2E1 100%);
+    color: #145A1E;
+    border-bottom-color: rgba(27,94,32,0.12);
   }
 
   .badge-red {
     @apply badge;
-    background: #FFDAD6;
-    color: #93000A;
+    background: linear-gradient(180deg, #FFF0EF 0%, #FFDAD6 100%);
+    color: #7A0009;
+    border-bottom-color: rgba(147,0,10,0.12);
   }
 
   .badge-gray {
     @apply badge;
-    background: var(--surface-low);
+    background: linear-gradient(180deg, #F5F6F8 0%, #EDEEF0 100%);
     color: var(--text-secondary);
+    border-bottom-color: rgba(0,0,0,0.08);
   }
 
   .badge-purple {
     @apply badge;
-    background: #F3E5F5;
-    color: #6A1B9A;
+    background: linear-gradient(180deg, #FAF0FC 0%, #F0E3F5 100%);
+    color: #5A1580;
+    border-bottom-color: rgba(106,27,154,0.12);
+  }
+
+  /* ─── Physical UI: Stamped/Debossed Labels ──────────────────────────────── */
+  /* Section headers that look pressed into the surface */
+  .label-stamped {
+    font-size: 0.625rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    text-shadow:
+      0 1px 0 rgba(255,255,255,0.7),
+      0 -1px 0 rgba(0,0,0,0.04);
+  }
+
+  /* ─── Physical UI: LED Emitter Dots ───────────────────────────────────── */
+  /* Tiny LED emitter source point at the base of the status block.
+     The dot is the actual light source — color blooms outward from it. */
+  .led-green {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, #5DFFC8 0%, #0DB897 40%, #0A9981 70%, #066656 100%);
+    box-shadow:
+      0 0 4px 1.5px rgba(10,153,129,0.6),
+      0 0 8px 3px rgba(10,153,129,0.2);
+  }
+  .led-red {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, #FF9DA5 0%, #F75565 40%, #F23545 70%, #A81C28 100%);
+    box-shadow:
+      0 0 4px 1.5px rgba(242,53,69,0.6),
+      0 0 8px 3px rgba(242,53,69,0.2);
+  }
+  .led-amber {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, #FFE082 0%, #FFB74D 40%, #FFA726 70%, #E65100 100%);
+    box-shadow:
+      0 0 4px 1.5px rgba(255,167,38,0.6),
+      0 0 8px 3px rgba(255,167,38,0.2);
+  }
+  .led-off {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, #d5d6de 0%, #a8a9b6 60%, #8a8b98 100%);
+    box-shadow: 0 0 2px 0.5px rgba(0,0,0,0.1);
+  }
+
+  /* ─── Physical UI: Keywell Container ───────────────────────────────────── */
+  /* Recessed slot that buttons sit inside — like a keyboard plate */
+  .keywell {
+    background: linear-gradient(180deg, #DCDFE3 0%, #E6E8EA 4px, #EEF0F2 100%);
+    box-shadow:
+      inset 0 3px 6px rgba(0,0,0,0.12),
+      inset 0 1px 2px rgba(0,0,0,0.08),
+      inset 0 -1px 0 rgba(255,255,255,0.9);
+  }
+  /* Keywell with raised rim — like the plate edge of a keyboard */
+  .keywell-rimmed {
+    background: linear-gradient(180deg, #D8DBDF 0%, #E4E6E8 4px, #EDEEF0 100%);
+    box-shadow:
+      inset 0 3px 6px rgba(0,0,0,0.12),
+      inset 0 1px 2px rgba(0,0,0,0.08),
+      inset 0 -1px 0 rgba(255,255,255,0.9);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-top: 1px solid rgba(0,0,0,0.12);
+    border-bottom: 1px solid rgba(255,255,255,0.6);
   }
 
   /* ─── Modals & Floating Elements ────────────────────────────────────────── */
@@ -428,16 +760,41 @@ body {
   }
 }
 
-/* ─── Notification badge (iOS-style overlay) — use on any relative parent ── */
+/* ─── Notification Badges: Jewel Hemispheres ─────────────────────────────── */
+/* Translucent acrylic jewels with internal glow, seated onto the surface.  */
+
 .notification-badge, .sidebar-badge {
-  @apply absolute -top-1.5 -right-1 text-white font-bold rounded-full
+  @apply absolute -top-1.5 -right-1 font-bold rounded-full
          inline-flex items-center justify-center leading-none;
   font-size: 0.625rem;
   min-width: 18px;
   height: 18px;
   padding: 1px 5px;
-  background-color: var(--reject-red);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  /* Off-white text, stamped/etched into the jewel */
+  color: #FFFEF0;
+  text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
+  /* Hemisphere: radial gradient — lighter center, darker edges */
+  background: radial-gradient(circle at 40% 35%,
+    #FF7A85 0%,
+    #F75565 30%,
+    var(--reject-red) 60%,
+    #C42030 100%);
+  /* Physical height + internal glow */
+  box-shadow:
+    /* Tight drop shadow — jewel sitting on surface */
+    0 1px 2px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.15),
+    /* Internal glow — translucent acrylic with light behind it */
+    0 0 6px 1px rgba(242,53,69,0.45),
+    /* Shoulder highlight — light hitting the curve (top-left arc) */
+    inset 1px 1px 1px rgba(255,255,255,0.35);
+}
+
+/* Sidebar variant — pressed into the blue groove (drilled rim) */
+.sidebar-badge {
+  /* Dark rim around the jewel — drilled socket in blue material */
+  outline: 1px solid rgba(0,0,0,0.25);
+  outline-offset: 0px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

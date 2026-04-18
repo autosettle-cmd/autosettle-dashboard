@@ -534,30 +534,30 @@ export default function EmployeeDashboard() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Claim Date *</label>
-                  <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-field w-full" />
+                  <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Merchant Name *</label>
-                  <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className="input-field w-full" placeholder="e.g. Grab, Shell, Apple" />
+                  <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className="input-recessed w-full" placeholder="e.g. Grab, Shell, Apple" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Amount (RM) *</label>
-                  <input type="number" step="0.01" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className="input-field w-full tabular-nums" placeholder="0.00" />
+                  <input type="number" step="0.01" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className="input-recessed w-full tabular-nums" placeholder="0.00" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Category *</label>
-                  <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className="input-field w-full">
+                  <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className="input-recessed w-full">
                     <option value="">Select a category</option>
                     {categories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt Number</label>
-                  <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Description</label>
-                  <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-field w-full" rows={2} placeholder="Optional" />
+                  <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-recessed w-full" rows={2} placeholder="Optional" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest mb-1">Receipt *</label>
@@ -680,29 +680,29 @@ export default function EmployeeDashboard() {
                 <dl className="space-y-3">
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Date</dt>
-                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Merchant</dt>
-                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Amount (RM)</dt>
-                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full mt-0.5 tabular-nums" />
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-recessed w-full mt-0.5 tabular-nums" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Category</dt>
-                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full mt-0.5">
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-recessed w-full mt-0.5">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Receipt No.</dt>
-                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Description</dt>
-                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full mt-0.5" />
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-recessed w-full mt-0.5" />
                   </div>
                   <div className="flex items-start gap-2.5 bg-[#FFF3E0] px-4 py-3">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E65100" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">

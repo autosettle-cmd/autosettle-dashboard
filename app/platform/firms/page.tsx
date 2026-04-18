@@ -103,23 +103,23 @@ export default function PlatformFirmsPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Company Name *</label>
-                    <input value={newName} onChange={e => setNewName(e.target.value)} className="input-field w-full" placeholder="e.g. DS Plus Sdn Bhd" />
+                    <input value={newName} onChange={e => setNewName(e.target.value)} className="input-recessed w-full" placeholder="e.g. DS Plus Sdn Bhd" />
                   </div>
                   <div className="col-span-2">
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Address</label>
-                    <input value={newAddress} onChange={e => setNewAddress(e.target.value)} className="input-field w-full" />
+                    <input value={newAddress} onChange={e => setNewAddress(e.target.value)} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">City</label>
-                    <input value={newCity} onChange={e => setNewCity(e.target.value)} className="input-field w-full" />
+                    <input value={newCity} onChange={e => setNewCity(e.target.value)} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">State</label>
-                    <input value={newState} onChange={e => setNewState(e.target.value)} className="input-field w-full" />
+                    <input value={newState} onChange={e => setNewState(e.target.value)} className="input-recessed w-full" />
                   </div>
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Postal Code</label>
-                    <input value={newPostal} onChange={e => setNewPostal(e.target.value)} className="input-field w-full" />
+                    <input value={newPostal} onChange={e => setNewPostal(e.target.value)} className="input-recessed w-full" />
                   </div>
                 </div>
 
@@ -133,7 +133,7 @@ export default function PlatformFirmsPage() {
                     Create fiscal year
                   </label>
                   {createFy && (
-                    <input type="number" value={fyYear} onChange={e => setFyYear(e.target.value)} className="input-field w-24" />
+                    <input type="number" value={fyYear} onChange={e => setFyYear(e.target.value)} className="input-recessed w-24" />
                   )}
                 </div>
 

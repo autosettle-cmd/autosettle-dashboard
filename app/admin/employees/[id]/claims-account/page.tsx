@@ -358,19 +358,19 @@ export default function AdminEmployeeClaimsAccountPage() {
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Amount *</label>
                   <input type="number" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)}
-                    className="input-field w-full" placeholder="0.00" autoFocus />
+                    className="input-recessed w-full" placeholder="0.00" autoFocus />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Date *</label>
-                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="input-field w-full" />
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Reference</label>
-                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} className="input-field w-full" placeholder="Bank ref / cheque no." />
+                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)} className="input-recessed w-full" placeholder="Bank ref / cheque no." />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Notes</label>
-                  <input type="text" value={payNotes} onChange={e => setPayNotes(e.target.value)} className="input-field w-full" placeholder="Optional" />
+                  <input type="text" value={payNotes} onChange={e => setPayNotes(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                 </div>
               </div>
 
@@ -412,7 +412,7 @@ export default function AdminEmployeeClaimsAccountPage() {
                               <input type="number" step="0.01" min="0" max={outstanding}
                                 value={allocations[c.id] ?? ''}
                                 onChange={e => setAllocations(prev => ({ ...prev, [c.id]: Number(e.target.value) || 0 }))}
-                                className="input-field w-24 text-right tabular-nums" placeholder="0.00" />
+                                className="input-recessed w-24 text-right tabular-nums" placeholder="0.00" />
                             </td>
                           </tr>
                         );

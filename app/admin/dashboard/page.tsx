@@ -318,20 +318,13 @@ export default function AdminDashboard() {
                   <button
                     key={key}
                     onClick={() => { setActiveTab(key); setPage(0); }}
-                    className={`relative px-4 py-3 text-body-md font-semibold transition-colors ${
-                      activeTab === key ? 'text-[#191C1E]' : 'text-[#7A8A9A] hover:text-[#444650]'
+                    className={`relative px-3 py-1.5 text-label-sm font-bold uppercase tracking-wider transition-colors ${
+                      activeTab === key ? 'btn-thick-navy' : 'btn-thick-white'
                     }`}
                   >
                     {label}
                     {count > 0 && (
-                      <span className={`ml-1.5 px-1.5 py-0.5 text-label-sm font-bold ${
-                        activeTab === key ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-[#444650]'
-                      }`}>
-                        {count}
-                      </span>
-                    )}
-                    {activeTab === key && (
-                      <span className="absolute bottom-0 left-4 right-4 h-[2px]" style={{ backgroundColor: '#234B6E' }} />
+                      <span className="notification-badge">{count}</span>
                     )}
                   </button>
                 ))}
@@ -480,55 +473,50 @@ export default function AdminDashboard() {
       </div>
 
       {/* ═══ CLAIM PREVIEW PANEL ═══ */}
-      {previewClaim && (
+      {previewClaim && (() => {
+        const claimDriveMatch = previewClaim.file_url?.match(/\/d\/([^/]+)/);
+        const claimFileId = claimDriveMatch?.[1];
+        return (
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[#234B6E]">
-              <h2 className="text-white font-bold text-sm uppercase tracking-wider">Claim Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Claim Details</h2>
               <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {previewClaim.thumbnail_url ? (
-                previewClaim.file_url ? (
-                  <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
-                  </a>
-                ) : (
-                  <img src={previewClaim.thumbnail_url} alt="Receipt" className="w-full max-h-52 object-contain border border-gray-200" />
-                )
-              ) : (
-                <div className="w-full h-40 border border-gray-200 bg-gray-50 flex items-center justify-center text-[#7A8A9A] text-sm">No image available</div>
-              )}
 
+            {/* Two-panel body */}
+            <div className="flex-1 flex min-h-0">
+              {/* Left panel — details */}
+              <div className="w-2/5 flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
               {editMode && editData ? (
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Date</label>
-                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-field w-full" />
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</label>
+                    <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Merchant</label>
-                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-field w-full" />
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Merchant</label>
+                    <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Amount (RM)</label>
-                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-field w-full" />
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</label>
+                    <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Category</label>
-                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-field w-full">
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
+                    <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-recessed w-full">
                       {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Receipt Number</label>
-                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-field w-full" />
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt Number</label>
+                    <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <div>
-                    <label className="text-[10px] font-label font-bold text-[#444650] uppercase tracking-widest">Description</label>
-                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-field w-full" />
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Description</label>
+                    <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-recessed w-full" />
                   </div>
                   <Field label="Employee" value={previewClaim.employee_name} />
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-3 py-2">
@@ -546,178 +534,210 @@ export default function AdminDashboard() {
                     <Field label="Receipt No." value={previewClaim.receipt_number} />
                     <Field label="Description" value={previewClaim.description} />
                   </dl>
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  <div className="flex flex-wrap gap-2">
                     {[STATUS_CFG[previewClaim.status], APPROVAL_CFG[previewClaim.approval]].filter(Boolean).map((cfg) => (
                       <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-label text-[#7A8A9A] uppercase tracking-widest font-medium">Confidence</span>
+                    <span className="text-[10px] font-label text-[var(--text-secondary)] uppercase tracking-widest font-bold">Confidence</span>
                     <span className={`text-xs font-semibold ${
-                      previewClaim.confidence === 'HIGH' ? 'text-green-600' :
-                      previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-red-600'
+                      previewClaim.confidence === 'HIGH' ? 'text-[var(--match-green)]' :
+                      previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'
                     }`}>{previewClaim.confidence}</span>
                   </div>
                   {previewClaim.rejection_reason && (
-                    <div className="bg-[#FFDAD6] p-3 inset-shadow">
+                    <div className="bg-[#FFDAD6] p-3">
                       <p className="text-[10px] font-label font-bold text-[#93000A] uppercase tracking-widest mb-1">Rejection Reason</p>
                       <p className="text-sm text-[#93000A]">{previewClaim.rejection_reason}</p>
                     </div>
                   )}
-                  {previewClaim.file_url && (
-                    <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#234B6E] font-bold hover:opacity-80 block">
-                      View full document &rarr;
-                    </a>
+                </>
+              )}
+              </div>{/* close left panel */}
+
+              {/* Right panel — document preview + actions */}
+              <div className="w-3/5 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
+                  {claimFileId ? (
+                    <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-full min-h-[400px]" title="Document Preview" allow="autoplay" />
+                  ) : previewClaim.thumbnail_url ? (
+                    <div className="flex items-center justify-center h-full p-5">
+                      {previewClaim.file_url ? (
+                        <a href={previewClaim.file_url} target="_blank" rel="noopener noreferrer">
+                          <img src={previewClaim.thumbnail_url} alt="Receipt" className="max-w-full max-h-[60vh] object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                        </a>
+                      ) : (
+                        <img src={previewClaim.thumbnail_url} alt="Receipt" className="max-w-full max-h-[60vh] object-contain" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">No document available</div>
                   )}
-                </>
-              )}
-            </div>
-            <div className="p-4 flex-shrink-0 flex gap-3 bg-[#F2F4F6]">
-              {editMode ? (
-                <>
-                  <button onClick={saveClaimEdit} disabled={editSaving} className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85">
-                    {editSaving ? 'Saving...' : 'Save Changes'}
-                  </button>
-                  <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold border border-gray-300 text-[#444650] hover:bg-gray-50 transition-colors">
-                    Cancel
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => {
-                      setEditMode(true);
-                      setEditData({
-                        claim_date: previewClaim.claim_date.split('T')[0],
-                        merchant: previewClaim.merchant,
-                        amount: previewClaim.amount,
-                        category_id: previewClaim.category_id,
-                        receipt_number: previewClaim.receipt_number ?? '',
-                        description: previewClaim.description ?? '',
-                      });
-                    }}
-                    className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-85"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => markAsReviewed(previewClaim.id)}
-                    disabled={previewClaim.status === 'reviewed'}
-                    className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-85"
-                  >
-                    Mark as Reviewed
-                  </button>
-                </>
-              )}
-            </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex-shrink-0 p-4 flex gap-3 bg-[var(--surface-low)]">
+                  {editMode ? (
+                    <>
+                      <button onClick={saveClaimEdit} disabled={editSaving} className="btn-thick-navy flex-1 px-5 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                        {editSaving ? 'Saving...' : 'Save Changes'}
+                      </button>
+                      <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 px-5 py-2.5 text-sm font-semibold">
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          setEditMode(true);
+                          setEditData({
+                            claim_date: previewClaim.claim_date.split('T')[0],
+                            merchant: previewClaim.merchant,
+                            amount: previewClaim.amount,
+                            category_id: previewClaim.category_id,
+                            receipt_number: previewClaim.receipt_number ?? '',
+                            description: previewClaim.description ?? '',
+                          });
+                        }}
+                        className="btn-thick-navy flex-1 px-5 py-2.5 text-sm font-semibold"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => markAsReviewed(previewClaim.id)}
+                        disabled={previewClaim.status === 'reviewed'}
+                        className="btn-thick-green flex-1 px-5 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Mark as Reviewed
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>{/* close two-panel body */}
           </div>
           </div>
         </>
-      )}
+        );
+      })()}
 
       {/* ═══ INVOICE PREVIEW PANEL ═══ */}
-      {previewInvoice && (
+      {previewInvoice && (() => {
+        const driveMatch = previewInvoice.file_url?.match(/\/d\/([^/]+)/);
+        const fileId = driveMatch?.[1];
+        return (
         <>
           <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[#234B6E]">
-              <h2 className="text-white font-bold text-sm uppercase tracking-wider">Invoice Details</h2>
+          <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
+              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
               <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-4">
-              {previewInvoice.thumbnail_url ? (
-                previewInvoice.file_url ? (
-                  <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
-                    <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity" />
-                  </a>
-                ) : (
-                  <img src={previewInvoice.thumbnail_url} alt="Invoice" className="w-full max-h-52 object-contain border border-gray-200" />
-                )
-              ) : (
-                <div className="w-full h-40 border border-gray-200 bg-gray-50 flex items-center justify-center text-[#7A8A9A] text-sm">No image available</div>
-              )}
-              <dl className="space-y-3">
-                <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
-                <Field label="Invoice No."   value={previewInvoice.invoice_number} />
-                <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
-                <Field label="Due Date"      value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
-                <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
-                <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
-                <Field label="Category"      value={previewInvoice.category_name} />
-              </dl>
-              <div className="flex flex-wrap gap-2 pt-1">
-                {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
-                  <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
-                ))}
-              </div>
-              {/* Supplier link */}
-              <div className="bg-gray-50 p-3 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-label font-medium text-[#7A8A9A] uppercase tracking-widest">Supplier</span>
-                  {(() => {
-                    const cfg = LINK_CFG[previewInvoice.supplier_link_status];
-                    return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
-                  })()}
+
+            {/* Two-panel body */}
+            <div className="flex-1 flex min-h-0">
+              {/* Left panel — details */}
+              <div className="w-2/5 flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
+                <dl className="grid grid-cols-2 gap-3">
+                  <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
+                  <Field label="Invoice No."   value={previewInvoice.invoice_number} />
+                  <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
+                  <Field label="Due Date"      value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
+                  <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
+                  <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
+                  <Field label="Category"      value={previewInvoice.category_name} />
+                </dl>
+                <div className="flex flex-wrap gap-2">
+                  {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
+                    <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                  ))}
                 </div>
-                <p className="text-sm font-medium text-[#191C1E]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
-              </div>
-              {previewInvoice.file_url && (
-                <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#234B6E] font-bold hover:opacity-80 block">
-                  View full document &rarr;
-                </a>
-              )}
-            </div>
-            <div className="p-4 flex-shrink-0 space-y-2 bg-[#F2F4F6]">
-              {/* ── Primary action based on status ── */}
-              <div className="flex gap-3">
-                {previewInvoice.status === 'pending_review' ? (
-                  <button
-                    onClick={() => markInvoiceReviewed(previewInvoice.id)}
-                    className="btn-thick-navy flex-1 px-5 py-3 text-sm font-semibold"
-                  >
-                    Mark as Reviewed
-                  </button>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
-                    Reviewed
+                {/* Supplier link */}
+                <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</span>
+                    {(() => {
+                      const cfg = LINK_CFG[previewInvoice.supplier_link_status];
+                      return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
+                    })()}
                   </div>
-                )}
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
+                </div>
               </div>
-              {/* ── Secondary actions ── */}
-              <div className="flex gap-3">
-                <Link
-                  href="/admin/invoices"
-                  className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold border border-gray-300 text-[#444650] hover:bg-gray-50 transition-colors text-center"
-                >
-                  Open in Invoices
-                </Link>
-                {previewInvoice.status === 'reviewed' && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`/api/admin/invoices/${previewInvoice.id}`, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ status: 'pending_review' }),
-                        });
-                        if (res.ok) {
-                          refresh();
-                          setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
-                        }
-                      } catch (e) { console.error(e); }
-                    }}
-                    className="btn-thick-white flex-1 px-5 py-3 text-sm font-semibold border border-gray-300 text-[#444650] hover:bg-gray-50 transition-colors"
+
+              {/* Right panel — document preview */}
+              <div className="w-3/5 flex flex-col min-h-0">
+                <div className="flex-1 overflow-y-auto">
+                  {fileId ? (
+                    <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-full min-h-[400px]" title="Invoice Preview" allow="autoplay" />
+                  ) : previewInvoice.thumbnail_url ? (
+                    <div className="flex items-center justify-center h-full p-5">
+                      {previewInvoice.file_url ? (
+                        <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
+                          <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain cursor-pointer hover:opacity-90 transition-opacity" />
+                        </a>
+                      ) : (
+                        <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">No document available</div>
+                  )}
+                </div>
+
+                {/* Action buttons in right panel footer */}
+                <div className="flex-shrink-0 p-4 space-y-2 bg-[var(--surface-low)]">
+                  <div className="flex gap-3">
+                    {previewInvoice.status === 'pending_review' ? (
+                      <button
+                        onClick={() => markInvoiceReviewed(previewInvoice.id)}
+                        className="btn-thick-navy flex-1 px-5 py-2.5 text-sm font-semibold"
+                      >
+                        Mark as Reviewed
+                      </button>
+                    ) : (
+                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
+                        Reviewed
+                      </div>
+                    )}
+                    {previewInvoice.status === 'reviewed' && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/admin/invoices/${previewInvoice.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: 'pending_review' }),
+                            });
+                            if (res.ok) {
+                              refresh();
+                              setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
+                            }
+                          } catch (e) { console.error(e); }
+                        }}
+                        className="btn-thick-white flex-1 px-5 py-2.5 text-sm font-semibold"
+                      >
+                        Revert Review
+                      </button>
+                    )}
+                  </div>
+                  <Link
+                    href="/admin/invoices"
+                    className="btn-thick-white w-full px-5 py-2.5 text-sm font-semibold text-center block"
                   >
-                    Revert Review
-                  </button>
-                )}
+                    Open in Invoices
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
           </div>
         </>
-      )}
+        );
+      })()}
 
     </div>
   );

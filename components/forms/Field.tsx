@@ -12,7 +12,7 @@ export default function Field({ label, value }: FieldProps) {
   if (value === null || value === undefined || value === '') return null;
   return (
     <div>
-      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide">
+      <dt className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide label-stamped">
         {label}
       </dt>
       <dd className="text-sm text-[#191C1E] mt-0.5">{value}</dd>

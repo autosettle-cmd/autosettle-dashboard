@@ -276,13 +276,13 @@ export default function AdminCategoriesPage() {
                           <tr key={cat.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[var(--text-primary)] font-medium">
                               {editingId === cat.id ? (
-                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-field w-full text-body-md" autoFocus />
+                                <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full text-body-md" autoFocus />
                               ) : cat.name}
                             </td>
                             <td className="px-6 py-3"><span className="badge-purple">Custom</span></td>
                             <td className="px-6 py-3 text-[var(--text-secondary)]">
                               {editingId === cat.id ? (
-                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-field w-full text-body-md" placeholder="Optional" />
+                                <input type="text" value={editTaxCode} onChange={(e) => setEditTaxCode(e.target.value)} className="input-recessed w-full text-body-md" placeholder="Optional" />
                               ) : (cat.tax_code ?? '---')}
                             </td>
                             <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{cat.claims_count}</td>
@@ -383,7 +383,7 @@ export default function AdminCategoriesPage() {
                     type="text"
                     value={modalName}
                     onChange={(e) => setModalName(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="Category name"
                     autoFocus
                   />
@@ -394,7 +394,7 @@ export default function AdminCategoriesPage() {
                     type="text"
                     value={modalTaxCode}
                     onChange={(e) => setModalTaxCode(e.target.value)}
-                    className="input-field w-full"
+                    className="input-recessed w-full"
                     placeholder="Optional"
                   />
                 </div>
