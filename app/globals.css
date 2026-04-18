@@ -73,10 +73,11 @@ body {
     rgba(0,0,0,0.02) 18px,
     transparent 100%);
 }
-/* Tighter top padding on main content — reduce gap between header and content */
+/* Tighter layout — reduce gap between header and content */
 .ledger-binding > main,
 .ledger-binding > div {
-  padding-top: 16px !important;
+  padding-top: 12px !important;
+  gap: 8px !important;
 }
 
 /* ─── Header Console: L-Frame Upper Panel ──────────────────────────────────
