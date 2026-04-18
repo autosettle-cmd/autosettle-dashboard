@@ -781,7 +781,7 @@ function StatCard({ label, sublabel, value, color, icon }: {
   }[color];
 
   return (
-    <div className="bg-white px-6 py-5 card-popped transition-all duration-150 hover:shadow-[3px_3px_6px_rgba(0,0,0,0.08)] group">
+    <div className="dash-tile px-6 py-5 group cursor-pointer">
       <div className="flex items-start justify-between mb-4">
         <p className="text-[11px] font-semibold text-[#444650] uppercase tracking-wide leading-tight">{label}</p>
         {icon && (

@@ -415,7 +415,7 @@ export default function AccountantDashboard() {
 
           {/* ── Stats ─────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-5 mb-6">
-            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+            <div className="dash-housing">
               <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Expense Claims</p>
               <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="This Month"        value={stats?.claims.thisMonth ?? null}        amount={stats ? formatRM(stats.claims.thisMonthAmount) : null}            color="default" href="/accountant/claims?type=claim" />
@@ -424,7 +424,7 @@ export default function AccountantDashboard() {
               </div>
             </div>
 
-            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+            <div className="dash-housing">
               <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Receipts</p>
               <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="This Month"     value={stats?.receipts.thisMonth ?? null}    amount={stats ? formatRM(stats.receipts.thisMonthAmount) : null}   color="default" href="/accountant/claims?type=receipt" />
@@ -433,7 +433,7 @@ export default function AccountantDashboard() {
               </div>
             </div>
 
-            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+            <div className="dash-housing">
               <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Invoices</p>
               <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="This Month"       value={stats?.invoices.thisMonth ?? null}       amount={stats ? formatRM(stats.invoices.thisMonthAmount) : null}           color="default" href="/accountant/invoices?tab=received" />
@@ -442,7 +442,7 @@ export default function AccountantDashboard() {
               </div>
             </div>
 
-            <div className="bg-[#F2F4F6] px-4 py-4 card-popped">
+            <div className="dash-housing">
               <p className="text-xs font-label font-bold uppercase tracking-widest mb-3" style={{ color: '#234B6E' }}>Bank Reconciliation</p>
               <div className="grid grid-cols-3 gap-3 card-stagger">
                 <StatCard label="Statements"           value={bankReconStats?.totalStatements ?? null}  color="default" href="/accountant/bank-reconciliation" />
@@ -1020,7 +1020,7 @@ function StatCard({ label, value, amount, color, href }: {
 
   const card = (
     <div
-      className={`bg-white px-4 py-3 transition-all duration-150 card-popped ${href ? 'cursor-pointer hover:shadow-[3px_3px_6px_rgba(0,0,0,0.08)] active:translate-y-[2px]' : ''}`}
+      className={`dash-tile ${href ? 'cursor-pointer' : ''}`}
     >
       <div className="flex items-center gap-1.5 mb-2">
         <div className={`w-1.5 h-1.5 flex-shrink-0 ${accent.dot}`} style={isPrimary ? { backgroundColor: '#234B6E' } : undefined} />

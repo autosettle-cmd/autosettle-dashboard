@@ -312,12 +312,24 @@ Recessed toggle switches, not standard web checkboxes.
 #### 5. Amount Column
 Standard styling — right-aligned, `tabular-nums`, `font-semibold`, `text-[var(--text-primary)]`. No special visual treatment.
 
-### Stat Cards
-- `card-popped` for 3D effect
-- Clickable: `hover:shadow` + `active:translate-y-[2px]`
+### Dashboard Cards — Housing + Pressable Tiles
+
+#### Housing (`dash-housing`)
+The outer card is a fixed, non-pressable recessed panel — a window into the machine.
+- **Background:** `#ECEEF1` — slightly darker than the page, different material
+- **Recessed:** inset shadow on top/left (`inset 0 2px 4px rgba(0,0,0,0.08)`) — carved into the dashboard
+- **Lip highlight:** bottom/right outer edges have white glow (`0 1px 0 rgba(255,255,255,0.7)`) — where the material was cut
+- **Stamped label:** section title (EXPENSE CLAIMS, etc.) has debossed text-shadow
+
+#### Inner Tiles (`dash-tile`)
+Individual pressable keys sitting inside the housing. These are the action points.
+- **White background** on gray housing = clear visual separation
+- **Side wall:** `border-bottom: 2px solid #C5C8CE` + `border-right: 1px solid #D8DBDF` — frustum depth
+- **Drop shadow:** `0 2px 4px rgba(0,0,0,0.06)` — tile floats above housing floor
+- **Hover:** tile lifts (`translateY(-1px)`, shadow grows)
+- **Active:** tile bottoms out (`translateY(2px)`, shadow disappears, border-bottom shrinks)
 - **Labels:** Lato 11px semibold uppercase
 - **Values:** Lato extrabold `text-2xl tabular-nums`
-- **Icons:** card-popped with color-coded bg (gray/amber/green)
 
 ### Status Badges (Acrylic Block — sits ON surface)
 Physical frosted acrylic blocks fused to the panel surface. No keywell/pit. LED dot blooms color through the block.
