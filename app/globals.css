@@ -120,7 +120,9 @@ body {
 /* Date readout — recessed LCD strip in the console */
 .ledger-binding > header p,
 .ledger-binding > header > p {
-  color: #6B7A8A;
+  color: #2A3440;
+  font-size: 0.875rem;
+  font-weight: 700;
   background: #EEF0F3;
   padding: 4px 12px;
   font-variant-numeric: tabular-nums;
