@@ -82,7 +82,7 @@ body {
   right: 0;
   height: 30px;
   pointer-events: none;
-  z-index: 30;
+  z-index: 1; /* behind filter buttons and content */
   background: linear-gradient(to bottom,
     rgba(0,0,0,0.06) 0px,
     rgba(0,0,0,0.03) 8px,
