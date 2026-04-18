@@ -1050,7 +1050,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   // Load invoices
   useEffect(() => {
     if (!config.firmsLoaded) return;
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
 
     const { from, to } = getDateRange(dateRange, customFrom, customTo);
@@ -1063,12 +1063,12 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     if (search)          p.set('search',        search);
     if (takeLimit)       p.set('take',          String(takeLimit));
 
-    fetch(`${config.apiInvoices}?${p}`)
+    fetch(`${config.apiInvoices}?${p}`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) { setInvoices(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); } })
-      .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
+      .then((j) => { setInvoices(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
+      .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
 
-    return () => { cancelled = true; };
+    return () => controller.abort();
   }, [config.firmsLoaded, config.firmId, config.apiInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey, takeLimit]);
 
   const refresh = () => setRefreshKey((k) => k + 1);

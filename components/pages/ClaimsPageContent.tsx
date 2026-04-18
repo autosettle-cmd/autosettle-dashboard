@@ -593,7 +593,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   // Load claims
   useEffect(() => {
     if (!config.firmsLoaded) return;
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
 
     const { from, to } = getDateRange(dateRange, customFrom, customTo);
@@ -607,12 +607,12 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     if (search)          p.set('search',   search);
     if (takeLimit)       p.set('take',     String(takeLimit));
 
-    fetch(`${config.apiClaims}?${p}`)
+    fetch(`${config.apiClaims}?${p}`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) { setClaims(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); } })
-      .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
+      .then((j) => { setClaims(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
+      .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
 
-    return () => { cancelled = true; };
+    return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claimTab, config.firmId, dateRange, customFrom, customTo, statusFilter, approvalFilter, search, refreshKey, takeLimit, config.firmsLoaded]);
 

@@ -284,24 +284,27 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
   // Load suppliers
   useEffect(() => {
     if (!config.firmsLoaded) return;
+    const controller = new AbortController();
     setLoading(true);
     const p = new URLSearchParams();
     if (search) p.set('search', search);
     if (config.firmId) p.set('firmId', config.firmId);
     if (takeLimit) p.set('take', String(takeLimit));
 
-    fetch(`${config.apiSuppliers}?${p}`)
+    fetch(`${config.apiSuppliers}?${p}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((j) => { setSuppliers(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
-      .catch((e) => { console.error(e); setLoading(false); });
+      .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
+    return () => controller.abort();
   }, [config.firmsLoaded, config.firmId, config.apiSuppliers, search, refreshKey, takeLimit]);
 
   // Load aging report
   useEffect(() => {
     if (!config.firmsLoaded) return;
+    const controller = new AbortController();
     const p = new URLSearchParams();
     if (config.firmId) p.set('firmId', config.firmId);
-    fetch(`${config.apiAging}?${p}`)
+    fetch(`${config.apiAging}?${p}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((j) => {
         if (j.data) {
@@ -309,7 +312,8 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           setAgingSummary(j.data.summary);
         }
       })
-      .catch(console.error);
+      .catch((e) => { if ((e as Error).name !== 'AbortError') console.error(e); });
+    return () => controller.abort();
   }, [config.firmsLoaded, config.firmId, config.apiAging, refreshKey]);
 
   // Open supplier preview modal

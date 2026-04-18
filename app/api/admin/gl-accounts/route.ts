@@ -6,15 +6,20 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
-    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const accounts = await prisma.gLAccount.findMany({
+      where: { firm_id: session.user.firm_id },
+      orderBy: [{ account_code: 'asc' }],
+    });
+
+    return NextResponse.json({ data: accounts, error: null, meta: { count: accounts.length } });
+  } catch (err) {
+    console.error('[API] admin/gl-accounts GET error:', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
   }
-
-  const accounts = await prisma.gLAccount.findMany({
-    where: { firm_id: session.user.firm_id },
-    orderBy: [{ account_code: 'asc' }],
-  });
-
-  return NextResponse.json({ data: accounts, error: null, meta: { count: accounts.length } });
 }

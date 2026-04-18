@@ -29,100 +29,105 @@ interface SupplierBucket {
 }
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
-    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
-  }
-  const firmId = session.user.firm_id;
-  const now = new Date();
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
+    const firmId = session.user.firm_id;
+    const now = new Date();
 
-  // Get all unpaid/partially paid invoices with supplier info
-  const invoices = await prisma.invoice.findMany({
-    where: {
-      firm_id: firmId,
-      payment_status: { not: 'paid' },
-    },
-    select: {
-      id: true,
-      supplier_id: true,
-      vendor_name_raw: true,
-      invoice_number: true,
-      issue_date: true,
-      due_date: true,
-      total_amount: true,
-      amount_paid: true,
-      payment_status: true,
-      supplier: { select: { id: true, name: true } },
-      category: { select: { name: true } },
-    },
-    orderBy: { due_date: 'asc' },
-  });
+    // Get all unpaid/partially paid invoices with supplier info
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        firm_id: firmId,
+        payment_status: { not: 'paid' },
+      },
+      select: {
+        id: true,
+        supplier_id: true,
+        vendor_name_raw: true,
+        invoice_number: true,
+        issue_date: true,
+        due_date: true,
+        total_amount: true,
+        amount_paid: true,
+        payment_status: true,
+        supplier: { select: { id: true, name: true } },
+        category: { select: { name: true } },
+      },
+      orderBy: { due_date: 'asc' },
+    });
 
-  // Group by supplier and calculate aging buckets
-  const supplierMap = new Map<string, SupplierBucket>();
+    // Group by supplier and calculate aging buckets
+    const supplierMap = new Map<string, SupplierBucket>();
 
-  for (const inv of invoices) {
-    const supplierId = inv.supplier_id ?? 'unlinked';
-    const supplierName = inv.supplier?.name ?? inv.vendor_name_raw;
-    const balance = Number(inv.total_amount) - Number(inv.amount_paid);
+    for (const inv of invoices) {
+      const supplierId = inv.supplier_id ?? 'unlinked';
+      const supplierName = inv.supplier?.name ?? inv.vendor_name_raw;
+      const balance = Number(inv.total_amount) - Number(inv.amount_paid);
 
-    if (!supplierMap.has(supplierId)) {
-      supplierMap.set(supplierId, {
-        supplier_id: supplierId,
-        supplier_name: supplierName,
-        days0_30: 0,
-        days31_60: 0,
-        days61_90: 0,
-        days90plus: 0,
-        total: 0,
-        invoices: [],
+      if (!supplierMap.has(supplierId)) {
+        supplierMap.set(supplierId, {
+          supplier_id: supplierId,
+          supplier_name: supplierName,
+          days0_30: 0,
+          days31_60: 0,
+          days61_90: 0,
+          days90plus: 0,
+          total: 0,
+          invoices: [],
+        });
+      }
+
+      const entry = supplierMap.get(supplierId)!;
+
+      // Calculate aging bucket from issue date (LHDN ruling)
+      const diffDays = Math.floor((now.getTime() - inv.issue_date.getTime()) / (1000 * 60 * 60 * 24));
+      let bucket: string;
+      if (diffDays <= 30) bucket = '0-30';
+      else if (diffDays <= 60) bucket = '31-60';
+      else if (diffDays <= 90) bucket = '61-90';
+      else bucket = '90+';
+
+      // Add to bucket totals
+      switch (bucket) {
+        case '0-30':   entry.days0_30 += balance; break;
+        case '31-60':  entry.days31_60 += balance; break;
+        case '61-90':  entry.days61_90 += balance; break;
+        case '90+':    entry.days90plus += balance; break;
+      }
+      entry.total += balance;
+
+      entry.invoices.push({
+        id: inv.id,
+        invoice_number: inv.invoice_number,
+        issue_date: inv.issue_date.toISOString(),
+        due_date: inv.due_date?.toISOString() ?? null,
+        total_amount: inv.total_amount.toString(),
+        amount_paid: inv.amount_paid.toString(),
+        balance: balance.toFixed(2),
+        payment_status: inv.payment_status,
+        category_name: inv.category.name,
+        vendor_name_raw: inv.vendor_name_raw,
+        bucket,
       });
     }
 
-    const entry = supplierMap.get(supplierId)!;
+    const data = Array.from(supplierMap.values()).sort((a, b) => b.total - a.total);
 
-    // Calculate aging bucket from issue date (LHDN ruling)
-    const diffDays = Math.floor((now.getTime() - inv.issue_date.getTime()) / (1000 * 60 * 60 * 24));
-    let bucket: string;
-    if (diffDays <= 30) bucket = '0-30';
-    else if (diffDays <= 60) bucket = '31-60';
-    else if (diffDays <= 90) bucket = '61-90';
-    else bucket = '90+';
+    // Summary totals
+    const summary = {
+      days0_30: data.reduce((s, r) => s + r.days0_30, 0),
+      days31_60: data.reduce((s, r) => s + r.days31_60, 0),
+      days61_90: data.reduce((s, r) => s + r.days61_90, 0),
+      days90plus: data.reduce((s, r) => s + r.days90plus, 0),
+      total: data.reduce((s, r) => s + r.total, 0),
+    };
 
-    // Add to bucket totals
-    switch (bucket) {
-      case '0-30':   entry.days0_30 += balance; break;
-      case '31-60':  entry.days31_60 += balance; break;
-      case '61-90':  entry.days61_90 += balance; break;
-      case '90+':    entry.days90plus += balance; break;
-    }
-    entry.total += balance;
-
-    entry.invoices.push({
-      id: inv.id,
-      invoice_number: inv.invoice_number,
-      issue_date: inv.issue_date.toISOString(),
-      due_date: inv.due_date?.toISOString() ?? null,
-      total_amount: inv.total_amount.toString(),
-      amount_paid: inv.amount_paid.toString(),
-      balance: balance.toFixed(2),
-      payment_status: inv.payment_status,
-      category_name: inv.category.name,
-      vendor_name_raw: inv.vendor_name_raw,
-      bucket,
-    });
+    return NextResponse.json({ data: { suppliers: data, summary }, error: null });
+  } catch (err) {
+    console.error('[API] admin/invoices/aging GET error:', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
   }
-
-  const data = Array.from(supplierMap.values()).sort((a, b) => b.total - a.total);
-
-  // Summary totals
-  const summary = {
-    days0_30: data.reduce((s, r) => s + r.days0_30, 0),
-    days31_60: data.reduce((s, r) => s + r.days31_60, 0),
-    days61_90: data.reduce((s, r) => s + r.days61_90, 0),
-    days90plus: data.reduce((s, r) => s + r.days90plus, 0),
-    total: data.reduce((s, r) => s + r.total, 0),
-  };
-
-  return NextResponse.json({ data: { suppliers: data, summary }, error: null });
 }

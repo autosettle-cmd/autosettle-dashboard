@@ -190,7 +190,14 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   };
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadStatement(); }, [id]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${config.apiStatements}/${id}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((j) => { setStatement(j.data); setLoading(false); })
+      .catch((err) => { if ((err as Error).name !== 'AbortError') { console.error('Failed to load statement:', err); setLoading(false); } });
+    return () => controller.abort();
+  }, [id]);
 
   // Auto-rematch when statement loads (accountant only)
   const [autoRematched, setAutoRematched] = useState(false);

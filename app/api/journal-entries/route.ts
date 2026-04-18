@@ -8,91 +8,96 @@ import { createJournalEntry } from '@/lib/journal-entries';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'accountant') {
-    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
-  }
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'accountant') {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
 
-  const firmIds = await getAccountantFirmIds(session.user.id);
+    const firmIds = await getAccountantFirmIds(session.user.id);
 
-  const { searchParams } = new URL(request.url);
-  const firmId = searchParams.get('firmId');
-  const dateFrom = searchParams.get('dateFrom');
-  const dateTo = searchParams.get('dateTo');
-  const sourceType = searchParams.get('sourceType');
-  const status = searchParams.get('status');
-  const search = searchParams.get('search');
-  const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
+    const { searchParams } = new URL(request.url);
+    const firmId = searchParams.get('firmId');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    const sourceType = searchParams.get('sourceType');
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
+    const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { ...firmScope(firmIds, firmId) };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const where: any = { ...firmScope(firmIds, firmId) };
 
-  if (dateFrom || dateTo) {
-    where.posting_date = {};
-    if (dateFrom) where.posting_date.gte = new Date(dateFrom);
-    if (dateTo) where.posting_date.lte = new Date(dateTo);
-  }
-  if (sourceType) where.source_type = sourceType;
-  if (status === 'reversed') {
-    where.reversed_by_id = { not: null };
-  } else if (status === 'posted') {
-    where.reversed_by_id = null;
-    where.reversal_of_id = null;
-  }
-  if (search) {
-    where.OR = [
-      { voucher_number: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
-    ];
-  }
+    if (dateFrom || dateTo) {
+      where.posting_date = {};
+      if (dateFrom) where.posting_date.gte = new Date(dateFrom);
+      if (dateTo) where.posting_date.lte = new Date(dateTo);
+    }
+    if (sourceType) where.source_type = sourceType;
+    if (status === 'reversed') {
+      where.reversed_by_id = { not: null };
+    } else if (status === 'posted') {
+      where.reversed_by_id = null;
+      where.reversal_of_id = null;
+    }
+    if (search) {
+      where.OR = [
+        { voucher_number: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
-  const [entries, totalCount] = await Promise.all([
-    prisma.journalEntry.findMany({
-      where,
-      include: {
-        lines: {
-          include: {
-            glAccount: { select: { account_code: true, name: true } },
+    const [entries, totalCount] = await Promise.all([
+      prisma.journalEntry.findMany({
+        where,
+        include: {
+          lines: {
+            include: {
+              glAccount: { select: { account_code: true, name: true } },
+            },
+            orderBy: { debit_amount: 'desc' },
           },
-          orderBy: { debit_amount: 'desc' },
+          period: { select: { period_number: true, fiscalYear: { select: { year_label: true } } } },
+          firm: { select: { name: true } },
         },
-        period: { select: { period_number: true, fiscalYear: { select: { year_label: true } } } },
-        firm: { select: { name: true } },
-      },
-      orderBy: { created_at: 'desc' },
-      take: takeParam || 100,
-    }),
-    prisma.journalEntry.count({ where }),
-  ]);
+        orderBy: { created_at: 'desc' },
+        take: takeParam || 100,
+      }),
+      prisma.journalEntry.count({ where }),
+    ]);
 
-  const data = entries.map((e) => ({
-    id: e.id,
-    firm_id: e.firm_id,
-    firm_name: e.firm.name,
-    voucher_number: e.voucher_number,
-    posting_date: e.posting_date,
-    period_label: e.period ? `${e.period.fiscalYear.year_label} P${e.period.period_number}` : null,
-    description: e.description,
-    source_type: e.source_type,
-    source_id: e.source_id,
-    status: e.status,
-    reversed_by_id: e.reversed_by_id,
-    reversal_of_id: e.reversal_of_id,
-    created_by: e.created_by,
-    created_at: e.created_at,
-    total_debit: e.lines.reduce((sum, l) => sum + Number(l.debit_amount), 0),
-    total_credit: e.lines.reduce((sum, l) => sum + Number(l.credit_amount), 0),
-    lines: e.lines.map((l) => ({
-      id: l.id,
-      account_code: l.glAccount.account_code,
-      account_name: l.glAccount.name,
-      debit_amount: Number(l.debit_amount),
-      credit_amount: Number(l.credit_amount),
-      description: l.description,
-    })),
-  }));
+    const data = entries.map((e) => ({
+      id: e.id,
+      firm_id: e.firm_id,
+      firm_name: e.firm.name,
+      voucher_number: e.voucher_number,
+      posting_date: e.posting_date,
+      period_label: e.period ? `${e.period.fiscalYear.year_label} P${e.period.period_number}` : null,
+      description: e.description,
+      source_type: e.source_type,
+      source_id: e.source_id,
+      status: e.status,
+      reversed_by_id: e.reversed_by_id,
+      reversal_of_id: e.reversal_of_id,
+      created_by: e.created_by,
+      created_at: e.created_at,
+      total_debit: e.lines.reduce((sum, l) => sum + Number(l.debit_amount), 0),
+      total_credit: e.lines.reduce((sum, l) => sum + Number(l.credit_amount), 0),
+      lines: e.lines.map((l) => ({
+        id: l.id,
+        account_code: l.glAccount.account_code,
+        account_name: l.glAccount.name,
+        debit_amount: Number(l.debit_amount),
+        credit_amount: Number(l.credit_amount),
+        description: l.description,
+      })),
+    }));
 
-  return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
+    return NextResponse.json({ data, error: null, hasMore: totalCount > (takeParam || 100), totalCount });
+  } catch (err) {
+    console.error('[API] journal-entries GET error:', err);
+    return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
