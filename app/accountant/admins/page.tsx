@@ -176,9 +176,9 @@ export default function AdminsPage() {
                 <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No admins found for this firm.</div>
               ) : (
                 <div className="overflow-auto flex-1 min-h-0">
-                  <table className="w-full text-sm ds-table-chassis">
+                  <table className="w-full text-sm">
                     <thead>
-                      <tr className="ds-table-header">
+                      <tr>
                         <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Name</th>
                         <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Email</th>
                         <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Status</th>
@@ -188,7 +188,7 @@ export default function AdminsPage() {
                     </thead>
                     <tbody>
                       {admins.map((admin, i) => (
-                        <tr key={admin.id} className={`ds-table-row hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
+                        <tr key={admin.id} className={`hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
                           <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
                           <td className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
                           <td className="px-6 py-3">

@@ -350,7 +350,7 @@ export default function GlAccountSelect({
                   type="button"
                   onClick={createAccount}
                   disabled={creating || !newCode.trim() || !newName.trim()}
-                  className="text-label-sm px-2.5 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
+                  className="text-label-sm px-2.5 py-1.5 rounded-lg font-medium text-white btn-primary transition-all duration-200 disabled:opacity-40"
                 >
                   {creating ? '...' : 'Add'}
                 </button>

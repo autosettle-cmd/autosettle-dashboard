@@ -1097,10 +1097,10 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             ) : claims.length === 0 ? (
               <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">{claimTab === 'receipt' ? 'No receipts' : claimTab === 'mileage' ? 'No mileage claims' : 'No claims'} found for the selected filters.</div>
             ) : (
-              <table className="w-full ds-table-chassis">
+              <table className="w-full">
                 <thead>
                   {claimTab === 'claim' && (
-                    <tr className="ds-table-header text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
+                    <tr className="text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" className="ds-table-checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>
@@ -1114,7 +1114,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     </tr>
                   )}
                   {claimTab === 'receipt' && (
-                    <tr className="ds-table-header text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
+                    <tr className="text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" className="ds-table-checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       {showFirm && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
@@ -1128,7 +1128,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     </tr>
                   )}
                   {claimTab === 'mileage' && (
-                    <tr className="ds-table-header text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
+                    <tr className="text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" className="ds-table-checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>
@@ -1147,7 +1147,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     const isSelected = selectedRows.some((r) => r.id === c.id);
                     const rowBg = idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white';
                     if (claimTab === 'claim') return (
-                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`ds-table-row text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
+                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
                         <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
                         <td className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
@@ -1161,7 +1161,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                       </tr>
                     );
                     if (claimTab === 'mileage') return (
-                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`ds-table-row text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
+                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
                         <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
                         <td className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
@@ -1176,7 +1176,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     );
                     // receipt tab
                     return (
-                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`ds-table-row text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
+                      <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
                         <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
                         {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}

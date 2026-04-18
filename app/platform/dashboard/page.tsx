@@ -80,9 +80,9 @@ export default function PlatformDashboardPage() {
                     <Link href="/platform/firms" className="text-xs text-[var(--primary)] hover:underline">Manage Firms</Link>
                   </div>
                   <div className="bg-white card-popped overflow-hidden">
-                    <table className="ds-table-chassis w-full text-sm">
+                    <table className="w-full text-sm">
                       <thead>
-                        <tr className="ds-table-header">
+                        <tr>
                           <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">Firm</th>
                           <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right w-[80px]">Users</th>
                           <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right w-[80px]">Employees</th>
@@ -93,7 +93,7 @@ export default function PlatformDashboardPage() {
                       </thead>
                       <tbody>
                         {data.firmStats.map((f, i) => (
-                          <tr key={f.id} className={`ds-table-row hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
+                          <tr key={f.id} className={`hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
                             <td className="px-5 py-2.5 font-medium text-[var(--text-primary)]">{f.name}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{f.users}</td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{f.employees}</td>

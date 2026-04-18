@@ -46,9 +46,9 @@ export default function AdminTaxCodesPage() {
           ) : (
             <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
-                <table className="ds-table-chassis w-full">
+                <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
+                    <tr className="text-left">
                       <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Code</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right w-[80px]">Rate</th>
@@ -59,7 +59,7 @@ export default function AdminTaxCodesPage() {
                   </thead>
                   <tbody>
                     {taxCodes.map((tc, idx) => (
-                      <tr key={tc.id} className={`ds-table-row text-body-sm hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                      <tr key={tc.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                         <td className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)] tabular-nums">{tc.code}</td>
                         <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
                         <td className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>

@@ -650,9 +650,9 @@ export default function ChartOfAccountsPage() {
             {/* Accounts tree table */}
             <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
-                <table className="w-full ds-table-chassis">
+                <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
+                    <tr className="text-left">
                       <th className="px-5 py-2.5 w-[280px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Code</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Name</th>
                       <th className="px-3 py-2.5 w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
@@ -671,7 +671,7 @@ export default function ChartOfAccountsPage() {
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, row.id)}
                         onDragEnd={() => { setDragId(null); setDropTargetId(null); }}
-                        className={`ds-table-row text-body-sm transition-colors cursor-pointer ${
+                        className={`text-body-sm transition-colors cursor-pointer ${
                           dragId === row.id ? 'opacity-40' :
                           dropTargetId === row.id ? 'bg-blue-50 border-blue-300 border-2' :
                           `hover:bg-[var(--surface-header)] ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`
@@ -747,9 +747,9 @@ export default function ChartOfAccountsPage() {
                 <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">No tax codes. Click &quot;Add Tax Code&quot; to create one.</div>
               ) : (
                 <div className="overflow-auto">
-                  <table className="w-full ds-table-chassis">
+                  <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
+                      <tr className="text-left">
                         <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Code</th>
                         <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
                         <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right w-[80px]">Rate</th>
@@ -761,7 +761,7 @@ export default function ChartOfAccountsPage() {
                     </thead>
                     <tbody>
                       {taxCodes.map((tc, i) => (
-                        <tr key={tc.id} className={`ds-table-row text-body-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                        <tr key={tc.id} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                           <td className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)]">{tc.code}</td>
                           <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
                           <td className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>

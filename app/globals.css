@@ -101,15 +101,13 @@ div.ledger-binding {
 }
 
 /* Etched greeting — letterpress indented into the console surface */
-.ledger-binding > header h1,
-.ledger-binding > header > h1 {
+.ledger-binding > header h1 {
   color: #2A3440;
   text-shadow: 0 1px 0 rgba(255,255,255,0.8);
 }
 
 /* Date readout — recessed LCD strip in the console */
-.ledger-binding > header p,
-.ledger-binding > header > p {
+.ledger-binding > header p {
   color: #2A3440;
   font-size: 0.875rem;
   font-weight: 700;
@@ -338,16 +336,6 @@ div.ledger-binding {
     padding: 12px 24px;
   }
 
-  .btn-blue {
-    @apply btn-thick-navy;
-    padding: 12px 24px;
-  }
-
-  .btn-dark {
-    @apply btn-thick-navy;
-    padding: 12px 24px;
-  }
-
   .btn-secondary {
     @apply btn-thick-white;
     padding: 12px 24px;
@@ -525,24 +513,12 @@ div.ledger-binding {
 
   /* Inner Tiles — physical keycap buttons (same as btn-thick-white) */
   .dash-tile {
-    @apply btn-texture;
-    background: linear-gradient(180deg, #FFFFFF 0%, #EDEFF1 100%);
+    @apply btn-thick-white;
     padding: 8px 12px;
     min-height: 68px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    transition: all 0.08s ease;
-    border: none;
-    border-top: 1px solid rgba(255,255,255,0.95);
-    box-shadow:
-      0 4px 0 0 #b8bcc2,
-      2px 0 0 0 #d1d5db,
-      2px 4px 0 0 #b8bcc2,
-     -1px 0 0 0 #dfe1e5,
-      inset 1px 1px 0 0 rgba(255,255,255,0.9),
-      inset -1px -1px 0 0 rgba(0,0,0,0.06);
-    text-shadow: 0 1px 0 rgba(255,255,255,0.8);
   }
   .dash-tile:hover {
     box-shadow:

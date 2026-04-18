@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import StatCard from '@/components/StatCard';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClaimStats {
@@ -348,9 +349,9 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <>
-                  <table className="w-full ds-table-chassis">
+                  <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
+                      <tr className="text-left">
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Employee</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Merchant</th>
@@ -363,7 +364,7 @@ export default function AdminDashboard() {
                       {pendingClaims.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((c, idx) => {
                         const cfg = STATUS_CFG[c.status];
                         return (
-                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`ds-table-row group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
+                          <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(c.claim_date)}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-medium">{c.employee_name}</td>
                             <td className="px-6 py-3 text-[#444650] group-hover:text-[#234B6E] transition-colors duration-200">{c.merchant}</td>
@@ -393,9 +394,9 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <>
-                  <table className="w-full ds-table-chassis">
+                  <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header">
+                      <tr>
                         <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Date</th>
                         <th className="px-6 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[#444650]">Merchant</th>
                         <th className="px-6 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[#444650]">Amount</th>
@@ -406,7 +407,7 @@ export default function AdminDashboard() {
                       {unlinkedReceipts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((r, idx) => (
                         <tr
                           key={r.id}
-                          className={`ds-table-row group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}
+                          className={`group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}
                           onClick={() => setPreviewClaim(r)}
                         >
                           <td className="px-6 py-2.5 text-[#444650] tabular-nums">{formatDate(r.claim_date)}</td>
@@ -433,9 +434,9 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <>
-                  <table className="w-full ds-table-chassis">
+                  <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header text-left">
+                      <tr className="text-left">
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Issue Date</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Vendor</th>
                         <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[#444650]">Invoice #</th>
@@ -450,7 +451,7 @@ export default function AdminDashboard() {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
-                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`ds-table-row group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
+                          <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
                             <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(inv.issue_date)}</td>
                             <td className="px-6 py-3 text-[#191C1E] font-medium group-hover:text-[#234B6E] transition-colors duration-200">{inv.vendor_name_raw}</td>
                             <td className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>
@@ -741,44 +742,6 @@ export default function AdminDashboard() {
 
     </div>
   );
-}
-
-// ─── StatCard ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, amount, color, href }: {
-  label: string;
-  value: string | number | null;
-  amount?: string | null;
-  color: 'default' | 'amber' | 'red' | 'primary' | 'green';
-  href?: string;
-}) {
-  const isPrimary = color === 'primary';
-  const accent = {
-    default: { dot: 'bg-gray-300', value: 'text-[#191C1E]' },
-    amber:   { dot: 'bg-amber-400', value: 'text-amber-600' },
-    red:     { dot: 'bg-red-400', value: 'text-red-600' },
-    primary: { dot: '', value: '' },
-    green:   { dot: 'bg-emerald-400', value: 'text-emerald-600' },
-  }[color];
-
-  const content = (
-    <div
-      className={`dash-tile group ${href ? 'cursor-pointer' : ''}`}
-    >
-      <div className="flex items-center gap-1.5 mb-1">
-        <div className={`w-1.5 h-1.5 flex-shrink-0 ${accent.dot}`} style={isPrimary ? { backgroundColor: '#234B6E' } : undefined} />
-        <p className="text-[10px] font-bold text-[#444650] uppercase tracking-wide leading-tight">{label}</p>
-      </div>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className={`text-xl font-extrabold tracking-tight tabular-nums ${accent.value}`} style={isPrimary ? { color: '#234B6E' } : undefined}>
-          {value ?? <span className="text-gray-200">&mdash;</span>}
-        </p>
-        {amount && <p className="text-[10px] font-medium text-[#444650] tabular-nums whitespace-nowrap">{amount}</p>}
-      </div>
-    </div>
-  );
-
-  return href ? <Link href={href}>{content}</Link> : content;
 }
 
 // ─── Pagination ──────────────────────────────────────────────────────────────

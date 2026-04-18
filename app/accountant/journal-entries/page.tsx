@@ -269,9 +269,9 @@ export default function JournalEntriesPage() {
               <div className="text-center text-sm text-[var(--text-secondary)] py-12">No journal entries found.</div>
             ) : (
               <>
-                <table className="w-full ds-table-chassis">
+                <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
+                    <tr className="text-left">
                       <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('posting_date')}>Date{sortIndicator('posting_date')}</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('voucher_number')}>Voucher #{sortIndicator('voucher_number')}</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
@@ -291,7 +291,7 @@ export default function JournalEntriesPage() {
                         <tr
                           key={e.id}
                           onClick={() => setPreview(e)}
-                          className={`ds-table-row text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${e.reversed_by_id || e.reversal_of_id ? 'opacity-50' : ''} ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                          className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${e.reversed_by_id || e.reversal_of_id ? 'opacity-50' : ''} ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                         >
                           <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(e.posting_date)}</td>
                           <td className="px-3 py-3 text-[var(--text-primary)] font-medium font-mono text-xs">{e.voucher_number}</td>
@@ -385,9 +385,9 @@ export default function JournalEntriesPage() {
 
                 {/* Lines table */}
                 <div className="bg-[var(--surface-low)] overflow-hidden">
-                  <table className="w-full ds-table-chassis">
+                  <table className="w-full">
                     <thead>
-                      <tr className="text-left ds-table-header">
+                      <tr className="text-left">
                         <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
                         <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
                         <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right">Debit</th>

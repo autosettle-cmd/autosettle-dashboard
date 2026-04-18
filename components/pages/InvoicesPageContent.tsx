@@ -1200,9 +1200,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               <div className="text-center text-sm text-[var(--text-secondary)] py-12">No invoices found for the selected filters.</div>
             ) : (
               <>
-                <table className="w-full ds-table-chassis">
+                <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
+                    <tr className="text-left">
                       {config.showApproval && (
                         <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-10"><input type="checkbox" className="ds-table-checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
                       )}
@@ -1226,7 +1226,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                       <tr
                         key={inv.id}
                         onClick={() => setPreviewInvoice(inv)}
-                        className={`ds-table-row text-body-sm cursor-pointer ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                        className={`text-body-sm cursor-pointer ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
                         {config.showApproval && (
                           <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>

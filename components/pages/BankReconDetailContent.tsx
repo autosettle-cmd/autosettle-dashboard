@@ -741,9 +741,9 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
             <>
               {/* Transaction table */}
               <div className="bg-white overflow-hidden">
-                <table className="w-full ds-table-chassis">
+                <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header">
+                    <tr>
                       <th className="px-4 py-2.5 text-left w-[70px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
                       <th className="px-3 py-2.5 text-left w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
                       <th className="px-3 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
@@ -793,7 +793,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
 
                       return (
                         <React.Fragment key={txn.id}>
-                        <tr className={`ds-table-row transition-colors ${hasExpandable ? 'cursor-pointer hover:bg-[var(--surface-header)]' : 'hover:bg-[var(--surface-header)]'} ${rowBg}`}
+                        <tr className={`transition-colors ${hasExpandable ? 'cursor-pointer hover:bg-[var(--surface-header)]' : 'hover:bg-[var(--surface-header)]'} ${rowBg}`}
                           onClick={handleRowClick}
                         >
                           <td className="px-4 py-2.5">
@@ -956,17 +956,17 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                 return (
                                   <div className="mt-3 bg-white border-b-2 border-r border-[rgba(0,0,0,0.08)] p-3">
                                     <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Journal Entry Preview</p>
-                                    <table className="w-full text-body-sm ds-table-chassis">
+                                    <table className="w-full text-body-sm">
                                       <thead>
-                                        <tr className="ds-table-header text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
+                                        <tr className="text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
                                           <th className="py-1">Account</th>
                                           <th className="py-1 text-right">Debit</th>
                                           <th className="py-1 text-right">Credit</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        <tr className="ds-table-row"><td className="py-1 text-[var(--text-primary)] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
-                                        <tr className="ds-table-row"><td className="py-1 text-[var(--text-primary)] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
+                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
+                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
                                       </tbody>
                                     </table>
                                     {glMismatch && (
@@ -1239,9 +1239,9 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                               return (
                                 <div className="border border-[#E0E3E5] p-3 mt-1">
                                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Journal Entry Preview</p>
-                                  <table className="w-full text-xs ds-table-chassis">
+                                  <table className="w-full text-xs">
                                     <thead>
-                                      <tr className="ds-table-header text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                                      <tr className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                                         <th className="py-1 text-left">Account</th>
                                         <th className="py-1 text-right w-24">Debit</th>
                                         <th className="py-1 text-right w-24">Credit</th>
@@ -1249,7 +1249,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                     </thead>
                                     <tbody>
                                       {jvLines.map((line, i) => (
-                                        <tr key={i} className="ds-table-row">
+                                        <tr key={i}>
                                           <td className="py-1 text-[var(--text-primary)]">{line.account}</td>
                                           <td className="py-1 text-right tabular-nums">{line.debit ?? '-'}</td>
                                           <td className="py-1 text-right tabular-nums">{line.credit ?? '-'}</td>

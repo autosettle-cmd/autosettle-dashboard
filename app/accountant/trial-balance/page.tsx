@@ -262,9 +262,9 @@ export default function TrialBalancePage() {
             ) : !hasData ? (
               <div className="text-center py-12 text-sm text-[var(--text-muted)]">No accounts with activity found.</div>
             ) : (
-              <table className="w-full text-sm ds-table-chassis">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="ds-table-header text-left">
+                  <tr className="text-left">
                     <th className="px-5 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account</th>
                     <th className="px-3 py-2.5 text-right w-[160px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
                     <th className="px-3 py-2.5 text-right w-[160px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>

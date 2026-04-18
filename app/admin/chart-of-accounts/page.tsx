@@ -183,9 +183,9 @@ export default function AdminChartOfAccountsPage() {
           ) : (
             <div className="bg-white overflow-hidden">
               <div className="overflow-auto">
-                <table className="ds-table-chassis w-full">
+                <table className="w-full">
                   <thead>
-                    <tr className="ds-table-header text-left">
+                    <tr className="text-left">
                       <th className="px-5 py-2.5 w-[280px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Code</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Account Name</th>
                       <th className="px-3 py-2.5 w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Type</th>
@@ -195,7 +195,7 @@ export default function AdminChartOfAccountsPage() {
                   </thead>
                   <tbody>
                     {flatRows.map((row, idx) => (
-                      <tr key={row.id} className={`ds-table-row text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`} onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
+                      <tr key={row.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`} onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
                         <td className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (

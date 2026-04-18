@@ -548,9 +548,9 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           {showAging && agingData.length > 0 && agingSummary && (
             <div className="mb-4">
               <div className="bg-white card-popped overflow-hidden">
-                  <table className="w-full ds-table-chassis">
+                  <table className="w-full">
                     <thead>
-                      <tr className="ds-table-header">
+                      <tr>
                         <th className="px-4 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Supplier</th>
                         <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">0-30</th>
                         <th className="px-3 py-2.5 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">31-60</th>
@@ -564,7 +564,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                         <React.Fragment key={s.supplier_id}>
                           <tr
                             onClick={() => setAgingExpanded(agingExpanded === s.supplier_id ? null : s.supplier_id)}
-                            className={`ds-table-row hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                            className={`hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           >
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
@@ -641,9 +641,9 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
             </div>
           ) : (
             <div className="bg-white card-popped overflow-hidden">
-              <table className="w-full ds-table-chassis">
+              <table className="w-full">
                 <thead>
-                  <tr className="ds-table-header">
+                  <tr>
                     <th className="px-4 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Supplier</th>
                     {config.showFirmColumn && <th className="px-3 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Firm</th>}
                     <th className="px-3 py-2.5 text-right w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoices</th>
@@ -661,7 +661,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                     return (
                       <tr
                         key={s.id}
-                        className={`ds-table-row transition-colors cursor-pointer hover:bg-[var(--surface-header)] ${rowBg}`}
+                        className={`transition-colors cursor-pointer hover:bg-[var(--surface-header)] ${rowBg}`}
                         onClick={() => openPreview(s.id)}
                       >
                         <td className="px-4 py-2.5">
@@ -816,9 +816,9 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                         {expandedInvoices.length > 0 && (
                           <div className="bg-red-50/40">
                             <p className="px-5 pt-3 pb-1 text-[10px] font-label font-bold text-[var(--reject-red)] uppercase tracking-widest">Purchase Invoices — Payable</p>
-                            <table className="w-full ds-table-chassis">
+                            <table className="w-full">
                               <thead>
-                                <tr className="ds-table-header text-left">
+                                <tr className="text-left">
                                   <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Issue Date</th>
                                   <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoice #</th>
                                   <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Due Date</th>
@@ -838,7 +838,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                                   return (
                                     <React.Fragment key={inv.id}>
                                       <tr
-                                        className={`ds-table-row text-body-sm hover:bg-white/60 transition-colors cursor-pointer ${isDocExpanded ? 'bg-blue-50/60' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : ''}`}
+                                        className={`text-body-sm hover:bg-white/60 transition-colors cursor-pointer ${isDocExpanded ? 'bg-blue-50/60' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : ''}`}
                                         onClick={() => setExpandedDocId(isDocExpanded ? null : inv.id)}
                                       >
                                         <td className="px-4 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(inv.issue_date)}</td>
@@ -927,9 +927,9 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                         {expandedSalesInvoices.length > 0 && (
                           <div className="bg-green-50/40 border-t border-[var(--surface-header)]">
                             <p className="px-5 pt-3 pb-1 text-[10px] font-label font-bold text-[var(--match-green)] uppercase tracking-widest">Sales Invoices — Receivable</p>
-                            <table className="w-full ds-table-chassis">
+                            <table className="w-full">
                               <thead>
-                                <tr className="ds-table-header text-left">
+                                <tr className="text-left">
                                   <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Issue Date</th>
                                   <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoice #</th>
                                   <th className="px-3 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Due Date</th>
@@ -946,7 +946,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                                   return (
                                     <React.Fragment key={sinv.id}>
                                       <tr
-                                        className={`ds-table-row text-body-sm hover:bg-white/60 transition-colors cursor-pointer ${isSiExpanded ? 'bg-blue-50/60' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : ''}`}
+                                        className={`text-body-sm hover:bg-white/60 transition-colors cursor-pointer ${isSiExpanded ? 'bg-blue-50/60' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : ''}`}
                                         onClick={() => setExpandedDocId(isSiExpanded ? null : `si-${sinv.id}`)}
                                       >
                                         <td className="px-4 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(sinv.issue_date)}</td>
@@ -1164,9 +1164,9 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                   <div className="text-center text-sm text-[var(--text-secondary)] py-4">No unpaid invoices</div>
                 ) : (
                   <div className="overflow-hidden">
-                    <table className="w-full ds-table-chassis">
+                    <table className="w-full">
                       <thead>
-                        <tr className="ds-table-header">
+                        <tr>
                           <th className="px-3 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Invoice #</th>
                           <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Total</th>
                           <th className="px-3 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
@@ -1175,7 +1175,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                       </thead>
                       <tbody>
                         {paymentInvoices.map((inv, i) => (
-                          <tr key={inv.id} className={`ds-table-row text-body-sm ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                          <tr key={inv.id} className={`text-body-sm ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
                             <td className="px-3 py-2 text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</td>
                             <td className="px-3 py-2 text-right text-[var(--text-secondary)] tabular-nums">{formatRM(inv.total_amount)}</td>
                             <td className="px-3 py-2 text-right text-[var(--text-primary)] font-semibold tabular-nums">{formatRM(inv.balance)}</td>

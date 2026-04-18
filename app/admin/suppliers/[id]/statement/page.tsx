@@ -172,9 +172,9 @@ export default function AdminSupplierStatementPage() {
 
                 {/* Statement table */}
                 <div className="mt-4 bg-white card-popped overflow-hidden">
-                  <table className="ds-table-chassis w-full text-left">
+                  <table className="w-full text-left">
                     <thead>
-                      <tr className="ds-table-header">
+                      <tr>
                         <th className="px-6 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
                         <th className="px-3 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Reference</th>
                         <th className="px-3 py-3 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
@@ -185,7 +185,7 @@ export default function AdminSupplierStatementPage() {
                     </thead>
                     <tbody>
                       {/* Opening balance row */}
-                      <tr className="ds-table-row bg-[var(--surface-low)]">
+                      <tr className="bg-[var(--surface-low)]">
                         <td className="px-6 py-2.5 text-sm text-[var(--text-secondary)] tabular-nums">{formatDate(data.period.from)}</td>
                         <td className="px-3 py-2.5 text-sm text-[var(--text-secondary)]" colSpan={2}>Opening Balance</td>
                         <td className="px-3 py-2.5 text-sm text-right tabular-nums text-[var(--text-secondary)]">—</td>
@@ -198,7 +198,7 @@ export default function AdminSupplierStatementPage() {
                         const isReceivable = entry.type === 'sales_invoice' || entry.type === 'incoming_payment';
                         const rowBg = isReceivable ? 'bg-[var(--surface-low)]' : (i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]');
                         return (
-                          <tr key={i} className={`ds-table-row text-sm hover:bg-[var(--surface-header)] transition-colors ${rowBg}`}>
+                          <tr key={i} className={`text-sm hover:bg-[var(--surface-header)] transition-colors ${rowBg}`}>
                             <td className="px-6 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(entry.date)}</td>
                             <td className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{entry.reference}</td>
                             <td className="px-3 py-2.5 text-[var(--text-secondary)]">{entry.description}</td>
@@ -210,7 +210,7 @@ export default function AdminSupplierStatementPage() {
                       })}
 
                       {/* Closing balance row */}
-                      <tr className="ds-table-row bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
+                      <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
                         <td className="px-6 py-3 text-sm font-semibold text-[var(--text-primary)] tabular-nums">{formatDate(data.period.to)}</td>
                         <td className="px-3 py-3 text-sm font-semibold text-[var(--text-primary)]" colSpan={2}>Closing Balance</td>
                         <td className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-[var(--match-green)]">{formatRM(data.totals.total_debit)}</td>

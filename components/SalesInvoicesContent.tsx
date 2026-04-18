@@ -461,9 +461,9 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
       {/* ── Table ────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-auto rounded-lg bg-white">
-        <table className="w-full text-sm ds-table-chassis">
+        <table className="w-full text-sm">
           <thead>
-            <tr className="ds-table-header text-left">
+            <tr className="text-left">
               <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
               <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('buyer_name')}>Buyer{sortIndicator('buyer_name')}</th>
               <th className="px-6 py-3 cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
@@ -490,7 +490,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 return (
                   <tr
                     key={inv.id}
-                    className="ds-table-row group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                    className="group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
                     onClick={() => setPreview(inv)}
                   >
                     <td className="px-6 py-3 font-medium text-[#191C1E]">{inv.invoice_number || '-'}</td>
@@ -508,7 +508,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     <td className="px-6 py-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setPreview(inv); }}
-                        className="btn-blue text-label-sm px-3 py-1"
+                        className="btn-primary text-label-sm px-3 py-1"
                       >
                         View
                       </button>
@@ -575,7 +575,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                         } catch { setCreateError('Failed to create buyer'); }
                         setCreatingBuyer(false);
                       }}
-                      className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-blue transition-all duration-200 disabled:opacity-40"
+                      className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-primary transition-all duration-200 disabled:opacity-40"
                     >
                       {creatingBuyer ? 'Adding...' : 'Add'}
                     </button>
@@ -826,9 +826,9 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 <div>
                   <h3 className="text-label-sm font-medium text-[#8E9196] uppercase tracking-wide mb-2">Line Items</h3>
                   <div className="rounded-lg overflow-hidden">
-                    <table className="w-full text-xs ds-table-chassis">
+                    <table className="w-full text-xs">
                       <thead>
-                        <tr className="ds-table-header text-left">
+                        <tr className="text-left">
                           <th className="px-3 py-2">Description</th>
                           <th className="px-3 py-2 text-right">Qty</th>
                           <th className="px-3 py-2 text-right">Price</th>
@@ -838,7 +838,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       </thead>
                       <tbody>
                         {preview.items.map((item) => (
-                          <tr key={item.id} className="ds-table-row">
+                          <tr key={item.id}>
                             <td className="px-3 py-2 text-[#434654]">{item.description}</td>
                             <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{Number(item.quantity)}</td>
                             <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.unit_price)}</td>
