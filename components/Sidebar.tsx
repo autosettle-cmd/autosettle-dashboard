@@ -334,10 +334,17 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
               )}
             </div>
           )}
-          {/* User info */}
-          <div className="px-4 py-3 bg-white/10">
-            <p className="text-sm font-bold text-white truncate">{session?.user?.name ?? '—'}</p>
-            <p className="text-[10px] text-white/50 uppercase tracking-widest">{session?.user?.role ?? role}</p>
+          {/* User info — milled into sidebar surface */}
+          <div className="mx-3 my-2 px-3 py-2.5"
+            style={{
+              background: 'rgba(0,0,0,0.15)',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 1px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.07)',
+              borderTop: '1px solid rgba(0,0,0,0.2)',
+              borderBottom: '1px solid rgba(255,255,255,0.05)',
+            }}
+          >
+            <p className="text-sm font-bold text-white truncate" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{session?.user?.name ?? '—'}</p>
+            <p className="text-[10px] text-white/40 uppercase tracking-widest font-semibold" style={{ textShadow: '0 1px 1px rgba(0,0,0,0.3)' }}>{session?.user?.role ?? role}</p>
           </div>
           {/* Sign out */}
           <button
