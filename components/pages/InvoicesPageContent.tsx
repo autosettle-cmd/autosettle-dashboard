@@ -117,8 +117,11 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
   const activeTab: 'received' | 'issued' = pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received';
-  const { upsertJob, removeJob, hasPendingReview } = useBatchUpload();
-  const batchJobId = useRef(`invoice-batch-${Date.now()}`).current;
+  const { upsertJob, removeJob, getJob, hasPendingReview, jobs } = useBatchUpload();
+  // Use a stable ID — find existing job or create new one
+  const batchJobId = useRef(
+    jobs.find(j => j.type === 'invoice')?.id ?? `invoice-batch-${Date.now()}`
+  ).current;
   const returnUrl = config.role === 'accountant' ? '/accountant/invoices?tab=received' : '/admin/invoices?tab=received';
 
   // Data
@@ -344,6 +347,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   }
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const batchItemsRef = useRef(batchItems);
+  batchItemsRef.current = batchItems;
   const [batchScanning, setBatchScanning] = useState(false);
   const batchCancelRef = useRef(false);
   const [batchSubmitting, setBatchSubmitting] = useState(false);
@@ -372,8 +377,12 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
   // Auto-open batch review if returning from another page with pending review
   useEffect(() => {
-    if (hasPendingReview('invoice') && batchItems.length > 0 && !showBatchReview) {
-      setShowBatchReview(true);
+    if (hasPendingReview('invoice') && !showBatchReview) {
+      const job = getJob(batchJobId);
+      if (job?.data?.items) {
+        setBatchItems(job.data.items);
+        setShowBatchReview(true);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -565,7 +574,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       if (batchCancelRef.current) break;
       const itemId = items[i]._id;
       setBatchScanProgress({ current: i + 1, total: items.length });
-      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: items.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }});
+      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: items.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }, data: { items: batchItemsRef.current } });
       try {
         const dupFd = new FormData();
         dupFd.append('file', items[i].file);
@@ -610,7 +619,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     }
     setBatchScanning(false);
     setShowBatchReview(true);
-    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scan complete', phase: 'review', current: items.length, total: items.length, returnUrl });
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scan complete', phase: 'review', current: items.length, total: items.length, returnUrl, data: { items: batchItemsRef.current } });
   };
 
   const submitBatch = async () => {
@@ -747,7 +756,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       if (batchCancelRef.current) break;
       const itemId = bItems[i]._id;
       setBatchScanProgress({ current: i + 1, total: bItems.length });
-      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: bItems.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }});
+      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: bItems.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }, data: { items: batchItemsRef.current } });
       try {
         const dupFd = new FormData();
         dupFd.append('file', bItems[i].file);
@@ -792,7 +801,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     }
     setBatchScanning(false);
     setShowBatchReview(true);
-    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scan complete', phase: 'review', current: bItems.length, total: bItems.length, returnUrl });
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scan complete', phase: 'review', current: bItems.length, total: bItems.length, returnUrl, data: { items: batchItemsRef.current } });
   };
 
   const submitNewInvoice = async () => {

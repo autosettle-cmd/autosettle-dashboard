@@ -17,6 +17,9 @@ export interface BatchJob {
   returnUrl?: string;
   /** Callback to cancel the operation (only during scanning) */
   onCancel?: () => void;
+  /** Arbitrary data payload — survives navigation (e.g. scanned batch items) */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data?: any;
 }
 
 interface BatchUploadContextType {
