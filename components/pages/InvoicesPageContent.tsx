@@ -4,7 +4,7 @@ import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
-import { Suspense, useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM, getDateRange } from '@/lib/formatters';
@@ -375,14 +375,24 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [batchScanning, batchSubmitting]);
 
+  // Restore batch items from context and open modal
+  const restoreAndOpen = useCallback(() => {
+    const job = jobs.find(j => j.type === 'invoice');
+    if (job?.data?.items && batchItems.length === 0) {
+      setBatchItems(job.data.items);
+    }
+    setShowBatchReview(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, batchItems.length]);
+
   // Register expand handler so floating bar can open modal directly when component is mounted
   useEffect(() => {
-    registerExpandHandler(batchJobId, () => setShowBatchReview(true));
+    registerExpandHandler(batchJobId, restoreAndOpen);
     return () => unregisterExpandHandler(batchJobId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchJobId]);
+  }, [batchJobId, restoreAndOpen]);
 
-  // Auto-open batch review when a review job exists (works on mount AND when job transitions to review)
+  // Auto-open batch review when a review job transitions to review phase
   useEffect(() => {
     const job = jobs.find(j => j.type === 'invoice' && j.phase === 'review');
     if (job?.data?.items && !showBatchReview && !batchScanning && !batchSubmitting) {
