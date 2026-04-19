@@ -117,8 +117,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
   const activeTab: 'received' | 'issued' = pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received';
-  const { upsertJob, removeJob } = useBatchUpload();
+  const { upsertJob, removeJob, hasPendingReview } = useBatchUpload();
   const batchJobId = useRef(`invoice-batch-${Date.now()}`).current;
+  const returnUrl = config.role === 'accountant' ? '/accountant/invoices?tab=received' : '/admin/invoices?tab=received';
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -369,6 +370,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [batchScanning, batchSubmitting]);
 
+  // Auto-open batch review if returning from another page with pending review
+  useEffect(() => {
+    if (hasPendingReview('invoice') && batchItems.length > 0 && !showBatchReview) {
+      setShowBatchReview(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const cancelBatchScan = () => {
     if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;
     batchCancelRef.current = true;
@@ -376,6 +385,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     setShowBatchReview(false);
     setBatchItems([]);
     setBatchPreviewId(null);
+    removeJob(batchJobId);
   };
 
   // Drag-and-drop
@@ -549,13 +559,13 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     setBatchScanning(true);
     batchCancelRef.current = false;
     setBatchScanProgress({ current: 0, total: droppedFiles.length });
-    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: 0, total: droppedFiles.length, onExpand: () => setShowBatchReview(true), onCancel: () => { batchCancelRef.current = true; } });
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: 0, total: droppedFiles.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }});
 
     for (let i = 0; i < items.length; i++) {
       if (batchCancelRef.current) break;
       const itemId = items[i]._id;
       setBatchScanProgress({ current: i + 1, total: items.length });
-      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: items.length, onExpand: () => setShowBatchReview(true), onCancel: () => { batchCancelRef.current = true; } });
+      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: items.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }});
       try {
         const dupFd = new FormData();
         dupFd.append('file', items[i].file);
@@ -600,7 +610,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     }
     setBatchScanning(false);
     setShowBatchReview(true);
-    removeJob(batchJobId);
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scan complete', phase: 'review', current: items.length, total: items.length, returnUrl });
   };
 
   const submitBatch = async () => {
@@ -611,14 +621,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     setBatchPreviewId(null);
     setBatchSubmitting(true);
     setBatchSubmitProgress({ current: 0, total: selected.length });
-    upsertJob({ id: batchJobId, type: 'invoice', label: 'Uploading invoices...', phase: 'submitting', current: 0, total: selected.length });
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Uploading invoices...', phase: 'submitting', returnUrl, current: 0, total: selected.length });
     let ok = 0; let fail = 0;
     const dupes: string[] = [];
     const targetFirmId = getTargetFirmId();
     for (let si = 0; si < selected.length; si++) {
       const item = selected[si];
       setBatchSubmitProgress({ current: si + 1, total: selected.length });
-      upsertJob({ id: batchJobId, type: 'invoice', label: 'Uploading invoices...', phase: 'submitting', current: si + 1, total: selected.length });
+      upsertJob({ id: batchJobId, type: 'invoice', label: 'Uploading invoices...', phase: 'submitting', returnUrl, current: si + 1, total: selected.length });
       try {
         const fd = new FormData();
         if (config.role === 'accountant') {
@@ -730,14 +740,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     setBatchScanning(true);
     batchCancelRef.current = false;
     setBatchScanProgress({ current: 0, total: fileList.length });
-    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: 0, total: fileList.length, onExpand: () => setShowBatchReview(true), onCancel: () => { batchCancelRef.current = true; } });
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: 0, total: fileList.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }});
 
     const targetFirmId = getTargetFirmId();
     for (let i = 0; i < bItems.length; i++) {
       if (batchCancelRef.current) break;
       const itemId = bItems[i]._id;
       setBatchScanProgress({ current: i + 1, total: bItems.length });
-      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: bItems.length, onExpand: () => setShowBatchReview(true), onCancel: () => { batchCancelRef.current = true; } });
+      upsertJob({ id: batchJobId, type: 'invoice', label: 'Scanning invoices...', phase: 'scanning', current: i + 1, total: bItems.length, returnUrl, onCancel: () => { batchCancelRef.current = true; }});
       try {
         const dupFd = new FormData();
         dupFd.append('file', bItems[i].file);
@@ -782,7 +792,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     }
     setBatchScanning(false);
     setShowBatchReview(true);
-    removeJob(batchJobId);
+    upsertJob({ id: batchJobId, type: 'invoice', label: 'Scan complete', phase: 'review', current: bItems.length, total: bItems.length, returnUrl });
   };
 
   const submitNewInvoice = async () => {
@@ -1334,7 +1344,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); removeJob(batchJobId); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             {batchScanning && (
@@ -1432,7 +1442,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
             <div className="px-5 py-3 bg-[var(--surface-low)] flex items-center gap-2 flex-shrink-0 border-t border-[#E0E3E5]">
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} disabled={batchSubmitting}
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); removeJob(batchJobId); } }} disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40">Cancel</button>
               <button onClick={submitBatch} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0}
                 className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40">
