@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import HelpTooltip from '@/components/HelpTooltip';
-import GlAccountSelect from '@/components/GlAccountSelect';
-import Field from '@/components/forms/Field';
+import BankReconPreviewModal from '@/components/bank-recon/BankReconPreviewModal';
+import BankReconMatchModal from '@/components/bank-recon/BankReconMatchModal';
 import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1031,915 +1031,91 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           )}
 
           {/* ═══ TRANSACTION PREVIEW MODAL (accountant only — rich preview) ═══ */}
-          {config.showRichPreview && previewTxn && (() => {
-            const txn = previewTxn;
-            const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
-            const mp = txn.matched_payment;
-            const hasInvoices = !!(txn.matched_invoice || (txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0));
-            const hasSalesInvoice = !!txn.matched_sales_invoice;
-            const hasClaims = txn.matched_claims && txn.matched_claims.length > 0;
-            const hasMatches = hasInvoices || hasSalesInvoice || hasClaims || !!mp;
-
-            return (
-              <>
-                <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewTxn(null)} />
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewTxn(null)}>
-                <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[85vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-                  <div className="h-12 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
-                    <h2 className="text-white font-bold text-xs uppercase tracking-widest">Transaction Details</h2>
-                    <button onClick={() => setPreviewTxn(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
-                  </div>
-
-                  <div className="flex-1 flex min-h-0">
-                    {/* Left: Transaction Details */}
-                    <div className="w-2/5 overflow-y-auto p-5 space-y-3 border-r border-[#E0E3E5]">
-                      <div className="flex items-center gap-2">
-                        <span className={cfg.cls}>{cfg.label}</span>
-                        {txn.matched_at && <span className="text-[10px] text-[var(--text-secondary)]">Matched {formatDate(txn.matched_at)}</span>}
-                      </div>
-
-                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
-                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</dt><dd className="text-sm text-[var(--text-primary)] tabular-nums">{formatDate(txn.transaction_date)}</dd></div>
-                        {txn.debit && <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Debit</dt><dd className="text-sm font-medium text-[var(--reject-red)] tabular-nums">{formatRM(txn.debit)}</dd></div>}
-                        {txn.credit && <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Credit</dt><dd className="text-sm font-medium text-[var(--match-green)] tabular-nums">{formatRM(txn.credit)}</dd></div>}
-                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Balance</dt><dd className="text-sm text-[var(--text-secondary)] tabular-nums">{txn.balance ? formatRM(txn.balance) : '-'}</dd></div>
-                      </dl>
-
-                      <div className="border-t border-[#E0E3E5] pt-2">
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description</p>
-                        {txn.description.split(' | ').map((line, i) => (
-                          <p key={i} className="text-sm text-[var(--text-primary)]">{line}</p>
-                        ))}
-                        {txn.reference && <p className="text-xs text-[var(--text-secondary)] mt-1">Ref: {txn.reference}</p>}
-                        {txn.cheque_number && <p className="text-xs text-[var(--text-secondary)]">Cheque: {txn.cheque_number}</p>}
-                      </div>
-
-                      {txn.notes && (
-                        <p className="text-xs text-[var(--text-secondary)] border-l-2 border-[var(--outline)] pl-3 py-1">{txn.notes}</p>
-                      )}
-                    </div>
-
-                    {/* Right: Matched Items + Actions */}
-                    <div className="w-3/5 flex flex-col min-h-0">
-                      <div className="flex-1 overflow-y-auto p-5 space-y-3">
-                        {hasMatches ? (
-                          <>
-                            {/* Matched invoices */}
-                            {hasInvoices && (
-                              <div>
-                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Invoice{txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 1 ? 's' : ''}</p>
-                                {(txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0
-                                  ? txn.matched_invoice_allocations
-                                  : txn.matched_invoice ? [{ invoice_id: txn.matched_invoice.id, invoice_number: txn.matched_invoice.invoice_number, vendor_name: txn.matched_invoice.vendor_name, total_amount: txn.matched_invoice.total_amount, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount, issue_date: txn.matched_invoice.issue_date }] : []
-                                ).map((alloc, aIdx) => {
-                                  const docUrl = txn.matched_invoice?.file_url ?? null;
-                                  const driveMatch = docUrl?.match(/\/d\/([^/]+)/);
-                                  const fileId = driveMatch?.[1];
-                                  const isDocExpanded = expandedDocUrl === (docUrl ?? `inv-${aIdx}`);
-                                  return (
-                                  <div key={aIdx} className="mb-1.5">
-                                    <button
-                                      onClick={() => {
-                                        if (docUrl) setExpandedDocUrl(isDocExpanded ? null : docUrl);
-                                        else setPreviewInvoice({ invoice_id: 'invoice_id' in alloc ? alloc.invoice_id : txn.matched_invoice!.id, invoice_number: alloc.invoice_number, vendor_name: alloc.vendor_name, total_amount: alloc.total_amount, issue_date: alloc.issue_date, allocated_amount: String(alloc.allocation_amount) });
-                                      }}
-                                      className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isDocExpanded ? '!bg-blue-50' : ''}`}>
-                                      <div>
-                                        <p className="text-sm font-medium text-[var(--text-primary)]">{alloc.vendor_name}</p>
-                                        <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
-                                      </div>
-                                      <div className="text-right">
-                                        <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(String(alloc.allocation_amount))}</p>
-                                        <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(alloc.total_amount)}</p>
-                                      </div>
-                                    </button>
-                                    {isDocExpanded && fileId && (
-                                      <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[350px] border border-t-0 border-[#E0E3E5]" title="Invoice Preview" allow="autoplay" />
-                                    )}
-                                  </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {/* Matched sales invoice */}
-                            {hasSalesInvoice && txn.matched_sales_invoice && (
-                              <div>
-                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Sales Invoice</p>
-                                {(() => {
-                                  const si = txn.matched_sales_invoice!;
-                                  const siKey = `si-${si.id}`;
-                                  const isSiExpanded = expandedDocUrl === siKey;
-                                  return (
-                                    <div>
-                                      <button
-                                        onClick={() => setExpandedDocUrl(isSiExpanded ? null : siKey)}
-                                        className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isSiExpanded ? '!bg-blue-50' : ''}`}>
-                                        <div>
-                                          <p className="text-sm font-medium text-[var(--text-primary)]">{si.buyer_name}</p>
-                                          <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{si.invoice_number} · {formatDate(si.issue_date)}</p>
-                                        </div>
-                                        <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(si.total_amount)}</p>
-                                      </button>
-                                      {isSiExpanded && (
-                                        <div className="border border-t-0 border-[#E0E3E5] p-3 bg-[var(--surface-low)] space-y-1">
-                                          <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Invoice No.</dt><dd className="text-[var(--text-primary)]">{si.invoice_number}</dd></div>
-                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Issue Date</dt><dd className="text-[var(--text-primary)]">{formatDate(si.issue_date)}</dd></div>
-                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Total</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(si.total_amount)}</dd></div>
-                                            <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Paid</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(si.amount_paid)}</dd></div>
-                                          </dl>
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            )}
-
-                            {/* Matched claims */}
-                            {hasClaims && (
-                              <div>
-                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Claim{txn.matched_claims.length > 1 ? 's' : ''}</p>
-                                {txn.matched_claims.map((claim) => {
-                                  const claimDocUrl = claim.file_url;
-                                  const claimDriveMatch = claimDocUrl?.match(/\/d\/([^/]+)/);
-                                  const claimFileId = claimDriveMatch?.[1];
-                                  const isClaimDocExpanded = expandedDocUrl === (claimDocUrl ?? `claim-${claim.id}`);
-                                  return (
-                                  <div key={claim.id} className="mb-1.5">
-                                    <button
-                                      onClick={() => {
-                                        if (claimDocUrl) setExpandedDocUrl(isClaimDocExpanded ? null : claimDocUrl);
-                                        else if (claim.thumbnail_url) setExpandedDocUrl(isClaimDocExpanded ? null : (claim.thumbnail_url ?? `claim-${claim.id}`));
-                                        else setPreviewClaim(claim);
-                                      }}
-                                      className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isClaimDocExpanded ? '!bg-blue-50' : ''}`}>
-                                      <div>
-                                        <p className="text-sm font-medium text-[var(--text-primary)]">{claim.employee_name} — {claim.merchant}</p>
-                                        <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{claim.category_name} · {formatDate(claim.claim_date)}</p>
-                                      </div>
-                                      <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(claim.amount)}</p>
-                                    </button>
-                                    {isClaimDocExpanded && claimFileId && (
-                                      <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-[350px] border border-t-0 border-[#E0E3E5]" title="Claim Preview" allow="autoplay" />
-                                    )}
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    {isClaimDocExpanded && claim.thumbnail_url && !claimFileId && (
-                                      <div className="border border-t-0 border-[#E0E3E5] p-2">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={claim.thumbnail_url} alt="Claim" className="w-full object-contain max-h-[350px]" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  );
-                                })}
-                              </div>
-                            )}
-
-                            {/* Legacy matched payment */}
-                            {mp && (
-                              <div>
-                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Matched Payment</p>
-                                <div className="btn-thick-white w-full px-3 py-2 text-left cursor-default">
-                                  <p className="text-sm font-medium text-[var(--text-primary)]">{mp.supplier_name}</p>
-                                  <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{formatDate(mp.payment_date)} — {formatRM(mp.amount)} — {mp.direction}</p>
-                                  {mp.reference && <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">Ref: {mp.reference}</p>}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Rich JV Preview (accountant) */}
-                            {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && hasMatches && (() => {
-                              const bankGl = statement?.bank_gl_label;
-                              const amount = txn.debit ?? txn.credit;
-
-                              const jvLines: { account: string; debit: string | null; credit: string | null }[] = [];
-
-                              if (txn.debit) {
-                                const invoiceAllocs = txn.matched_invoice_allocations?.length
-                                  ? txn.matched_invoice_allocations
-                                  : txn.matched_invoice ? [{ vendor_name: txn.matched_invoice.vendor_name, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount }] : [];
-                                for (const alloc of invoiceAllocs) {
-                                  jvLines.push({ account: `Trade Payables — ${alloc.vendor_name}`, debit: formatRM(String(alloc.allocation_amount)), credit: null });
-                                }
-                                if (txn.matched_claims?.length) {
-                                  for (const c of txn.matched_claims) {
-                                    jvLines.push({ account: `${c.category_name} — ${c.merchant}`, debit: formatRM(c.amount), credit: null });
-                                  }
-                                }
-                                jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: null, credit: formatRM(amount) });
-                              } else {
-                                jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: formatRM(amount), credit: null });
-                                if (txn.matched_sales_invoice) {
-                                  jvLines.push({ account: `Trade Receivables — ${txn.matched_sales_invoice.buyer_name}`, debit: null, credit: formatRM(txn.matched_sales_invoice.total_amount) });
-                                }
-                                if (txn.matched_claims?.length) {
-                                  for (const c of txn.matched_claims) {
-                                    jvLines.push({ account: `${c.category_name} — ${c.merchant}`, debit: null, credit: formatRM(c.amount) });
-                                  }
-                                }
-                              }
-
-                              if (jvLines.length < 2) return null;
-
-                              return (
-                                <div className="border border-[#E0E3E5] p-3 mt-1">
-                                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Journal Entry Preview</p>
-                                  <table className="w-full text-xs">
-                                    <thead>
-                                      <tr className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                                        <th className="py-1 text-left">Account</th>
-                                        <th className="py-1 text-right w-24">Debit</th>
-                                        <th className="py-1 text-right w-24">Credit</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {jvLines.map((line, i) => (
-                                        <tr key={i}>
-                                          <td className="py-1 text-[var(--text-primary)]">{line.account}</td>
-                                          <td className="py-1 text-right tabular-nums">{line.debit ?? '-'}</td>
-                                          <td className="py-1 text-right tabular-nums">{line.credit ?? '-'}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                  {!bankGl && (
-                                    <p className="mt-1.5 text-[10px] text-amber-700 bg-amber-50 px-2 py-1">
-                                      Bank account has no GL mapped — JV will fail on confirm.
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </>
-                        ) : (
-                          <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] text-sm">
-                            No matched items
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="p-3 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5] space-y-1.5">
-                        <div className="flex gap-2">
-                          {txn.recon_status === 'matched' && (
-                            <>
-                              <button onClick={() => { doConfirm([txn.id]); setPreviewTxn(null); }} disabled={confirming} className="btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-50">
-                                Confirm
-                              </button>
-                              <button onClick={() => { doUnmatch(txn.id); setPreviewTxn(null); }} className="btn-thick-red flex-1 py-1.5 text-xs">
-                                Unmatch
-                              </button>
-                            </>
-                          )}
-                          {txn.recon_status === 'manually_matched' && (
-                            <>
-                              <div className="flex-1 flex items-center justify-center py-1.5 text-xs font-semibold text-[var(--match-green)] bg-green-50 border border-green-200">
-                                Confirmed
-                              </div>
-                              <div className="flex-1 relative group">
-                                <button disabled className="btn-thick-white w-full py-1.5 text-xs opacity-40 cursor-not-allowed">
-                                  Edit
-                                </button>
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--text-primary)] text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                  Unmatch first to edit
-                                </div>
-                              </div>
-                              <button onClick={() => { doUnmatch(txn.id); setPreviewTxn(null); }} className="btn-thick-red flex-1 py-1.5 text-xs">
-                                Unmatch
-                              </button>
-                            </>
-                          )}
-                          {txn.recon_status === 'unmatched' && (
-                            <button onClick={() => { setPreviewTxn(null); openMatchModal(txn); }} className="btn-thick-navy flex-1 py-1.5 text-xs">
-                              Match
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                </div>
-              </>
-            );
-          })()}
+          {config.showRichPreview && previewTxn && (
+            <BankReconPreviewModal
+              txn={previewTxn}
+              statement={statement}
+              config={config}
+              expandedDocUrl={expandedDocUrl}
+              confirming={confirming}
+              onClose={() => setPreviewTxn(null)}
+              onConfirm={doConfirm}
+              onUnmatch={doUnmatch}
+              onOpenMatchModal={openMatchModal}
+              onSetExpandedDocUrl={setExpandedDocUrl}
+              onSetPreviewInvoice={setPreviewInvoice}
+              onSetPreviewClaim={setPreviewClaim}
+            />
+          )}
 
           {/* ═══ MATCH MODAL ═══ */}
           {matchingTxn && (
-            <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-6" onClick={closeMatchModal}>
-              <div className={`bg-white shadow-2xl w-full ${config.showDescriptionEdit ? 'max-w-[1200px]' : 'max-w-[720px]'} max-h-[90vh] flex flex-col animate-in`} onClick={(e) => e.stopPropagation()}>
-                {/* Header */}
-                <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
-                  <h2 className="text-white font-bold text-sm uppercase tracking-widest">
-                    {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
-                  </h2>
-                  <button onClick={closeMatchModal} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 flex min-h-0">
-                  {/* Left panel — transaction details (accountant: editable description + rich details; admin: simple summary) */}
-                  {config.showDescriptionEdit ? (
-                    <div className="w-[360px] flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
-                      <div>
-                        <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Description</p>
-                        <textarea
-                          value={txnDescDraft}
-                          onChange={(e) => setTxnDescDraft(e.target.value)}
-                          className="input-recessed w-full text-sm"
-                          rows={6}
-                        />
-                        {txnDescDraft.trim().split('\n').join(' | ') !== matchingTxn.description && (
-                          <div className="flex gap-2 mt-2">
-                            <button
-                              onClick={async () => {
-                                const trimmed = txnDescDraft.trim();
-                                if (!trimmed || !config.apiUpdateTxn) return;
-                                const newDesc = trimmed.split('\n').join(' | ');
-                                await fetch(config.apiUpdateTxn, {
-                                  method: 'PATCH',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ bankTransactionId: matchingTxn.id, description: newDesc }),
-                                });
-                                setMatchingTxn({ ...matchingTxn, description: newDesc });
-                                if (statement) {
-                                  setStatement({
-                                    ...statement,
-                                    transactions: statement.transactions.map((t) =>
-                                      t.id === matchingTxn.id ? { ...t, description: newDesc } : t
-                                    ),
-                                  });
-                                }
-                              }}
-                              className="btn-thick-green px-3 py-1 text-[10px]"
-                            >
-                              Save
-                            </button>
-                            <button
-                              onClick={() => setTxnDescDraft(matchingTxn.description.split(' | ').join('\n'))}
-                              className="btn-thick-white px-3 py-1 text-[10px]"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Field label="Date" value={formatDate(matchingTxn.transaction_date)} />
-                        <Field label="Amount" value={matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`} />
-                        {matchingTxn.reference && <Field label="Reference" value={matchingTxn.reference} />}
-                      </div>
-
-                      <div className={`p-3 card-popped ${matchingTxn.debit ? 'bg-red-50/60' : 'bg-green-50/60'}`}>
-                        <p className="text-[10px] font-label font-bold uppercase tracking-widest leading-none" style={{ color: matchingTxn.debit ? 'var(--reject-red)' : 'var(--match-green)' }}>
-                          {matchingTxn.debit ? 'Outgoing' : 'Incoming'}
-                        </p>
-                        <p className={`text-xl font-extrabold tabular-nums mt-1 ${matchingTxn.debit ? 'text-[var(--reject-red)]' : 'text-[var(--match-green)]'}`}>
-                          {formatRM(matchingTxn.debit ?? matchingTxn.credit ?? '0')}
-                        </p>
-                      </div>
-
-                      {statement && (
-                        <div className="space-y-2">
-                          <Field label="Bank" value={statement.bank_name} />
-                          {statement.account_number && <Field label="Account" value={statement.account_number} />}
-                          {statement.bank_gl_label && <Field label="Bank GL" value={statement.bank_gl_label} />}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    // Admin: simple inline summary (no left panel, summary at top of right)
-                    null
-                  )}
-
-                  {/* Right panel — search & match */}
-                  <div className="flex-1 flex flex-col min-h-0">
-                    <div className={`${config.showDescriptionEdit ? 'p-5 pb-0' : 'p-6 pb-0'} flex-shrink-0`}>
-                      {/* Admin: inline transaction summary */}
-                      {!config.showDescriptionEdit && (
-                        <div className="bg-[var(--surface-low)] p-4 mb-4">
-                          <p className="text-body-md font-medium text-[var(--text-primary)]">{matchingTxn.description.split(' | ')[0]}</p>
-                          <div className="flex items-center gap-4 mt-1.5 text-body-sm text-[var(--text-secondary)]">
-                            <span className="tabular-nums">{formatDate(matchingTxn.transaction_date)}</span>
-                            <span className="font-semibold text-[var(--text-primary)] tabular-nums">{matchingTxn.debit ? `Debit ${formatRM(matchingTxn.debit)}` : `Credit ${formatRM(matchingTxn.credit)}`}</span>
-                            {matchingTxn.reference && <span>Ref: {matchingTxn.reference}</span>}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Search */}
-                      <div className="mb-3">
-                        <input
-                          type="text"
-                          placeholder="Search by name, invoice number, or amount..."
-                          value={claimSearch}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setClaimSearch(val);
-                            searchOutstandingItems(val);
-                          }}
-                          className="input-recessed w-full"
-                        />
-                      </div>
-
-                      {/* Tabs */}
-                      {matchingTxn.debit && (
-                        <div className="flex border-b border-[var(--surface-header)]">
-                          {(() => {
-                            const invoiceCount = outstandingItems.filter((i: { type: string }) => i.type !== 'claim').length;
-                            const claimCount = outstandingItems.filter((i: { type: string }) => i.type === 'claim').length;
-                            return (
-                              <>
-                                <button
-                                  onClick={() => { setMatchTab('invoices'); setSelectedClaimIds(new Set()); }}
-                                  className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
-                                    matchTab === 'invoices' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                                  }`}
-                                >
-                                  Invoices ({invoiceCount})
-                                </button>
-                                <button
-                                  onClick={() => { setMatchTab('claims'); setSelectedItem(null); }}
-                                  className={`px-4 py-2.5 text-body-sm font-medium border-b-2 transition-colors ${
-                                    matchTab === 'claims' ? 'border-[var(--primary)] text-[var(--primary)]' : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                                  }`}
-                                >
-                                  Claims ({claimCount})
-                                </button>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Scrollable items list */}
-                    <div className="flex-1 overflow-y-auto px-5 py-4">
-                {loadingCandidates ? (
-                  <p className="text-sm text-[var(--text-secondary)] py-8 text-center">Loading...</p>
-                ) : outstandingItems.length === 0 && candidates.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)] py-8 text-center">No outstanding items found.</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {(() => {
-                      const invoiceItems = outstandingItems.filter((i: { type: string }) => i.type !== 'claim');
-                      const claimItems = outstandingItems.filter((i: { type: string }) => i.type === 'claim');
-
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const employeeGroups = new Map<string, { employeeName: string; claims: any[]; total: number }>();
-                      for (const c of claimItems) {
-                        const key = c.employeeId || c.name;
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const group = employeeGroups.get(key) ?? { employeeName: c.employeeName || c.name, claims: [] as any[], total: 0 };
-                        group.claims.push(c);
-                        group.total += c.remaining;
-                        employeeGroups.set(key, group);
-                      }
-
-                      const showInvoices = !matchingTxn.debit || matchTab === 'invoices';
-                      const showClaims = matchingTxn.debit && matchTab === 'claims';
-
-                      return (
-                        <>
-                          {/* Invoice / Sales Invoice items */}
-                          {showInvoices && config.showDescriptionEdit && invoiceItems.length > 0 && (
-                            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
-                              {matchingTxn.debit ? 'Outstanding Invoices' : 'Outstanding Sales Invoices'} ({invoiceItems.length})
-                            </p>
-                          )}
-                          {showInvoices && invoiceItems.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string; fileUrl?: string | null }) => {
-                            const isSelected = selectedItem?.id === item.id;
-
-                            // Accountant: expandable doc preview
-                            if (config.showDescriptionEdit) {
-                              const docUrl = item.fileUrl;
-                              const driveMatch = docUrl?.match(/\/d\/([^/]+)/);
-                              const fileId = driveMatch?.[1];
-                              const isItemExpanded = expandedDocUrl === `match-${item.id}`;
-                              return (
-                                <div key={`${item.type}-${item.id}`} className="mb-1.5">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedItem(isSelected ? null : { type: item.type, id: item.id });
-                                      setSelectedClaimIds(new Set());
-                                      setExpandedDocUrl(isItemExpanded ? null : `match-${item.id}`);
-                                    }}
-                                    className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${
-                                      isSelected ? '!bg-blue-50' : ''
-                                    }`}
-                                  >
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
-                                          item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                                        }`}>
-                                          {item.type === 'invoice' ? 'INV' : 'SALES'}
-                                        </span>
-                                        <p className="text-sm font-medium text-[var(--text-primary)] truncate normal-case tracking-normal">{item.name}</p>
-                                      </div>
-                                      <p className="text-xs text-[var(--text-secondary)] mt-0.5 normal-case tracking-normal">
-                                        {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
-                                      </p>
-                                    </div>
-                                    <div className="text-right flex-shrink-0 ml-3">
-                                      <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
-                                      {item.remaining !== item.totalAmount && (
-                                        <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(String(item.totalAmount))}</p>
-                                      )}
-                                    </div>
-                                  </button>
-                                  {isItemExpanded && fileId && (
-                                    <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[300px] border border-t-0 border-[#E0E3E5]" title="Document Preview" allow="autoplay" />
-                                  )}
-                                  {isItemExpanded && !fileId && (
-                                    <div className="border border-t-0 border-[#E0E3E5] p-3 bg-[var(--surface-low)] space-y-1">
-                                      <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Type</dt><dd className="text-[var(--text-primary)]">{item.type === 'invoice' ? 'Purchase Invoice' : 'Sales Invoice'}</dd></div>
-                                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">{item.type === 'invoice' ? 'Invoice No.' : 'Receipt No.'}</dt><dd className="text-[var(--text-primary)]">{item.reference ?? '—'}</dd></div>
-                                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Date</dt><dd className="text-[var(--text-primary)]">{formatDate(item.date)}</dd></div>
-                                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Total</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(String(item.totalAmount))}</dd></div>
-                                        <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Remaining</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(String(item.remaining))}</dd></div>
-                                      </dl>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-
-                            // Admin: simple click-to-select
-                            return (
-                              <div
-                                key={`${item.type}-${item.id}`}
-                                onClick={() => { setSelectedItem(isSelected ? null : { type: item.type, id: item.id }); setSelectedClaimIds(new Set()); }}
-                                className={`flex items-center justify-between p-3 border-b cursor-pointer transition-colors ${
-                                  isSelected ? 'border-[var(--primary)] bg-blue-50' : 'border-[var(--surface-low)] hover:bg-[var(--surface-low)]'
-                                }`}
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
-                                      item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                                    }`}>
-                                      {item.type === 'invoice' ? 'INV' : 'SALES'}
-                                    </span>
-                                    <p className="text-body-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
-                                  </div>
-                                  <p className="text-label-sm text-[var(--text-secondary)] mt-0.5">
-                                    {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
-                                  </p>
-                                </div>
-                                <div className="text-right flex-shrink-0 ml-3">
-                                  <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
-                                  {item.remaining !== item.totalAmount && (
-                                    <p className="text-label-sm text-[var(--text-secondary)] tabular-nums">of {formatRM(String(item.totalAmount))}</p>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          {showInvoices && invoiceItems.length === 0 && (
-                            <p className="text-sm text-[var(--text-secondary)] py-4 text-center">No outstanding invoices.</p>
-                          )}
-
-                          {/* Claims grouped by employee */}
-                          {showClaims && Array.from(employeeGroups.entries()).map(([empKey, group]) => {
-                            const allIds = new Set(group.claims.map((c: { id: string }) => c.id));
-                            const allSelected = group.claims.every((c: { id: string }) => selectedClaimIds.has(c.id));
-                            const someSelected = group.claims.some((c: { id: string }) => selectedClaimIds.has(c.id));
-
-                            const toggleAll = () => {
-                              setSelectedItem(null);
-                              setSelectedClaimIds(prev => {
-                                const next = new Set(prev);
-                                if (allSelected) { allIds.forEach(aid => next.delete(aid)); }
-                                else { allIds.forEach(aid => next.add(aid)); }
-                                return next;
-                              });
-                            };
-
-                            const toggleOne = (claimId: string) => {
-                              setSelectedItem(null);
-                              setSelectedClaimIds(prev => {
-                                const next = new Set(prev);
-                                if (next.has(claimId)) next.delete(claimId); else next.add(claimId);
-                                return next;
-                              });
-                            };
-
-                            return (
-                              <div key={empKey} className="border-b border-[var(--surface-low)] overflow-hidden">
-                                <div
-                                  onClick={toggleAll}
-                                  className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
-                                    allSelected ? 'bg-blue-50' : someSelected ? 'bg-blue-50/50' : 'hover:bg-[var(--surface-low)]'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <input type="checkbox" checked={allSelected} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
-                                    <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-blue-100 text-blue-700">CLAIMS</span>
-                                    <p className="text-body-sm font-medium text-[var(--text-primary)]">{group.employeeName}</p>
-                                    <span className="text-label-sm text-[var(--text-secondary)]">({group.claims.length})</span>
-                                  </div>
-                                  <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(group.total))}</p>
-                                </div>
-                                <div className="border-t border-[var(--surface-low)]">
-                                  {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null; fileUrl?: string | null; thumbnailUrl?: string | null }) => {
-                                    // Accountant: expandable doc preview for claims
-                                    const claimDocUrl = c.fileUrl;
-                                    const claimDriveMatch = claimDocUrl?.match(/\/d\/([^/]+)/);
-                                    const claimFileId = claimDriveMatch?.[1];
-                                    const isClaimExpanded = config.showDescriptionEdit && expandedDocUrl === `match-claim-${c.id}`;
-
-                                    return (
-                                    <div key={c.id}>
-                                      <div
-                                        onClick={() => {
-                                          toggleOne(c.id);
-                                          if (config.showDescriptionEdit && (claimDocUrl || c.thumbnailUrl)) setExpandedDocUrl(isClaimExpanded ? null : `match-claim-${c.id}`);
-                                        }}
-                                        className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[var(--surface-low)] first:border-t-0 ${
-                                          selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-[var(--surface-low)]'
-                                        }`}
-                                      >
-                                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                                          <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
-                                          <div className="min-w-0">
-                                            <p className="text-body-sm text-[var(--text-primary)] truncate">{c.merchant}</p>
-                                            <p className="text-label-sm text-[var(--text-secondary)]">
-                                              {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
-                                              {c.categoryName ? ` · ${c.categoryName}` : ''}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <p className="text-body-sm font-medium tabular-nums text-[var(--text-primary)] ml-3">{formatRM(String(c.remaining))}</p>
-                                      </div>
-                                      {isClaimExpanded && claimFileId && (
-                                        <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-[250px] border border-t-0 border-[var(--surface-low)]" title="Claim Preview" allow="autoplay" />
-                                      )}
-                                      {isClaimExpanded && c.thumbnailUrl && !claimFileId && (
-                                        <div className="border border-t-0 border-[var(--surface-low)] p-2">
-                                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                                          <img src={c.thumbnailUrl} alt="Claim" className="w-full object-contain max-h-[250px]" />
-                                        </div>
-                                      )}
-                                    </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            );
-                          })}
-
-                          {showClaims && employeeGroups.size === 0 && (
-                            <p className="text-sm text-[var(--text-secondary)] py-4 text-center">No outstanding claims.</p>
-                          )}
-
-                          {/* Legacy payment candidates (admin only) */}
-                          {!config.useFirmScope && showInvoices && candidates.length > 0 && invoiceItems.length === 0 && candidates.map((p) => (
-                            <div
-                              key={p.id}
-                              onClick={() => doMatchLegacy(p.id)}
-                              className="flex items-center justify-between p-3 border-b border-[var(--surface-low)] hover:bg-[var(--surface-low)] cursor-pointer transition-colors"
-                            >
-                              <div>
-                                <p className="text-body-sm font-medium text-[var(--text-primary)]">{p.supplier_name}</p>
-                                <p className="text-label-sm text-[var(--text-secondary)]">{formatDate(p.payment_date)} {p.reference ? `· ${p.reference}` : ''} · {p.direction}</p>
-                              </div>
-                              <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(p.amount)}</p>
-                            </div>
-                          ))}
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
-                    </div>
-
-                    {/* Footer actions */}
-                    <div className="flex-shrink-0 px-5 pb-5 pt-2 bg-[var(--surface-low)]">
-                {matchError && <p className="text-sm text-[var(--reject-red)] mb-2">{matchError}</p>}
-
-                {(selectedItem || selectedClaimIds.size > 0) && (
-                  <button
-                    onClick={() => doMatchItem(selectedItem ?? undefined)}
-                    disabled={matchSubmitting}
-                    className="btn-thick-green w-full py-2.5 text-sm font-semibold disabled:opacity-50"
-                  >
-                    {matchSubmitting ? 'Matching...' : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create JV'}
-                  </button>
-                )}
-
-                {/* Official receipt option — credit (money coming in) */}
-                {matchingTxn.credit && (
-                  <>
-                    <div className="flex items-center gap-3 my-4">
-                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
-                      <span className="text-label-sm text-[var(--text-secondary)]">or</span>
-                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
-                    </div>
-
-                    {!showReceiptForm ? (
-                      <button onClick={openReceiptForm} className="btn-thick-green w-full px-3 py-2 text-body-md font-medium">
-                        + Create Official Receipt
-                      </button>
-                    ) : (
-                      <div className="space-y-3 bg-white p-4">
-                        <h3 className="text-body-md font-semibold text-[var(--text-primary)]">Create Official Receipt</h3>
-                        <div className="bg-[var(--surface-low)] p-2.5 text-body-sm text-[var(--text-secondary)] flex gap-3">
-                          <span>Amount: <strong className="tabular-nums">{formatRM(matchingTxn.credit)}</strong></span>
-                          <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Received From</label>
-                          {!creatingNewSupplier ? (
-                            <div className="flex gap-2">
-                              <select
-                                value={voucherData.supplier_id}
-                                onChange={(e) => {
-                                  const sid = e.target.value;
-                                  setVoucherData({ ...voucherData, supplier_id: sid, new_supplier_name: '', gl_account_id: '' });
-                                  const name = voucherSuppliers.find(s => s.id === sid)?.name || 'Walk-in Customer';
-                                  fetchNextReceiptNumber(name, sid || undefined);
-                                }}
-                                className="input-recessed flex-1"
-                              >
-                                <option value="">Walk-in Customer (default)</option>
-                                {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() => { setCreatingNewSupplier(true); setVoucherData(prev => ({ ...prev, supplier_id: '', new_supplier_name: '' })); }}
-                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
-                              >
-                                + New
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={voucherData.new_supplier_name}
-                                onChange={(e) => setVoucherData({ ...voucherData, new_supplier_name: e.target.value, supplier_id: '' })}
-                                onBlur={() => { if (voucherData.new_supplier_name.trim()) fetchNextReceiptNumber(voucherData.new_supplier_name); }}
-                                className="input-recessed flex-1"
-                                placeholder="Enter new supplier name..."
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={() => { setCreatingNewSupplier(false); setVoucherData(prev => ({ ...prev, new_supplier_name: '' })); }}
-                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt No.</label>
-                          <input type="text" value={voucherData.reference} onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })} className="input-recessed w-full" placeholder="Auto-generated" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">CR Account (Sales/Income GL)</label>
-                          <GlAccountSelect
-                            value={voucherData.gl_account_id}
-                            onChange={(gid) => setVoucherData({ ...voucherData, gl_account_id: gid })}
-                            accounts={receiptGlAccounts}
-                            firmId={statement?.firm_id}
-                            placeholder="Select GL account..."
-                            preferredType="Revenue"
-                          />
-                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">DR Bank Account (auto) / CR this account</p>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes (optional)</label>
-                          <input type="text" value={voucherData.notes} onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })} className="input-recessed w-full" placeholder="e.g. Payment received for invoice #123" />
-                        </div>
-                        {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
-                        <div className="flex gap-3">
-                          <button onClick={doCreateReceipt} disabled={creatingVoucher} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
-                            {creatingVoucher ? 'Creating...' : 'Create & Match'}
-                          </button>
-                          <button onClick={() => setShowReceiptForm(false)} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Cancel</button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {/* Payment voucher option — debit (money going out) */}
-                {matchingTxn.debit && (
-                  <>
-                    <div className="flex items-center gap-3 my-4">
-                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
-                      <span className="text-label-sm text-[var(--text-secondary)]">or</span>
-                      <div className="flex-1 h-px bg-[var(--surface-header)]" />
-                    </div>
-
-                    {!showVoucherForm ? (
-                      <button onClick={openVoucherForm} className="btn-thick-navy w-full px-3 py-2 text-body-md font-medium">
-                        + Create Payment Voucher
-                      </button>
-                    ) : (
-                      <div className="space-y-3 bg-white p-4">
-                        <h3 className="text-body-md font-semibold text-[var(--text-primary)]">Create Payment Voucher</h3>
-                        <div className="bg-[var(--surface-low)] p-2.5 text-body-sm text-[var(--text-secondary)] flex gap-3">
-                          <span>Amount: <strong className="tabular-nums">{formatRM(matchingTxn.debit)}</strong></span>
-                          <span>Date: <strong>{formatDate(matchingTxn.transaction_date)}</strong></span>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Paid To</label>
-                          {!creatingNewSupplier ? (
-                            <div className="flex gap-2">
-                              <select
-                                value={voucherData.supplier_id}
-                                onChange={(e) => {
-                                  const sid = e.target.value;
-                                  setVoucherData({ ...voucherData, supplier_id: sid, new_supplier_name: '', gl_account_id: '' });
-                                  const name = voucherSuppliers.find(s => s.id === sid)?.name || 'Walk-in Customer';
-                                  fetchNextVoucherNumber(name, sid || undefined);
-                                }}
-                                className="input-recessed flex-1"
-                              >
-                                <option value="">Walk-in Customer (default)</option>
-                                {voucherSuppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() => { setCreatingNewSupplier(true); setVoucherData(prev => ({ ...prev, supplier_id: '', new_supplier_name: '' })); }}
-                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium whitespace-nowrap"
-                              >+ New</button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <input
-                                type="text"
-                                value={voucherData.new_supplier_name}
-                                onChange={(e) => setVoucherData({ ...voucherData, new_supplier_name: e.target.value, supplier_id: '' })}
-                                onBlur={() => { if (voucherData.new_supplier_name.trim()) fetchNextVoucherNumber(voucherData.new_supplier_name); }}
-                                className="input-recessed flex-1"
-                                placeholder="Enter new supplier name..."
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                onClick={() => { setCreatingNewSupplier(false); setVoucherData(prev => ({ ...prev, new_supplier_name: '' })); }}
-                                className="btn-thick-white px-2.5 py-1.5 text-xs font-medium"
-                              >Cancel</button>
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Voucher No.</label>
-                          <input type="text" value={voucherData.reference} onChange={(e) => setVoucherData({ ...voucherData, reference: e.target.value })} className="input-recessed w-full" placeholder="Auto-generated" />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-                          <select value={voucherData.category_id} onChange={(e) => setVoucherData({ ...voucherData, category_id: e.target.value })} className="input-recessed w-full">
-                            <option value="">Select category...</option>
-                            {voucherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">DR Account (Expense GL)</label>
-                          <GlAccountSelect
-                            value={voucherData.gl_account_id}
-                            onChange={(gid) => setVoucherData({ ...voucherData, gl_account_id: gid })}
-                            accounts={receiptGlAccounts}
-                            firmId={statement?.firm_id}
-                            placeholder="Select GL account..."
-                            preferredType="Expense"
-                          />
-                          <p className="text-xs text-[var(--text-secondary)] mt-0.5">DR this account / CR Bank Account (auto)</p>
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes (optional)</label>
-                          <input type="text" value={voucherData.notes} onChange={(e) => setVoucherData({ ...voucherData, notes: e.target.value })} className="input-recessed w-full" placeholder="e.g. Supplier payment for invoice #123" />
-                        </div>
-                        {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
-                        <div className="flex gap-3">
-                          <button onClick={doCreateVoucher} disabled={creatingVoucher || !voucherData.category_id} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
-                            {creatingVoucher ? 'Creating...' : 'Create & Match'}
-                          </button>
-                          <button onClick={() => setShowVoucherForm(false)} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Cancel</button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <button onClick={closeMatchModal} className="btn-thick-white mt-4 w-full px-3 py-2 text-body-md">
-                  Cancel
-                </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <BankReconMatchModal
+              matchingTxn={matchingTxn}
+              config={config}
+              statement={statement}
+              claimSearch={claimSearch}
+              onClaimSearchChange={setClaimSearch}
+              onSearchOutstandingItems={searchOutstandingItems}
+              outstandingItems={outstandingItems}
+              candidates={candidates}
+              loadingCandidates={loadingCandidates}
+              selectedItem={selectedItem}
+              onSetSelectedItem={setSelectedItem}
+              selectedClaimIds={selectedClaimIds}
+              onSetSelectedClaimIds={setSelectedClaimIds}
+              matchTab={matchTab}
+              onSetMatchTab={setMatchTab}
+              txnDescDraft={txnDescDraft}
+              onSetTxnDescDraft={setTxnDescDraft}
+              onSaveDescription={async () => {
+                const trimmed = txnDescDraft.trim();
+                if (!trimmed || !config.apiUpdateTxn) return;
+                const newDesc = trimmed.split('\n').join(' | ');
+                await fetch(config.apiUpdateTxn, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ bankTransactionId: matchingTxn.id, description: newDesc }),
+                });
+                setMatchingTxn({ ...matchingTxn, description: newDesc });
+                if (statement) {
+                  setStatement({
+                    ...statement,
+                    transactions: statement.transactions.map((t) =>
+                      t.id === matchingTxn.id ? { ...t, description: newDesc } : t
+                    ),
+                  });
+                }
+              }}
+              onResetDescription={() => setTxnDescDraft(matchingTxn.description.split(' | ').join('\n'))}
+              descriptionChanged={txnDescDraft.trim().split('\n').join(' | ') !== matchingTxn.description}
+              expandedDocUrl={expandedDocUrl}
+              onSetExpandedDocUrl={setExpandedDocUrl}
+              matchSubmitting={matchSubmitting}
+              matchError={matchError}
+              onMatchItem={doMatchItem}
+              onMatchLegacy={doMatchLegacy}
+              onClose={closeMatchModal}
+              showVoucherForm={showVoucherForm}
+              showReceiptForm={showReceiptForm}
+              voucherSuppliers={voucherSuppliers}
+              voucherCategories={voucherCategories}
+              voucherData={voucherData}
+              onSetVoucherData={setVoucherData}
+              creatingVoucher={creatingVoucher}
+              creatingNewSupplier={creatingNewSupplier}
+              onSetCreatingNewSupplier={setCreatingNewSupplier}
+              voucherError={voucherError}
+              receiptGlAccounts={receiptGlAccounts}
+              onOpenVoucherForm={openVoucherForm}
+              onOpenReceiptForm={openReceiptForm}
+              onCreateVoucher={doCreateVoucher}
+              onCreateReceipt={doCreateReceipt}
+              onCloseVoucherForm={() => setShowVoucherForm(false)}
+              onCloseReceiptForm={() => setShowReceiptForm(false)}
+              onFetchNextVoucherNumber={fetchNextVoucherNumber}
+              onFetchNextReceiptNumber={fetchNextReceiptNumber}
+            />
           )}
 
         </main>
