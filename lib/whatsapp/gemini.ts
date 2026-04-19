@@ -41,6 +41,81 @@ function getAuthClient(): GoogleAuth {
   return authClient;
 }
 
+// ─── Resilient Gemini Call Wrapper ────────────────────────────────────────────
+// Retry on 500/503/429 with exponential backoff, timeout protection, error detail logging.
+
+const GEMINI_TIMEOUT_MS = 30_000; // 30s per attempt
+const GEMINI_MAX_RETRIES = 2;     // up to 3 total attempts
+
+async function getGeminiUrl(): Promise<{ url: string; token: string }> {
+  const projectId = process.env.VERTEX_PROJECT_ID!;
+  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
+  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
+  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
+  const auth = getAuthClient();
+  const client = await auth.getClient();
+  const tokenResult = await client.getAccessToken();
+  return { url, token: tokenResult.token! };
+}
+
+async function geminiCall(
+  body: Record<string, unknown>,
+  label: string,
+): Promise<{ json: Record<string, unknown>; text: string }> {
+  const { url, token } = await getGeminiUrl();
+
+  for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '(no body)');
+        const retryable = [429, 500, 502, 503].includes(res.status);
+        console.error(`[Gemini ${label}] Attempt ${attempt + 1}/${GEMINI_MAX_RETRIES + 1} failed: ${res.status} — ${errText.slice(0, 200)}`);
+
+        if (retryable && attempt < GEMINI_MAX_RETRIES) {
+          const delay = Math.min(1000 * Math.pow(2, attempt), 8000); // 1s, 2s, 4s...
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        throw new Error(`Gemini API error: ${res.status} — ${errText.slice(0, 300)}`);
+      }
+
+      const json = await res.json();
+      const candidate = json.candidates?.[0];
+      const text = candidate?.content?.parts?.[0]?.text;
+      if (!text) {
+        console.error(`[Gemini ${label}] No text in response:`, JSON.stringify(json).slice(0, 300));
+        throw new Error("No response from Gemini");
+      }
+      return { json, text };
+    } catch (err) {
+      clearTimeout(timeout);
+      if ((err as Error).name === 'AbortError') {
+        console.error(`[Gemini ${label}] Attempt ${attempt + 1} timed out after ${GEMINI_TIMEOUT_MS}ms`);
+        if (attempt < GEMINI_MAX_RETRIES) {
+          continue;
+        }
+        throw new Error(`Gemini timed out after ${GEMINI_MAX_RETRIES + 1} attempts (${GEMINI_TIMEOUT_MS}ms each)`);
+      }
+      throw err;
+    }
+  }
+  throw new Error(`Gemini ${label}: all ${GEMINI_MAX_RETRIES + 1} attempts failed`);
+}
+
 /**
  * Send normalised OCR text to Gemini (Vertex AI) for structured extraction.
  */
@@ -48,16 +123,6 @@ export async function extractWithGemini(
   ocrText: string,
   categories: string[]
 ): Promise<string> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
   const systemPrompt = `You are an expert receipt parser for Malaysian SME expense claims.
 The OCR text may contain ONE or MULTIPLE receipts. Carefully detect how many separate receipts are present.
 
@@ -83,44 +148,11 @@ If there are MULTIPLE receipts, return a JSON array:
 
 Return ONLY valid JSON, no explanation, no markdown.`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token.token}`,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: ocrText }],
-        },
-      ],
-      systemInstruction: {
-        parts: [{ text: systemPrompt }],
-      },
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 1024,
-        thinkingConfig: {
-          thinkingBudget: 0,
-        },
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error: ${res.status} — ${errText}`);
-  }
-
-  const json = await res.json();
-
-  const candidate = json.candidates?.[0];
-  const text = candidate?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("No response from Gemini");
-  }
+  const { text } = await geminiCall({
+    contents: [{ role: "user", parts: [{ text: ocrText }] }],
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+  }, 'extractWithGemini');
 
   return text;
 }
@@ -133,51 +165,22 @@ export async function countReceiptsInImage(
   imageBuffer: Buffer,
   mimeType: string
 ): Promise<number> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token.token}`,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType || "image/jpeg",
-                data: imageBuffer.toString("base64"),
-              },
-            },
-            { text: "How many separate receipts, invoices, or bills are visible in this image? Return ONLY a single number, nothing else." },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0,
-        maxOutputTokens: 8,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-  });
-
-  if (!res.ok) return 1;
-
-  const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "1";
-  const num = parseInt(text, 10);
-  return isNaN(num) || num < 1 ? 1 : num;
+  try {
+    const { text } = await geminiCall({
+      contents: [{
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBuffer.toString("base64") } },
+          { text: "How many separate receipts, invoices, or bills are visible in this image? Return ONLY a single number, nothing else." },
+        ],
+      }],
+      generationConfig: { temperature: 0, maxOutputTokens: 8, thinkingConfig: { thinkingBudget: 0 } },
+    }, 'countReceipts');
+    const num = parseInt(text.trim(), 10);
+    return isNaN(num) || num < 1 ? 1 : num;
+  } catch {
+    return 1; // Default to 1 on failure
+  }
 }
 
 /**
@@ -189,16 +192,6 @@ export async function extractFromImage(
   mimeType: string,
   categories: string[]
 ): Promise<string> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
   const systemPrompt = `You are an expert receipt parser for Malaysian SME expense claims.
 This image may contain ONE or MULTIPLE receipts. Look at the image carefully and detect how many separate receipts are visible.
 
@@ -224,44 +217,18 @@ If there are MULTIPLE receipts, return a JSON array:
 
 Return ONLY valid JSON, no explanation, no markdown.`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token.token}`,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: mimeType || "image/jpeg",
-                data: imageBuffer.toString("base64"),
-              },
-            },
-            { text: "Extract receipt data from this image." },
-          ],
-        },
+  const { text } = await geminiCall({
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBuffer.toString("base64") } },
+        { text: "Extract receipt data from this image." },
       ],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 2048,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-  });
+    }],
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
+  }, 'extractFromImage');
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error: ${res.status} — ${errText}`);
-  }
-
-  const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No response from Gemini");
   return text;
 }
 
@@ -269,47 +236,23 @@ Return ONLY valid JSON, no explanation, no markdown.`;
  * Classify document type from OCR text — receipt or invoice.
  */
 export async function classifyDocument(ocrText: string): Promise<DocumentType> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
-  const systemPrompt = `You are a document classifier for Malaysian business documents.
+  try {
+    const { text } = await geminiCall({
+      contents: [{ role: "user", parts: [{ text: ocrText }] }],
+      systemInstruction: { parts: [{ text: `You are a document classifier for Malaysian business documents.
 Classify the following OCR text as either "receipt" or "invoice".
 
 Rules:
 - "invoice": contains invoice number, payment terms, due date, bill-to/ship-to, or is clearly a bill requesting payment
 - "receipt": proof of payment, transaction record, POS receipt, or acknowledgment of payment made
 
-Return ONLY one word: receipt or invoice`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token.token}`,
-    },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: ocrText }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 0,
-        maxOutputTokens: 16,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-  });
-
-  if (!res.ok) return "receipt"; // fallback to receipt on error
-
-  const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase() ?? "";
-  return text === "invoice" ? "invoice" : "receipt";
+Return ONLY one word: receipt or invoice` }] },
+      generationConfig: { temperature: 0, maxOutputTokens: 16, thinkingConfig: { thinkingBudget: 0 } },
+    }, 'classifyDocument');
+    return text.trim().toLowerCase() === "invoice" ? "invoice" : "receipt";
+  } catch {
+    return "receipt";
+  }
 }
 
 /**
@@ -319,16 +262,6 @@ export async function extractWithGeminiInvoice(
   ocrText: string,
   categories: string[]
 ): Promise<string> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
   const systemPrompt = `You are an expert invoice parser for Malaysian SME accounts payable.
 Extract the following fields from the invoice OCR text.
 Return ONLY valid JSON, no explanation, no markdown.
@@ -355,31 +288,12 @@ Confidence rules:
 Return format:
 {"vendor": "", "invoiceNumber": "", "issueDate": "", "dueDate": "", "paymentTerms": "", "subtotal": 0, "taxAmount": 0, "totalAmount": 0, "category": "", "notes": "", "confidence": "HIGH"}`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token.token}`,
-    },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: ocrText }] }],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 1024,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-  });
+  const { text } = await geminiCall({
+    contents: [{ role: "user", parts: [{ text: ocrText }] }],
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+  }, 'extractInvoice');
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error: ${res.status} — ${errText}`);
-  }
-
-  const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No response from Gemini");
   return text;
 }
 
@@ -391,16 +305,6 @@ export async function extractInvoiceFromPDF(
   pdfBuffer: Buffer,
   categories: string[]
 ): Promise<{ documentType: DocumentType; raw: string }> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
-
   const systemPrompt = `You are an expert document parser for Malaysian SME accounting.
 Analyze this PDF document and:
 1. Classify it as "receipt", "invoice", or "bank_statement"
@@ -441,44 +345,17 @@ Invoice format: {"documentType": "invoice", "vendor": "", "invoiceNumber": "", "
 
 Receipt format: {"documentType": "receipt", "date": "", "merchant": "", "amount": 0, "receiptNumber": "", "category": "", "notes": "", "confidence": "HIGH"}`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token.token}`,
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: {
-                mimeType: "application/pdf",
-                data: pdfBuffer.toString("base64"),
-              },
-            },
-            { text: "Extract data from this document." },
-          ],
-        },
+  const { text } = await geminiCall({
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: "application/pdf", data: pdfBuffer.toString("base64") } },
+        { text: "Extract data from this document." },
       ],
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      generationConfig: {
-        temperature: 0.1,
-        maxOutputTokens: 1024,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error: ${res.status} — ${errText}`);
-  }
-
-  const json = await res.json();
-  const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No response from Gemini");
+    }],
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1024, thinkingConfig: { thinkingBudget: 0 } },
+  }, 'extractPDF');
 
   // Parse just the documentType to route, return raw for full parsing
   try {
