@@ -402,7 +402,8 @@ export async function POST(request: NextRequest) {
         const updates: Record<string, string> = {};
         const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { default_gl_account_id: true, default_contra_gl_account_id: true } });
         if (!supplier?.default_gl_account_id) updates.default_gl_account_id = glAccountId!;
-        if (contraGlAccountId && !supplier?.default_contra_gl_account_id) updates.default_contra_gl_account_id = contraGlAccountId;
+        // Always save contra GL when explicitly provided — improves future auto-fill
+        if (contraGlAccountId) updates.default_contra_gl_account_id = contraGlAccountId;
         if (Object.keys(updates).length > 0) {
           await prisma.supplier.update({ where: { id: supplierId }, data: updates });
         }

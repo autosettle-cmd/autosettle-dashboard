@@ -346,6 +346,44 @@ Results grouped by category with `ds-table-header` section headers. Each result 
 - Page detects param, fetches item via `/api/search/preview` if not in current table data, opens existing preview modal
 - URL cleaned after preview opens
 
+### Invoice GL Auto-Suggest & Supplier Learning
+
+Full flow from upload to approval:
+
+#### 1. Upload (OCR → Vendor → Supplier Match)
+- OCR extracts `vendor_name_raw` from the document
+- **Supplier matching** (automatic):
+  1. Check `SupplierAlias` table for exact vendor name match → link supplier
+  2. If no alias, fuzzy match existing supplier names → auto-suggest
+  3. First manual allocation saves vendor name as `SupplierAlias` for future auto-match
+
+#### 2. Preview (GL Auto-Suggest)
+When accountant opens the invoice preview, GL accounts auto-fill:
+
+**Expense GL (Debit) — resolution order:**
+1. Invoice's saved `gl_account_id`
+2. Supplier's `default_gl_account_id`
+3. Supplier alias lookup GL
+4. Category → GL mapping
+5. Empty (accountant must select)
+
+**Contra GL (Credit) — resolution order:**
+1. Invoice's saved `contra_gl_account_id`
+2. Supplier's `default_contra_gl_account_id`
+3. Supplier alias lookup contra GL
+4. **Fuzzy name match**: vendor name words matched against Liability GL account names (2+ word overlap)
+5. Firm default Trade Payables GL
+- If resolved contra = firm default, still runs fuzzy name match for a supplier-specific sub-account
+
+#### 3. Approval (GL Saved to Supplier)
+When accountant approves with a selected contra GL:
+- **Always saves** `default_contra_gl_account_id` to supplier record (overwrites generic default)
+- Expense GL saved to supplier if not already set
+- Next invoice from this supplier auto-fills both GL accounts
+
+#### 4. Confirmation Modal
+Before posting, shows JV preview: Debit (Expense GL + amount) and Credit (Contra GL + amount). Accountant confirms before JV is created.
+
 ### Dashboard Cards — Housing + Pressable Tiles
 
 #### Housing (`dash-housing`)

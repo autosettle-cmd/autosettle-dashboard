@@ -197,9 +197,9 @@ export async function PATCH(request: NextRequest) {
         if (resolvedGlId && !inv.supplier.default_gl_account_id) {
           updates.default_gl_account_id = resolvedGlId;
         }
-        const resolvedContraGlId = contra_gl_account_id;
-        if (resolvedContraGlId && !inv.supplier.default_contra_gl_account_id) {
-          updates.default_contra_gl_account_id = resolvedContraGlId;
+        // Always save contra GL when explicitly provided — improves future auto-fill
+        if (contra_gl_account_id) {
+          updates.default_contra_gl_account_id = contra_gl_account_id;
         }
         if (Object.keys(updates).length > 0) {
           await prisma.supplier.update({ where: { id: inv.supplier.id }, data: updates });
