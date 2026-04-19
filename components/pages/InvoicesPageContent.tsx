@@ -379,7 +379,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   const restoreAndOpen = useCallback(() => {
     const job = jobs.find(j => j.type === 'invoice');
     if (job?.data?.items && batchItems.length === 0) {
-      setBatchItems(job.data.items);
+      const restoredItems = job.data.items as BatchItem[];
+      const fixed = restoredItems.map(item =>
+        item.ocrDone ? item : { ...item, ocrDone: true, ocrError: 'Scan interrupted — fill manually' }
+      );
+      setBatchItems(fixed);
+      if (job.phase === 'scanning') {
+        upsertJob({ ...job, phase: 'review', label: 'Scan complete', data: { items: fixed } });
+      }
     }
     setShowBatchReview(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,9 +403,17 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   useEffect(() => {
     const job = jobs.find(j => j.type === 'invoice' && (j.phase === 'review' || j.phase === 'scanning'));
     if (job?.data?.items && !showBatchReview && !batchSubmitting && batchItems.length === 0) {
-      setBatchItems(job.data.items);
+      const restoredItems = job.data.items as BatchItem[];
+      // Mark unfinished items so user knows they weren't scanned
+      const fixed = restoredItems.map(item =>
+        item.ocrDone ? item : { ...item, ocrDone: true, ocrError: 'Scan interrupted — fill manually' }
+      );
+      setBatchItems(fixed);
       setShowBatchReview(true);
-      if (job.phase === 'scanning') setBatchScanning(true);
+      // Transition job to review (scan can't resume after navigation)
+      if (job.phase === 'scanning') {
+        upsertJob({ ...job, phase: 'review', label: 'Scan complete', data: { items: fixed } });
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs]);
