@@ -150,6 +150,7 @@ After making changes, explain what was done so the structure is understood.
 | `/docs/database-schema.md` | Full Postgres schema + join tables + amount_paid formulas |
 | `/docs/entity-cascade.md` | **Hard guardrails:** delete blockers, revert cascades, soft-delete rules |
 | `/docs/jv-rules.md` | **Hard guardrails:** JV source types, GL resolution, reversal mechanics |
+| `/docs/invoice-gl-flow.md` | **Full GL flow:** OCR → supplier match → GL auto-suggest → approval → supplier learns |
 | `/docs/auth.md` | NextAuth login flow, middleware |
 | `/docs/categories-spec.md` | Category business rules |
 | `/docs/signup-spec.md` | User onboarding flow |
