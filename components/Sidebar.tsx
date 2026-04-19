@@ -335,7 +335,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
             </div>
           )}
           {/* User info — milled into sidebar surface */}
-          <div className="mx-3 my-2 px-3 py-2.5"
+          <div className="px-3 py-2.5"
             style={{
               background: 'rgba(0,0,0,0.15)',
               boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 1px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.07)',
