@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,9 +77,6 @@ export default function PeoplePage() {
   const [employees, setEmployees]   = useState<EmployeeRow[]>([]);
   const [empLoading, setEmpLoading] = useState(true);
   const [empKey, setEmpKey]         = useState(0);
-
-  // ── Search ──
-  const [search, setSearch] = useState('');
 
   // ── Add Admin Modal ──
   const [showAdminModal, setShowAdminModal]   = useState(false);
@@ -153,20 +152,31 @@ export default function PeoplePage() {
 
     const p = new URLSearchParams();
     if (firmId) p.set('firmId', firmId);
-    if (search) p.set('search', search);
 
     fetch(`/api/employees?${p}`)
       .then((r) => r.json())
       .then((j) => { if (!cancelled) { setEmployees(j.data ?? []); setEmpLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setEmpLoading(false); });
     return () => { cancelled = true; };
-  }, [firmId, search, empKey, firmsLoaded]);
+  }, [firmId, empKey, firmsLoaded]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   const refreshPending   = () => setPendingKey((k) => k + 1);
   const refreshAdmins    = () => setAdminsKey((k) => k + 1);
   const refreshEmployees = () => setEmpKey((k) => k + 1);
+
+  // Auto-open preview from ?preview=id (global search navigation)
+  const empSearchParams = useSearchParams();
+  const previewParam = empSearchParams.get('preview');
+  useEffect(() => {
+    if (!previewParam || empLoading) return;
+    const match = employees.find((e) => e.id === previewParam);
+    if (match) {
+      openEditEmpPanel(match);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [previewParam, empLoading, employees]);
 
   const handleApprove = async (id: string) => {
     try {
@@ -377,20 +387,12 @@ export default function PeoplePage() {
     }
   };
 
-  // ── Filtered admins (by search) ──
-  const filteredAdmins = search
-    ? admins.filter((a) =>
-        a.name.toLowerCase().includes(search.toLowerCase()) ||
-        a.email.toLowerCase().includes(search.toLowerCase())
-      )
-    : admins;
-
   // ── Collapsible sections ──
   const [adminsOpen, setAdminsOpen] = useState(true);
   const [empsOpen, setEmpsOpen] = useState(true);
 
   // ── Table sorting ──
-  const { sorted: sortedAdmins, toggleSort: toggleAdminSort, sortIndicator: adminSortIndicator } = useTableSort(filteredAdmins, 'name', 'asc');
+  const { sorted: sortedAdmins, toggleSort: toggleAdminSort, sortIndicator: adminSortIndicator } = useTableSort(admins, 'name', 'asc');
   const { sorted: sortedEmployees, toggleSort: toggleEmpSort, sortIndicator: empSortIndicator } = useTableSort(employees, 'name', 'asc');
 
   // ─── Render ─────────────────────────────────────────────────────────────────
@@ -405,20 +407,13 @@ export default function PeoplePage() {
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">People</h1>
+          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
 
           {/* ── Filter bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-
-            <input
-              type="text"
-              placeholder="Search name, phone, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field min-w-[240px]"
-            />
 
             <div className="ml-auto flex items-center gap-2">
               <button
@@ -494,7 +489,7 @@ export default function PeoplePage() {
                   <path d="M9 18l6-6-6-6" />
                 </svg>
                 <p className="text-title-sm font-semibold text-[var(--text-primary)]">Admins</p>
-                {!adminsLoading && <span className="badge-blue">{filteredAdmins.length}</span>}
+                {!adminsLoading && <span className="badge-blue">{admins.length}</span>}
               </div>
             </div>
             {adminsOpen && (
@@ -502,7 +497,7 @@ export default function PeoplePage() {
                 <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">Select a firm to view admins.</div>
               ) : adminsLoading ? (
                 <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
-              ) : filteredAdmins.length === 0 ? (
+              ) : admins.length === 0 ? (
                 <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
               ) : (
                 <table className="w-full ds-table-chassis">

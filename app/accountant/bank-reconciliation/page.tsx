@@ -8,6 +8,7 @@ import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 import { formatRM } from '@/lib/formatters';
+import SearchButton from '@/components/SearchButton';
 
 type BatchResult = { name: string; ok: boolean; msg: string };
 
@@ -56,17 +57,6 @@ export default function AccountantBankReconciliationPage() {
   const { firms, firmId: firmFilter, firmsLoaded } = useFirm();
   const [uploadFirmId, setUploadFirmId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Transaction search
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<{
-    id: string; transaction_date: string; description: string; reference: string | null;
-    amount: number; type: string; bank_name: string; account_number: string | null;
-    statement_id: string; statement_date: string;
-    matching_invoices: { id: string; invoice_number: string; vendor_name: string; total_amount: number; balance: number; exact_match: boolean }[];
-  }[]>([]);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   // Bank GL mappings
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
@@ -377,86 +367,12 @@ export default function AccountantBankReconciliationPage() {
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search amount, description..."
-                value={searchQuery}
-                onChange={(e) => {
-                  const q = e.target.value;
-                  setSearchQuery(q);
-                  clearTimeout(searchTimeout.current);
-                  if (q.trim().length < 2) { setSearchResults([]); return; }
-                  searchTimeout.current = setTimeout(() => {
-                    setSearchLoading(true);
-                    const params = new URLSearchParams({ q: q.trim() });
-                    if (firmFilter) params.set('firmId', firmFilter);
-                    fetch(`/api/bank-reconciliation/search?${params}`)
-                      .then(r => r.json())
-                      .then(j => setSearchResults(j.data ?? []))
-                      .catch(() => setSearchResults([]))
-                      .finally(() => setSearchLoading(false));
-                  }, 300);
-                }}
-                className="input-field w-64 text-body-sm pr-8"
-              />
-              {searchLoading && <span className="absolute right-2.5 top-2.5 text-xs text-[var(--text-secondary)]">...</span>}
-              {searchQuery && !searchLoading && (
-                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="absolute right-2.5 top-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm">&times;</button>
-              )}
-            </div>
+            <SearchButton />
             <button onClick={() => setShowUpload(true)} className="btn-thick-navy px-3 py-1.5 text-body-md font-medium">
               Upload Statement
             </button>
           </div>
         </header>
-
-        {/* Search results */}
-        {searchResults.length > 0 && (
-          <div className="mx-6 mb-4 bg-white border border-[var(--surface-header)] shadow-sm max-h-96 overflow-y-auto">
-            <div className="px-4 py-2.5 border-b border-[var(--surface-header)] bg-[var(--surface-low)]">
-              <p className="text-body-sm font-semibold text-[var(--text-secondary)]">{searchResults.length} unmatched transaction{searchResults.length !== 1 ? 's' : ''} found</p>
-            </div>
-            <div className="divide-y divide-[var(--surface-low)]">
-              {searchResults.map(txn => (
-                <div
-                  key={txn.id}
-                  className="px-4 py-3 hover:bg-[var(--surface-low)] cursor-pointer transition-colors"
-                  onClick={() => router.push(`/accountant/bank-reconciliation/${txn.statement_id}`)}
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-body-sm font-semibold tabular-nums ${txn.type === 'debit' ? 'text-[var(--reject-red)]' : 'text-[var(--match-green)]'}`}>
-                          {txn.type === 'debit' ? '-' : '+'}RM {txn.amount.toLocaleString('en-MY', { minimumFractionDigits: 2 })}
-                        </span>
-                        <span className="text-xs text-[var(--text-secondary)]">{formatDate(txn.transaction_date)}</span>
-                        <span className="text-xs text-[var(--text-secondary)]">{txn.bank_name} {txn.account_number}</span>
-                      </div>
-                      <p className="text-body-sm text-[var(--text-secondary)] truncate">{txn.description}</p>
-                      {txn.reference && <p className="text-xs text-[var(--text-secondary)]">Ref: {txn.reference}</p>}
-                    </div>
-                    {txn.matching_invoices.length > 0 && (
-                      <div className="flex-shrink-0 text-right space-y-0.5">
-                        <p className="text-xs text-[var(--text-secondary)] font-medium">Possible invoice match:</p>
-                        {txn.matching_invoices.map(inv => (
-                          <div key={inv.id} className="text-xs">
-                            <span className={`font-medium ${inv.exact_match ? 'text-[var(--match-green)]' : 'text-[var(--text-secondary)]'}`}>
-                              {inv.invoice_number || 'No #'}
-                            </span>
-                            <span className="text-[var(--text-secondary)] ml-1">{inv.vendor_name}</span>
-                            <span className="text-[var(--text-secondary)] ml-1 tabular-nums">Bal: RM {inv.balance.toLocaleString('en-MY', { minimumFractionDigits: 2 })}</span>
-                            {inv.exact_match && <span className="ml-1 text-[var(--match-green)] font-medium">exact</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         <main className="flex-1 overflow-y-auto p-8 pl-14 animate-in ledger-binding">
           {showUpload && (

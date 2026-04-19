@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
+import SearchButton from '@/components/SearchButton';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CategoryRow {
@@ -187,6 +188,7 @@ export default function AdminCategoriesPage() {
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Categories</h1>
+          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture animate-in">

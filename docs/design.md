@@ -320,6 +320,32 @@ Every `<td>` in data tables must have a `data-col` attribute with its column nam
 - **Position:** absolute, top of cell, centered horizontally
 - **No JS required** — pure CSS, zero performance cost
 
+### Global Search (`GlobalSearch.tsx`)
+
+Universal search accessible from every page via a `btn-thick-navy` **SEARCH** button in the page header + **Cmd+K** shortcut.
+
+#### Architecture
+- **Button:** `SearchButton` component dispatches `open-global-search` event
+- **Sidebar** listens for the event + Cmd+K, renders `GlobalSearch` modal
+- **API:** `POST /api/search` — 5 parallel Prisma queries (claims, invoices, bank transactions, suppliers, employees), role-scoped
+- **Hook:** `useGlobalSearch` — 300ms debounce, AbortController, min 2 chars
+- **Preview:** `GET /api/search/preview?type=claim&id=xxx` — fetches single entity for preview when not in current table view
+
+#### Result Display
+Results grouped by category with `ds-table-header` section headers. Each result shows:
+- **Primary line:** date, name/description, amount, status badge
+- **Context line** (10px, secondary): parent entity info so user knows where the item lives
+  - Claims: `employee · firm · category`
+  - Invoices: `firm`
+  - Bank Transactions: `bank name + account number · firm`
+  - Suppliers: `firm`
+  - Employees: `phone · email`
+
+#### Click Behavior
+- Navigates to entity page with `?preview=<id>` query param
+- Page detects param, fetches item via `/api/search/preview` if not in current table data, opens existing preview modal
+- URL cleaned after preview opens
+
 ### Dashboard Cards — Housing + Pressable Tiles
 
 #### Housing (`dash-housing`)

@@ -8,10 +8,12 @@ import SupplierPreviewPanel from '@/components/suppliers/SupplierPreviewPanel';
 import SupplierPaymentModal from '@/components/suppliers/SupplierPaymentModal';
 import SupplierEditModal from '@/components/suppliers/SupplierEditModal';
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM } from '@/lib/formatters';
 import { PAYMENT_CFG } from '@/lib/badge-config';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -172,7 +174,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [search, setSearch] = useState('');
   const [supplierSort, setSupplierSort] = useState('name|asc');
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
@@ -242,7 +243,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
 
   const refreshInPlace = async () => {
     const p = new URLSearchParams();
-    if (search) p.set('search', search);
     if (config.firmId) p.set('firmId', config.firmId);
     if (takeLimit) p.set('take', String(takeLimit));
 
@@ -277,7 +277,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
     const controller = new AbortController();
     setLoading(true);
     const p = new URLSearchParams();
-    if (search) p.set('search', search);
     if (config.firmId) p.set('firmId', config.firmId);
     if (takeLimit) p.set('take', String(takeLimit));
 
@@ -286,7 +285,16 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
       .then((j) => { setSuppliers(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
       .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
     return () => controller.abort();
-  }, [config.firmsLoaded, config.firmId, config.apiSuppliers, search, refreshKey, takeLimit]);
+  }, [config.firmsLoaded, config.firmId, config.apiSuppliers, refreshKey, takeLimit]);
+
+  // Auto-open preview from ?preview=id (global search navigation)
+  const supplierSearchParams = useSearchParams();
+  const previewParam = supplierSearchParams.get('preview');
+  useEffect(() => {
+    if (!previewParam) return;
+    setPreviewSupplierId(previewParam);
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [previewParam]);
 
   // Load aging report
   useEffect(() => {
@@ -476,11 +484,14 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Suppliers</h1>
-          {config.role === 'accountant' && (
-            <p className="text-[var(--text-secondary)] text-xs">
-              {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          )}
+          <div className="flex items-center gap-3">
+            <SearchButton />
+            {config.role === 'accountant' && (
+              <p className="text-[var(--text-secondary)] text-xs">
+                {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
+          </div>
         </header>
 
         {/* ── Static top section (aging cards + filters) ── */}
@@ -515,13 +526,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           )}
 
           <div className="flex items-center gap-2.5 pb-3">
-            <input
-              type="text"
-              placeholder="Search supplier..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field min-w-[250px]"
-            />
             <select
               className="input-field"
               value={supplierSort}

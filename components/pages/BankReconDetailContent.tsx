@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -198,6 +198,18 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       .catch((err) => { if ((err as Error).name !== 'AbortError') { console.error('Failed to load statement:', err); setLoading(false); } });
     return () => controller.abort();
   }, [id]);
+
+  // Auto-open preview from ?preview=txnId (global search navigation)
+  const bankSearchParams = useSearchParams();
+  const previewTxnParam = bankSearchParams.get('preview');
+  useEffect(() => {
+    if (!previewTxnParam || !statement) return;
+    const match = statement.transactions.find((t) => t.id === previewTxnParam);
+    if (match) {
+      setPreviewTxn(match);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [previewTxnParam, statement]);
 
   // Auto-rematch when statement loads (accountant only)
   const [autoRematched, setAutoRematched] = useState(false);

@@ -14,6 +14,7 @@ import FilterBar from '@/components/filters/FilterBar';
 import ClaimCreateModal from '@/components/claims/ClaimCreateModal';
 import ClaimPreviewPanel from '@/components/claims/ClaimPreviewPanel';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -577,7 +578,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     customTo, setCustomTo,
     statusFilter, setStatusFilter,
     approvalFilter, setApprovalFilter,
-    search, setSearch,
   } = useFilters(config.showStatusFilter ? { initialStatus } : {});
 
   // Pagination
@@ -598,7 +598,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     if (to)              p.set('dateTo',   to);
     if (config.showStatusFilter && statusFilter) p.set('status', statusFilter);
     if (approvalFilter)  p.set('paymentStatus', approvalFilter);
-    if (search)          p.set('search',   search);
     if (takeLimit)       p.set('take',     String(takeLimit));
 
     fetch(`${config.apiClaims}?${p}`, { signal: controller.signal })
@@ -608,7 +607,27 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
 
     return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [claimTab, config.firmId, dateRange, customFrom, customTo, statusFilter, approvalFilter, search, refreshKey, takeLimit, config.firmsLoaded]);
+  }, [claimTab, config.firmId, dateRange, customFrom, customTo, statusFilter, approvalFilter, refreshKey, takeLimit, config.firmsLoaded]);
+
+  // Auto-open preview from ?preview=id (global search navigation)
+  const previewParam = searchParams.get('preview');
+  useEffect(() => {
+    if (!previewParam) return;
+    // Try table data first, then fetch directly
+    const match = claims.find((c) => c.id === previewParam);
+    if (match) {
+      setPreviewClaim(match);
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+    // Fetch from API if not in current table view
+    if (!loading) {
+      fetch(`/api/search/preview?type=claim&id=${previewParam}`)
+        .then((r) => r.json())
+        .then((j) => { if (j.data) setPreviewClaim(j.data); })
+        .finally(() => window.history.replaceState(null, '', window.location.pathname));
+    }
+  }, [previewParam, loading, claims]);
 
   // When previewClaim changes, exit edit mode
   useEffect(() => { setEditMode(false); setEditData(null); setInvoiceLinkSearch(''); setInvoiceLinkResults([]); }, [previewClaim]);
@@ -1050,6 +1069,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
             {isAccountant && <p className="text-[10px] font-label text-[var(--text-secondary)] uppercase tracking-widest">{formatDateDot(todayStr())}</p>}
           </div>
+          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
@@ -1069,10 +1089,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             paymentValue={approvalFilter}
             onPaymentChange={setApprovalFilter}
             paymentOptions={[{ value: '', label: 'All Reimbursement' }, { value: 'unpaid', label: 'Pending' }, { value: 'paid', label: 'Reimbursed' }]}
-            showSearch
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search merchant, employee or receipt no..."
           />
 
           {/* -- Success message ------------------------------ */}

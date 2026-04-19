@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -543,15 +544,18 @@ export default function ChartOfAccountsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Chart of Accounts</h1>
-          {firmId && (
-            <button
-              onClick={importSqlAccounting}
-              disabled={importing}
-              className="btn-thick-white text-xs px-4 py-2 font-medium disabled:opacity-40"
-            >
-              {importing ? 'Importing...' : 'Import SQL Accounting COA'}
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            <SearchButton />
+            {firmId && (
+              <button
+                onClick={importSqlAccounting}
+                disabled={importing}
+                className="btn-thick-white text-xs px-4 py-2 font-medium disabled:opacity-40"
+              >
+                {importing ? 'Importing...' : 'Import SQL Accounting COA'}
+              </button>
+            )}
+          </div>
         </header>
 
         <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture ledger-binding animate-in">

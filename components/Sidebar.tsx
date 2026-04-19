@@ -1,12 +1,13 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { brand } from '@/config/branding';
 import { useFirm } from '@/contexts/FirmContext';
+import GlobalSearch from '@/components/GlobalSearch';
 
 // ─── Nav configs per role ────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [firmHighlight, setFirmHighlight] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   // Listen for highlight-firm-selector events from other pages
   useEffect(() => {
@@ -111,6 +113,25 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     };
     window.addEventListener('highlight-firm-selector', handler);
     return () => window.removeEventListener('highlight-firm-selector', handler);
+  }, []);
+
+  // Listen for open-global-search events from page headers
+  useEffect(() => {
+    const handler = () => setShowSearch(true);
+    window.addEventListener('open-global-search', handler);
+    return () => window.removeEventListener('open-global-search', handler);
+  }, []);
+
+  // Cmd+K / Ctrl+K to open search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(s => !s);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
   }, []);
 
   // Check if an href (possibly with query params) matches the current URL
@@ -183,7 +204,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     }).catch(() => {});
   }, [role, firmId]);
 
-  return (
+  return (<>
     <aside
       className="w-52 flex-shrink-0 flex flex-col bg-[#234B6E] relative"
       style={{
@@ -333,7 +354,9 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
         </div>
       </div>
     </aside>
-  );
+
+      <GlobalSearch open={showSearch} onClose={() => setShowSearch(false)} role={role} firmId={firmId} />
+  </>);
 }
 
 export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'employee' }) {

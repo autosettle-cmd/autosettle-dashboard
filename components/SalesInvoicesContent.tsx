@@ -129,7 +129,6 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Filters
-  const [search, setSearch] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
   const [dateRange, setDateRange] = useState('this_month');
   const [customFrom, setCustomFrom] = useState('');
@@ -256,7 +255,6 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
     setLoading(true);
 
     const p = new URLSearchParams();
-    if (search) p.set('search', search);
     if (paymentFilter) p.set('paymentStatus', paymentFilter);
 
     // Date range
@@ -282,7 +280,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [search, paymentFilter, dateRange, customFrom, customTo, refreshKey, apiBase]);
+  }, [paymentFilter, dateRange, customFrom, customTo, refreshKey, apiBase]);
 
   // ─── Fetch suppliers for create modal ────────────────────────────────────────
 
@@ -440,14 +438,6 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
           <option value="partially_paid">Partial</option>
           <option value="paid">Paid</option>
         </Select>
-
-        <input
-          type="text"
-          placeholder="Search buyer or invoice #..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input-field min-w-[210px]"
-        />
 
         <div className="ml-auto">
           <button

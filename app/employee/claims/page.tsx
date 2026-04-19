@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -523,6 +524,7 @@ export default function EmployeeClaimsPage() {
             <h1 className="text-xl font-bold tracking-tighter text-[#0D1B2A]">My Claims</h1>
             <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest">{formatDisplayDate()}</p>
           </div>
+          <SearchButton />
         </header>
 
         {/* ── Drag overlay ── */}

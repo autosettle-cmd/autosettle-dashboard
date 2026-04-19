@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -113,7 +114,6 @@ export default function JournalEntriesPage() {
   const [customTo,      setCustomTo]      = useState('');
   const [sourceFilter,  setSourceFilter]  = useState('');
   const [statusFilter,  setStatusFilter]  = useState('');
-  const [search,        setSearch]        = useState('');
   const [hideReversals, setHideReversals] = useState(false);
 
   const PAGE_SIZE = 50;
@@ -131,7 +131,6 @@ export default function JournalEntriesPage() {
     if (to)            p.set('dateTo',     to);
     if (sourceFilter)  p.set('sourceType', sourceFilter);
     if (statusFilter)  p.set('status',     statusFilter);
-    if (search)        p.set('search',     search);
     if (takeLimit)     p.set('take',       String(takeLimit));
 
     fetch(`/api/journal-entries?${p}`)
@@ -140,7 +139,7 @@ export default function JournalEntriesPage() {
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [firmsLoaded, firmFilter, dateRange, customFrom, customTo, sourceFilter, statusFilter, search, refreshKey, takeLimit]);
+  }, [firmsLoaded, firmFilter, dateRange, customFrom, customTo, sourceFilter, statusFilter, refreshKey, takeLimit]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
   const { sorted, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(entries, 'posting_date', 'desc');
@@ -179,6 +178,7 @@ export default function JournalEntriesPage() {
           <div className="h-16 flex items-center justify-between pl-14 pr-6">
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Journal Entries</h1>
             <div className="flex items-center gap-3">
+              <SearchButton />
               {(
                 <button
                   onClick={async () => {
@@ -242,14 +242,6 @@ export default function JournalEntriesPage() {
               <option value="posted">Posted</option>
               <option value="reversed">Reversed</option>
             </Select>
-
-            <input
-              type="text"
-              placeholder="Search voucher # or description..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input-field min-w-[210px]"
-            />
 
             <button
               onClick={() => setHideReversals((v) => !v)}

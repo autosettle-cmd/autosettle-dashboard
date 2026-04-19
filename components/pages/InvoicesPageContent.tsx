@@ -17,6 +17,7 @@ import Link from 'next/link';
 import InvoiceCreateModal from '@/components/invoices/InvoiceCreateModal';
 import InvoiceRejectModal from '@/components/invoices/InvoiceRejectModal';
 import InvoicePreviewPanel from '@/components/invoices/InvoicePreviewPanel';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1035,7 +1036,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     customTo, setCustomTo,
     statusFilter, setStatusFilter,
     approvalFilter, setApprovalFilter,
-    search, setSearch,
   } = useFilters({ initialStatus, initialDateRange: (initialStatus || initialPayment) ? '' : 'this_month' });
   const [paymentFilter, setPaymentFilter] = useState(initialPayment);
 
@@ -1055,7 +1055,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     if (to)              p.set('dateTo',        to);
     if (statusFilter)    p.set('status',        statusFilter);
     if (paymentFilter)   p.set('paymentStatus', paymentFilter);
-    if (search)          p.set('search',        search);
     if (takeLimit)       p.set('take',          String(takeLimit));
 
     fetch(`${config.apiInvoices}?${p}`, { signal: controller.signal })
@@ -1064,7 +1063,25 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
 
     return () => controller.abort();
-  }, [config.firmsLoaded, config.firmId, config.apiInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, search, refreshKey, takeLimit]);
+  }, [config.firmsLoaded, config.firmId, config.apiInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, refreshKey, takeLimit]);
+
+  // Auto-open preview from ?preview=id (global search navigation)
+  const previewParam = pageSearchParams.get('preview');
+  useEffect(() => {
+    if (!previewParam) return;
+    const match = invoices.find((inv) => inv.id === previewParam);
+    if (match) {
+      setPreviewInvoice(match);
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+    if (!loading) {
+      fetch(`/api/search/preview?type=invoice&id=${previewParam}`)
+        .then((r) => r.json())
+        .then((j) => { if (j.data) setPreviewInvoice(j.data); })
+        .finally(() => window.history.replaceState(null, '', window.location.pathname));
+    }
+  }, [previewParam, loading, invoices]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
   const filteredInvoices = config.showApproval && approvalFilter
@@ -1107,15 +1124,18 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         <header className="flex-shrink-0 bg-white border-b border-[#E0E3E5]">
           <div className="h-16 flex items-center justify-between pl-14 pr-6">
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Invoices</h1>
-            {config.role === 'accountant' ? (
-              <p className="text-[var(--text-secondary)] text-xs">
-                {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            ) : (
-              <Link href="/admin/suppliers" className="text-body-sm font-medium hover:underline transition-colors" style={{ color: 'var(--primary)' }}>
-                Aging Report &rarr;
-              </Link>
-            )}
+            <div className="flex items-center gap-3">
+              <SearchButton />
+              {config.role === 'accountant' ? (
+                <p className="text-[var(--text-secondary)] text-xs">
+                  {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              ) : (
+                <Link href="/admin/suppliers" className="text-body-sm font-medium hover:underline transition-colors" style={{ color: 'var(--primary)' }}>
+                  Aging Report &rarr;
+                </Link>
+              )}
+            </div>
           </div>
         </header>
 
@@ -1141,10 +1161,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
             showPaymentFilter
             paymentValue={paymentFilter}
             onPaymentChange={setPaymentFilter}
-            showSearch
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search vendor or invoice #..."
           >
             <div className="ml-auto">
               <button

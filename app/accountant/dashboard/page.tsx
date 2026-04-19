@@ -8,6 +8,7 @@ import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 import StatCard from '@/components/StatCard';
+import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -408,9 +409,12 @@ export default function AccountantDashboard() {
           <h1 className="text-xl font-bold tracking-tighter text-[#191C1E]">
             {getGreeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
-          <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest">
-            {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
+          <div className="flex items-center gap-3">
+            <SearchButton />
+            <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest">
+              {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto p-8 pl-14 paper-texture animate-in">

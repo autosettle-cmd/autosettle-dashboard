@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
+import SearchButton from '@/components/SearchButton';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EmployeeRow {
@@ -67,9 +69,6 @@ export default function AdminEmployeesPage() {
   const [empLoading, setEmpLoading]     = useState(true);
   const [empKey, setEmpKey]             = useState(0);
 
-  // Filters
-  const [search, setSearch] = useState('');
-
   // ── Collapsible sections ──
   const [adminsOpen, setAdminsOpen] = useState(true);
   const [empsOpen, setEmpsOpen] = useState(true);
@@ -129,20 +128,30 @@ export default function AdminEmployeesPage() {
   useEffect(() => {
     let cancelled = false;
     setEmpLoading(true);
-    const p = new URLSearchParams();
-    if (search) p.set('search', search);
-    fetch(`/api/admin/employees?${p}`)
+    fetch(`/api/admin/employees`)
       .then((r) => r.json())
       .then((j) => { if (!cancelled) { setEmployees(j.data ?? []); setEmpLoading(false); } })
       .catch((e) => { console.error(e); if (!cancelled) setEmpLoading(false); });
     return () => { cancelled = true; };
-  }, [search, empKey]);
+  }, [empKey]);
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   const refreshPending   = () => setPendingKey((k) => k + 1);
   const refreshAdmins    = () => setAdminsKey((k) => k + 1);
   const refreshEmployees = () => setEmpKey((k) => k + 1);
+
+  // Auto-open preview from ?preview=id (global search navigation)
+  const empSearchParams = useSearchParams();
+  const previewParam = empSearchParams.get('preview');
+  useEffect(() => {
+    if (!previewParam || empLoading) return;
+    const match = employees.find((e) => e.id === previewParam);
+    if (match) {
+      openEditPanel(match);
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [previewParam, empLoading, employees]);
 
   const handleApprove = async (id: string) => {
     try {
@@ -306,6 +315,7 @@ export default function AdminEmployeesPage() {
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Employees</h1>
+          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-8 pl-14 paper-texture animate-in">
@@ -412,7 +422,6 @@ export default function AdminEmployeesPage() {
                 {!empLoading && <span className="badge-blue">{employees.length}</span>}
               </div>
               <div className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
-                <input type="text" placeholder="Search name or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field min-w-[210px]" />
                 <button onClick={openEmpModal} className="btn-thick-navy text-xs px-3 py-1.5 font-medium flex-shrink-0">Add Employee</button>
               </div>
             </div>
