@@ -155,10 +155,10 @@ function formatDate(val: string | null | undefined): string {
   ].join('.');
 }
 
-function AgingCell({ value, warn }: { value: number; warn?: boolean }) {
-  if (value === 0) return <td className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums text-body-sm">-</td>;
+function AgingCell({ value, warn, col }: { value: number; warn?: boolean; col?: string }) {
+  if (value === 0) return <td data-col={col} className="px-3 py-2.5 text-right text-[var(--text-secondary)] tabular-nums text-body-sm">-</td>;
   return (
-    <td className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+    <td data-col={col} className={`px-3 py-2.5 text-right tabular-nums text-body-sm font-semibold ${warn && value > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
       {formatRM(value)}
     </td>
   );
@@ -560,7 +560,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                             onClick={() => setAgingExpanded(agingExpanded === s.supplier_id ? null : s.supplier_id)}
                             className={`hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           >
-                            <td className="px-4 py-2.5">
+                            <td data-col="Supplier" className="px-4 py-2.5">
                               <div className="flex items-center gap-1.5">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                                   className={`text-[var(--text-secondary)] transition-transform duration-200 ${agingExpanded === s.supplier_id ? 'rotate-90' : ''}`}
@@ -571,11 +571,11 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                                 <span className="text-label-sm text-[var(--text-secondary)]">({s.invoices.length})</span>
                               </div>
                             </td>
-                            <AgingCell value={s.days0_30} warn />
-                            <AgingCell value={s.days31_60} warn />
-                            <AgingCell value={s.days61_90} warn />
-                            <AgingCell value={s.days90plus} warn />
-                            <td className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-[var(--text-primary)]">{formatRM(s.total)}</td>
+                            <AgingCell value={s.days0_30} warn col="0-30" />
+                            <AgingCell value={s.days31_60} warn col="31-60" />
+                            <AgingCell value={s.days61_90} warn col="61-90" />
+                            <AgingCell value={s.days90plus} warn col="90+" />
+                            <td data-col="Total" className="px-3 py-2.5 text-right tabular-nums text-body-sm font-bold text-[var(--text-primary)]">{formatRM(s.total)}</td>
                           </tr>
                           {agingExpanded === s.supplier_id && s.invoices.map((inv) => (
                             <tr
@@ -595,14 +595,14 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                                 vendor_name_raw: s.supplier_name,
                               })}
                             >
-                              <td className="px-4 py-2 pl-10 text-[var(--text-secondary)]">
+                              <td data-col="Supplier" className="px-4 py-2 pl-10 text-[var(--text-secondary)]">
                                 {formatDate(inv.issue_date)} · <span className="text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</span> · {inv.category_name}
                               </td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{(inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30') ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '31-60' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '61-90' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '90+' ? formatRM(inv.balance) : '-'}</td>
-                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)] font-medium">{formatRM(inv.balance)}</td>
+                              <td data-col="0-30" className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{(inv.bucket === 'current' || inv.bucket === '0-30' || inv.bucket === '1-30') ? formatRM(inv.balance) : '-'}</td>
+                              <td data-col="31-60" className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '31-60' ? formatRM(inv.balance) : '-'}</td>
+                              <td data-col="61-90" className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '61-90' ? formatRM(inv.balance) : '-'}</td>
+                              <td data-col="90+" className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '90+' ? formatRM(inv.balance) : '-'}</td>
+                              <td data-col="Total" className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)] font-medium">{formatRM(inv.balance)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
@@ -610,12 +610,12 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-[var(--surface-header)] bg-[var(--surface-low)] font-bold text-body-sm">
-                        <td className="px-4 py-2.5 text-[var(--text-primary)]">Total</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days0_30)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days31_60)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days61_90)}</td>
-                        <td className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days90plus)}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">{formatRM(agingSummary.total)}</td>
+                        <td data-col="Supplier" className="px-4 py-2.5 text-[var(--text-primary)]">Total</td>
+                        <td data-col="0-30" className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days0_30 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days0_30)}</td>
+                        <td data-col="31-60" className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days31_60 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days31_60)}</td>
+                        <td data-col="61-90" className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days61_90 > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days61_90)}</td>
+                        <td data-col="90+" className={`px-3 py-2.5 text-right tabular-nums ${agingSummary.days90plus > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>{formatRM(agingSummary.days90plus)}</td>
+                        <td data-col="Total" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">{formatRM(agingSummary.total)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -658,7 +658,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                         className={`transition-colors cursor-pointer hover:bg-[var(--surface-header)] ${rowBg}`}
                         onClick={() => openPreview(s.id)}
                       >
-                        <td className="px-4 py-2.5">
+                        <td data-col="Supplier" className="px-4 py-2.5">
                           <p className="text-body-sm font-semibold text-[var(--text-primary)]">{s.name}</p>
                           <p className="text-label-sm text-[var(--text-secondary)]">
                             {s.aliases.length} alias{s.aliases.length !== 1 ? 'es' : ''}
@@ -670,11 +670,11 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                             )}
                           </p>
                         </td>
-                        {config.showFirmColumn && <td className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">{s.firm_name || '-'}</td>}
-                        <td className="px-3 py-2.5 text-right text-body-sm tabular-nums text-[var(--text-secondary)]">
+                        {config.showFirmColumn && <td data-col="Firm" className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">{s.firm_name || '-'}</td>}
+                        <td data-col="Invoices" className="px-3 py-2.5 text-right text-body-sm tabular-nums text-[var(--text-secondary)]">
                           {s.invoice_count + s.sales_invoice_count}
                         </td>
-                        <td className="px-3 py-2.5 text-right">
+                        <td data-col="Outstanding" className="px-3 py-2.5 text-right">
                           <span className={`text-sm font-bold tabular-nums ${net > 0 ? 'text-[var(--reject-red)]' : net < 0 ? 'text-[var(--match-green)]' : 'text-[var(--text-primary)]'}`}>
                             {formatRM(Math.abs(net))}{net > 0 ? ' owed' : net < 0 ? ' due' : ''}
                           </span>

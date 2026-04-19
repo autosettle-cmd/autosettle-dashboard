@@ -293,15 +293,15 @@ export default function JournalEntriesPage() {
                           onClick={() => setPreview(e)}
                           className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${e.reversed_by_id || e.reversal_of_id ? 'opacity-50' : ''} ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                         >
-                          <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(e.posting_date)}</td>
-                          <td className="px-3 py-3 text-[var(--text-primary)] font-medium font-mono text-xs">{e.voucher_number}</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)] max-w-[250px] truncate">{e.description ?? '-'}</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)]">{SOURCE_CFG[e.source_type] ?? e.source_type}</td>
-                          {!firmFilter && <td className="px-3 py-3 text-[var(--text-secondary)]">{e.firm_name}</td>}
-                          <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{e.period_label}</td>
-                          <td className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(e.total_debit)}</td>
-                          <td className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(e.total_credit)}</td>
-                          <td className="px-3 py-3">{sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}</td>
+                          <td data-col="Date" className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(e.posting_date)}</td>
+                          <td data-col="Voucher #" className="px-3 py-3 text-[var(--text-primary)] font-medium font-mono text-xs">{e.voucher_number}</td>
+                          <td data-col="Description" className="px-3 py-3 text-[var(--text-secondary)] max-w-[250px] truncate">{e.description ?? '-'}</td>
+                          <td data-col="Source" className="px-3 py-3 text-[var(--text-secondary)]">{SOURCE_CFG[e.source_type] ?? e.source_type}</td>
+                          {!firmFilter && <td data-col="Firm" className="px-3 py-3 text-[var(--text-secondary)]">{e.firm_name}</td>}
+                          <td data-col="Period" className="px-3 py-3 text-[var(--text-secondary)] text-xs">{e.period_label}</td>
+                          <td data-col="Debit (RM)" className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(e.total_debit)}</td>
+                          <td data-col="Credit (RM)" className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(e.total_credit)}</td>
+                          <td data-col="Status" className="px-3 py-3">{sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}</td>
                         </tr>
                       );
                     })}

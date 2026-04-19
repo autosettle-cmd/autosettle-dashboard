@@ -312,6 +312,14 @@ Recessed toggle switches, not standard web checkboxes.
 #### 5. Amount Column
 Standard styling — right-aligned, `tabular-nums`, `font-semibold`, `text-[var(--text-primary)]`. No special visual treatment.
 
+#### 6. Column Label Tooltip (`data-col`)
+Every `<td>` in data tables must have a `data-col` attribute with its column name. On hover, a compact dark tooltip appears instantly at the top of the cell via CSS `::after`. This helps users identify columns when scrolled far from the header.
+- **Attribute:** `data-col="Amount"` on each `<td>`
+- **CSS:** `.ledger-binding tbody td[data-col]:hover::after` — `content: attr(data-col)`
+- **Style:** dark pill (`var(--text-primary)` bg, white text, 0.5rem uppercase, 1px 5px padding)
+- **Position:** absolute, top of cell, centered horizontally
+- **No JS required** — pure CSS, zero performance cost
+
 ### Dashboard Cards — Housing + Pressable Tiles
 
 #### Housing (`dash-housing`)

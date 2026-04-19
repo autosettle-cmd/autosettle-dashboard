@@ -208,7 +208,7 @@ export default function BalanceSheetPage() {
               className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
               onClick={() => hasChildren ? toggleCollapse(node.account.id) : undefined}
             >
-              <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
+              <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                 <div className="flex items-center gap-2">
                   {hasChildren ? (
                     <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
@@ -220,20 +220,20 @@ export default function BalanceSheetPage() {
                   {node.account.account_code} - {node.account.name}
                 </div>
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+              <td data-col="Amount" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                 {!hasChildren ? formatRM(node.account.balance) : ''}
               </td>
             </tr>
 
             {hasChildren && !isCollapsed && node.children.map((child, ci) => (
               <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
-                <td className="py-2.5 text-[var(--text-secondary)]">
+                <td data-col="Account" className="py-2.5 text-[var(--text-secondary)]">
                   <div className="flex items-center gap-2 pl-11">
                     <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                     {child.account_code} - {child.name}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                <td data-col="Amount" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                   {formatRM(child.balance)}
                 </td>
               </tr>
@@ -241,10 +241,10 @@ export default function BalanceSheetPage() {
 
             {hasChildren && (
               <tr className="bg-[var(--surface-base)]">
-                <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
+                <td data-col="Account" className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                   <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                <td data-col="Amount" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                   {formatRM(node.totalAmount)}
                 </td>
               </tr>
@@ -254,8 +254,8 @@ export default function BalanceSheetPage() {
       })}
 
       <tr className="bg-[var(--surface-header)]">
-        <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {title}</td>
-        <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
+        <td data-col="Account" className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {title}</td>
+        <td data-col="Amount" className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
           {formatRM(sectionTotal)}
         </td>
       </tr>
@@ -333,7 +333,7 @@ export default function BalanceSheetPage() {
                           className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
                           onClick={() => hasChildNodes ? toggleCollapse(node.account.id) : undefined}
                         >
-                          <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
+                          <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                             <div className="flex items-center gap-2">
                               {hasChildNodes ? (
                                 <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
@@ -345,29 +345,29 @@ export default function BalanceSheetPage() {
                               {node.account.account_code} - {node.account.name}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                          <td data-col="Amount" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                             {!hasChildNodes ? formatRM(node.account.balance) : ''}
                           </td>
                         </tr>
                         {hasChildNodes && !isCollapsedNode && node.children.map((child, ci) => (
                           <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
-                            <td className="py-2.5 text-[var(--text-secondary)]">
+                            <td data-col="Account" className="py-2.5 text-[var(--text-secondary)]">
                               <div className="flex items-center gap-2 pl-11">
                                 <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                                 {child.account_code} - {child.name}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                            <td data-col="Amount" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                               {formatRM(child.balance)}
                             </td>
                           </tr>
                         ))}
                         {hasChildNodes && (
                           <tr className="bg-[var(--surface-base)]">
-                            <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
+                            <td data-col="Account" className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                               <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                            <td data-col="Amount" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {formatRM(node.totalAmount)}
                             </td>
                           </tr>
@@ -379,13 +379,13 @@ export default function BalanceSheetPage() {
                   {/* Dynamic Retained Earnings (prior period P&L not yet closed) */}
                   {Math.abs(dynamicRetainedEarnings) > 0.01 && (
                     <tr className="bg-white">
-                      <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)] italic">
+                      <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)] italic">
                         <div className="flex items-center gap-2">
                           <span className="w-4 flex-shrink-0" />
                           Retained Earnings (Prior Periods)
                         </div>
                       </td>
-                      <td className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${dynamicRetainedEarnings < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+                      <td data-col="Amount" className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${dynamicRetainedEarnings < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                         {formatRM(dynamicRetainedEarnings)}
                       </td>
                     </tr>
@@ -393,7 +393,7 @@ export default function BalanceSheetPage() {
 
                   {/* Current Period Net Income */}
                   <tr className="bg-[var(--surface-low)]">
-                    <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)] italic">
+                    <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)] italic">
                       <div className="flex items-center gap-2">
                         <span className="w-4 flex-shrink-0" />
                         {currentPeriodNetIncome >= 0
@@ -402,15 +402,15 @@ export default function BalanceSheetPage() {
                         }
                       </div>
                     </td>
-                    <td className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${currentPeriodNetIncome < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+                    <td data-col="Amount" className={`px-3 py-2.5 text-right tabular-nums font-semibold italic ${currentPeriodNetIncome < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                       {formatRM(currentPeriodNetIncome)}
                     </td>
                   </tr>
 
                   {/* Equity total */}
                   <tr className="bg-[var(--surface-header)]">
-                    <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total Equity</td>
-                    <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
+                    <td data-col="Account" className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total Equity</td>
+                    <td data-col="Amount" className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                       {formatRM(totalEquityWithNetIncome)}
                     </td>
                   </tr>
@@ -419,18 +419,18 @@ export default function BalanceSheetPage() {
 
                   {/* Liabilities + Equity total */}
                   <tr className="bg-[var(--surface-header)]">
-                    <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total Liabilities + Equity</td>
-                    <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
+                    <td data-col="Account" className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total Liabilities + Equity</td>
+                    <td data-col="Amount" className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                       {formatRM(totalLiabilitiesEquity)}
                     </td>
                   </tr>
 
                   {/* Balance check */}
                   <tr className={isBalanced ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}>
-                    <td className={`px-5 py-3 font-bold text-sm ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Account" className={`px-5 py-3 font-bold text-sm ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {isBalanced ? 'Balanced' : 'Out of balance by'}
                     </td>
-                    <td className={`px-3 py-3 text-right tabular-nums font-bold text-sm ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Amount" className={`px-3 py-3 text-right tabular-nums font-bold text-sm ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {isBalanced ? '\u2713' : formatRM(Math.abs(difference))}
                     </td>
                   </tr>

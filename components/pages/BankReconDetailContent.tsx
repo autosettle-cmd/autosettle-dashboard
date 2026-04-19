@@ -803,7 +803,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         <tr className={`transition-colors ${hasExpandable ? 'cursor-pointer hover:bg-[var(--surface-header)]' : 'hover:bg-[var(--surface-header)]'} ${rowBg}`}
                           onClick={handleRowClick}
                         >
-                          <td className="px-4 py-2.5">
+                          <td data-col="Status" className="px-4 py-2.5">
                             <div className="flex items-center gap-1.5">
                               {!config.showRichPreview && hasExpandable && (
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -822,15 +822,15 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                               </div>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)] tabular-nums">{formatDate(txn.transaction_date)}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate" title={txn.description}>
+                          <td data-col="Date" className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)] tabular-nums">{formatDate(txn.transaction_date)}</td>
+                          <td data-col="Description" className="px-3 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate" title={txn.description}>
                             {txn.description.split(' | ')[0]}
                             {txn.reference && <span className="ml-1 text-[var(--text-secondary)] text-label-sm">({txn.reference})</span>}
                           </td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)]">{txn.debit ? formatRM(txn.debit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)]">{txn.credit ? formatRM(txn.credit) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
-                          <td className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">
+                          <td data-col="Debit" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)]">{txn.debit ? formatRM(txn.debit) : '-'}</td>
+                          <td data-col="Credit" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)]">{txn.credit ? formatRM(txn.credit) : '-'}</td>
+                          <td data-col="Balance" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
+                          <td data-col="Matched To" className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">
                             {mp ? (
                               <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
                             ) : hasClaims ? (

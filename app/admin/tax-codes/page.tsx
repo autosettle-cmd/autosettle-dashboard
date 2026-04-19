@@ -60,14 +60,14 @@ export default function AdminTaxCodesPage() {
                   <tbody>
                     {taxCodes.map((tc, idx) => (
                       <tr key={tc.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                        <td className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)] tabular-nums">{tc.code}</td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)]">{tc.tax_type}</td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">
+                        <td data-col="Code" className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)] tabular-nums">{tc.code}</td>
+                        <td data-col="Description" className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
+                        <td data-col="Rate" className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
+                        <td data-col="Type" className="px-3 py-3 text-[var(--text-secondary)]">{tc.tax_type}</td>
+                        <td data-col="GL Account" className="px-3 py-3 text-[var(--text-secondary)] text-xs">
                           {tc.glAccount ? `${tc.glAccount.account_code} \u2014 ${tc.glAccount.name}` : '\u2014'}
                         </td>
-                        <td className="px-3 py-3">
+                        <td data-col="Status" className="px-3 py-3">
                           {tc.is_active
                             ? <span className="badge-green">Active</span>
                             : <span className="badge-gray">Inactive</span>

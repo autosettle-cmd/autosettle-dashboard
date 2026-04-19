@@ -325,7 +325,7 @@ export default function GeneralLedgerPage() {
                           className={`${ni % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} cursor-pointer hover:bg-[var(--surface-header)] transition-colors`}
                           onClick={() => hasChildren ? toggleCollapse(node.account.id) : openDrilldown(node.account.id)}
                         >
-                          <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
+                          <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                             <div className="flex items-center gap-2">
                               {hasChildren ? (
                                 <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
@@ -337,13 +337,13 @@ export default function GeneralLedgerPage() {
                               {node.account.account_code} - {node.account.name}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                          <td data-col="Debit" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                             {!hasChildren && node.account.total_debit > 0 ? formatRM(node.account.total_debit) : ''}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                          <td data-col="Credit" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                             {!hasChildren && node.account.total_credit > 0 ? formatRM(node.account.total_credit) : ''}
                           </td>
-                          <td className={`px-3 py-2.5 text-right tabular-nums font-semibold ${hasChildren ? '' : node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+                          <td data-col="Balance" className={`px-3 py-2.5 text-right tabular-nums font-semibold ${hasChildren ? '' : node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                             {!hasChildren ? formatRM(node.totalBalance) : ''}
                           </td>
                         </tr>
@@ -355,19 +355,19 @@ export default function GeneralLedgerPage() {
                             className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
                             onClick={() => openDrilldown(child.id)}
                           >
-                            <td className="py-2.5 text-[var(--text-secondary)]">
+                            <td data-col="Account" className="py-2.5 text-[var(--text-secondary)]">
                               <div className="flex items-center gap-2 pl-11">
                                 <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                                 {child.account_code} - {child.name}
                               </div>
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                            <td data-col="Debit" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                               {child.total_debit > 0 ? formatRM(child.total_debit) : ''}
                             </td>
-                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                            <td data-col="Credit" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                               {child.total_credit > 0 ? formatRM(child.total_credit) : ''}
                             </td>
-                            <td className={`px-3 py-2.5 text-right tabular-nums ${child.balance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+                            <td data-col="Balance" className={`px-3 py-2.5 text-right tabular-nums ${child.balance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(child.balance)}
                             </td>
                           </tr>
@@ -376,16 +376,16 @@ export default function GeneralLedgerPage() {
                         {/* ── Total row ── */}
                         {hasChildren && !isCollapsed && (
                           <tr className="bg-[var(--surface-base)]">
-                            <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
+                            <td data-col="Account" className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                               <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                            <td data-col="Debit" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                            <td data-col="Credit" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
                             </td>
-                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+                            <td data-col="Balance" className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(node.totalBalance)}
                             </td>
                           </tr>
@@ -394,16 +394,16 @@ export default function GeneralLedgerPage() {
                         {/* ── Collapsed total row ── */}
                         {hasChildren && isCollapsed && (
                           <tr className="bg-[var(--surface-base)]">
-                            <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
+                            <td data-col="Account" className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                               <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                            <td data-col="Debit" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
                             </td>
-                            <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                            <td data-col="Credit" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                               {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
                             </td>
-                            <td className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+                            <td data-col="Balance" className={`px-3 py-2 text-right tabular-nums font-semibold text-xs ${node.totalBalance < 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
                               {formatRM(node.totalBalance)}
                             </td>
                           </tr>
@@ -516,13 +516,13 @@ export default function GeneralLedgerPage() {
                             )}
                             {linesWithBalance.map((line, li) => (
                               <tr key={line.id} className={`hover:bg-[var(--surface-header)] transition-colors ${li % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${line.reversal_of_id ? 'opacity-50' : ''}`}>
-                                <td className="px-3 py-2 text-[var(--text-secondary)] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
-                                <td className="px-3 py-2 text-[var(--text-secondary)] font-mono text-xs">{line.voucher_number}</td>
-                                <td className="px-3 py-2 text-[var(--text-secondary)] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
-                                <td className="px-3 py-2 text-[var(--text-muted)] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
-                                <td className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
-                                <td className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-[var(--match-green)]' : 'text-[var(--reject-red)]'}`}>
+                                <td data-col="Date" className="px-3 py-2 text-[var(--text-secondary)] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
+                                <td data-col="Voucher #" className="px-3 py-2 text-[var(--text-secondary)] font-mono text-xs">{line.voucher_number}</td>
+                                <td data-col="Description" className="px-3 py-2 text-[var(--text-secondary)] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
+                                <td data-col="Source" className="px-3 py-2 text-[var(--text-muted)] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
+                                <td data-col="Debit" className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
+                                <td data-col="Credit" className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
+                                <td data-col="Balance" className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-[var(--match-green)]' : 'text-[var(--reject-red)]'}`}>
                                   {formatRM(Math.abs(line.running_balance))}
                                 </td>
                               </tr>

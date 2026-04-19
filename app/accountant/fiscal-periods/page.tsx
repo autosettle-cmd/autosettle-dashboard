@@ -339,11 +339,11 @@ export default function FiscalPeriodsPage() {
                           <tbody>
                             {fy.periods.map((p, i) => (
                               <tr key={p.id} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                                <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{p.period_number}</td>
-                                <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{formatPeriodLabel(p.start_date)}</td>
-                                <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.start_date)}</td>
-                                <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.end_date)}</td>
-                                <td className="px-3 py-3">
+                                <td data-col="#" className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{p.period_number}</td>
+                                <td data-col="Period" className="px-3 py-3 text-[var(--text-primary)] font-medium">{formatPeriodLabel(p.start_date)}</td>
+                                <td data-col="Start Date" className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.start_date)}</td>
+                                <td data-col="End Date" className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(p.end_date)}</td>
+                                <td data-col="Status" className="px-3 py-3">
                                   <span className={STATUS_BADGE[p.status].class}>{STATUS_BADGE[p.status].label}</span>
                                 </td>
                                 <td className="px-3 py-3">

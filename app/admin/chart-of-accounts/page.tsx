@@ -196,7 +196,7 @@ export default function AdminChartOfAccountsPage() {
                   <tbody>
                     {flatRows.map((row, idx) => (
                       <tr key={row.id} className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`} onClick={() => hasChildren(row.id) && toggleExpand(row.id)}>
-                        <td className="px-5 py-3">
+                        <td data-col="Account Code" className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (
                               <button
@@ -215,12 +215,12 @@ export default function AdminChartOfAccountsPage() {
                             <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)] tabular-nums">{row.account_code}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{row.name}</td>
-                        <td className="px-3 py-3">
+                        <td data-col="Account Name" className="px-3 py-3 text-[var(--text-secondary)] font-medium">{row.name}</td>
+                        <td data-col="Type" className="px-3 py-3">
                           <span className={TYPE_BADGES[row.account_type] ?? 'badge-gray'}>{row.account_type}</span>
                         </td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{row.normal_balance}</td>
-                        <td className="px-3 py-3">
+                        <td data-col="Balance" className="px-3 py-3 text-[var(--text-secondary)] text-xs">{row.normal_balance}</td>
+                        <td data-col="Status" className="px-3 py-3">
                           {row.is_active
                             ? <span className="badge-green">Active</span>
                             : <span className="badge-gray">Inactive</span>

@@ -493,16 +493,16 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     className="group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
                     onClick={() => setPreview(inv)}
                   >
-                    <td className="px-6 py-3 font-medium text-[#191C1E]">{inv.invoice_number || '-'}</td>
-                    <td className="px-6 py-3 text-[#434654]">{inv.buyer_name}</td>
-                    <td className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
-                    <td className="px-6 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                    <td className="px-6 py-3 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(inv.total_amount)}</td>
-                    <td className="px-6 py-3 text-right text-[#434654] tabular-nums">{formatRM(inv.amount_paid)}</td>
-                    <td className="px-6 py-3">
+                    <td data-col="Invoice #" className="px-6 py-3 font-medium text-[#191C1E]">{inv.invoice_number || '-'}</td>
+                    <td data-col="Buyer" className="px-6 py-3 text-[#434654]">{inv.buyer_name}</td>
+                    <td data-col="Issue Date" className="px-6 py-3 text-[#434654] tabular-nums">{formatDate(inv.issue_date)}</td>
+                    <td data-col="Due Date" className="px-6 py-3 text-[#434654] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                    <td data-col="Total (RM)" className="px-6 py-3 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(inv.total_amount)}</td>
+                    <td data-col="Paid (RM)" className="px-6 py-3 text-right text-[#434654] tabular-nums">{formatRM(inv.amount_paid)}</td>
+                    <td data-col="Payment" className="px-6 py-3">
                       {paymentCfg && <span className={paymentCfg.cls}>{paymentCfg.label}</span>}
                     </td>
-                    <td className="px-6 py-3">
+                    <td data-col="Approval" className="px-6 py-3">
                       {APPROVAL_CFG[inv.approval] && <span className={APPROVAL_CFG[inv.approval].cls}>{APPROVAL_CFG[inv.approval].label}</span>}
                     </td>
                     <td className="px-6 py-3">
@@ -839,11 +839,11 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                       <tbody>
                         {preview.items.map((item) => (
                           <tr key={item.id}>
-                            <td className="px-3 py-2 text-[#434654]">{item.description}</td>
-                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{Number(item.quantity)}</td>
-                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.unit_price)}</td>
-                            <td className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.tax_amount)}</td>
-                            <td className="px-3 py-2 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(item.line_total)}</td>
+                            <td data-col="Description" className="px-3 py-2 text-[#434654]">{item.description}</td>
+                            <td data-col="Qty" className="px-3 py-2 text-right text-[#434654] tabular-nums">{Number(item.quantity)}</td>
+                            <td data-col="Price" className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.unit_price)}</td>
+                            <td data-col="Tax" className="px-3 py-2 text-right text-[#434654] tabular-nums">{formatRM(item.tax_amount)}</td>
+                            <td data-col="Total" className="px-3 py-2 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(item.line_total)}</td>
                           </tr>
                         ))}
                       </tbody>

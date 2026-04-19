@@ -678,7 +678,7 @@ export default function ChartOfAccountsPage() {
                         }`}
                         onClick={() => hasChildren(row.id) && toggleExpand(row.id)}
                       >
-                        <td className="px-5 py-3">
+                        <td data-col="Account Code" className="px-5 py-3">
                           <div className="flex items-center" style={{ paddingLeft: `${row.depth * 20}px` }}>
                             {hasChildren(row.id) ? (
                               <button
@@ -697,12 +697,12 @@ export default function ChartOfAccountsPage() {
                             <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)]">{row.account_code}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{row.name}</td>
-                        <td className="px-3 py-3">
+                        <td data-col="Account Name" className="px-3 py-3 text-[var(--text-secondary)] font-medium">{row.name}</td>
+                        <td data-col="Type" className="px-3 py-3">
                           <span className={TYPE_BADGES[row.account_type] ?? 'badge-gray'}>{row.account_type}</span>
                         </td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{row.normal_balance}</td>
-                        <td className="px-3 py-3">
+                        <td data-col="Balance" className="px-3 py-3 text-[var(--text-secondary)] text-xs">{row.normal_balance}</td>
+                        <td data-col="Status" className="px-3 py-3">
                           {row.is_active
                             ? <span className="badge-green">Active</span>
                             : <span className="badge-gray">Inactive</span>
@@ -762,12 +762,12 @@ export default function ChartOfAccountsPage() {
                     <tbody>
                       {taxCodes.map((tc, i) => (
                         <tr key={tc.id} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                          <td className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)]">{tc.code}</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
-                          <td className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)]">{tc.tax_type}</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">{tc.glAccount ? `${tc.glAccount.account_code} — ${tc.glAccount.name}` : '—'}</td>
-                          <td className="px-3 py-3">{tc.is_active ? <span className="badge-green">Active</span> : <span className="badge-gray">Inactive</span>}</td>
+                          <td data-col="Code" className="px-5 py-3 font-mono font-semibold text-[var(--text-primary)]">{tc.code}</td>
+                          <td data-col="Description" className="px-3 py-3 text-[var(--text-secondary)] font-medium">{tc.description}</td>
+                          <td data-col="Rate" className="px-3 py-3 text-right tabular-nums text-[var(--text-primary)] font-semibold">{Number(tc.rate).toFixed(2)}%</td>
+                          <td data-col="Type" className="px-3 py-3 text-[var(--text-secondary)]">{tc.tax_type}</td>
+                          <td data-col="GL Account" className="px-3 py-3 text-[var(--text-secondary)] text-xs">{tc.glAccount ? `${tc.glAccount.account_code} — ${tc.glAccount.name}` : '—'}</td>
+                          <td data-col="Status" className="px-3 py-3">{tc.is_active ? <span className="badge-green">Active</span> : <span className="badge-gray">Inactive</span>}</td>
                           <td className="px-3 py-3">
                             <div className="flex items-center gap-1.5">
                               <button onClick={() => openEditTaxModal(tc)} className="btn-thick-white p-1.5" title="Edit">

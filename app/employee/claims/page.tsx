@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
+import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -166,13 +167,6 @@ export default function EmployeeClaimsPage() {
       else setBatchPreviewUrl(null);
     } else setBatchPreviewUrl(null);
   };
-
-  useEffect(() => {
-    if (!batchSubmitting) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [batchSubmitting]);
 
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -596,8 +590,8 @@ export default function EmployeeClaimsPage() {
                           onClick={() => setPreviewClaim(c)}
                           className={`group hover:bg-[#E6E8EA] transition-colors cursor-pointer align-middle border-b border-[#C5C6D2]/10 ${i % 2 === 0 ? 'bg-white' : 'bg-[#F2F4F6]'}`}
                         >
-                          <td className="px-6 py-5 tabular-nums text-[#444650]">{formatDate(c.claim_date)}</td>
-                          <td className="px-6 py-5 font-medium text-[#0D1B2A]">
+                          <td data-col="Date" className="px-6 py-5 tabular-nums text-[#444650]">{formatDate(c.claim_date)}</td>
+                          <td data-col="Description" className="px-6 py-5 font-medium text-[#0D1B2A]">
                             {c.type === 'mileage' ? (
                               <span className="flex items-center gap-1.5">
                                 <span className="inline-flex items-center justify-center w-5 h-5 bg-[#D6E0F1] text-[#0D1B2A] text-[10px] font-bold flex-shrink-0">M</span>
@@ -605,12 +599,12 @@ export default function EmployeeClaimsPage() {
                               </span>
                             ) : c.merchant}
                           </td>
-                          <td className="px-6 py-5 text-[#444650]">{c.category_name}</td>
-                          <td className="px-6 py-5 font-medium text-right tabular-nums text-[#0D1B2A]">{formatRM(c.amount)}</td>
-                          <td className="px-6 py-5 text-center">
+                          <td data-col="Category" className="px-6 py-5 text-[#444650]">{c.category_name}</td>
+                          <td data-col="Amount" className="px-6 py-5 font-medium text-right tabular-nums text-[#0D1B2A]">{formatRM(c.amount)}</td>
+                          <td data-col="Status" className="px-6 py-5 text-center">
                             {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
                           </td>
-                          <td className="px-6 py-5 text-center">
+                          <td data-col="Reimbursed" className="px-6 py-5 text-center">
                             <span className={c.payment_status === 'paid' ? 'badge-green' : 'badge-amber'}>
                               {c.payment_status === 'paid' ? 'Reimbursed' : 'Pending'}
                             </span>
@@ -1189,21 +1183,12 @@ export default function EmployeeClaimsPage() {
         </>
       )}
 
-      {batchSubmitting && (
-        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in">
-          <div className="px-4 py-3 flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-[#234B6E] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[#0D1B2A]">Uploading claims...</p>
-              <p className="text-xs text-[#444650]">{batchSubmitProgress.current} of {batchSubmitProgress.total}</p>
-            </div>
-            <span className="text-sm font-bold tabular-nums text-[#234B6E]">{Math.round((batchSubmitProgress.current / batchSubmitProgress.total) * 100)}%</span>
-          </div>
-          <div className="h-1 bg-[#F2F4F6]">
-            <div className="h-1 bg-[#234B6E] transition-all" style={{ width: `${(batchSubmitProgress.current / batchSubmitProgress.total) * 100}%` }} />
-          </div>
-        </div>
-      )}
+      <BatchUploadOverlay
+        active={batchSubmitting}
+        label="Uploading claims..."
+        current={batchSubmitProgress.current}
+        total={batchSubmitProgress.total}
+      />
 
     </div>
   );

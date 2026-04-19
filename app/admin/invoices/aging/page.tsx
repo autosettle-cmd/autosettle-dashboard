@@ -64,10 +64,10 @@ function formatRMStr(val: string | number) {
 
 // ─── Bucket cell helper ──────────────────────────────────────────────────────
 
-function BucketCell({ value, highlight }: { value: number; highlight?: boolean }) {
-  if (value === 0) return <td className="px-6 py-3 text-right text-[var(--text-muted)] tabular-nums text-body-md">-</td>;
+function BucketCell({ value, highlight, dataCol }: { value: number; highlight?: boolean; dataCol: string }) {
+  if (value === 0) return <td data-col={dataCol} className="px-6 py-3 text-right text-[var(--text-muted)] tabular-nums text-body-md">-</td>;
   return (
-    <td className={`px-6 py-3 text-right tabular-nums text-body-md font-semibold ${highlight ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
+    <td data-col={dataCol} className={`px-6 py-3 text-right tabular-nums text-body-md font-semibold ${highlight ? 'text-[var(--reject-red)]' : 'text-[var(--text-primary)]'}`}>
       {formatRM(value)}
     </td>
   );
@@ -149,7 +149,7 @@ export default function AgingReportPage() {
                         onClick={() => setExpandedId(expandedId === s.supplier_id ? null : s.supplier_id)}
                         className={`group hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${si % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
-                        <td className="px-6 py-3">
+                        <td data-col="Supplier" className="px-6 py-3">
                           <div className="flex items-center gap-2">
                             <svg
                               width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -163,11 +163,11 @@ export default function AgingReportPage() {
                             </div>
                           </div>
                         </td>
-                        <BucketCell value={s.days0_30} />
-                        <BucketCell value={s.days31_60} highlight={s.days31_60 > 0} />
-                        <BucketCell value={s.days61_90} highlight={s.days61_90 > 0} />
-                        <BucketCell value={s.days90plus} highlight={s.days90plus > 0} />
-                        <td className="px-6 py-3 text-right tabular-nums text-body-md font-bold text-[var(--text-primary)]">
+                        <BucketCell value={s.days0_30} dataCol="0-30 Days" />
+                        <BucketCell value={s.days31_60} highlight={s.days31_60 > 0} dataCol="31-60 Days" />
+                        <BucketCell value={s.days61_90} highlight={s.days61_90 > 0} dataCol="61-90 Days" />
+                        <BucketCell value={s.days90plus} highlight={s.days90plus > 0} dataCol="90+ Days" />
+                        <td data-col="Total" className="px-6 py-3 text-right tabular-nums text-body-md font-bold text-[var(--text-primary)]">
                           {formatRM(s.total)}
                         </td>
                       </tr>
@@ -177,7 +177,7 @@ export default function AgingReportPage() {
                         const pmtCfg = PAYMENT_CFG[inv.payment_status];
                         return (
                           <tr key={inv.id} className="bg-[var(--surface-low)] text-body-sm">
-                            <td className="px-6 py-2.5 pl-12">
+                            <td data-col="Supplier" className="px-6 py-2.5 pl-12">
                               <div className="flex items-center gap-3">
                                 <span className="text-[var(--text-secondary)] tabular-nums">{formatDate(inv.issue_date)}</span>
                                 <span className="text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</span>
@@ -187,11 +187,11 @@ export default function AgingReportPage() {
                                 Due: {inv.due_date ? formatDate(inv.due_date) : 'N/A'} · {inv.category_name}
                               </p>
                             </td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '0-30' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
-                            <td className="px-6 py-2.5 text-right tabular-nums font-medium text-[var(--text-secondary)]">{formatRMStr(inv.balance)}</td>
+                            <td data-col="0-30 Days" className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '0-30' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td data-col="31-60 Days" className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '31-60' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td data-col="61-90 Days" className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '61-90' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td data-col="90+ Days" className="px-6 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">{inv.bucket === '90+' ? formatRMStr(inv.balance) : '-'}</td>
+                            <td data-col="Total" className="px-6 py-2.5 text-right tabular-nums font-medium text-[var(--text-secondary)]">{formatRMStr(inv.balance)}</td>
                           </tr>
                         );
                       })}

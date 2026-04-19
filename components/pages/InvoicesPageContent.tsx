@@ -3,6 +3,7 @@
 import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
+import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
@@ -358,13 +359,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       else setBatchPreviewUrl(null);
     } else setBatchPreviewUrl(null);
   };
-
-  useEffect(() => {
-    if (!batchScanning && !batchSubmitting) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [batchScanning, batchSubmitting]);
 
   const cancelBatchScan = () => {
     if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;
@@ -1234,16 +1228,16 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                             <input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
                           </td>
                         )}
-                        <td className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-[var(--text-secondary)] tabular-nums`}>{formatDateDot(inv.issue_date)}</td>
-                        <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{inv.vendor_name_raw}</td>
-                        <td className="px-3 py-3 text-[var(--text-secondary)]">{inv.invoice_number ?? '-'}</td>
-                        {config.showFirmColumn && !config.firmId && <td className="px-3 py-3 text-[var(--text-secondary)]">{inv.firm_name}</td>}
-                        <td className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{inv.due_date ? formatDateDot(inv.due_date) : '-'}</td>
-                        <td className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                        <td className="px-3 py-3"><StatusCell value={inv.status} /></td>
-                        {config.showApproval && <td className="px-3 py-3">{approvalCfg && <span className={approvalCfg.cls}>{approvalCfg.label}</span>}</td>}
-                        <td className="px-3 py-3"><PaymentCell value={inv.payment_status} /></td>
-                        <td className="px-3 py-3"><LinkCell value={inv.supplier_link_status} /></td>
+                        <td data-col="Issue Date" className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-[var(--text-secondary)] tabular-nums`}>{formatDateDot(inv.issue_date)}</td>
+                        <td data-col="Vendor" className="px-3 py-3 text-[var(--text-primary)] font-medium">{inv.vendor_name_raw}</td>
+                        <td data-col="Invoice #" className="px-3 py-3 text-[var(--text-secondary)]">{inv.invoice_number ?? '-'}</td>
+                        {config.showFirmColumn && !config.firmId && <td data-col="Firm" className="px-3 py-3 text-[var(--text-secondary)]">{inv.firm_name}</td>}
+                        <td data-col="Due Date" className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{inv.due_date ? formatDateDot(inv.due_date) : '-'}</td>
+                        <td data-col="Amount" className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                        <td data-col="Status" className="px-3 py-3"><StatusCell value={inv.status} /></td>
+                        {config.showApproval && <td data-col="Approval" className="px-3 py-3">{approvalCfg && <span className={approvalCfg.cls}>{approvalCfg.label}</span>}</td>}
+                        <td data-col="Payment" className="px-3 py-3"><PaymentCell value={inv.payment_status} /></td>
+                        <td data-col="Supplier" className="px-3 py-3"><LinkCell value={inv.supplier_link_status} /></td>
                       </tr>
                       );
                     })}
@@ -1521,33 +1515,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         onClose={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })}
       />
 
-      {/* FLOATING BATCH UPLOAD PROGRESS */}
-      {(batchSubmitting || (batchScanning && !showBatchReview)) && (
-        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in cursor-pointer" onClick={() => { if (batchScanning && !showBatchReview) setShowBatchReview(true); }}>
-          <div className="px-4 py-3 flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[var(--text-primary)]">{batchSubmitting ? 'Uploading invoices...' : 'Scanning documents...'}</p>
-              <p className="text-xs text-[var(--text-secondary)]">{batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current} of {batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}</p>
-            </div>
-            <span className="text-sm font-bold tabular-nums text-[var(--primary)]">{Math.round(((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100)}%</span>
-          </div>
-          <div className="h-1 bg-[var(--surface-low)]">
-            <div className="h-1 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100}%` }} />
-          </div>
-          {batchScanning && !showBatchReview && (
-            <div className="px-4 pb-2 flex items-center justify-between">
-              <span className="text-[10px] text-[var(--text-secondary)]">Click to expand</span>
-              <button onClick={(e) => { e.stopPropagation(); cancelBatchScan(); }} className="text-[10px] text-[var(--reject-red)] hover:opacity-80 font-medium">Cancel</button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* BLOCK NAVIGATION during batch operations */}
-      {(batchScanning || batchSubmitting) && (
-        <style>{`.w-52 a, .w-52 button, .w-52 select { pointer-events: none !important; opacity: 0.5 !important; }`}</style>
-      )}
+      <BatchUploadOverlay
+        active={batchSubmitting || (batchScanning && !showBatchReview)}
+        label={batchSubmitting ? 'Uploading invoices...' : 'Scanning documents...'}
+        current={batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current}
+        total={batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}
+        onExpand={batchScanning && !showBatchReview ? () => setShowBatchReview(true) : undefined}
+        onCancel={batchScanning && !showBatchReview ? cancelBatchScan : undefined}
+      />
 
     </div>
   );

@@ -13,6 +13,7 @@ import { useFilters } from '@/hooks/useFilters';
 import FilterBar from '@/components/filters/FilterBar';
 import ClaimCreateModal from '@/components/claims/ClaimCreateModal';
 import ClaimPreviewPanel from '@/components/claims/ClaimPreviewPanel';
+import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -221,13 +222,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       else setBatchPreviewUrl(null);
     } else setBatchPreviewUrl(null);
   };
-
-  useEffect(() => {
-    if (!batchScanning && !batchSubmitting) return;
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [batchScanning, batchSubmitting]);
 
   const cancelBatchScan = () => {
     if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;
@@ -1091,7 +1085,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
           {/* -- Table ---------------------------------------- */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-white">
             {loading ? (
               <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">Loading...</div>
             ) : claims.length === 0 ? (
@@ -1100,7 +1094,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
               <table className="w-full">
                 <thead>
                   {claimTab === 'claim' && (
-                    <tr className="text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" className="ds-table-checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>
@@ -1114,7 +1108,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     </tr>
                   )}
                   {claimTab === 'receipt' && (
-                    <tr className="text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" className="ds-table-checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       {showFirm && <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
@@ -1128,7 +1122,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     </tr>
                   )}
                   {claimTab === 'mileage' && (
-                    <tr className="text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-left">
+                    <tr className="ds-table-header text-left">
                       <th className="px-3 py-2.5 w-10"><input type="checkbox" className="ds-table-checkbox" checked={allOnPageSelected} onChange={toggleSelectAll} /></th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('claim_date')}>Date{sortIndicator('claim_date')}</th>
                       <th className="px-5 py-2.5 cursor-pointer select-none" onClick={() => toggleSort('employee_name')}>Employee{sortIndicator('employee_name')}</th>
@@ -1149,44 +1143,44 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     if (claimTab === 'claim') return (
                       <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
-                        {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.merchant}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.category_name}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
-                        <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                        <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
-                        <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
+                        <td data-col="Date" className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
+                        <td data-col="Employee" className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
+                        {showFirm && <td data-col="Firm" className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
+                        <td data-col="Merchant" className="px-5 py-3 text-[var(--text-secondary)]">{c.merchant}</td>
+                        <td data-col="Category" className="px-5 py-3 text-[var(--text-secondary)]">{c.category_name}</td>
+                        <td data-col="Amount" className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td data-col="Status" className="px-5 py-3"><StatusCell value={c.status} /></td>
+                        <td data-col="Reimbursed" className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
+                        <td data-col="Confidence" className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
                       </tr>
                     );
                     if (claimTab === 'mileage') return (
                       <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
-                        {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.from_location}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.to_location}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{c.distance_km}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
-                        <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                        <td className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
+                        <td data-col="Date" className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
+                        <td data-col="Employee" className="px-5 py-3 text-[var(--text-secondary)]">{c.employee_name}</td>
+                        {showFirm && <td data-col="Firm" className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
+                        <td data-col="From" className="px-5 py-3 text-[var(--text-secondary)]">{c.from_location}</td>
+                        <td data-col="To" className="px-5 py-3 text-[var(--text-secondary)]">{c.to_location}</td>
+                        <td data-col="Distance" className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{c.distance_km}</td>
+                        <td data-col="Amount" className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td data-col="Status" className="px-5 py-3"><StatusCell value={c.status} /></td>
+                        <td data-col="Reimbursed" className="px-5 py-3"><PaymentStatusCell value={c.payment_status} /></td>
                       </tr>
                     );
                     // receipt tab
                     return (
                       <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`text-body-sm hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${rowBg}`}>
                         <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(c)} /></td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
-                        {showFirm && <td className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.merchant}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.receipt_number}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)]">{c.category_name}</td>
-                        <td className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
-                        <td className="px-5 py-3"><StatusCell value={c.status} /></td>
-                        <td className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
-                        <td className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>
+                        <td data-col="Date" className="px-5 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(c.claim_date)}</td>
+                        {showFirm && <td data-col="Firm" className="px-5 py-3 text-[var(--text-secondary)]">{c.firm_name}</td>}
+                        <td data-col="Merchant" className="px-5 py-3 text-[var(--text-secondary)]">{c.merchant}</td>
+                        <td data-col="Receipt No." className="px-5 py-3 text-[var(--text-secondary)]">{c.receipt_number}</td>
+                        <td data-col="Category" className="px-5 py-3 text-[var(--text-secondary)]">{c.category_name}</td>
+                        <td data-col="Amount" className="px-5 py-3 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(c.amount)}</td>
+                        <td data-col="Status" className="px-5 py-3"><StatusCell value={c.status} /></td>
+                        <td data-col="Confidence" className="px-5 py-3"><ConfidenceCell value={c.confidence} /></td>
+                        <td data-col="Linked" className="px-5 py-3"><LinkedCell value={c.linked_payment_count} /></td>
                       </tr>
                     );
                   })}
@@ -1504,27 +1498,14 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         />
       )}
 
-      {(batchSubmitting || (batchScanning && !showBatchReview)) && (
-        <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in cursor-pointer" onClick={() => { if (batchScanning && !showBatchReview) setShowBatchReview(true); }}>
-          <div className="px-4 py-3 flex items-center gap-3">
-            <div className="w-5 h-5 border-2 border-[var(--primary)] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-[var(--text-primary)]">{batchSubmitting ? 'Uploading claims...' : 'Scanning documents...'}</p>
-              <p className="text-xs text-[var(--text-secondary)]">{batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current} of {batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}</p>
-            </div>
-            <span className="text-sm font-bold tabular-nums text-[var(--primary)]">{Math.round(((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100)}%</span>
-          </div>
-          <div className="h-1 bg-[var(--surface-low)]">
-            <div className="h-1 transition-all" style={{ backgroundColor: 'var(--primary)', width: `${((batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current) / (batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total)) * 100}%` }} />
-          </div>
-          {batchScanning && !showBatchReview && (
-            <div className="px-4 pb-2 flex items-center justify-between">
-              <span className="text-[10px] text-[var(--text-secondary)]">Click to expand</span>
-              <button onClick={(e) => { e.stopPropagation(); cancelBatchScan(); }} className="text-[10px] text-[var(--reject-red)] hover:opacity-80 font-medium">Cancel</button>
-            </div>
-          )}
-        </div>
-      )}
+      <BatchUploadOverlay
+        active={batchSubmitting || (batchScanning && !showBatchReview)}
+        label={batchSubmitting ? 'Uploading claims...' : 'Scanning documents...'}
+        current={batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current}
+        total={batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}
+        onExpand={batchScanning && !showBatchReview ? () => setShowBatchReview(true) : undefined}
+        onCancel={batchScanning && !showBatchReview ? cancelBatchScan : undefined}
+      />
 
     </div>
   );

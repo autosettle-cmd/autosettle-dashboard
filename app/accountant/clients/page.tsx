@@ -241,7 +241,7 @@ export default function ClientsPage() {
                   <tbody>
                     {firms.map((firm, i) => (
                       <tr key={firm.id} className={`group hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                        <td className="px-6 py-3 font-medium">
+                        <td data-col="Firm Name" className="px-6 py-3 font-medium">
                           <Link
                             href={`/accountant/clients/${firm.id}`}
                             className="text-[var(--text-primary)] hover:text-[var(--primary)] transition-colors"
@@ -249,17 +249,17 @@ export default function ClientsPage() {
                             {firm.name}
                           </Link>
                         </td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)]">{firm.registration_number ?? '—'}</td>
-                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.employee_count}</td>
-                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.claims_this_month}</td>
-                        <td className="px-6 py-3">
+                        <td data-col="Reg. Number" className="px-6 py-3 text-[var(--text-secondary)]">{firm.registration_number ?? '—'}</td>
+                        <td data-col="Employees" className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.employee_count}</td>
+                        <td data-col="Claims This Month" className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.claims_this_month}</td>
+                        <td data-col="Plan" className="px-6 py-3">
                           {firm.plan === 'paid' ? (
                             <span className="badge-green">Paid</span>
                           ) : (
                             <span className="badge-gray">Free</span>
                           )}
                         </td>
-                        <td className={`px-6 py-3 text-right tabular-nums ${firm.receipt_count >= 450 ? 'text-amber-600 font-medium' : 'text-[var(--text-secondary)]'}`}>
+                        <td data-col="Receipts" className={`px-6 py-3 text-right tabular-nums ${firm.receipt_count >= 450 ? 'text-amber-600 font-medium' : 'text-[var(--text-secondary)]'}`}>
                           {firm.receipt_count} / 500
                         </td>
                         <td className="px-6 py-3">

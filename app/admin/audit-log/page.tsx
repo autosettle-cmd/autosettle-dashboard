@@ -141,14 +141,14 @@ export default function AdminAuditLogPage() {
                           className={`text-body-sm hover:bg-[var(--surface-low)] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                           onClick={() => setExpandedId(expandedId === log.id ? null : log.id)}
                         >
-                          <td className="px-5 py-3 text-[var(--text-secondary)] tabular-nums text-xs">{formatTimestamp(log.timestamp)}</td>
-                          <td className="px-3 py-3 text-[var(--text-primary)] font-medium">{log.user_name ?? '\u2014'}</td>
-                          <td className="px-3 py-3">
+                          <td data-col="Timestamp" className="px-5 py-3 text-[var(--text-secondary)] tabular-nums text-xs">{formatTimestamp(log.timestamp)}</td>
+                          <td data-col="User" className="px-3 py-3 text-[var(--text-primary)] font-medium">{log.user_name ?? '\u2014'}</td>
+                          <td data-col="Action" className="px-3 py-3">
                             <span className={ACTION_BADGES[log.action] ?? 'badge-gray'}>{log.action}</span>
                           </td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)]">{TABLE_LABELS[log.table_name] ?? log.table_name}</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)] font-mono text-xs tabular-nums">{log.record_id.slice(0, 8)}...</td>
-                          <td className="px-3 py-3 text-[var(--text-secondary)] text-xs">
+                          <td data-col="Table" className="px-3 py-3 text-[var(--text-secondary)]">{TABLE_LABELS[log.table_name] ?? log.table_name}</td>
+                          <td data-col="Record" className="px-3 py-3 text-[var(--text-secondary)] font-mono text-xs tabular-nums">{log.record_id.slice(0, 8)}...</td>
+                          <td data-col="Changes" className="px-3 py-3 text-[var(--text-secondary)] text-xs">
                             {log.changed_fields ? log.changed_fields.join(', ') : '\u2014'}
                           </td>
                         </tr>

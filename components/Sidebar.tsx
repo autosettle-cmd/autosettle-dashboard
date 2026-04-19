@@ -196,13 +196,11 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     >
       {/* Logo + Brand */}
       <div className="px-5 h-16 flex-shrink-0 flex items-center gap-3 border-b border-white/10">
-        <div className="w-10 h-10 flex items-center justify-center bg-white/10 border border-white/10 flex-shrink-0">
-          <img
-            src={brand.sidebarLogo}
-            alt={brand.logoAlt}
-            className="w-8 h-8 object-contain brightness-0 invert"
-          />
-        </div>
+        <img
+          src={brand.sidebarLogo}
+          alt={brand.logoAlt}
+          className="w-10 h-10 object-contain flex-shrink-0"
+        />
         <div className="min-w-0 flex-1">
           <span className="text-white font-bold text-[15px] leading-tight block">{brand.name}</span>
           <span className="text-[10px] text-white/50 tracking-tight block truncate">{firmName ?? ROLE_LABELS[role]}</span>

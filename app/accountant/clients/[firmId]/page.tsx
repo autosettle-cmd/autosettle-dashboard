@@ -378,16 +378,16 @@ export default function FirmDetailPage() {
                         <tbody>
                           {admins.map((admin, i) => (
                             <tr key={admin.id} className={`text-sm hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
-                              <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
-                              <td className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
-                              <td className="px-6 py-3">
+                              <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
+                              <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
+                              <td data-col="Status" className="px-6 py-3">
                                 {admin.status === 'active' ? (
                                   <span className="badge-green">Active</span>
                                 ) : (
                                   <span className="badge-gray">Inactive</span>
                                 )}
                               </td>
-                              <td className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(admin.created_at)}</td>
+                              <td data-col="Date Added" className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(admin.created_at)}</td>
                             </tr>
                           ))}
                         </tbody>

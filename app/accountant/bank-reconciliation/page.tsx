@@ -1,12 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
+import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 import { formatRM } from '@/lib/formatters';
+
+type BatchResult = { name: string; ok: boolean; msg: string };
 
 interface StatementRow {
   id: string;
@@ -158,6 +161,39 @@ export default function AccountantBankReconciliationPage() {
     setGlConfirm(null);
   };
 
+  // Check duplicate before uploading a single file
+  const checkDuplicate = useCallback(async (file: File): Promise<string | null> => {
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/bank-reconciliation/check-duplicate', { method: 'POST', body: fd });
+      const json = await res.json();
+      if (json.data?.isDuplicate) return json.data.message;
+    } catch { /* non-blocking */ }
+    return null;
+  }, []);
+
+  // Upload a single file, returns result
+  const uploadSingleFile = useCallback(async (file: File, firmId: string, password?: string): Promise<BatchResult & { statementId?: string }> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('firm_id', firmId);
+    if (password) fd.append('password', password);
+    const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
+    if (!res.ok && !res.headers.get('content-type')?.includes('json')) {
+      return { name: file.name, ok: false, msg: `Server error (${res.status})` };
+    }
+    const json = await res.json();
+    if (res.status === 409) return { name: file.name, ok: true, msg: 'Already uploaded — skipped' };
+    if (json.error === 'PASSWORD_REQUIRED') return { name: file.name, ok: false, msg: 'PASSWORD_REQUIRED' };
+    if (json.error) return { name: file.name, ok: false, msg: json.error };
+    const d = json.data;
+    const warnings: string[] = [];
+    if (d.warning) warnings.push('Gemini fallback');
+    if (d.skippedDuplicates > 0) warnings.push(`${d.skippedDuplicates} dupes skipped`);
+    return { name: file.name, ok: true, msg: `${d.transactionCount} transactions${warnings.length ? ' (' + warnings.join(', ') + ')' : ''}`, statementId: d.statementId };
+  }, []);
+
   const handleUpload = async () => {
     const files = fileRef.current?.files;
     if (!files || files.length === 0 || !uploadFirmId) return;
@@ -167,85 +203,59 @@ export default function AccountantBankReconciliationPage() {
 
     // Single file — original flow (supports password prompt)
     if (files.length === 1) {
-      const fd = new FormData();
-      fd.append('file', files[0]);
-      fd.append('firm_id', uploadFirmId);
-      if (pdfPassword) fd.append('password', pdfPassword);
-
-      try {
-        const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
-        if (!res.ok && !res.headers.get('content-type')?.includes('json')) {
-          setUploadError(`Server error (${res.status}).`);
-          setUploading(false);
-          return;
-        }
-        const json = await res.json();
-
-        if (json.error === 'PASSWORD_REQUIRED') {
-          setNeedsPassword(true);
-          setUploadError('This PDF is password-protected. Please enter the password.');
-          setUploading(false);
-          return;
-        }
-
-        if (json.error) { setUploadError(json.error); setUploading(false); return; }
+      // Dedup check first
+      const dupMsg = await checkDuplicate(files[0]);
+      if (dupMsg) {
+        setUploadError(dupMsg);
         setUploading(false);
-        setShowUpload(false);
-        setNeedsPassword(false);
-        setPdfPassword('');
-        const d = json.data;
-        if (d.warning) {
-          alert(`⚠️ ${d.warning}`);
-        }
-        if (d.skippedDuplicates > 0) {
-          alert(`Parsed ${d.totalParsed} transactions — ${d.skippedDuplicates} duplicates skipped, ${d.transactionCount} new.`);
-        }
-        router.push(`/accountant/bank-reconciliation/${d.statementId}`);
-      } catch (e) {
-        setUploadError(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
-        setUploading(false);
+        return;
       }
+
+      const result = await uploadSingleFile(files[0], uploadFirmId, pdfPassword || undefined);
+      if (result.msg === 'PASSWORD_REQUIRED') {
+        setNeedsPassword(true);
+        setUploadError('This PDF is password-protected. Please enter the password.');
+        setUploading(false);
+        return;
+      }
+      if (!result.ok) { setUploadError(result.msg); setUploading(false); return; }
+
+      setUploading(false);
+      setShowUpload(false);
+      setNeedsPassword(false);
+      setPdfPassword('');
+      if (result.statementId) router.push(`/accountant/bank-reconciliation/${result.statementId}`);
       return;
     }
 
-    // Multiple files — batch upload with progress
+    // Multiple files — batch upload with floating progress bar
     const fileList = Array.from(files);
-    const results: { name: string; ok: boolean; msg: string }[] = [];
+    const results: BatchResult[] = [];
+    setShowUpload(false); // close modal, show floating bar
     setBatchProgress({ current: 0, total: fileList.length, results });
 
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
-      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+      setBatchProgress({ current: i, total: fileList.length, results: [...results] });
+
+      // Dedup check before upload
+      const dupMsg = await checkDuplicate(file);
+      if (dupMsg) {
+        results.push({ name: file.name, ok: true, msg: 'Already uploaded — skipped' });
+        setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
+        continue;
+      }
 
       try {
-        const fd = new FormData();
-        fd.append('file', file);
-        fd.append('firm_id', uploadFirmId);
-
-        const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
-        const json = await res.json();
-
-        if (res.status === 409) {
-          // Already uploaded — treat as skip, not error
-          results.push({ name: file.name, ok: true, msg: 'Already uploaded — skipped' });
-        } else if (json.error) {
-          results.push({ name: file.name, ok: false, msg: json.error });
-        } else {
-          const d = json.data;
-          const warnings = [];
-          if (d.warning) warnings.push('Gemini fallback');
-          if (d.skippedDuplicates > 0) warnings.push(`${d.skippedDuplicates} dupes skipped`);
-          results.push({ name: file.name, ok: true, msg: `${d.transactionCount} transactions${warnings.length ? ' (' + warnings.join(', ') + ')' : ''}` });
-        }
+        const result = await uploadSingleFile(file, uploadFirmId);
+        results.push(result);
       } catch (e) {
         results.push({ name: file.name, ok: false, msg: e instanceof Error ? e.message : 'Failed' });
       }
-
       setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
     }
 
     setUploading(false);
-    // Refresh statements list after batch
     loadStatements();
   };
 
@@ -292,33 +302,27 @@ export default function AccountantBankReconciliationPage() {
       return;
     }
 
-    // Start batch upload directly
+    // Start batch upload — floating bar (no modal)
     setUploading(true);
     setUploadError('');
-    const results: { name: string; ok: boolean; msg: string }[] = [];
-    setBatchProgress({ current: 0, total: files.length, results });
-    setShowUpload(true);
     setUploadFirmId(targetFirmId);
+    const results: BatchResult[] = [];
+    setBatchProgress({ current: 0, total: files.length, results });
 
     for (let i = 0; i < files.length; i++) {
-      setBatchProgress({ current: i + 1, total: files.length, results: [...results] });
+      setBatchProgress({ current: i, total: files.length, results: [...results] });
+
+      // Dedup check before upload
+      const dupMsg = await checkDuplicate(files[i]);
+      if (dupMsg) {
+        results.push({ name: files[i].name, ok: true, msg: 'Already uploaded — skipped' });
+        setBatchProgress({ current: i + 1, total: files.length, results: [...results] });
+        continue;
+      }
+
       try {
-        const fd = new FormData();
-        fd.append('file', files[i]);
-        fd.append('firm_id', targetFirmId);
-        const res = await fetch('/api/bank-reconciliation/upload', { method: 'POST', body: fd });
-        const json = await res.json();
-        if (res.status === 409) {
-          results.push({ name: files[i].name, ok: true, msg: 'Already uploaded — skipped' });
-        } else if (json.error) {
-          results.push({ name: files[i].name, ok: false, msg: json.error });
-        } else {
-          const d = json.data;
-          const warnings = [];
-          if (d.warning) warnings.push('Gemini fallback');
-          if (d.skippedDuplicates > 0) warnings.push(`${d.skippedDuplicates} dupes skipped`);
-          results.push({ name: files[i].name, ok: true, msg: `${d.transactionCount} transactions${warnings.length ? ' (' + warnings.join(', ') + ')' : ''}` });
-        }
+        const result = await uploadSingleFile(files[i], targetFirmId);
+        results.push(result);
       } catch (err) {
         results.push({ name: files[i].name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
       }
@@ -545,9 +549,9 @@ export default function AccountantBankReconciliationPage() {
                 const latestBalance = group.statements[0]?.closing_balance;
                 const totalUnmatched = group.statements.reduce((s, st) => s + st.unmatched, 0);
                 return (
-                  <div key={key} className={`bg-white card-popped ${needsAttention ? 'border border-amber-200' : ''}`}>
+                  <div key={key} className={`${isOpen ? 'card-button-pressed' : 'card-button'} ${needsAttention && !isOpen ? 'ring-1 ring-amber-200' : ''}`}>
                     {/* Account header */}
-                    <div className={`flex items-center justify-between px-6 py-3.5 cursor-pointer transition-colors ${isOpen ? 'bg-[var(--surface-low)]' : 'hover:bg-[var(--surface-low)]'}`}
+                    <div className="flex items-center justify-between px-6 py-4"
                       onClick={() => setExpandedAccount(isOpen ? null : key)}>
                       <div className="flex items-center gap-3">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -613,11 +617,7 @@ export default function AccountantBankReconciliationPage() {
                                 }
                                 setGlEditKey(key); setGlEditValue(glMapping?.gl_account_id ?? '');
                               }}
-                              className={`text-label-sm font-medium px-2.5 py-1 transition-colors ${
-                                glMapping?.gl_account_id
-                                  ? 'text-blue-700 bg-blue-50 hover:bg-blue-100'
-                                  : 'text-amber-700 bg-amber-50 hover:bg-amber-100'
-                              }`}
+                              className={glMapping?.gl_account_id ? 'badge-blue' : 'badge-amber'}
                               title={glMapping?.gl_account_id ? 'Change GL account' : 'Assign GL account'}
                             >
                               {glMapping?.gl_account_label ?? 'No GL assigned'}
@@ -626,25 +626,25 @@ export default function AccountantBankReconciliationPage() {
                         })()}
 
                         {needsAttention && (
-                          <span className="text-label-sm font-medium text-amber-600 bg-amber-50 px-2 py-0.5">{totalUnmatched} unmatched</span>
+                          <span className="badge-amber">{totalUnmatched} unmatched</span>
                         )}
                         {!needsAttention && (
-                          <span className="text-label-sm font-medium text-[var(--match-green)] bg-green-50 px-2 py-0.5">All reconciled</span>
+                          <span className="badge-green">All reconciled</span>
                         )}
                       </div>
                     </div>
 
                     {/* Expanded statement list */}
                     {isOpen && (
-                      <table className="w-full">
+                      <table className="w-full ds-table-chassis">
                         <thead>
-                          <tr>
-                            <th className="px-6 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Period</th>
-                            <th className="px-4 py-2 text-right text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Closing Balance</th>
-                            <th className="px-4 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Txns</th>
-                            <th className="px-4 py-2 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Progress</th>
-                            <th className="px-4 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Unmatched</th>
-                            <th className="px-4 py-2 text-center text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">PDF</th>
+                          <tr className="ds-table-header">
+                            <th className="px-6 py-2 text-left">Period</th>
+                            <th className="px-4 py-2 text-right">Closing Balance</th>
+                            <th className="px-4 py-2 text-center">Txns</th>
+                            <th className="px-4 py-2 text-left">Progress</th>
+                            <th className="px-4 py-2 text-center">Unmatched</th>
+                            <th className="px-4 py-2 text-center">PDF</th>
                             <th className="px-3 py-2 text-center w-10"></th>
                           </tr>
                         </thead>
@@ -655,14 +655,14 @@ export default function AccountantBankReconciliationPage() {
                             const isComplete = s.unmatched === 0;
                             return (
                               <tr key={s.id} onClick={() => router.push(`/accountant/bank-reconciliation/${s.id}`)}
-                                className={`group transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40'}`}>
-                                <td className="px-6 py-2.5">
+                                className={`ds-table-row cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40'}`}>
+                                <td data-col="Period" className="px-6 py-2.5">
                                   <p className="text-body-md font-medium text-[var(--text-primary)] tabular-nums">{formatDate(s.statement_date)}</p>
                                   {!isComplete && <p className="text-label-sm text-amber-600 font-medium">Needs attention</p>}
                                 </td>
-                                <td className="px-4 py-2.5 text-body-md text-right tabular-nums text-[var(--text-primary)]">{formatRM(s.closing_balance)}</td>
-                                <td className="px-4 py-2.5 text-body-md text-center text-[var(--text-secondary)] tabular-nums">{s.total}</td>
-                                <td className="px-4 py-2.5">
+                                <td data-col="Closing Balance" className="px-4 py-2.5 text-body-md text-right tabular-nums text-[var(--text-primary)]">{formatRM(s.closing_balance)}</td>
+                                <td data-col="Txns" className="px-4 py-2.5 text-body-md text-center text-[var(--text-secondary)] tabular-nums">{s.total}</td>
+                                <td data-col="Progress" className="px-4 py-2.5">
                                   <div className="flex items-center gap-2">
                                     <div className="flex-1 h-1.5 bg-[var(--surface-header)] overflow-hidden">
                                       <div className={`h-full ${isComplete ? 'bg-[var(--match-green)]' : 'bg-amber-500'}`} style={{ width: `${pct}%` }} />
@@ -670,10 +670,10 @@ export default function AccountantBankReconciliationPage() {
                                     <span className={`text-label-sm font-medium tabular-nums ${isComplete ? 'text-[var(--match-green)]' : 'text-amber-600'}`}>{pct}%</span>
                                   </div>
                                 </td>
-                                <td className="px-4 py-2.5 text-center">
+                                <td data-col="Unmatched" className="px-4 py-2.5 text-center">
                                   {s.unmatched > 0 ? <span className="text-body-sm font-semibold text-[var(--reject-red)] tabular-nums">{s.unmatched}</span> : <span className="text-body-sm text-[var(--match-green)] tabular-nums">0</span>}
                                 </td>
-                                <td className="px-4 py-2.5 text-center">
+                                <td data-col="PDF" className="px-4 py-2.5 text-center">
                                   {s.file_url ? (
                                     <a href={s.file_url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}
                                       className="btn-thick-navy px-2 py-1 text-[10px] gap-1" title="Download PDF">
@@ -753,6 +753,15 @@ export default function AccountantBankReconciliationPage() {
           </div>
         </div>
       )}
+
+      <BatchUploadOverlay
+        active={uploading && !!batchProgress && !showUpload}
+        label="Uploading statements..."
+        current={batchProgress?.current ?? 0}
+        total={batchProgress?.total ?? 0}
+        results={!uploading && batchProgress && !showUpload ? batchProgress.results : undefined}
+        onDismiss={() => setBatchProgress(null)}
+      />
 
     </div>
   );

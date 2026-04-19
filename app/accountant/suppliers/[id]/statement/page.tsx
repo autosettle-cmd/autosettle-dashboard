@@ -187,11 +187,11 @@ export default function AccountantSupplierStatementPage() {
                     <tbody>
                       {/* Opening balance row */}
                       <tr className="bg-[var(--surface-low)]">
-                        <td className="px-6 py-2.5 text-sm text-[var(--text-secondary)] tabular-nums">{formatDate(data.period.from)}</td>
-                        <td className="px-3 py-2.5 text-sm text-[var(--text-secondary)]" colSpan={2}>Opening Balance</td>
-                        <td className="px-3 py-2.5 text-sm text-right tabular-nums text-[var(--text-secondary)]">&mdash;</td>
-                        <td className="px-3 py-2.5 text-sm text-right tabular-nums text-[var(--text-secondary)]">&mdash;</td>
-                        <td className={`px-6 py-2.5 text-sm text-right tabular-nums font-semibold ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</td>
+                        <td data-col="Date" className="px-6 py-2.5 text-sm text-[var(--text-secondary)] tabular-nums">{formatDate(data.period.from)}</td>
+                        <td data-col="Reference" className="px-3 py-2.5 text-sm text-[var(--text-secondary)]" colSpan={2}>Opening Balance</td>
+                        <td data-col="Debit" className="px-3 py-2.5 text-sm text-right tabular-nums text-[var(--text-secondary)]">&mdash;</td>
+                        <td data-col="Credit" className="px-3 py-2.5 text-sm text-right tabular-nums text-[var(--text-secondary)]">&mdash;</td>
+                        <td data-col="Balance" className={`px-6 py-2.5 text-sm text-right tabular-nums font-semibold ${balanceColor(data.opening_balance)}`}>{formatRM(data.opening_balance)}</td>
                       </tr>
 
                       {/* Data rows */}
@@ -200,23 +200,23 @@ export default function AccountantSupplierStatementPage() {
                         const rowBg = isReceivable ? 'bg-[var(--surface-low)]' : (i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]');
                         return (
                           <tr key={i} className={`text-sm hover:bg-[var(--surface-header)] transition-colors ${rowBg}`}>
-                            <td className="px-6 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(entry.date)}</td>
-                            <td className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{entry.reference}</td>
-                            <td className="px-3 py-2.5 text-[var(--text-secondary)]">{entry.description}</td>
-                            <td className={`px-3 py-2.5 text-right tabular-nums ${entry.debit > 0 ? 'text-[var(--match-green)]' : 'text-[var(--text-secondary)]'}`}>{entry.debit > 0 ? formatRM(entry.debit) : '\u2014'}</td>
-                            <td className={`px-3 py-2.5 text-right tabular-nums ${entry.credit > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-secondary)]'}`}>{entry.credit > 0 ? formatRM(entry.credit) : '\u2014'}</td>
-                            <td className={`px-6 py-2.5 text-right tabular-nums font-semibold ${balanceColor(entry.balance)}`}>{formatRM(entry.balance)}</td>
+                            <td data-col="Date" className="px-6 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(entry.date)}</td>
+                            <td data-col="Reference" className="px-3 py-2.5 text-[var(--text-secondary)] font-medium">{entry.reference}</td>
+                            <td data-col="Description" className="px-3 py-2.5 text-[var(--text-secondary)]">{entry.description}</td>
+                            <td data-col="Debit" className={`px-3 py-2.5 text-right tabular-nums ${entry.debit > 0 ? 'text-[var(--match-green)]' : 'text-[var(--text-secondary)]'}`}>{entry.debit > 0 ? formatRM(entry.debit) : '\u2014'}</td>
+                            <td data-col="Credit" className={`px-3 py-2.5 text-right tabular-nums ${entry.credit > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--text-secondary)]'}`}>{entry.credit > 0 ? formatRM(entry.credit) : '\u2014'}</td>
+                            <td data-col="Balance" className={`px-6 py-2.5 text-right tabular-nums font-semibold ${balanceColor(entry.balance)}`}>{formatRM(entry.balance)}</td>
                           </tr>
                         );
                       })}
 
                       {/* Closing balance row */}
                       <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
-                        <td className="px-6 py-3 text-sm font-semibold text-[var(--text-primary)] tabular-nums">{formatDate(data.period.to)}</td>
-                        <td className="px-3 py-3 text-sm font-semibold text-[var(--text-primary)]" colSpan={2}>Closing Balance</td>
-                        <td className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-[var(--match-green)]">{formatRM(data.totals.total_debit)}</td>
-                        <td className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-[var(--reject-red)]">{formatRM(data.totals.total_credit)}</td>
-                        <td className={`px-6 py-3 text-sm text-right tabular-nums font-bold ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</td>
+                        <td data-col="Date" className="px-6 py-3 text-sm font-semibold text-[var(--text-primary)] tabular-nums">{formatDate(data.period.to)}</td>
+                        <td data-col="Reference" className="px-3 py-3 text-sm font-semibold text-[var(--text-primary)]" colSpan={2}>Closing Balance</td>
+                        <td data-col="Debit" className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-[var(--match-green)]">{formatRM(data.totals.total_debit)}</td>
+                        <td data-col="Credit" className="px-3 py-3 text-sm text-right tabular-nums font-semibold text-[var(--reject-red)]">{formatRM(data.totals.total_credit)}</td>
+                        <td data-col="Balance" className={`px-6 py-3 text-sm text-right tabular-nums font-bold ${balanceColor(data.closing_balance)}`}>{formatRM(data.closing_balance)}</td>
                       </tr>
                     </tbody>
                   </table>

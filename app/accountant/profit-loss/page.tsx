@@ -167,7 +167,7 @@ export default function ProfitLossPage() {
               className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
               onClick={() => hasChildren ? toggleCollapse(node.account.id) : undefined}
             >
-              <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
+              <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                 <div className="flex items-center gap-2">
                   {hasChildren ? (
                     <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
@@ -179,7 +179,7 @@ export default function ProfitLossPage() {
                   {node.account.account_code} - {node.account.name}
                 </div>
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+              <td data-col="Amount" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                 {!hasChildren ? formatRM(node.account.balance) : ''}
               </td>
             </tr>
@@ -187,13 +187,13 @@ export default function ProfitLossPage() {
             {/* Child rows */}
             {hasChildren && !isCollapsed && node.children.map((child, ci) => (
               <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
-                <td className="py-2.5 text-[var(--text-secondary)]">
+                <td data-col="Account" className="py-2.5 text-[var(--text-secondary)]">
                   <div className="flex items-center gap-2 pl-11">
                     <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                     {child.account_code} - {child.name}
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                <td data-col="Amount" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                   {formatRM(child.balance)}
                 </td>
               </tr>
@@ -202,10 +202,10 @@ export default function ProfitLossPage() {
             {/* Total row */}
             {hasChildren && (
               <tr className="bg-[var(--surface-base)]">
-                <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
+                <td data-col="Account" className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                   <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                <td data-col="Amount" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                   {formatRM(node.totalAmount)}
                 </td>
               </tr>
@@ -216,8 +216,8 @@ export default function ProfitLossPage() {
 
       {/* Section total */}
       <tr className="bg-[var(--surface-header)]">
-        <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {title}</td>
-        <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
+        <td data-col="Account" className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {title}</td>
+        <td data-col="Amount" className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
           {formatRM(sectionTotal)}
         </td>
       </tr>
@@ -291,10 +291,10 @@ export default function ProfitLossPage() {
 
                   {/* Net Profit / Loss */}
                   <tr className={`${netProfit >= 0 ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}`}>
-                    <td className={`px-5 py-4 font-bold text-base ${netProfit >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Account" className={`px-5 py-4 font-bold text-base ${netProfit >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {netProfit >= 0 ? 'Net Profit' : 'Net Loss'}
                     </td>
-                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${netProfit >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Amount" className={`px-3 py-4 text-right tabular-nums font-bold text-base ${netProfit >= 0 ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {formatRM(netProfit)}
                     </td>
                   </tr>

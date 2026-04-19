@@ -70,6 +70,10 @@ export default function AdminEmployeesPage() {
   // Filters
   const [search, setSearch] = useState('');
 
+  // ── Collapsible sections ──
+  const [adminsOpen, setAdminsOpen] = useState(true);
+  const [empsOpen, setEmpsOpen] = useState(true);
+
   // ── Table sorting ──
   const { sorted: sortedAdmins, toggleSort: toggleAdminSort, sortIndicator: adminSortIndicator } = useTableSort(admins, 'name', 'asc');
   const { sorted: sortedEmployees, toggleSort: toggleEmpSort, sortIndicator: empSortIndicator } = useTableSort(employees, 'name', 'asc');
@@ -327,10 +331,10 @@ export default function AdminEmployeesPage() {
                   <tbody>
                     {pending.map((row, idx) => (
                       <tr key={row.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{row.name}</td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)]">{row.email}</td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)]">{row.phone || '\u2014'}</td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(row.created_at)}</td>
+                        <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{row.name}</td>
+                        <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{row.email}</td>
+                        <td data-col="Phone" className="px-6 py-3 text-[var(--text-secondary)]">{row.phone || '\u2014'}</td>
+                        <td data-col="Date Requested" className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(row.created_at)}</td>
                         <td className="px-6 py-3 flex items-center gap-3">
                           <button
                             onClick={() => handleApprove(row.id)}
@@ -354,105 +358,99 @@ export default function AdminEmployeesPage() {
           )}
 
           {/* ════════════════════ SECTION 2: ADMINS ════════════════════ */}
-          <div className="bg-white overflow-hidden">
-            <div className="px-6 py-3 flex items-center justify-between">
-              <h2 className="text-body-md font-semibold text-[var(--text-primary)]">Admins</h2>
-              <button
-                onClick={openAdminModal}
-                className="btn-thick-navy text-xs px-3 py-1.5 font-medium"
-              >
-                Add Admin
-              </button>
+          <div className={adminsOpen ? 'card-button-pressed' : 'card-button'}>
+            <div className="flex items-center justify-between px-6 py-4" onClick={() => setAdminsOpen(!adminsOpen)}>
+              <div className="flex items-center gap-3">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${adminsOpen ? 'rotate-90' : ''}`}>
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+                <p className="text-title-sm font-semibold text-[var(--text-primary)]">Admins</p>
+                {!adminsLoading && <span className="badge-blue">{admins.length}</span>}
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); openAdminModal(); }} className="btn-thick-navy text-xs px-3 py-1.5 font-medium">Add Admin</button>
             </div>
-            {adminsLoading ? (
-              <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
-            ) : admins.length === 0 ? (
-              <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
-            ) : (
-              <div className="overflow-auto">
-                <table className="w-full">
+            {adminsOpen && (
+              adminsLoading ? (
+                <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+              ) : admins.length === 0 ? (
+                <div className="px-6 py-10 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
+              ) : (
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="text-left">
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleAdminSort('is_active')}>Status{adminSortIndicator('is_active')}</th>
+                    <tr className="ds-table-header text-left">
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('is_active')}>Status{adminSortIndicator('is_active')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedAdmins.map((admin, idx) => (
-                      <tr key={admin.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
-                        <td className="px-6 py-3">
-                          {admin.is_active ? (
-                            <span className="badge-green">Active</span>
-                          ) : (
-                            <span className="badge-gray">Inactive</span>
-                          )}
+                      <tr key={admin.id} className={`ds-table-row text-body-md ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                        <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
+                        <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
+                        <td data-col="Status" className="px-6 py-3">
+                          {admin.is_active ? <span className="badge-green">Active</span> : <span className="badge-gray">Inactive</span>}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              )
             )}
           </div>
 
           {/* ════════════════════ SECTION 3: EMPLOYEES ════════════════════ */}
-          <div className="bg-white overflow-hidden flex flex-col">
-            <div className="px-6 py-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-body-md font-semibold text-[var(--text-primary)]">Employees</h2>
-                <input
-                  type="text"
-                  placeholder="Search name or phone..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="input-field min-w-[210px]"
-                />
+          <div className={empsOpen ? 'card-button-pressed' : 'card-button'}>
+            <div className="flex items-center justify-between px-6 py-4" onClick={() => setEmpsOpen(!empsOpen)}>
+              <div className="flex items-center gap-3">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${empsOpen ? 'rotate-90' : ''}`}>
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+                <p className="text-title-sm font-semibold text-[var(--text-primary)]">Employees</p>
+                {!empLoading && <span className="badge-blue">{employees.length}</span>}
               </div>
-              <button
-                onClick={openEmpModal}
-                className="btn-thick-navy text-xs px-3 py-1.5 font-medium flex-shrink-0"
-              >
-                Add Employee
-              </button>
+              <div className="flex items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
+                <input type="text" placeholder="Search name or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="input-field min-w-[210px]" />
+                <button onClick={openEmpModal} className="btn-thick-navy text-xs px-3 py-1.5 font-medium flex-shrink-0">Add Employee</button>
+              </div>
             </div>
-            {empLoading ? (
-              <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
-            ) : employees.length === 0 ? (
-              <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">No employees found.</div>
-            ) : (
-              <div className="overflow-auto">
-                <table className="w-full">
+            {empsOpen && (
+              empLoading ? (
+                <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+              ) : employees.length === 0 ? (
+                <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">No employees found.</div>
+              ) : (
+                <table className="w-full ds-table-chassis">
                   <thead>
-                    <tr className="text-left">
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right cursor-pointer select-none" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] text-right cursor-pointer select-none" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
-                      <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
+                    <tr className="ds-table-header text-left">
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
+                      <th className="px-6 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
+                      <th className="px-6 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
+                      <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
+                      <th className="px-6 py-2.5">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedEmployees.map((emp, idx) => (
-                      <tr key={emp.id} className={`group text-body-md hover:bg-[var(--surface-low)] transition-colors ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                        <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{emp.name}</td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)]">{emp.phone}</td>
-                        <td className="px-6 py-3 text-[var(--text-secondary)]">{emp.email ?? '\u2014'}</td>
-                        <td className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{emp.claims_count}</td>
-                        <td className="px-6 py-3 text-right tabular-nums">
+                      <tr key={emp.id} className={`ds-table-row text-body-md ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                        <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{emp.name}</td>
+                        <td data-col="Phone" className="px-6 py-3 text-[var(--text-secondary)]">{emp.phone}</td>
+                        <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{emp.email ?? '\u2014'}</td>
+                        <td data-col="Claims" className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{emp.claims_count}</td>
+                        <td data-col="Outstanding" className="px-6 py-3 text-right tabular-nums">
                           {Number(emp.outstanding) > 0 ? (
                             <Link href={`/admin/employees/${emp.id}/claims-account`} className="text-[var(--reject-red)] font-semibold hover:underline">
                               RM {Number(emp.outstanding).toLocaleString('en-MY', { minimumFractionDigits: 2 })}
                             </Link>
                           ) : (
-                            <span className="text-[var(--text-secondary)]">\u2014</span>
+                            <span className="text-[var(--text-secondary)]">{'\u2014'}</span>
                           )}
                         </td>
-                        <td className="px-6 py-3">
+                        <td data-col="Status" className="px-6 py-3">
                           {emp.user_status === 'pending_onboarding' ? (
                             <span className="badge-amber">Pending</span>
                           ) : emp.user_status === 'rejected' ? (
@@ -464,24 +462,16 @@ export default function AdminEmployeesPage() {
                           )}
                         </td>
                         <td className="px-6 py-3 flex items-center gap-2">
-                          <button
-                            onClick={() => openEditPanel(emp)}
-                            className="btn-thick-white text-xs font-medium px-3 py-1.5"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => toggleActive(emp)}
-                            className="btn-thick-white text-xs font-medium px-3 py-1.5"
-                          >
-                            {emp.is_active ? 'Deactivate' : 'Activate'}
+                          <button onClick={() => openEditPanel(emp)} className="btn-thick-white text-xs font-medium px-3 py-1.5">Edit</button>
+                          <button onClick={() => toggleActive(emp)} className="btn-thick-white text-xs font-medium px-3 py-1.5">
+                            {emp.is_active ? 'Deact' : 'Activate'}
                           </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              )
             )}
           </div>
 

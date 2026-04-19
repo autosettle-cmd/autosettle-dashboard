@@ -295,7 +295,7 @@ export default function TrialBalancePage() {
                                 className={`${nodeIdx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] cursor-pointer transition-colors`}
                                 onClick={() => hasChildren ? toggleCollapse(node.account.id) : undefined}
                               >
-                                <td className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
+                                <td data-col="Account" className="px-5 py-2.5 font-semibold text-[var(--text-primary)]">
                                   <div className="flex items-center gap-2">
                                     {hasChildren ? (
                                       <span className="w-4 h-4 flex items-center justify-center text-[var(--text-muted)] text-xs flex-shrink-0">
@@ -307,10 +307,10 @@ export default function TrialBalancePage() {
                                     {node.account.account_code} - {node.account.name}
                                   </div>
                                 </td>
-                                <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                                <td data-col="Debit" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                                   {!hasChildren && parentTB.debit > 0 ? formatRM(parentTB.debit) : ''}
                                 </td>
-                                <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                                <td data-col="Credit" className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
                                   {!hasChildren && parentTB.credit > 0 ? formatRM(parentTB.credit) : ''}
                                 </td>
                               </tr>
@@ -320,16 +320,16 @@ export default function TrialBalancePage() {
                                 const childTB = trialBalanceColumns(child);
                                 return (
                                   <tr key={child.id} className={`${ci % 2 === 0 ? 'bg-[var(--surface-low)]' : 'bg-white'} hover:bg-[var(--surface-header)] transition-colors`}>
-                                    <td className="py-2.5 text-[var(--text-secondary)]">
+                                    <td data-col="Account" className="py-2.5 text-[var(--text-secondary)]">
                                       <div className="flex items-center gap-2 pl-11">
                                         <span className="w-3 h-3 flex items-center justify-center text-[var(--outline)] text-[10px] flex-shrink-0">{'\u25FB'}</span>
                                         {child.account_code} - {child.name}
                                       </div>
                                     </td>
-                                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                                    <td data-col="Debit" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                                       {childTB.debit > 0 ? formatRM(childTB.debit) : ''}
                                     </td>
-                                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
+                                    <td data-col="Credit" className="px-3 py-2.5 text-right tabular-nums text-[var(--text-primary)]">
                                       {childTB.credit > 0 ? formatRM(childTB.credit) : ''}
                                     </td>
                                   </tr>
@@ -339,13 +339,13 @@ export default function TrialBalancePage() {
                               {/* Total row */}
                               {hasChildren && (
                                 <tr className="bg-[var(--surface-base)]">
-                                  <td className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
+                                  <td data-col="Account" className="px-5 py-2 text-[var(--text-secondary)] font-semibold text-xs">
                                     <div className="pl-6">Total - {node.account.account_code} - {node.account.name}</div>
                                   </td>
-                                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                                  <td data-col="Debit" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                                     {node.totalDebit > 0 ? formatRM(node.totalDebit) : ''}
                                   </td>
-                                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
+                                  <td data-col="Credit" className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">
                                     {node.totalCredit > 0 ? formatRM(node.totalCredit) : ''}
                                   </td>
                                 </tr>
@@ -356,11 +356,11 @@ export default function TrialBalancePage() {
 
                         {/* Section total */}
                         <tr className="bg-[var(--surface-header)]">
-                          <td className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {section.label}</td>
-                          <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
+                          <td data-col="Account" className="px-5 py-3 font-bold text-sm text-[var(--text-primary)]">Total {section.label}</td>
+                          <td data-col="Debit" className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                             {section.sectionDebit > 0 ? formatRM(section.sectionDebit) : ''}
                           </td>
-                          <td className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
+                          <td data-col="Credit" className="px-3 py-3 text-right tabular-nums font-bold text-sm text-[var(--text-primary)]">
                             {section.sectionCredit > 0 ? formatRM(section.sectionCredit) : ''}
                           </td>
                         </tr>
@@ -371,13 +371,13 @@ export default function TrialBalancePage() {
                   {/* Grand total */}
                   <tr><td colSpan={3} className="h-2" /></tr>
                   <tr className={isBalanced ? 'bg-[var(--secondary-container)]' : 'bg-[var(--error-container)]'}>
-                    <td className={`px-5 py-4 font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Account" className={`px-5 py-4 font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       Grand Total
                     </td>
-                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Debit" className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {formatRM(grandTotalDebit)}
                     </td>
-                    <td className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
+                    <td data-col="Credit" className={`px-3 py-4 text-right tabular-nums font-bold text-base ${isBalanced ? 'text-[var(--on-secondary-container)]' : 'text-[var(--on-error-container)]'}`}>
                       {formatRM(grandTotalCredit)}
                     </td>
                   </tr>

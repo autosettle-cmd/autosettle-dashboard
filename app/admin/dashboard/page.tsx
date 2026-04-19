@@ -365,12 +365,12 @@ export default function AdminDashboard() {
                         const cfg = STATUS_CFG[c.status];
                         return (
                           <tr key={c.id} onClick={() => setPreviewClaim(c)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
-                            <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(c.claim_date)}</td>
-                            <td className="px-6 py-3 text-[#191C1E] font-medium">{c.employee_name}</td>
-                            <td className="px-6 py-3 text-[#444650] group-hover:text-[#234B6E] transition-colors duration-200">{c.merchant}</td>
-                            <td className="px-6 py-3 text-[#444650]">{c.category_name}</td>
-                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
-                            <td className="px-6 py-3">
+                            <td data-col="Date" className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(c.claim_date)}</td>
+                            <td data-col="Employee" className="px-6 py-3 text-[#191C1E] font-medium">{c.employee_name}</td>
+                            <td data-col="Merchant" className="px-6 py-3 text-[#444650] group-hover:text-[#234B6E] transition-colors duration-200">{c.merchant}</td>
+                            <td data-col="Category" className="px-6 py-3 text-[#444650]">{c.category_name}</td>
+                            <td data-col="Amount" className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
+                            <td data-col="Status" className="px-6 py-3">
                               {cfg && <span className={cfg.cls}>{cfg.label}</span>}
                             </td>
                           </tr>
@@ -410,10 +410,10 @@ export default function AdminDashboard() {
                           className={`group hover:bg-[#F2F4F6] transition-colors cursor-pointer text-body-md ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}
                           onClick={() => setPreviewClaim(r)}
                         >
-                          <td className="px-6 py-2.5 text-[#444650] tabular-nums">{formatDate(r.claim_date)}</td>
-                          <td className="px-6 py-2.5 text-[#444650] font-medium group-hover:text-[#234B6E] transition-colors duration-200">{r.merchant}</td>
-                          <td className="px-6 py-2.5 text-right text-[#191C1E] font-semibold tabular-nums">{formatRM(r.amount)}</td>
-                          <td className="px-6 py-2.5"><span className="badge-amber">Unlinked</span></td>
+                          <td data-col="Date" className="px-6 py-2.5 text-[#444650] tabular-nums">{formatDate(r.claim_date)}</td>
+                          <td data-col="Merchant" className="px-6 py-2.5 text-[#444650] font-medium group-hover:text-[#234B6E] transition-colors duration-200">{r.merchant}</td>
+                          <td data-col="Amount" className="px-6 py-2.5 text-right text-[#191C1E] font-semibold tabular-nums">{formatRM(r.amount)}</td>
+                          <td data-col="Status" className="px-6 py-2.5"><span className="badge-amber">Unlinked</span></td>
                         </tr>
                       ))}
                     </tbody>
@@ -452,13 +452,13 @@ export default function AdminDashboard() {
                         const linkCfg = LINK_CFG[inv.supplier_link_status];
                         return (
                           <tr key={inv.id} onClick={() => setPreviewInvoice(inv)} className={`group text-body-md hover:bg-[#F2F4F6] transition-colors cursor-pointer ${idx % 2 === 1 ? 'bg-[#F2F4F6]' : 'bg-white'}`}>
-                            <td className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(inv.issue_date)}</td>
-                            <td className="px-6 py-3 text-[#191C1E] font-medium group-hover:text-[#234B6E] transition-colors duration-200">{inv.vendor_name_raw}</td>
-                            <td className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>
-                            <td className="px-6 py-3 text-[#444650] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
-                            <td className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                            <td className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
-                            <td className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
+                            <td data-col="Issue Date" className="px-6 py-3 text-[#444650] tabular-nums">{formatDate(inv.issue_date)}</td>
+                            <td data-col="Vendor" className="px-6 py-3 text-[#191C1E] font-medium group-hover:text-[#234B6E] transition-colors duration-200">{inv.vendor_name_raw}</td>
+                            <td data-col="Invoice #" className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>
+                            <td data-col="Due Date" className="px-6 py-3 text-[#444650] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
+                            <td data-col="Amount" className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
+                            <td data-col="Payment" className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
+                            <td data-col="Supplier" className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
                           </tr>
                         );
                       })}

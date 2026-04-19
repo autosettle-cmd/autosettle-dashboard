@@ -189,9 +189,9 @@ export default function AdminsPage() {
                     <tbody>
                       {admins.map((admin, i) => (
                         <tr key={admin.id} className={`hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-[var(--surface-low)]'}`}>
-                          <td className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
-                          <td className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
-                          <td className="px-6 py-3">
+                          <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
+                          <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
+                          <td data-col="Status" className="px-6 py-3">
                             {admin.status === 'active' ? (
                               <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium badge-green" style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>
                                 Active
@@ -202,7 +202,7 @@ export default function AdminsPage() {
                               </span>
                             )}
                           </td>
-                          <td className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(admin.created_at)}</td>
+                          <td data-col="Created" className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(admin.created_at)}</td>
                           <td className="px-6 py-3">
                             <button
                               onClick={() => toggleActive(admin)}
