@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Batch fetch all potentially matching invoices in ONE query (fixes N+1)
-    const uniqueFirmIds = [...new Set(transactions.map(txn => txn.bankStatement.firm_id))];
+    const uniqueFirmIds = Array.from(new Set(transactions.map(txn => txn.bankStatement.firm_id)));
     const txnAmounts = transactions.map(txn => Number(txn.debit || txn.credit || 0));
     const minAmount = Math.min(...txnAmounts) - 0.01;
 
