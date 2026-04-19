@@ -1546,7 +1546,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
       {/* BLOCK NAVIGATION during batch operations */}
       {(batchScanning || batchSubmitting) && (
-        <style>{`.w-52 a, .w-52 button { pointer-events: none !important; opacity: 0.5 !important; }`}</style>
+        <style>{`.w-52 a, .w-52 button, .w-52 select { pointer-events: none !important; opacity: 0.5 !important; }`}</style>
       )}
 
     </div>
