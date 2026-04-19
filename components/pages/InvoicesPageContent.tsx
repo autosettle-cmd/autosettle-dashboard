@@ -117,7 +117,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
   const activeTab: 'received' | 'issued' = pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received';
-  const { upsertJob, removeJob, getJob, hasPendingReview, jobs } = useBatchUpload();
+  const { upsertJob, removeJob, jobs, registerExpandHandler, unregisterExpandHandler } = useBatchUpload();
   // Use a stable ID — find existing job or create new one
   const batchJobId = useRef(
     jobs.find(j => j.type === 'invoice')?.id ?? `invoice-batch-${Date.now()}`
@@ -375,17 +375,22 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     return () => window.removeEventListener('beforeunload', handler);
   }, [batchScanning, batchSubmitting]);
 
-  // Auto-open batch review if returning from another page with pending review
+  // Register expand handler so floating bar can open modal directly when component is mounted
   useEffect(() => {
-    if (hasPendingReview('invoice') && !showBatchReview) {
-      const job = getJob(batchJobId);
-      if (job?.data?.items) {
-        setBatchItems(job.data.items);
-        setShowBatchReview(true);
-      }
+    registerExpandHandler(batchJobId, () => setShowBatchReview(true));
+    return () => unregisterExpandHandler(batchJobId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchJobId]);
+
+  // Auto-open batch review when a review job exists (works on mount AND when job transitions to review)
+  useEffect(() => {
+    const job = jobs.find(j => j.type === 'invoice' && j.phase === 'review');
+    if (job?.data?.items && !showBatchReview && !batchScanning && !batchSubmitting) {
+      setBatchItems(job.data.items);
+      setShowBatchReview(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [jobs]);
 
   const cancelBatchScan = () => {
     if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;

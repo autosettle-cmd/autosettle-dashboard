@@ -27,8 +27,10 @@ interface BatchUploadContextType {
   upsertJob: (job: BatchJob) => void;
   removeJob: (id: string) => void;
   getJob: (id: string) => BatchJob | undefined;
-  /** Check if there's a pending review job for a given type */
   hasPendingReview: (type: string) => boolean;
+  /** Register expand handler — component calls this on mount, unregisters on unmount */
+  registerExpandHandler: (jobId: string, handler: () => void) => void;
+  unregisterExpandHandler: (jobId: string) => void;
 }
 
 const BatchUploadContext = createContext<BatchUploadContextType | null>(null);
@@ -71,17 +73,34 @@ export function BatchUploadProvider({ children }: { children: ReactNode }) {
     return jobsRef.current.some(j => j.type === type && j.phase === 'review');
   }, []);
 
+  // Expand handlers registered by mounted page components
+  const expandHandlers = useRef<Record<string, () => void>>({});
+
+  const registerExpandHandler = useCallback((jobId: string, handler: () => void) => {
+    expandHandlers.current[jobId] = handler;
+  }, []);
+
+  const unregisterExpandHandler = useCallback((jobId: string) => {
+    delete expandHandlers.current[jobId];
+  }, []);
+
   // Visible jobs = scanning, submitting, or review (not done/cancelled)
   const visibleJobs = jobs.filter(j => j.phase === 'scanning' || j.phase === 'submitting' || j.phase === 'review');
 
   const handleExpand = (job: BatchJob) => {
+    // If the source component is mounted, use its handler directly
+    if (expandHandlers.current[job.id]) {
+      expandHandlers.current[job.id]();
+      return;
+    }
+    // Otherwise navigate to the source page (component will auto-open on mount)
     if (job.returnUrl) {
       router.push(job.returnUrl);
     }
   };
 
   return (
-    <BatchUploadContext.Provider value={{ jobs, upsertJob, removeJob, getJob, hasPendingReview }}>
+    <BatchUploadContext.Provider value={{ jobs, upsertJob, removeJob, getJob, hasPendingReview, registerExpandHandler, unregisterExpandHandler }}>
       {children}
 
       {/* ── Global Floating Progress / Review Bars ── */}
