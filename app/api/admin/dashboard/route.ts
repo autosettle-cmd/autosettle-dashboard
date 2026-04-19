@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-
 export const dynamic = 'force-dynamic';
 
 // Helper to find a groupBy bucket
@@ -20,7 +18,7 @@ function bucketCount(bucket: { _count: number } | undefined): number {
   return bucket?._count ?? 0;
 }
 
-function bucketSum(bucket: { _sum: { amount: Prisma.Decimal | null } } | undefined): string {
+function bucketSum(bucket: { _sum: { amount: { toString(): string } | null } } | undefined): string {
   return bucket?._sum?.amount?.toString() ?? '0';
 }
 
