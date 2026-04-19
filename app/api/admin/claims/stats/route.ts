@@ -15,53 +15,74 @@ export async function GET() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-
   const monthFilter = { gte: monthStart, lte: monthEnd };
 
   const [
-    claimsThisMonth, claimsThisMonthAmt,
-    pendingClaims, pendingClaimsAmt,
-    receiptsThisMonth, receiptsThisMonthAmt,
+    // 1. Claim stats grouped by type+status (replaces 4 count/aggregate queries)
+    claimGrouped,
+    // 2. Claims this month by type (replaces 4 count/aggregate queries)
+    claimThisMonth,
+    // 3. Unlinked receipts (relation filter, can't groupBy)
     unlinkedReceipts, unlinkedReceiptsAmt,
+    // 4. Invoice stats (replaces 2 count/aggregate queries)
+    invoiceGrouped,
+    // 5. Invoices this month
     invoicesThisMonth, invoicesThisMonthAmt,
-    pendingInvoices, pendingInvoicesAmt,
   ] = await Promise.all([
-    // Claims this month
-    prisma.claim.count({ where: { firm_id: firmId, type: 'claim', claim_date: monthFilter } }),
-    prisma.claim.aggregate({ where: { firm_id: firmId, type: 'claim', claim_date: monthFilter }, _sum: { amount: true } }),
-    prisma.claim.count({ where: { firm_id: firmId, type: 'claim', status: 'pending_review' } }),
-    prisma.claim.aggregate({ where: { firm_id: firmId, type: 'claim', status: 'pending_review' }, _sum: { amount: true } }),
-    // Receipts this month
-    prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', claim_date: monthFilter } }),
-    prisma.claim.aggregate({ where: { firm_id: firmId, type: 'receipt', claim_date: monthFilter }, _sum: { amount: true } }),
+    prisma.claim.groupBy({
+      by: ['type', 'status'],
+      where: { firm_id: firmId },
+      _count: true,
+      _sum: { amount: true },
+    }),
+    prisma.claim.groupBy({
+      by: ['type'],
+      where: { firm_id: firmId, claim_date: monthFilter },
+      _count: true,
+      _sum: { amount: true },
+    }),
     prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', paymentReceipts: { none: {} } } }),
     prisma.claim.aggregate({ where: { firm_id: firmId, type: 'receipt', paymentReceipts: { none: {} } }, _sum: { amount: true } }),
-    // Invoices this month
+    prisma.invoice.groupBy({
+      by: ['status'],
+      where: { firm_id: firmId },
+      _count: true,
+      _sum: { total_amount: true },
+    }),
     prisma.invoice.count({ where: { firm_id: firmId, issue_date: monthFilter } }),
     prisma.invoice.aggregate({ where: { firm_id: firmId, issue_date: monthFilter }, _sum: { total_amount: true } }),
-    prisma.invoice.count({ where: { firm_id: firmId, status: 'pending_review' } }),
-    prisma.invoice.aggregate({ where: { firm_id: firmId, status: 'pending_review' }, _sum: { total_amount: true } }),
   ]);
+
+  // Extract claim stats
+  const claimPendingReview = claimGrouped.filter((g) => g.type === 'claim' && g.status === 'pending_review');
+  const claimPendingCount = claimPendingReview.reduce((s, g) => s + g._count, 0);
+  const claimPendingAmt = claimPendingReview.reduce((s, g) => s + Number(g._sum.amount ?? 0), 0);
+
+  const claimThisMonthBucket = claimThisMonth.find((g) => g.type === 'claim');
+  const receiptThisMonthBucket = claimThisMonth.find((g) => g.type === 'receipt');
+
+  // Extract invoice stats
+  const invPendingBucket = invoiceGrouped.find((g) => g.status === 'pending_review');
 
   return NextResponse.json({
     data: {
       claims: {
-        thisMonth: claimsThisMonth,
-        thisMonthAmount: claimsThisMonthAmt._sum.amount?.toString() ?? '0',
-        pendingReview: pendingClaims,
-        pendingAmount: pendingClaimsAmt._sum.amount?.toString() ?? '0',
+        thisMonth: claimThisMonthBucket?._count ?? 0,
+        thisMonthAmount: claimThisMonthBucket?._sum.amount?.toString() ?? '0',
+        pendingReview: claimPendingCount,
+        pendingAmount: claimPendingAmt.toString(),
       },
       receipts: {
-        thisMonth: receiptsThisMonth,
-        thisMonthAmount: receiptsThisMonthAmt._sum.amount?.toString() ?? '0',
+        thisMonth: receiptThisMonthBucket?._count ?? 0,
+        thisMonthAmount: receiptThisMonthBucket?._sum.amount?.toString() ?? '0',
         unlinked: unlinkedReceipts,
         unlinkedAmount: unlinkedReceiptsAmt._sum.amount?.toString() ?? '0',
       },
       invoices: {
         thisMonth: invoicesThisMonth,
         thisMonthAmount: invoicesThisMonthAmt._sum.total_amount?.toString() ?? '0',
-        pendingReview: pendingInvoices,
-        pendingAmount: pendingInvoicesAmt._sum.total_amount?.toString() ?? '0',
+        pendingReview: invPendingBucket?._count ?? 0,
+        pendingAmount: invPendingBucket?._sum.total_amount?.toString() ?? '0',
       },
     },
     error: null,

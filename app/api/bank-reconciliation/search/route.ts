@@ -85,35 +85,45 @@ export async function GET(request: NextRequest) {
       take: 20,
     });
 
-    // For each transaction, find matching invoices by amount
-    const results = await Promise.all(transactions.map(async (txn) => {
+    // Batch fetch all potentially matching invoices in ONE query (fixes N+1)
+    const uniqueFirmIds = [...new Set(transactions.map(txn => txn.bankStatement.firm_id))];
+    const txnAmounts = transactions.map(txn => Number(txn.debit || txn.credit || 0));
+    const minAmount = Math.min(...txnAmounts) - 0.01;
+
+    const allInvoices = uniqueFirmIds.length > 0 && transactions.length > 0
+      ? await prisma.invoice.findMany({
+          where: {
+            firm_id: { in: uniqueFirmIds },
+            payment_status: { not: 'paid' },
+            total_amount: { gte: minAmount },
+          },
+          select: {
+            id: true,
+            invoice_number: true,
+            vendor_name_raw: true,
+            total_amount: true,
+            amount_paid: true,
+            issue_date: true,
+            firm_id: true,
+          },
+          orderBy: { issue_date: 'desc' },
+        })
+      : [];
+
+    // Match transactions to invoices in-memory
+    const results = transactions.map((txn) => {
       const txnAmount = Number(txn.debit || txn.credit || 0);
       const firmIdForTxn = txn.bankStatement.firm_id;
 
-      // Find invoices with matching amount or close balance
-      const matchingInvoices = await prisma.invoice.findMany({
-        where: {
-          firm_id: firmIdForTxn,
-          payment_status: { not: 'paid' },
-          OR: [
-            // Exact amount match on total
-            { total_amount: { gte: txnAmount - 0.01, lte: txnAmount + 0.01 } },
-            // Balance match (total - paid ≈ txn amount)
-            ...(txnAmount > 0 ? [{
-              total_amount: { gte: txnAmount },
-            }] : []),
-          ],
-        },
-        select: {
-          id: true,
-          invoice_number: true,
-          vendor_name_raw: true,
-          total_amount: true,
-          amount_paid: true,
-          issue_date: true,
-        },
-        take: 5,
-        orderBy: { issue_date: 'desc' },
+      // Filter invoices for this transaction's firm and amount range
+      const matchingInvoices = allInvoices.filter(inv => {
+        if (inv.firm_id !== firmIdForTxn) return false;
+        const total = Number(inv.total_amount);
+        // Exact amount match on total
+        if (total >= txnAmount - 0.01 && total <= txnAmount + 0.01) return true;
+        // Balance match (total >= txn amount, so partial payment could match)
+        if (txnAmount > 0 && total >= txnAmount) return true;
+        return false;
       });
 
       // Score and filter invoices by balance proximity
@@ -148,7 +158,7 @@ export async function GET(request: NextRequest) {
           exact_match: inv.exactMatch,
         })),
       };
-    }));
+    });
 
     return NextResponse.json({ data: results, error: null });
   } catch (error) {

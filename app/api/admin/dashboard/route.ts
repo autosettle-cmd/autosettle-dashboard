@@ -2,8 +2,27 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
+
+// Helper to find a groupBy bucket
+function findBucket<T extends Record<string, unknown>>(
+  groups: T[],
+  match: Partial<T>,
+): T | undefined {
+  return groups.find((g) =>
+    Object.entries(match).every(([k, v]) => g[k] === v),
+  );
+}
+
+function bucketCount(bucket: { _count: number } | undefined): number {
+  return bucket?._count ?? 0;
+}
+
+function bucketSum(bucket: { _sum: { amount: Prisma.Decimal | null } } | undefined): string {
+  return bucket?._sum?.amount?.toString() ?? '0';
+}
 
 export async function GET() {
   try {
@@ -19,47 +38,55 @@ export async function GET() {
     const monthFilter = { gte: monthStart, lte: monthEnd };
 
     const [
-      // Stats
-      claimsThisMonth, claimsThisMonthAmt,
-      pendingClaimsCount, pendingClaimsAmt,
-      approvalClaimsCount, approvalClaimsAmt,
-      receiptsThisMonth, receiptsThisMonthAmt,
+      // 1. Claim stats grouped by type+status+approval (replaces 8 count/aggregate queries)
+      claimGrouped,
+      // 2. Claims this month grouped by type (replaces 4 count/aggregate queries)
+      claimThisMonth,
+      // 3. Unlinked receipts (relation filter, can't groupBy)
       unlinkedReceiptsCount, unlinkedReceiptsAmt,
-      notApprovedReceiptsCount, notApprovedReceiptsAmt,
+      // 4. Invoice stats grouped by status (replaces 4 count/aggregate queries)
+      invoiceGrouped,
+      // 5. Invoices this month (replaces 2 count/aggregate queries)
       invoicesThisMonth, invoicesThisMonthAmt,
-      pendingInvoicesCount, pendingInvoicesAmt,
-      approvalInvoicesCount, approvalInvoicesAmt,
-      // Bank recon stats
+      // 6. Bank recon stats
       totalStatements, unmatchedTxns, suggestedMatchTxns,
-      // Table data
+      // 7. Table data
       pendingClaims,
       unlinkedReceipts,
       pendingInvoices,
     ] = await Promise.all([
-      // ── Stats ──
-      prisma.claim.count({ where: { firm_id: firmId, type: 'claim', claim_date: monthFilter } }),
-      prisma.claim.aggregate({ where: { firm_id: firmId, type: 'claim', claim_date: monthFilter }, _sum: { amount: true } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'claim', status: 'pending_review' } }),
-      prisma.claim.aggregate({ where: { firm_id: firmId, type: 'claim', status: 'pending_review' }, _sum: { amount: true } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'claim', approval: 'pending_approval' } }),
-      prisma.claim.aggregate({ where: { firm_id: firmId, type: 'claim', approval: 'pending_approval' }, _sum: { amount: true } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', claim_date: monthFilter } }),
-      prisma.claim.aggregate({ where: { firm_id: firmId, type: 'receipt', claim_date: monthFilter }, _sum: { amount: true } }),
+      // ── Claim groupBy: status + approval in one query ──
+      prisma.claim.groupBy({
+        by: ['type', 'status', 'approval'],
+        where: { firm_id: firmId },
+        _count: true,
+        _sum: { amount: true },
+      }),
+      // ── Claims this month by type ──
+      prisma.claim.groupBy({
+        by: ['type'],
+        where: { firm_id: firmId, claim_date: monthFilter },
+        _count: true,
+        _sum: { amount: true },
+      }),
+      // ── Unlinked receipts (relation filter — must stay separate) ──
       prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', paymentReceipts: { none: {} } } }),
       prisma.claim.aggregate({ where: { firm_id: firmId, type: 'receipt', paymentReceipts: { none: {} } }, _sum: { amount: true } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', approval: 'not_approved' } }),
-      prisma.claim.aggregate({ where: { firm_id: firmId, type: 'receipt', approval: 'not_approved' }, _sum: { amount: true } }),
+      // ── Invoice groupBy ──
+      prisma.invoice.groupBy({
+        by: ['status', 'approval'],
+        where: { firm_id: firmId },
+        _count: true,
+        _sum: { total_amount: true },
+      }),
+      // ── Invoices this month ──
       prisma.invoice.count({ where: { firm_id: firmId, issue_date: monthFilter } }),
       prisma.invoice.aggregate({ where: { firm_id: firmId, issue_date: monthFilter }, _sum: { total_amount: true } }),
-      prisma.invoice.count({ where: { firm_id: firmId, status: 'pending_review' } }),
-      prisma.invoice.aggregate({ where: { firm_id: firmId, status: 'pending_review' }, _sum: { total_amount: true } }),
-      prisma.invoice.count({ where: { firm_id: firmId, approval: 'pending_approval' } }),
-      prisma.invoice.aggregate({ where: { firm_id: firmId, approval: 'pending_approval' }, _sum: { total_amount: true } }),
       // ── Bank recon ──
       prisma.bankStatement.count({ where: { firm_id: firmId } }),
       prisma.bankTransaction.count({ where: { bankStatement: { firm_id: firmId }, recon_status: 'unmatched' } }),
       prisma.bankTransaction.count({ where: { bankStatement: { firm_id: firmId }, recon_status: 'matched' } }),
-      // ── Table data (dashboard only shows ~20 rows per tab) ──
+      // ── Table data ──
       prisma.claim.findMany({
         where: { firm_id: firmId, type: 'claim', status: 'pending_review' },
         select: {
@@ -103,32 +130,59 @@ export async function GET() {
       }),
     ]);
 
+    // ── Extract claim stats from groupBy results ──
+    // Sum all buckets matching type='claim', status='pending_review' (any approval value)
+    const claimPendingReview = claimGrouped.filter((g) => g.type === 'claim' && g.status === 'pending_review');
+    const claimPendingReviewCount = claimPendingReview.reduce((s, g) => s + g._count, 0);
+    const claimPendingReviewAmt = claimPendingReview.reduce((s, g) => s + Number(g._sum.amount ?? 0), 0);
+
+    const claimPendingApproval = claimGrouped.filter((g) => g.type === 'claim' && g.approval === 'pending_approval');
+    const claimPendingApprovalCount = claimPendingApproval.reduce((s, g) => s + g._count, 0);
+    const claimPendingApprovalAmt = claimPendingApproval.reduce((s, g) => s + Number(g._sum.amount ?? 0), 0);
+
+    const receiptNotApproved = claimGrouped.filter((g) => g.type === 'receipt' && g.approval === 'not_approved');
+    const receiptNotApprovedCount = receiptNotApproved.reduce((s, g) => s + g._count, 0);
+    const receiptNotApprovedAmt = receiptNotApproved.reduce((s, g) => s + Number(g._sum.amount ?? 0), 0);
+
+    // ── Extract this-month from groupBy ──
+    const claimThisMonthBucket = findBucket(claimThisMonth, { type: 'claim' });
+    const receiptThisMonthBucket = findBucket(claimThisMonth, { type: 'receipt' });
+
+    // ── Extract invoice stats from groupBy ──
+    const invPendingReview = invoiceGrouped.filter((g) => g.status === 'pending_review');
+    const invPendingReviewCount = invPendingReview.reduce((s, g) => s + g._count, 0);
+    const invPendingReviewAmt = invPendingReview.reduce((s, g) => s + Number(g._sum.total_amount ?? 0), 0);
+
+    const invPendingApproval = invoiceGrouped.filter((g) => g.approval === 'pending_approval');
+    const invPendingApprovalCount = invPendingApproval.reduce((s, g) => s + g._count, 0);
+    const invPendingApprovalAmt = invPendingApproval.reduce((s, g) => s + Number(g._sum.total_amount ?? 0), 0);
+
     return NextResponse.json({
       data: {
         stats: {
           claims: {
-            thisMonth: claimsThisMonth,
-            thisMonthAmount: claimsThisMonthAmt._sum.amount?.toString() ?? '0',
-            pendingReview: pendingClaimsCount,
-            pendingAmount: pendingClaimsAmt._sum.amount?.toString() ?? '0',
-            pendingApproval: approvalClaimsCount,
-            pendingApprovalAmount: approvalClaimsAmt._sum.amount?.toString() ?? '0',
+            thisMonth: bucketCount(claimThisMonthBucket),
+            thisMonthAmount: bucketSum(claimThisMonthBucket),
+            pendingReview: claimPendingReviewCount,
+            pendingAmount: claimPendingReviewAmt.toString(),
+            pendingApproval: claimPendingApprovalCount,
+            pendingApprovalAmount: claimPendingApprovalAmt.toString(),
           },
           receipts: {
-            thisMonth: receiptsThisMonth,
-            thisMonthAmount: receiptsThisMonthAmt._sum.amount?.toString() ?? '0',
+            thisMonth: bucketCount(receiptThisMonthBucket),
+            thisMonthAmount: bucketSum(receiptThisMonthBucket),
             unlinked: unlinkedReceiptsCount,
             unlinkedAmount: unlinkedReceiptsAmt._sum.amount?.toString() ?? '0',
-            notApproved: notApprovedReceiptsCount,
-            notApprovedAmount: notApprovedReceiptsAmt._sum.amount?.toString() ?? '0',
+            notApproved: receiptNotApprovedCount,
+            notApprovedAmount: receiptNotApprovedAmt.toString(),
           },
           invoices: {
             thisMonth: invoicesThisMonth,
             thisMonthAmount: invoicesThisMonthAmt._sum.total_amount?.toString() ?? '0',
-            pendingReview: pendingInvoicesCount,
-            pendingAmount: pendingInvoicesAmt._sum.total_amount?.toString() ?? '0',
-            pendingApproval: approvalInvoicesCount,
-            pendingApprovalAmount: approvalInvoicesAmt._sum.total_amount?.toString() ?? '0',
+            pendingReview: invPendingReviewCount,
+            pendingAmount: invPendingReviewAmt.toString(),
+            pendingApproval: invPendingApprovalCount,
+            pendingApprovalAmount: invPendingApprovalAmt.toString(),
           },
         },
         bankRecon: { totalStatements, unmatched: unmatchedTxns, suggestedMatch: suggestedMatchTxns },
