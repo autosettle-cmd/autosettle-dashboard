@@ -13,6 +13,8 @@ import { todayStr, formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
 import { STATUS_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 import FilterBar from '@/components/filters/FilterBar';
+import ClaimCreateModal from '@/components/claims/ClaimCreateModal';
+import ClaimPreviewPanel from '@/components/claims/ClaimPreviewPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1223,195 +1225,49 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
 
       {/* === SUBMIT MODAL === */}
       {showModal && (
-        <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
-              <h3 className="text-white font-bold text-sm uppercase tracking-widest">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
-              <button onClick={() => setShowModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
-            </div>
-
-            <div className="flex-1 overflow-y-scroll p-6 space-y-3">
-
-            {/* Document preview */}
-            {selectedFile && (() => {
-              const url = URL.createObjectURL(selectedFile);
-              const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
-              return (
-                <div className="overflow-hidden bg-[var(--surface-low)] mb-4">
-                  {isPdf ? (
-                    <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
-                  ) : (
-                    <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
-                  )}
-                </div>
-              );
-            })()}
-
-            {/* -- Type Toggle -- */}
-            <div className="flex overflow-hidden mb-4">
-              {(['claim', 'receipt', 'mileage'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setModalType(t)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${modalType === t ? 'bg-[var(--primary)] text-white' : 'bg-white text-[var(--text-secondary)] hover:bg-[var(--surface-low)]'}`}
-                >
-                  {t === 'claim' ? 'Claim' : t === 'receipt' ? 'Receipt' : 'Mileage'}
-                </button>
-              ))}
-            </div>
-
-            {modalError && (
-              <div className="mb-4 bg-[var(--reject-red)]/10 p-3">
-                <p className="text-sm text-[var(--reject-red)]">{modalError}</p>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {/* Firm selector — accountant only */}
-              {isAccountant && (
-                <div>
-                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Firm *</label>
-                  <select
-                    value={modalFirmId}
-                    onChange={(e) => setModalFirmId(e.target.value)}
-                    className="input-recessed w-full"
-                  >
-                    <option value="">Select a firm</option>
-                    {firms.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-                  </select>
-                </div>
-              )}
-              {modalEmployees.length > 0 && modalType !== 'receipt' && (
-                <div>
-                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Employee *</label>
-                  <select
-                    value={modalEmployeeId}
-                    onChange={(e) => setModalEmployeeId(e.target.value)}
-                    className="input-recessed w-full"
-                  >
-                    <option value="">Select employee</option>
-                    {modalEmployees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
-                <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Date *</label>
-                <input type="date" value={modalDate} onChange={(e) => setModalDate(e.target.value)} className="input-recessed w-full" required />
-              </div>
-
-              {modalType === 'mileage' ? (
-                <>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">From *</label>
-                    <input type="text" value={mileageFrom} onChange={(e) => setMileageFrom(e.target.value)} className="input-recessed w-full" placeholder="e.g. PJ Office" autoFocus />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">To *</label>
-                    <input type="text" value={mileageTo} onChange={(e) => setMileageTo(e.target.value)} className="input-recessed w-full" placeholder="e.g. Shah Alam client office" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Distance (km) *</label>
-                    <input type="number" value={mileageDistance} onChange={(e) => setMileageDistance(e.target.value)} className="input-recessed w-full" placeholder="e.g. 25" step="0.1" min="0" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Purpose *</label>
-                    <input type="text" value={mileagePurpose} onChange={(e) => setMileagePurpose(e.target.value)} className="input-recessed w-full" placeholder="e.g. Client meeting with ABC Sdn Bhd" />
-                  </div>
-                  {mileageDistance && parseFloat(mileageDistance) > 0 && (
-                    <div className="bg-[var(--primary)]/10 p-3">
-                      <p className="text-sm text-[var(--primary)] font-medium tabular-nums">
-                        Amount: RM {(parseFloat(mileageDistance) * mileageRate).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-xs text-[var(--primary)]/70 mt-0.5 tabular-nums">{mileageDistance} km x RM {mileageRate.toFixed(2)}/km</p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Merchant Name *</label>
-                    <input type="text" value={modalMerchant} onChange={(e) => setModalMerchant(e.target.value)} className="input-recessed w-full" placeholder="e.g. Petronas, Grab, etc." autoFocus />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Amount (RM) *</label>
-                    <input type="number" value={modalAmount} onChange={(e) => setModalAmount(e.target.value)} className="input-recessed w-full" placeholder="0.00" step="0.01" min="0" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Category *</label>
-                    <select value={modalCategory} onChange={(e) => setModalCategory(e.target.value)} className="input-recessed w-full">
-                      <option value="">Select a category</option>
-                      {modalCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Receipt Number</label>
-                    <input type="text" value={modalReceipt} onChange={(e) => setModalReceipt(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Description</label>
-                    <textarea value={modalDesc} onChange={(e) => setModalDesc(e.target.value)} className="input-recessed w-full" rows={2} placeholder="Optional" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Receipt</label>
-                    <div
-                      className="border-2 border-dashed border-[var(--outline-ghost)] p-4 text-center cursor-pointer hover:border-[var(--outline)] transition-colors"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {selectedFile ? (
-                        <div className="space-y-2">
-                          {selectedFile.type === 'application/pdf' ? (
-                            <div className="mx-auto w-16 h-20 bg-[var(--reject-red)]/10 flex items-center justify-center">
-                              <span className="text-[var(--reject-red)] font-bold text-xs">PDF</span>
-                            </div>
-                          ) : previewUrl ? (
-                            <img src={previewUrl} alt="Preview" className="mx-auto max-h-32" />
-                          ) : null}
-                          <p className="text-sm text-[var(--text-secondary)]">{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</p>
-                          <button type="button" onClick={(e) => { e.stopPropagation(); clearFile(); }} className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80">Remove</button>
-                        </div>
-                      ) : (
-                        <div>
-                          <p className="text-sm text-[var(--text-secondary)]">Click or drag to upload receipt</p>
-                          <p className="text-xs text-[var(--text-muted)] mt-1">JPG, PNG, PDF up to 10MB</p>
-                        </div>
-                      )}
-                      <input type="file" accept="image/*,application/pdf" multiple onChange={handleFileChange} className="hidden" ref={fileInputRef} />
-                    </div>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">Select multiple files to batch upload with auto OCR</p>
-                    {ocrScanning && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-[var(--primary)]">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                        Scanning document... fields will auto-fill shortly
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-
-            </div>
-            </div>
-
-            <div className="flex gap-3 px-5 py-3 bg-[var(--surface-low)]">
-              <button
-                onClick={submitClaim}
-                disabled={modalSaving || ocrScanning}
-                className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {ocrScanning ? 'Scanning...' : modalSaving ? 'Submitting...' : `Submit ${modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}`}
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={modalSaving}
-                className="btn-thick-white flex-1 py-2.5 text-sm font-semibold disabled:opacity-40"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+        <ClaimCreateModal
+          config={config}
+          firms={firms}
+          modalType={modalType}
+          setModalType={setModalType}
+          modalFirmId={modalFirmId}
+          setModalFirmId={setModalFirmId}
+          modalEmployeeId={modalEmployeeId}
+          setModalEmployeeId={setModalEmployeeId}
+          modalEmployees={modalEmployees}
+          modalDate={modalDate}
+          setModalDate={setModalDate}
+          modalMerchant={modalMerchant}
+          setModalMerchant={setModalMerchant}
+          modalAmount={modalAmount}
+          setModalAmount={setModalAmount}
+          modalCategory={modalCategory}
+          setModalCategory={setModalCategory}
+          modalCategories={modalCategories}
+          modalReceipt={modalReceipt}
+          setModalReceipt={setModalReceipt}
+          modalDesc={modalDesc}
+          setModalDesc={setModalDesc}
+          selectedFile={selectedFile}
+          previewUrl={previewUrl}
+          modalError={modalError}
+          modalSaving={modalSaving}
+          ocrScanning={ocrScanning}
+          fileInputRef={fileInputRef}
+          mileageFrom={mileageFrom}
+          setMileageFrom={setMileageFrom}
+          mileageTo={mileageTo}
+          setMileageTo={setMileageTo}
+          mileageDistance={mileageDistance}
+          setMileageDistance={setMileageDistance}
+          mileagePurpose={mileagePurpose}
+          setMileagePurpose={setMileagePurpose}
+          mileageRate={mileageRate}
+          handleFileChange={handleFileChange}
+          clearFile={clearFile}
+          submitClaim={submitClaim}
+          onClose={() => setShowModal(false)}
+        />
       )}
 
       {/* === BATCH BAR === */}
@@ -1615,294 +1471,40 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       )}
 
       {/* === RECEIPT PREVIEW === */}
-      {previewClaim && (() => {
-        const driveMatch = previewClaim.file_url?.match(/\/d\/([^/]+)/);
-        const fileId = driveMatch?.[1];
-        return (
-          <>
-            <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-            <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-              {/* Header */}
-              <div className="h-12 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
-                <h2 className="text-white font-bold text-sm uppercase tracking-widest">
-                  {previewClaim.type === 'mileage' ? 'Mileage Claim' : previewClaim.type === 'receipt' ? 'Receipt Details' : 'Claim Details'}
-                </h2>
-                <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
-              </div>
-
-              {/* Body — two panels */}
-              <div className="flex-1 flex min-h-0">
-                {/* Left panel — details */}
-                <div className="w-2/5 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
-                  {editMode && editData ? (
-                    <dl className="space-y-3">
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</dt>
-                        <input type="date" value={editData.claim_date} onChange={(e) => setEditData({ ...editData, claim_date: e.target.value })} className="input-recessed w-full mt-0.5" />
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Merchant</dt>
-                        <input type="text" value={editData.merchant} onChange={(e) => setEditData({ ...editData, merchant: e.target.value })} className="input-recessed w-full mt-0.5" />
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</dt>
-                        <input type="number" step="0.01" value={editData.amount} onChange={(e) => setEditData({ ...editData, amount: e.target.value })} className="input-recessed w-full mt-0.5" />
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</dt>
-                        <select value={editData.category_id} onChange={(e) => setEditData({ ...editData, category_id: e.target.value })} className="input-recessed w-full mt-0.5">
-                          <option value="">Select category</option>
-                          {(isAccountant ? categories : modalCategories).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Receipt Number</dt>
-                        <input type="text" value={editData.receipt_number} onChange={(e) => setEditData({ ...editData, receipt_number: e.target.value })} className="input-recessed w-full mt-0.5" />
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Description</dt>
-                        <input type="text" value={editData.description} onChange={(e) => setEditData({ ...editData, description: e.target.value })} className="input-recessed w-full mt-0.5" />
-                      </div>
-                      <div>
-                        <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Employee</dt>
-                        <select value={editData.employee_id} onChange={(e) => setEditData({ ...editData, employee_id: e.target.value })} className="input-recessed w-full mt-0.5">
-                          {modalEmployees.map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                        </select>
-                      </div>
-                      {showFirm && <Field label="Firm" value={previewClaim.firm_name} />}
-                      {previewClaim.type === 'receipt' && (
-                        <div className="bg-[var(--surface-low)] p-3 space-y-2">
-                          <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Linked Invoices</dt>
-                          {linkedInvoices.length > 0 && (
-                            <div className="space-y-1.5">
-                              {linkedInvoices.map(li => (
-                                <div key={li.id} className="flex items-center justify-between bg-white px-2.5 py-1.5">
-                                  <div className="text-sm">
-                                    <span className="font-medium text-[var(--text-secondary)]">{li.invoice_number || 'No number'}</span>
-                                    <span className="text-[var(--text-muted)] ml-1.5">{li.vendor_name}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-[var(--text-secondary)] tabular-nums">{formatRM(li.amount)}</span>
-                                    <button
-                                      type="button"
-                                      onClick={async () => {
-                                        if (!confirm('Unlink this receipt from the invoice?')) return;
-                                        try {
-                                          const res = await fetch(`/api/invoices/${li.invoice_id}/receipt-link`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ claimId: previewClaim.id }) });
-                                          if (res.ok) { setLinkedInvoices(prev => prev.filter(x => x.id !== li.id)); refresh(); }
-                                        } catch (e) { console.error(e); }
-                                      }}
-                                      className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80"
-                                    >&times;</button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <input type="text" placeholder="Search invoice number or supplier..." value={invoiceLinkSearch}
-                            onChange={(e) => {
-                              const q = e.target.value; setInvoiceLinkSearch(q);
-                              if (q.length < 2) { setInvoiceLinkResults([]); return; }
-                              setInvoiceLinkLoading(true);
-                              const searchUrl = isAccountant ? `${config.apiInvoices}?search=${encodeURIComponent(q)}&firmId=${previewClaim.firm_id}&take=10` : `${config.apiInvoices}?search=${encodeURIComponent(q)}&take=10`;
-                              fetch(searchUrl).then(r => r.json()).then(j => { const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id)); setInvoiceLinkResults((j.data ?? []).filter((inv: { id: string }) => !alreadyLinked.has(inv.id))); }).catch(console.error).finally(() => setInvoiceLinkLoading(false));
-                            }}
-                            className="input-recessed w-full text-sm"
-                          />
-                          {(() => {
-                            const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id));
-                            const displayList = invoiceLinkSearch.length >= 2 ? invoiceLinkResults : suggestedInvoices.filter(s => !alreadyLinked.has(s.id));
-                            if (displayList.length === 0) return null;
-                            return (
-                              <div>
-                                {invoiceLinkSearch.length < 2 && <p className="text-xs text-[var(--text-muted)] mb-1">Suggested matches:</p>}
-                                <div className="max-h-36 overflow-y-auto space-y-1">
-                                  {displayList.map(inv => (
-                                    <button type="button" key={inv.id} onClick={() => setPendingLinkInvoice({ id: inv.id, invoice_number: inv.invoice_number, vendor_name_raw: inv.vendor_name_raw, total_amount: inv.total_amount, amount_paid: inv.amount_paid })}
-                                      className={`w-full text-left px-2.5 py-1.5 transition-colors ${pendingLinkInvoice?.id === inv.id ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]' : 'hover:bg-[var(--primary)]/5'}`}>
-                                      <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-[var(--text-secondary)]">{inv.invoice_number || 'No number'}</span>
-                                        <span className="text-xs text-[var(--text-muted)] tabular-nums">{formatRM(inv.total_amount)}</span>
-                                      </div>
-                                      <p className="text-xs text-[var(--text-muted)]">{inv.vendor_name_raw} &middot; Balance: {formatRM(Number(inv.total_amount) - Number(inv.amount_paid))}{'match_reason' in inv && inv.match_reason ? ` · ${inv.match_reason}` : ''}</p>
-                                    </button>
-                                  ))}
-                                </div>
-                                {pendingLinkInvoice && (
-                                  <button onClick={confirmLinkInvoice} disabled={linkingInvoice} className="btn-thick-green w-full py-2 mt-2 text-sm">
-                                    {linkingInvoice ? 'Linking...' : `Confirm Link to ${pendingLinkInvoice.invoice_number || 'Invoice'}`}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                      <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-3 py-2">
-                        Saving will reset status to Pending Review and approval to Pending.
-                      </p>
-                    </dl>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap gap-2">
-                        {[STATUS_CFG[previewClaim.status], PAYMENT_CFG[previewClaim.payment_status]].filter(Boolean).map((cfg) => (
-                          <span key={cfg!.label} className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${cfg!.cls}`} style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>{cfg!.label}</span>
-                        ))}
-                        <span className={`text-xs font-semibold ${previewClaim.confidence === 'HIGH' ? 'text-[var(--match-green)]' : previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'}`}>{previewClaim.confidence}</span>
-                      </div>
-
-                      <dl className="space-y-3">
-                        <Field label="Date"        value={formatDateDot(previewClaim.claim_date)} />
-                        <Field label="Merchant"    value={previewClaim.merchant} />
-                        <Field label="Employee"    value={previewClaim.employee_name} />
-                        {showFirm && <Field label="Firm" value={previewClaim.firm_name} />}
-                        <Field label="Category"    value={previewClaim.category_name} />
-                        <Field label="Amount"      value={formatRM(previewClaim.amount)} />
-                        <Field label="Receipt No." value={previewClaim.receipt_number} />
-                        <Field label="Description" value={previewClaim.description} />
-                      </dl>
-
-                      {previewClaim.type === 'receipt' && previewClaim.linked_payments.length > 0 && (
-                        <div className="bg-[var(--primary)]/10 p-3 space-y-2">
-                          <p className="text-[10px] font-label font-bold text-[var(--primary)] uppercase tracking-widest">Linked Payment</p>
-                          {previewClaim.linked_payments.map((lp) => (
-                            <div key={lp.payment_id} className="text-sm text-[var(--primary)]">
-                              <p className="font-medium">{lp.supplier_name}</p>
-                              <p className="text-xs text-[var(--primary)]/70 tabular-nums">{formatRM(lp.amount)} &middot; {formatDateDot(lp.payment_date)}{lp.reference ? ` · ${lp.reference}` : ''}</p>
-                            </div>
-                          ))}
-                          <button
-                            onClick={async () => {
-                              if (!confirm('Unlink this receipt from its payment?\n\nThis will:\n• Remove the payment link\n• Unmatch the bank transaction (if matched)\n• Reverse any posted journal entries from bank reconciliation')) return;
-                              try { const res = await fetch(`${config.apiClaims}/${previewClaim.id}/payment-link`, { method: 'DELETE' }); if (res.ok) { refresh(); setPreviewClaim({ ...previewClaim, linked_payment_count: 0, linked_payments: [], payment_status: 'unpaid' }); } } catch (e) { console.error(e); }
-                            }}
-                            className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80 font-medium"
-                          >Unlink from Payment</button>
-                        </div>
-                      )}
-
-                      {/* Invoice Linking for receipts */}
-                      {previewClaim.type === 'receipt' && (
-                        <div className="bg-[var(--surface-low)] p-3 space-y-2">
-                          <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Linked Invoices</p>
-                          {linkedInvoices.length > 0 ? (
-                            <div className="space-y-1.5">
-                              {linkedInvoices.map(li => (
-                                <div key={li.id} className="flex items-center justify-between bg-white px-2.5 py-1.5">
-                                  <div className="text-sm">
-                                    <span className="font-medium text-[var(--text-secondary)]">{li.invoice_number || 'No number'}</span>
-                                    <span className="text-[var(--text-muted)] ml-1.5">{li.vendor_name}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-medium text-[var(--text-secondary)] tabular-nums">{formatRM(li.amount)}</span>
-                                    <button onClick={async () => { if (!confirm('Unlink?')) return; try { const res = await fetch(`/api/invoices/${li.invoice_id}/receipt-link`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ claimId: previewClaim.id }) }); if (res.ok) { setLinkedInvoices(prev => prev.filter(x => x.id !== li.id)); refresh(); } } catch (e) { console.error(e); } }}
-                                      className="text-xs text-[var(--reject-red)] hover:text-[var(--reject-red)]/80">&times;</button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-[var(--text-muted)]">No invoices linked yet.</p>
-                          )}
-                          <div className="relative">
-                            <input type="text" placeholder="Search invoice number or supplier..." value={invoiceLinkSearch}
-                              onChange={(e) => {
-                                const q = e.target.value; setInvoiceLinkSearch(q);
-                                if (q.length < 2) { setInvoiceLinkResults([]); return; }
-                                setInvoiceLinkLoading(true);
-                                const searchUrl = isAccountant ? `${config.apiInvoices}?search=${encodeURIComponent(q)}&firmId=${previewClaim.firm_id}&paymentStatus=unpaid&take=10` : `${config.apiInvoices}?search=${encodeURIComponent(q)}&paymentStatus=unpaid&take=10`;
-                                fetch(searchUrl).then(r => r.json()).then(j => { const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id)); setInvoiceLinkResults((j.data ?? []).filter((inv: { id: string }) => !alreadyLinked.has(inv.id))); }).catch(console.error).finally(() => setInvoiceLinkLoading(false));
-                              }}
-                              className="input-recessed w-full text-sm"
-                            />
-                            {invoiceLinkLoading && <span className="absolute right-2 top-2 text-xs text-[var(--text-muted)]">Searching...</span>}
-                          </div>
-                          {(() => {
-                            const alreadyLinked = new Set(linkedInvoices.map(li => li.invoice_id));
-                            const displayList = invoiceLinkSearch.length >= 2 ? invoiceLinkResults : suggestedInvoices.filter(s => !alreadyLinked.has(s.id));
-                            if (displayList.length === 0) return null;
-                            return (
-                              <div>
-                                {invoiceLinkSearch.length < 2 && <p className="text-xs text-[var(--text-muted)] mb-1">Suggested matches:</p>}
-                                <div className="max-h-48 overflow-y-auto space-y-1">
-                                  {displayList.map(inv => (
-                                    <button key={inv.id} onClick={() => setPendingLinkInvoice({ id: inv.id, invoice_number: inv.invoice_number, vendor_name_raw: inv.vendor_name_raw, total_amount: inv.total_amount, amount_paid: inv.amount_paid })}
-                                      className={`w-full text-left px-2.5 py-1.5 transition-colors ${pendingLinkInvoice?.id === inv.id ? 'bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]' : 'hover:bg-[var(--primary)]/5'}`}>
-                                      <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-[var(--text-secondary)]">{inv.invoice_number || 'No number'}</span>
-                                        <span className="text-xs text-[var(--text-muted)] tabular-nums">{formatRM(inv.total_amount)}</span>
-                                      </div>
-                                      <p className="text-xs text-[var(--text-muted)]">{inv.vendor_name_raw} &middot; Balance: {formatRM(Number(inv.total_amount) - Number(inv.amount_paid))}{'match_reason' in inv && inv.match_reason ? ` · ${inv.match_reason}` : ''}</p>
-                                    </button>
-                                  ))}
-                                </div>
-                                {pendingLinkInvoice && (
-                                  <button onClick={confirmLinkInvoice} disabled={linkingInvoice} className="btn-thick-green w-full py-2 mt-2 text-sm">
-                                    {linkingInvoice ? 'Linking...' : `Confirm Link to ${pendingLinkInvoice.invoice_number || 'Invoice'}`}
-                                  </button>
-                                )}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {previewClaim.rejection_reason && (
-                        <div className="bg-[var(--reject-red)]/10 p-3">
-                          <p className="text-[10px] font-label font-bold text-[var(--reject-red)] uppercase tracking-widest mb-1">Rejection Reason</p>
-                          <p className="text-sm text-[var(--reject-red)]">{previewClaim.rejection_reason}</p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Right panel — document preview */}
-                <div className="w-3/5 flex flex-col">
-                  <div className="flex-1 flex items-center justify-center bg-[var(--surface-low)] overflow-hidden">
-                    {fileId ? (
-                      <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-full" title="Document Preview" allow="autoplay" />
-                    ) : previewClaim.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={previewClaim.thumbnail_url} alt="Receipt" className="max-w-full max-h-[60vh] object-contain" />
-                    ) : (
-                      <p className="text-[var(--text-muted)] text-sm">No document available</p>
-                    )}
-                  </div>
-
-                  {/* Action buttons at bottom of right panel */}
-                  <div className="p-4 flex gap-3 flex-shrink-0 bg-[var(--surface-low)] border-t border-[var(--surface-header)]">
-                    {editMode ? (
-                      <>
-                        <button onClick={saveEdit} disabled={editSaving} className="btn-thick-navy flex-1 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed">
-                          {editSaving ? 'Saving...' : 'Save Changes'}
-                        </button>
-                        <button onClick={() => { setEditMode(false); setEditData(null); }} className="btn-thick-white flex-1 py-2 text-sm">Cancel</button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => { setEditMode(true); setEditData({ claim_date: previewClaim.claim_date.split('T')[0], merchant: previewClaim.merchant, amount: previewClaim.amount, category_id: previewClaim.category_id, receipt_number: previewClaim.receipt_number ?? '', description: previewClaim.description ?? '', employee_id: previewClaim.employee_id ?? '' }); }}
-                          className="btn-thick-navy flex-1 py-2 text-sm"
-                        >Edit</button>
-                        {!isAccountant && (
-                          <button onClick={() => batchReview([previewClaim.id])} disabled={previewClaim.status === 'reviewed'} className="btn-thick-green flex-1 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed">Mark as Reviewed</button>
-                        )}
-                        {isAccountant && (
-                          <button onClick={() => setPreviewClaim(null)} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Close</button>
-                        )}
-                      </>
-                    )}
-                    <button onClick={() => deleteClaims([previewClaim.id])} className="btn-thick-red px-4 py-2 text-xs">Delete</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            </div>
-          </>
-        );
-      })()}
+      {previewClaim && (
+        <ClaimPreviewPanel
+          config={config}
+          previewClaim={previewClaim}
+          setPreviewClaim={setPreviewClaim}
+          showFirm={showFirm}
+          editMode={editMode}
+          setEditMode={setEditMode}
+          editData={editData}
+          setEditData={setEditData}
+          editSaving={editSaving}
+          saveEdit={saveEdit}
+          categories={categories}
+          modalCategories={modalCategories}
+          modalEmployees={modalEmployees}
+          invoiceLinkSearch={invoiceLinkSearch}
+          setInvoiceLinkSearch={setInvoiceLinkSearch}
+          invoiceLinkResults={invoiceLinkResults}
+          setInvoiceLinkResults={setInvoiceLinkResults}
+          invoiceLinkLoading={invoiceLinkLoading}
+          setInvoiceLinkLoading={setInvoiceLinkLoading}
+          linkedInvoices={linkedInvoices}
+          setLinkedInvoices={setLinkedInvoices}
+          suggestedInvoices={suggestedInvoices}
+          setSuggestedInvoices={setSuggestedInvoices}
+          pendingLinkInvoice={pendingLinkInvoice}
+          setPendingLinkInvoice={setPendingLinkInvoice}
+          linkingInvoice={linkingInvoice}
+          confirmLinkInvoice={confirmLinkInvoice}
+          batchReview={batchReview}
+          deleteClaims={deleteClaims}
+          refresh={refresh}
+        />
+      )}
 
       {(batchSubmitting || (batchScanning && !showBatchReview)) && (
         <div className="fixed bottom-6 right-6 z-30 bg-white shadow-2xl border border-[#E0E3E5] w-[320px] animate-in cursor-pointer" onClick={() => { if (batchScanning && !showBatchReview) setShowBatchReview(true); }}>
