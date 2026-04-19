@@ -453,7 +453,15 @@ The sidebar is a thick slab of material sitting ON TOP of the page. The main con
   - `0 0 8px rgba(255,255,255,0.3)` — soft outer glow, backlit panel activated
   - White background — translucent panel powered on
 - **Notification badges:** red pill (`var(--reject-red)`, `rounded-full`)
-- **Bottom section:** firm selector (darkest `#1A3D5C`), user info (`white/10` bg), sign out (text only)
+- **Bottom section:**
+  - **Firm selector:** darkest `#1A3D5C`, `btn-thick-sidebar` keycap
+  - **User info — milled-in recess:** carved slot into sidebar surface
+    - `background: rgba(0,0,0,0.15)` — darker than surrounding material
+    - `box-shadow: inset 0 2px 4px rgba(0,0,0,0.25), inset 0 1px 1px rgba(0,0,0,0.15), 0 1px 0 rgba(255,255,255,0.07)` — inset shadow on top/left, highlight at bottom edge
+    - `border-top: 1px solid rgba(0,0,0,0.2)` — sharp lip at top of carved slot
+    - Text has `text-shadow: 0 1px 2px rgba(0,0,0,0.3)` — etched into surface
+    - Same horizontal padding as nav (`px-3` within parent `px-3`)
+  - **Sign out button:** `btn-thick-white` physical keycap — white gradient, 4px bottom wall, press-in animation
 
 ---
 
