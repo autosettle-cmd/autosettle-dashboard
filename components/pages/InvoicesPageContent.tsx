@@ -392,12 +392,13 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchJobId, restoreAndOpen]);
 
-  // Auto-open batch review when a review job transitions to review phase
+  // Auto-open batch review when returning to page with an active/review job
   useEffect(() => {
-    const job = jobs.find(j => j.type === 'invoice' && j.phase === 'review');
-    if (job?.data?.items && !showBatchReview && !batchScanning && !batchSubmitting) {
+    const job = jobs.find(j => j.type === 'invoice' && (j.phase === 'review' || j.phase === 'scanning'));
+    if (job?.data?.items && !showBatchReview && !batchSubmitting && batchItems.length === 0) {
       setBatchItems(job.data.items);
       setShowBatchReview(true);
+      if (job.phase === 'scanning') setBatchScanning(true);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs]);
@@ -1468,7 +1469,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
               <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); removeJob(batchJobId); } }} disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40">Cancel</button>
-              <button onClick={submitBatch} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0}
+              <button onClick={submitBatch} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0 || batchItems.some(i => i.selected && !i.ocrDone)}
                 className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40">
                 {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
               </button>
