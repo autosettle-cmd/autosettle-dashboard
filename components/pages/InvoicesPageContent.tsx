@@ -3,17 +3,15 @@
 import Sidebar from '@/components/Sidebar';
 import SalesInvoicesContent from '@/components/SalesInvoicesContent';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
-import Field from '@/components/forms/Field';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
-import { STATUS_CFG, PAYMENT_CFG, LINK_CFG, APPROVAL_CFG } from '@/lib/badge-config';
+import { APPROVAL_CFG } from '@/lib/badge-config';
 import FilterBar from '@/components/filters/FilterBar';
 import { useSearchParams } from 'next/navigation';
-import GlAccountSelect from '@/components/GlAccountSelect';
 import Link from 'next/link';
 import InvoiceCreateModal from '@/components/invoices/InvoiceCreateModal';
 import InvoiceRejectModal from '@/components/invoices/InvoiceRejectModal';

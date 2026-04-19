@@ -295,6 +295,7 @@ export default function AccountantDashboard() {
     } else if (!previewClaim) {
       setGlAccounts([]); setSelectedGlAccountId(''); setSelectedContraGlId(''); setDefaultContraGlId('');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewInvoice]);
 
   // Fetch categories when entering edit mode
