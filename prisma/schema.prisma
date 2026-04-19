@@ -156,6 +156,7 @@ model Firm {
   defaultStaffClaims      GLAccount? @relation("FirmStaffClaims", fields: [default_staff_claims_gl_id], references: [id], onDelete: SetNull)
   defaultTradeReceivables GLAccount? @relation("FirmTradeReceivables", fields: [default_trade_receivables_gl_id], references: [id], onDelete: SetNull)
   defaultRetainedEarnings GLAccount? @relation("FirmRetainedEarnings", fields: [default_retained_earnings_gl_id], references: [id], onDelete: SetNull)
+  ocrLogs         OcrLog[]
 }
 
 model Employee {
@@ -917,4 +918,24 @@ model JournalLine {
 
   @@index([journal_entry_id])
   @@index([gl_account_id])
+}
+
+// ─── OCR Extraction Logging ────────────────────────────────────────────────────
+model OcrLog {
+  id             String   @id @default(uuid())
+  firm_id        String?
+  file_name      String
+  document_type  String   // receipt, invoice, bank_statement, unknown
+  confidence     String?  // HIGH, MEDIUM, LOW
+  success        Boolean
+  error_message  String?
+  processing_ms  Int?
+  source         String   // whatsapp, dashboard_upload, batch_upload
+  created_at     DateTime @default(now())
+
+  firm Firm? @relation(fields: [firm_id], references: [id])
+
+  @@index([created_at])
+  @@index([firm_id, created_at])
+  @@index([success, created_at])
 }

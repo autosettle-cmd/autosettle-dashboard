@@ -67,6 +67,102 @@ export async function GET() {
     roleMap[r.role] = r._count;
   }
 
+  // ── Chart data ──────────────────────────────────────────────────────────────
+
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  const [
+    uploadVolume,
+    claimConfidence,
+    invoiceConfidence,
+    claimsPipeline,
+    invoicesPipeline,
+    reconHealth,
+    ocrStats,
+  ] = await Promise.all([
+    // Upload volume — last 30 days grouped by day
+    prisma.$queryRaw<{ date: string; claims: bigint; invoices: bigint; statements: bigint }[]>`
+      SELECT d.date,
+        COALESCE(c.cnt, 0) AS claims,
+        COALESCE(i.cnt, 0) AS invoices,
+        COALESCE(s.cnt, 0) AS statements
+      FROM generate_series(
+        ${thirtyDaysAgo}::date, CURRENT_DATE, '1 day'
+      ) AS d(date)
+      LEFT JOIN (SELECT DATE(created_at) AS dt, COUNT(*)::bigint AS cnt FROM "Claim" WHERE created_at >= ${thirtyDaysAgo} GROUP BY dt) c ON c.dt = d.date
+      LEFT JOIN (SELECT DATE(created_at) AS dt, COUNT(*)::bigint AS cnt FROM "Invoice" WHERE created_at >= ${thirtyDaysAgo} GROUP BY dt) i ON i.dt = d.date
+      LEFT JOIN (SELECT DATE(created_at) AS dt, COUNT(*)::bigint AS cnt FROM "BankStatement" WHERE created_at >= ${thirtyDaysAgo} GROUP BY dt) s ON s.dt = d.date
+      ORDER BY d.date
+    `,
+
+    // OCR confidence — claims
+    prisma.claim.groupBy({ by: ['confidence'], _count: true }),
+
+    // OCR confidence — invoices
+    prisma.invoice.groupBy({ by: ['confidence'], _count: true }),
+
+    // Workflow pipeline — claims
+    prisma.claim.groupBy({
+      by: ['status', 'approval', 'payment_status'],
+      _count: true,
+    }),
+
+    // Workflow pipeline — invoices
+    prisma.invoice.groupBy({
+      by: ['status', 'approval', 'payment_status'],
+      _count: true,
+    }),
+
+    // Bank recon health
+    prisma.bankTransaction.groupBy({ by: ['recon_status'], _count: true }),
+
+    // OCR log stats (if any logs exist)
+    prisma.ocrLog.aggregate({
+      _count: true,
+      _avg: { processing_ms: true },
+    }).then(async (agg) => {
+      const successCount = await prisma.ocrLog.count({ where: { success: true } });
+      const failCount = await prisma.ocrLog.count({ where: { success: false } });
+      return {
+        total: agg._count,
+        avgProcessingMs: Math.round(agg._avg.processing_ms ?? 0),
+        success: successCount,
+        failed: failCount,
+      };
+    }),
+  ]);
+
+  // Transform upload volume (bigint → number)
+  const uploadVolumeData = uploadVolume.map((r) => ({
+    date: typeof r.date === 'string' ? r.date.split('T')[0] : new Date(r.date).toISOString().split('T')[0],
+    claims: Number(r.claims),
+    invoices: Number(r.invoices),
+    statements: Number(r.statements),
+  }));
+
+  // Transform confidence
+  const confidenceData = {
+    claims: { HIGH: 0, MEDIUM: 0, LOW: 0, ...Object.fromEntries(claimConfidence.filter(c => c.confidence).map(c => [c.confidence, c._count])) },
+    invoices: { HIGH: 0, MEDIUM: 0, LOW: 0, ...Object.fromEntries(invoiceConfidence.filter(c => c.confidence).map(c => [c.confidence, c._count])) },
+  };
+
+  // Transform pipeline
+  const buildPipeline = (groups: { status: string; approval: string; payment_status: string; _count: number }[]) => {
+    let pendingReview = 0, reviewed = 0, approved = 0, paid = 0;
+    for (const g of groups) {
+      if (g.status === 'pending_review') pendingReview += g._count;
+      else if (g.approval === 'pending_approval') reviewed += g._count;
+      else if (g.payment_status === 'unpaid' || g.payment_status === 'partially_paid') approved += g._count;
+      else paid += g._count;
+    }
+    return { pendingReview, reviewed, approved, paid };
+  };
+
+  // Transform recon health
+  const reconMap: Record<string, number> = {};
+  for (const r of reconHealth) reconMap[r.recon_status] = r._count;
+
   return NextResponse.json({
     data: {
       firms: {
@@ -96,6 +192,22 @@ export async function GET() {
         invoices: f._count.invoices,
         journalEntries: f._count.journalEntries,
       })),
+      // Chart data
+      charts: {
+        uploadVolume: uploadVolumeData,
+        confidence: confidenceData,
+        pipeline: {
+          claims: buildPipeline(claimsPipeline as any),
+          invoices: buildPipeline(invoicesPipeline as any),
+        },
+        recon: {
+          matched: (reconMap['matched'] ?? 0) + (reconMap['manually_matched'] ?? 0),
+          unmatched: reconMap['unmatched'] ?? 0,
+          excluded: reconMap['excluded'] ?? 0,
+          total: Object.values(reconMap).reduce((s, v) => s + v, 0),
+        },
+        ocr: ocrStats,
+      },
     },
     error: null,
   });

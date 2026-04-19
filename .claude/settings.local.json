@@ -142,7 +142,9 @@
       "WebFetch(domain:www.bukku.my)",
       "WebFetch(domain:www.sql.com.my)",
       "WebFetch(domain:bukku.my)",
-      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/api -type f -name *invoice*)"
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/api -type f -name *invoice*)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/components/pages -name *.tsx -type f)",
+      "Bash(xxd /Users/jeffrylau/autosettle-dashboard/app/admin/audit-log/page.tsx2)"
     ]
   }
 }

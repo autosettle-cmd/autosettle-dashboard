@@ -11,6 +11,7 @@ import {
   classifyDocument,
 } from "@/lib/whatsapp/gemini";
 import { parseGeminiOutput, parseGeminiOutputMultiple, parseGeminiInvoiceOutput } from "@/lib/whatsapp/parser";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
@@ -20,15 +21,21 @@ export const dynamic = 'force-dynamic';
  * Returns extracted fields for auto-filling claim or invoice forms.
  */
 export async function POST(req: NextRequest) {
+  const startMs = Date.now();
+  let _fileName = 'unknown';
+  let _firmId: string | null = null;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const categoriesRaw = formData.get("categories") as string | null;
     const context = formData.get("context") as string | null; // "claim" or "invoice" — skips bank_statement classification
+    const firmId = formData.get("firm_id") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
+    _fileName = file.name;
+    _firmId = firmId;
 
     const categories = categoriesRaw
       ? JSON.parse(categoriesRaw) as string[]
@@ -112,9 +119,13 @@ export async function POST(req: NextRequest) {
 
     const geminiRaw = await extractWithGemini(normalised, categories);
     const fields = parseGeminiOutput(geminiRaw);
+    // Log success
+    prisma.ocrLog.create({ data: { firm_id: firmId, file_name: file.name, document_type: 'receipt', confidence: fields?.confidence, success: true, processing_ms: Date.now() - startMs, source: 'dashboard_upload' } }).catch(() => {});
     return NextResponse.json({ documentType: "receipt", fields });
   } catch (err) {
     console.error("[OCR extract] Error:", err);
+    // Log failure
+    prisma.ocrLog.create({ data: { firm_id: _firmId, file_name: _fileName, document_type: 'unknown', success: false, error_message: err instanceof Error ? err.message : String(err), processing_ms: Date.now() - startMs, source: 'dashboard_upload' } }).catch(() => {});
     return NextResponse.json(
       { error: "OCR extraction failed. Please fill in the fields manually." },
       { status: 500 }

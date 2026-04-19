@@ -30,7 +30,8 @@
     "pg": "^8.20.0",
     "prisma": "^7.6.0",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
