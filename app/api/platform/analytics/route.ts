@@ -197,7 +197,9 @@ export async function GET() {
         uploadVolume: uploadVolumeData,
         confidence: confidenceData,
         pipeline: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           claims: buildPipeline(claimsPipeline as any),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           invoices: buildPipeline(invoicesPipeline as any),
         },
         recon: {
