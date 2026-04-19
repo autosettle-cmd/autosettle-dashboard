@@ -872,7 +872,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || '';
           let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
 
-          if (!resolvedContra) {
+          // If resolved contra is the firm's generic default, still try name matching for a supplier-specific sub-account
+          if (!resolvedContra || resolvedContra === firmDefaultContra) {
             const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
             const vendorStripped = vendorLower.replace(/\s+/g, '');
             const vendorWords = vendorLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'sdn bhd'].includes(w));
