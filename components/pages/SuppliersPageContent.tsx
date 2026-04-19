@@ -8,7 +8,6 @@ import SupplierPreviewPanel from '@/components/suppliers/SupplierPreviewPanel';
 import SupplierPaymentModal from '@/components/suppliers/SupplierPaymentModal';
 import SupplierEditModal from '@/components/suppliers/SupplierEditModal';
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM } from '@/lib/formatters';
@@ -288,13 +287,13 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
   }, [config.firmsLoaded, config.firmId, config.apiSuppliers, refreshKey, takeLimit]);
 
   // Auto-open preview from ?preview=id (global search navigation)
-  const supplierSearchParams = useSearchParams();
-  const previewParam = supplierSearchParams.get('preview');
   useEffect(() => {
-    if (!previewParam) return;
-    setPreviewSupplierId(previewParam);
+    const params = new URLSearchParams(window.location.search);
+    const previewId = params.get('preview');
+    if (!previewId) return;
+    setPreviewSupplierId(previewId);
     window.history.replaceState(null, '', window.location.pathname);
-  }, [previewParam]);
+  }, []);
 
   // Load aging report
   useEffect(() => {

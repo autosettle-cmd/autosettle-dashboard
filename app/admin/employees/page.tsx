@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
@@ -142,16 +141,16 @@ export default function AdminEmployeesPage() {
   const refreshEmployees = () => setEmpKey((k) => k + 1);
 
   // Auto-open preview from ?preview=id (global search navigation)
-  const empSearchParams = useSearchParams();
-  const previewParam = empSearchParams.get('preview');
   useEffect(() => {
-    if (!previewParam || empLoading) return;
-    const match = employees.find((e) => e.id === previewParam);
+    const params = new URLSearchParams(window.location.search);
+    const previewId = params.get('preview');
+    if (!previewId || empLoading) return;
+    const match = employees.find((e) => e.id === previewId);
     if (match) {
       openEditPanel(match);
       window.history.replaceState(null, '', window.location.pathname);
     }
-  }, [previewParam, empLoading, employees]);
+  }, [empLoading, employees]);
 
   const handleApprove = async (id: string) => {
     try {
