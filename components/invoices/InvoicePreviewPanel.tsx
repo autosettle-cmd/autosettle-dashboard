@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Field from '@/components/forms/Field';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { STATUS_CFG, PAYMENT_CFG, LINK_CFG, APPROVAL_CFG } from '@/lib/badge-config';
@@ -203,6 +204,21 @@ export default function InvoicePreviewPanel({
   deleteInvoice,
   refresh,
 }: InvoicePreviewPanelProps) {
+  const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+
+  const amount = Math.abs(Number(previewInvoice.total_amount));
+  const isCreditNote = Number(previewInvoice.total_amount) < 0;
+  const debitLabel = selectedGlAccountId
+    ? glAccounts.find(a => a.id === selectedGlAccountId)
+    : previewInvoice.gl_account_id
+    ? glAccounts.find(a => a.id === previewInvoice.gl_account_id)
+    : null;
+  const contraLabel = selectedContraGlId
+    ? glAccounts.find(a => a.id === selectedContraGlId)
+    : previewInvoice.contra_gl_account_id
+    ? glAccounts.find(a => a.id === previewInvoice.contra_gl_account_id)
+    : null;
+
   return (
     <>
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
@@ -700,7 +716,7 @@ export default function InvoicePreviewPanel({
                         Mark as Reviewed
                       </button>
                       <button
-                        onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
+                        onClick={() => setShowApproveConfirm(true)}
                         className="btn-thick-green flex-1 py-1.5 text-xs"
                       >
                         Approve
@@ -716,7 +732,7 @@ export default function InvoicePreviewPanel({
                   {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
                     <>
                       <button
-                        onClick={() => batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined)}
+                        onClick={() => setShowApproveConfirm(true)}
                         className="btn-thick-green flex-1 py-1.5 text-xs"
                       >
                         Approve
@@ -894,6 +910,84 @@ export default function InvoicePreviewPanel({
         </div>{/* close flex row */}
       </div>{/* close modal */}
       </div>{/* close centering */}
+      {/* ═══ APPROVE CONFIRMATION MODAL ═══ */}
+      {showApproveConfirm && (
+        <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowApproveConfirm(false)}>
+          <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--match-green)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Approval</h3>
+              <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Invoice summary */}
+              <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                <p className="text-xs text-[var(--text-secondary)]">{previewInvoice.vendor_name_raw} — {previewInvoice.invoice_number || 'No #'}</p>
+                <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{formatRM(previewInvoice.total_amount)}</p>
+              </div>
+
+              {/* JV Preview */}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="ds-table-header text-left">
+                    <th className="px-3 py-2">Account</th>
+                    <th className="px-3 py-2 text-right">Debit</th>
+                    <th className="px-3 py-2 text-right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-[var(--surface-low)]">
+                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                      {debitLabel ? `${debitLabel.account_code} — ${debitLabel.name}` : 'Expense GL'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                      {isCreditNote ? '—' : formatRM(amount)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
+                      {isCreditNote ? formatRM(amount) : '—'}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                      {contraLabel ? `${contraLabel.account_code} — ${contraLabel.name}` : 'Trade Payables GL'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
+                      {isCreditNote ? formatRM(amount) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                      {isCreditNote ? '—' : formatRM(amount)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {(!debitLabel || !contraLabel) && (
+                <div className="bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                  Missing GL account — the system will use supplier/firm defaults if available.
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button
+                onClick={() => {
+                  setShowApproveConfirm(false);
+                  batchAction([previewInvoice.id], 'approve', undefined, selectedGlAccountId || undefined, selectedContraGlId || undefined);
+                }}
+                className="btn-thick-green flex-1 py-2.5 text-sm font-semibold"
+              >
+                Confirm & Post JV
+              </button>
+              <button
+                onClick={() => setShowApproveConfirm(false)}
+                className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

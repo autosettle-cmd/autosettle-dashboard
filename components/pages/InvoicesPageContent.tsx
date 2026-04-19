@@ -873,13 +873,24 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
 
           if (!resolvedContra) {
-            const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+            const vendorStripped = vendorLower.replace(/\s+/g, '');
+            const vendorWords = vendorLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'sdn bhd'].includes(w));
             const glData = glJson.data ?? [];
             const liabilityGls = glData.filter((g: { account_type: string }) => g.account_type === 'Liability');
-            const nameMatch = liabilityGls.find((g: { name: string }) => {
-              const glLower = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-              return glLower.length > 2 && (vendorLower.includes(glLower) || glLower.includes(vendorLower));
+            // Try exact substring match first
+            let nameMatch = liabilityGls.find((g: { name: string }) => {
+              const glStripped = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return glStripped.length > 2 && (vendorStripped.includes(glStripped) || glStripped.includes(vendorStripped));
             });
+            // Fallback: word-based match — if 2+ significant vendor words appear in GL name
+            if (!nameMatch && vendorWords.length >= 2) {
+              nameMatch = liabilityGls.find((g: { name: string }) => {
+                const glLower = g.name.toLowerCase();
+                const hits = vendorWords.filter(w => glLower.includes(w));
+                return hits.length >= 2;
+              });
+            }
             if (nameMatch) resolvedContra = nameMatch.id;
           }
 
