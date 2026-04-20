@@ -69,6 +69,20 @@ Never create workflows that skip JV for approved records (migration, bulk upload
 **Error message format:** Tell the user exactly what's missing and where to fix it.
 Example: `Bank account "CIMB 123456" has no GL account mapped. Go to Bank Recon → Manage Accounts and assign a GL.`
 
+### JV Double-Confirm Rule
+**Every button that creates OR reverses a Journal Entry must show a confirmation modal before executing.** No direct action — user must see what will happen and explicitly confirm.
+
+| Action | Modal Shows | Confirm Button |
+|--------|------------|----------------|
+| **Invoice approval** | JV preview (DR Expense / CR Trade Payables) with amounts | "Confirm & Post JV" (green) |
+| **Invoice revert approval** | List of what gets reversed (JV reversal, GL accounts, status reset) | "Confirm Revert" (red) |
+| **Bank recon match/confirm** | JV preview (per-item DR lines + Bank CR) with partial match warning | "Confirm & Post JV" (green) |
+| **Bank recon unmatch** | List of what gets reversed (JV, invoice payment status, claim status) | "Confirm Unmatch" (red) |
+| **Payment voucher creation** | JV preview (DR Expense / CR Bank) | "Confirm & Post JV" (green) |
+| **Official receipt creation** | JV preview (DR Bank / CR Income) | "Confirm & Post JV" (green) |
+
+**Modal anatomy:** Colored header (green for create, red for reverse) → entity summary card → DR/CR table or reversal list → confirm + cancel buttons in `bg-[var(--surface-low)]` footer.
+
 ---
 
 ## Delete & Revert Rules
@@ -150,7 +164,8 @@ After making changes, explain what was done so the structure is understood.
 | `/docs/database-schema.md` | Full Postgres schema + join tables + amount_paid formulas |
 | `/docs/entity-cascade.md` | **Hard guardrails:** delete blockers, revert cascades, soft-delete rules |
 | `/docs/jv-rules.md` | **Hard guardrails:** JV source types, GL resolution, reversal mechanics |
-| `/docs/invoice-gl-flow.md` | **Full GL flow:** OCR → supplier match → GL auto-suggest → approval → supplier learns |
+| `/docs/invoice-gl-flow.md` | **Full GL flow:** purchase + sales invoices — OCR → supplier match → GL auto-suggest → approval → supplier learns |
+| `/docs/auto-suggest-flow.md` | **Auto-suggestion engine:** supplier matching, GL auto-suggest, bank recon auto-match — 4-pass matching, forced review, learning loop |
 | `/docs/auth.md` | NextAuth login flow, middleware |
 | `/docs/categories-spec.md` | Category business rules |
 | `/docs/signup-spec.md` | User onboarding flow |

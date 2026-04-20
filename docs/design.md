@@ -538,6 +538,77 @@ The header is part of the L-shaped frame (sidebar + header) that wraps around th
 
 ## 7. Do's and Don'ts
 
+### Batch Upload Review Modal
+Grid layout per item — 4 columns:
+```
+Row 1: Vendor | Invoice # | Date    | Amount (RM)
+Row 2: Category | Supplier | Due Date | Terms
+Row 3: Notes (col-span-4)
+```
+- Supplier dropdown: `<select>` with "Auto-match" default + firm-scoped supplier list
+- All `input-recessed` fields
+- OCR-filled fields get `auto-suggested` class (amber glow — see below)
+- Duplicate items: red border, deselected, message shown
+- Preview panel: 40% right pane, PDF iframe or image
+
+### Auto-Suggest Indicator (`auto-suggested`)
+Soft amber glow on `input-recessed` fields that were auto-filled by OCR or system defaults. Tells the accountant "this was machine-filled — verify before submitting."
+
+- **Border:** amber tones (`#E8A940` sides, `#D49530` top) — replaces default grey
+- **Outer glow:** `0 0 0 2px rgba(232,169,64,0.18)` — subtle amber ring
+- **On focus:** reverts to standard blue focus ring (user is now editing, no longer auto-suggested)
+- **Usage:** add `auto-suggested` class alongside `input-recessed` when the field has an OCR/default value
+- Matches existing amber semantic: `badge-amber` = "suggested", `led-amber` = "pending attention"
+
+```css
+.input-recessed.auto-suggested {
+  border-color: #E8A940;
+  box-shadow: ..., 0 0 0 2px rgba(232,169,64,0.18);
+}
+```
+
+### Bank Recon Match Modal — Multi-Select Pattern
+Invoices and claims both support multi-select with `ds-table-checkbox` (green LED glow checkboxes).
+
+**Invoices — grouped by supplier:**
+- Invoices grouped by supplier name (like claims by employee)
+- Supplier header row: checkbox (select all for supplier) + "ACCOUNT" badge + supplier name + total
+- Individual invoice rows: indented with checkbox + INV/SALES badge + reference + remaining amount
+- Header only shown when supplier has 2+ invoices
+- Running total shown in section header when items selected
+- API called once per invoice (supports incremental allocation on same bank transaction)
+
+**Claims — grouped by employee:** Same pattern, with "CLAIMS" badge and employee name.
+
+**Confirmation modal:** Shows JV preview with correct matched amount (not bank transaction amount), partial match warning when amounts differ. Multi-item: one debit/credit line per item + bank GL total.
+
+**Suggested transactions — forced review flow:**
+- Table shows "Review" button (dark gold keycap: `#F5C842→#E8B830`, amber side walls, black text) + "Unmatch" (red)
+- No "Confirm" or "Confirm All" in the table — forces accountant to open preview first
+- Preview modal: "Confirm" button has red hover tooltip: "Auto-suggested match — review before confirming"
+- Hint text replaces Confirm All: "{n} suggested — click Review to confirm"
+
+**Partial match indicator:**
+- Table status badge: "Partial" (amber) when matched amount < bank transaction amount
+- Preview modal: same "Partial" badge
+- JV preview: shows correct matched amount, not bank transaction amount
+
+### JV Confirmation Modals — Required for ALL JV Actions
+Every button that creates or reverses a Journal Entry **must** show a confirmation modal. No direct action.
+
+**Creating JV (green header `bg-[var(--match-green)]`):**
+- Summary card: entity name + amount
+- JV preview table: Account / Debit / Credit columns
+- Multi-item: one row per item + bank GL total
+- Partial match: amber warning with remaining amount
+- Button: "Confirm & Post JV" (green)
+
+**Reversing JV (red header `bg-[var(--reject-red)]`):**
+- Summary card: entity name + amount
+- "The following will be reversed:" bulleted list
+- Lists: JV reversal, GL accounts affected, status resets
+- Button: "Confirm Revert" or "Confirm Unmatch" (red)
+
 ### Do
 - Use CSS variables for ALL colors — never hardcode hex in page files
 - Use white space as a separator — increase padding, don't add lines

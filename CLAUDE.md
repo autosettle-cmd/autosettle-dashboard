@@ -24,5 +24,7 @@ Read `/docs/CLAUDE.md` for full guidelines before doing anything.
 | `/docs/database-schema.md` | Full Postgres schema + join tables + amount_paid formulas |
 | `/docs/entity-cascade.md` | **Guardrails:** delete blockers, revert cascades, soft-delete rules |
 | `/docs/jv-rules.md` | **Guardrails:** JV source types, GL resolution, reversal mechanics |
+| `/docs/invoice-gl-flow.md` | **Full GL flow:** purchase + sales invoices — OCR → supplier match → GL auto-suggest → approval → supplier learns |
+| `/docs/auto-suggest-flow.md` | **Auto-suggestion engine:** supplier matching, GL auto-suggest, bank recon auto-match |
 | `/docs/auth.md` | Login flow, middleware |
 | `/docs/whatsapp-backend.md` | WhatsApp + OCR pipeline |

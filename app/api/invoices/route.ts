@@ -341,74 +341,108 @@ export async function POST(request: NextRequest) {
     // Auto-approve only for single uploads where GL accounts are provided
     const canAutoApprove = !isBatch && !!(glAccountId && resolvedContraGlId);
 
-    // ── Create the invoice ──
-    const invoice = await prisma.invoice.create({
-      data: {
-        firm_id: firmId,
-        uploaded_by: uploaderEmployee.id,
-        supplier_id: supplierId,
-        supplier_link_status: canAutoApprove && supplierId ? 'confirmed' : linkStatus,
-        vendor_name_raw: vendorName,
-        invoice_number: invoiceNumber || null,
-        issue_date: new Date(issueDate),
-        due_date: computedDueDate ? new Date(computedDueDate) : null,
-        payment_terms: paymentTerms || null,
-        notes: notes || null,
-        total_amount: totalAmount,
-        category_id: resolvedCategoryId!,
-        gl_account_id: glAccountId || null,
-        contra_gl_account_id: resolvedContraGlId || null,
-        confidence: 'HIGH',
-        status: 'reviewed',
-        approval: canAutoApprove ? 'approved' : 'pending_approval',
-        payment_status: 'unpaid',
-        amount_paid: 0,
-        file_url: fileUrl,
-        file_download_url: fileDownloadUrl,
-        thumbnail_url: thumbnailUrl,
-        file_hash: fileHash,
-        submitted_via: 'dashboard',
-      },
-      include: {
-        category: { select: { name: true } },
-        supplier: { select: { id: true, name: true } },
-      },
-    });
+    // ── Create invoice (+ JV + supplier learning in transaction if auto-approve) ──
+    const invoice = canAutoApprove
+      ? await prisma.$transaction(async (tx) => {
+          const inv = await tx.invoice.create({
+            data: {
+              firm_id: firmId,
+              uploaded_by: uploaderEmployee.id,
+              supplier_id: supplierId,
+              supplier_link_status: supplierId ? 'confirmed' : linkStatus,
+              vendor_name_raw: vendorName,
+              invoice_number: invoiceNumber || null,
+              issue_date: new Date(issueDate),
+              due_date: computedDueDate ? new Date(computedDueDate) : null,
+              payment_terms: paymentTerms || null,
+              notes: notes || null,
+              total_amount: totalAmount,
+              category_id: resolvedCategoryId!,
+              gl_account_id: glAccountId || null,
+              contra_gl_account_id: resolvedContraGlId || null,
+              confidence: 'HIGH',
+              status: 'reviewed',
+              approval: 'approved',
+              payment_status: 'unpaid',
+              amount_paid: 0,
+              file_url: fileUrl,
+              file_download_url: fileDownloadUrl,
+              thumbnail_url: thumbnailUrl,
+              file_hash: fileHash,
+              submitted_via: 'dashboard',
+            },
+            include: {
+              category: { select: { name: true } },
+              supplier: { select: { id: true, name: true, default_gl_account_id: true } },
+            },
+          });
 
-    // Auto-approve: create JV (DR Expense / CR Trade Payables)
-    if (canAutoApprove) {
-      const absAmount = Math.abs(totalAmount);
-      const isCreditNote = totalAmount < 0;
-      await createJournalEntry({
-        firmId,
-        postingDate: new Date(issueDate),
-        description: `${isCreditNote ? 'Credit Note' : invoice.category.name} — ${vendorName}`,
-        sourceType: 'invoice_posting',
-        sourceId: invoice.id,
-        lines: isCreditNote
-          ? [
-              { glAccountId: resolvedContraGlId!, debitAmount: absAmount, creditAmount: 0, description: 'Trade Payables (reversal)' },
-              { glAccountId: glAccountId!, debitAmount: 0, creditAmount: absAmount, description: vendorName },
-            ]
-          : [
-              { glAccountId: glAccountId!, debitAmount: absAmount, creditAmount: 0, description: vendorName },
-              { glAccountId: resolvedContraGlId!, debitAmount: 0, creditAmount: absAmount, description: 'Trade Payables' },
-            ],
-        createdBy: session.user.id,
-      });
+          // Create JV inside same transaction
+          const absAmount = Math.abs(totalAmount);
+          const isCreditNote = totalAmount < 0;
+          await createJournalEntry({
+            firmId,
+            postingDate: new Date(issueDate),
+            description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${vendorName}`,
+            sourceType: 'invoice_posting',
+            sourceId: inv.id,
+            lines: isCreditNote
+              ? [
+                  { glAccountId: resolvedContraGlId!, debitAmount: absAmount, creditAmount: 0, description: 'Trade Payables (reversal)' },
+                  { glAccountId: glAccountId!, debitAmount: 0, creditAmount: absAmount, description: vendorName },
+                ]
+              : [
+                  { glAccountId: glAccountId!, debitAmount: absAmount, creditAmount: 0, description: vendorName },
+                  { glAccountId: resolvedContraGlId!, debitAmount: 0, creditAmount: absAmount, description: 'Trade Payables' },
+                ],
+            createdBy: session.user.id,
+            tx,
+          });
 
-      // Save GL to supplier for future auto-fill
-      if (supplierId) {
-        const updates: Record<string, string> = {};
-        const supplier = await prisma.supplier.findUnique({ where: { id: supplierId }, select: { default_gl_account_id: true, default_contra_gl_account_id: true } });
-        if (!supplier?.default_gl_account_id) updates.default_gl_account_id = glAccountId!;
-        // Always save contra GL when explicitly provided — improves future auto-fill
-        if (contraGlAccountId) updates.default_contra_gl_account_id = contraGlAccountId;
-        if (Object.keys(updates).length > 0) {
-          await prisma.supplier.update({ where: { id: supplierId }, data: updates });
-        }
-      }
-    }
+          // Save GL to supplier for future auto-fill
+          if (supplierId) {
+            const updates: Record<string, string> = {};
+            if (!inv.supplier?.default_gl_account_id) updates.default_gl_account_id = glAccountId!;
+            if (contraGlAccountId) updates.default_contra_gl_account_id = contraGlAccountId;
+            if (Object.keys(updates).length > 0) {
+              await tx.supplier.update({ where: { id: supplierId }, data: updates });
+            }
+          }
+
+          return inv;
+        })
+      : await prisma.invoice.create({
+          data: {
+            firm_id: firmId,
+            uploaded_by: uploaderEmployee.id,
+            supplier_id: supplierId,
+            supplier_link_status: linkStatus,
+            vendor_name_raw: vendorName,
+            invoice_number: invoiceNumber || null,
+            issue_date: new Date(issueDate),
+            due_date: computedDueDate ? new Date(computedDueDate) : null,
+            payment_terms: paymentTerms || null,
+            notes: notes || null,
+            total_amount: totalAmount,
+            category_id: resolvedCategoryId!,
+            gl_account_id: glAccountId || null,
+            contra_gl_account_id: resolvedContraGlId || null,
+            confidence: 'HIGH',
+            status: 'reviewed',
+            approval: 'pending_approval',
+            payment_status: 'unpaid',
+            amount_paid: 0,
+            file_url: fileUrl,
+            file_download_url: fileDownloadUrl,
+            thumbnail_url: thumbnailUrl,
+            file_hash: fileHash,
+            submitted_via: 'dashboard',
+          },
+          include: {
+            category: { select: { name: true } },
+            supplier: { select: { id: true, name: true } },
+          },
+        });
 
     const data = {
       id: invoice.id,

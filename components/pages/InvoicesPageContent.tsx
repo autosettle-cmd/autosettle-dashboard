@@ -685,6 +685,29 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
             if (supplierMatch) updates.supplier_id = supplierMatch.id;
           }
           setNewInv(updates);
+
+          // Auto-fill GL from matched supplier defaults (parity with drag-drop handler)
+          if (config.showGlFields) {
+            const vendorName = json.fields.vendor || json.fields.merchant;
+            const targetFirm = newInv.firm_id || (config.firms?.length === 1 ? config.firms[0].id : '');
+            if (vendorName && targetFirm) {
+              const vLower = vendorName.toLowerCase().trim();
+              const firmSuppliers = suppliers.filter((s) => s.firm_id === targetFirm);
+              const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
+              if (supplierMatch?.default_gl_account_id) {
+                setNewInvExpenseGlId(supplierMatch.default_gl_account_id);
+                if (supplierMatch?.default_contra_gl_account_id) setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
+              } else {
+                fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(vLower)}&firmId=${targetFirm}`)
+                  .then(r => r.json())
+                  .then(j => {
+                    if (j.data?.default_gl_account_id) setNewInvExpenseGlId(prev => prev || j.data.default_gl_account_id);
+                    if (j.data?.default_contra_gl_account_id) setNewInvContraGlId(prev => prev || j.data.default_contra_gl_account_id);
+                  })
+                  .catch(() => {});
+              }
+            }
+          }
         }
       } catch (err) {
         console.error('OCR extraction failed:', err);
@@ -908,19 +931,10 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     }
   }, [previewInvoice, config.showGlFields]);
 
-  // Fetch categories for edit
+  // Fetch categories on mount (needed for OCR matching in drag-drop and batch upload)
   useEffect(() => {
-    if (config.role === 'admin') {
-      // Admin fetches categories on mount for drag-drop OCR matching
-      fetch(config.apiCategories).then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
-    }
-  }, [config.apiCategories, config.role]);
-
-  useEffect(() => {
-    if (config.role === 'accountant' && editMode && categories.length === 0) {
-      fetch(config.apiCategories).then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
-    }
-  }, [editMode, categories.length, config.apiCategories, config.role]);
+    fetch(config.apiCategories).then((r) => r.json()).then((j) => setCategories(j.data ?? [])).catch(console.error);
+  }, [config.apiCategories]);
 
   // Fetch suppliers
   useEffect(() => {
@@ -1195,7 +1209,17 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
             <div className="flex items-center gap-3 px-4 py-2 bg-[var(--primary)]/5 flex-shrink-0">
               <span className="text-body-sm font-medium text-[var(--text-primary)]">{selectedRows.length} selected</span>
               <button
-                onClick={() => batchAction(selectedRows.map((r) => r.id), 'approve')}
+                onClick={() => {
+                  const missingGl = selectedRows.filter(r => !r.gl_account_id && !r.supplier_default_gl_id);
+                  const missingContra = selectedRows.filter(r => !r.contra_gl_account_id && !r.supplier_default_contra_gl_id);
+                  const warnings: string[] = [];
+                  if (missingGl.length > 0) warnings.push(`${missingGl.length} invoice(s) have no Expense GL — will use firm default if available.`);
+                  if (missingContra.length > 0) warnings.push(`${missingContra.length} invoice(s) have no Contra GL — will use firm default Trade Payables.`);
+                  if (warnings.length > 0) {
+                    if (!confirm(`Batch Approve — GL Defaults\n\n${warnings.join('\n')}\n\nProceed with batch approval?`)) return;
+                  }
+                  batchAction(selectedRows.map((r) => r.id), 'approve');
+                }}
                 className="btn-thick-green text-sm px-4 py-1.5"
               >
                 Approve
@@ -1383,38 +1407,45 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                     <div className="grid grid-cols-4 gap-2" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
-                        <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className="input-recessed w-full text-xs" />
+                        <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className={`input-recessed w-full text-xs${item.vendor_name ? ' auto-suggested' : ''}`} />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice #</label>
-                        <input value={item.invoice_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, invoice_number: v } : it)); }} className="input-recessed w-full text-xs" />
+                        <input value={item.invoice_number} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, invoice_number: v } : it)); }} className={`input-recessed w-full text-xs${item.invoice_number ? ' auto-suggested' : ''}`} />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Date</label>
-                        <input type="date" value={item.issue_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, issue_date: v } : it)); }} className="input-recessed w-full text-xs" />
+                        <input type="date" value={item.issue_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, issue_date: v } : it)); }} className={`input-recessed w-full text-xs${item.issue_date ? ' auto-suggested' : ''}`} />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Amount (RM)</label>
-                        <input value={item.total_amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, total_amount: v } : it)); }} className="input-recessed w-full text-xs tabular-nums" />
+                        <input value={item.total_amount} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, total_amount: v } : it)); }} className={`input-recessed w-full text-xs tabular-nums${item.total_amount ? ' auto-suggested' : ''}`} />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
-                        <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className="input-recessed w-full text-xs">
+                        <select value={item.category_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, category_id: v } : it)); }} className={`input-recessed w-full text-xs${item.category_id ? ' auto-suggested' : ''}`}>
                           <option value="">Select...</option>
                           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       </div>
                       <div>
+                        <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</label>
+                        <select value={item.supplier_id} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, supplier_id: v } : it)); }} className={`input-recessed w-full text-xs${item.supplier_id ? ' auto-suggested' : ''}`}>
+                          <option value="">Auto-match</option>
+                          {(config.role === 'accountant' ? suppliers.filter(s => s.firm_id === (config.firmId || newInv.firm_id || getTargetFirmId())) : suppliers).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      </div>
+                      <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
-                        <input type="date" value={item.due_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, due_date: v } : it)); }} className="input-recessed w-full text-xs" />
+                        <input type="date" value={item.due_date} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, due_date: v } : it)); }} className={`input-recessed w-full text-xs${item.due_date ? ' auto-suggested' : ''}`} />
                       </div>
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Terms</label>
-                        <input value={item.payment_terms} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, payment_terms: v } : it)); }} className="input-recessed w-full text-xs" />
+                        <input value={item.payment_terms} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, payment_terms: v } : it)); }} className={`input-recessed w-full text-xs${item.payment_terms ? ' auto-suggested' : ''}`} />
                       </div>
                       <div className="col-span-4">
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes</label>
-                        <input value={item.notes} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, notes: v } : it)); }} className="input-recessed w-full text-xs" placeholder="Phone number, account details, etc." />
+                        <input value={item.notes} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, notes: v } : it)); }} className={`input-recessed w-full text-xs${item.notes ? ' auto-suggested' : ''}`} placeholder="Phone number, account details, etc." />
                       </div>
                     </div>
                   )}

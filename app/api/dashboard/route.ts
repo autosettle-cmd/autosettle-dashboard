@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
         take: 50,
       }),
       prisma.invoice.findMany({
-        where: { ...scope, status: 'pending_review' },
+        where: { ...scope, approval: 'pending_approval' },
         select: {
           id: true, vendor_name_raw: true, invoice_number: true, issue_date: true,
           due_date: true, total_amount: true, amount_paid: true, status: true, approval: true,

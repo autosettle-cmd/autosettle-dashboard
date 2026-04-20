@@ -152,6 +152,8 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   const [txnDescDraft, setTxnDescDraft] = useState('');
   const [previewTxn, setPreviewTxn] = useState<BankTxn | null>(null);
   const [expandedDocUrl, setExpandedDocUrl] = useState<string | null>(null);
+  const [unmatchConfirmTxn, setUnmatchConfirmTxn] = useState<BankTxn | null>(null);
+  const [unmatching, setUnmatching] = useState(false);
   const [previewInvoice, setPreviewInvoice] = useState<PaymentAllocation | null>(null);
   const [previewReceipt, setPreviewReceipt] = useState<PaymentReceipt | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -339,11 +341,32 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     loadStatement();
   };
 
-  const doMatchItem = async (item?: { type: string; id: string }) => {
+  const doMatchItem = async (item?: { type: string; id: string }, invoiceIds?: string[]) => {
     if (!matchingTxn) return;
     setMatchSubmitting(true);
     setMatchError('');
     try {
+      // Multi-invoice: call API once per invoice (API supports incremental allocation)
+      if (invoiceIds && invoiceIds.length > 0) {
+        for (const invId of invoiceIds) {
+          const res = await fetch(config.apiMatchItem, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bankTransactionId: matchingTxn.id, invoiceId: invId }),
+          });
+          const json = await res.json();
+          if (!res.ok) {
+            setMatchError(json.error || `Match failed for invoice ${invId}`);
+            setMatchSubmitting(false);
+            return;
+          }
+        }
+        closeMatchModal();
+        loadStatement();
+        setMatchSubmitting(false);
+        return;
+      }
+
       const body: Record<string, unknown> = { bankTransactionId: matchingTxn.id };
 
       if (selectedClaimIds.size > 0) {
@@ -626,12 +649,19 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     } finally { setCreatingVoucher(false); }
   };
 
+  const requestUnmatch = (txn: BankTxn) => {
+    setUnmatchConfirmTxn(txn);
+  };
+
   const doUnmatch = async (txnId: string) => {
+    setUnmatching(true);
     await fetch(config.apiUnmatch, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bankTransactionId: txnId }),
     });
+    setUnmatchConfirmTxn(null);
+    setUnmatching(false);
     loadStatement();
   };
 
@@ -737,13 +767,9 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                 ))}
 
                 {suggestedCount > 0 && (
-                  <button
-                    onClick={doConfirmAll}
-                    disabled={confirming}
-                    className="ml-auto btn-thick-green px-4 py-1.5 text-body-sm font-medium disabled:opacity-50"
-                  >
-                    {confirming ? 'Confirming...' : `Confirm All (${suggestedCount})`}
-                  </button>
+                  <span className="ml-auto text-label-sm text-amber-600 font-medium">
+                    {suggestedCount} suggested — click Review to confirm
+                  </span>
                 )}
               </div>
 
@@ -784,16 +810,36 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                   </thead>
                   <tbody>
                     {filteredTxns.map((txn, idx) => {
-                      const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
                       const isExpanded = previewTxn?.id === txn.id;
                       const mp = txn.matched_payment;
+                      const mi = txn.matched_invoice;
+                      const msi = txn.matched_sales_invoice;
+                      const mia = txn.matched_invoice_allocations;
                       const hasClaims = txn.matched_claims && txn.matched_claims.length > 0;
+                      const hasInvoice = !!(mi || (mia && mia.length > 0));
+                      const hasSalesInvoice = !!msi;
+
+                      // Detect partial match
+                      const txnBankAmt = Number(txn.debit ?? txn.credit ?? 0);
+                      const txnMatchedAmt = (() => {
+                        let total = 0;
+                        if (mia?.length) { for (const a of mia) total += Number(a.allocation_amount); }
+                        else if (mi) { total += Number(mi.allocation_amount ?? mi.total_amount); }
+                        if (msi) total += Number(msi.total_amount);
+                        if (txn.matched_claims?.length) { for (const c of txn.matched_claims) total += Number(c.amount); }
+                        if (mp) total += Number(mp.amount);
+                        return total;
+                      })();
+                      const isTxnPartial = txn.recon_status === 'manually_matched' && txnMatchedAmt > 0 && Math.abs(txnMatchedAmt - txnBankAmt) > 0.01;
+                      const cfg = isTxnPartial
+                        ? { label: 'Partial', cls: 'badge-amber' }
+                        : (STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched);
 
                       // Accountant: debit/credit row coloring, click to open modal for matched or match modal for unmatched
                       // Admin: green for matched rows, alternating for others, click to expand inline
                       const hasExpandable = config.showRichPreview
                         ? true // accountant always clickable
-                        : !!(mp || hasClaims); // admin only if has matches
+                        : !!(mp || hasClaims || hasInvoice || hasSalesInvoice); // admin only if has matches
 
                       const rowBg = config.showRichPreview
                         ? (isExpanded ? 'bg-blue-50/60' : txn.debit ? 'bg-red-50/40' : 'bg-green-50/30')
@@ -843,7 +889,15 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                           <td data-col="Credit" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)]">{txn.credit ? formatRM(txn.credit) : '-'}</td>
                           <td data-col="Balance" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
                           <td data-col="Matched To" className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">
-                            {mp ? (
+                            {hasInvoice ? (
+                              mia && mia.length > 0 ? (
+                                <span>{mia.length} invoice{mia.length > 1 ? 's' : ''} — {mia[0].vendor_name}</span>
+                              ) : mi ? (
+                                <span>{mi.vendor_name} {mi.invoice_number ? `(${mi.invoice_number})` : ''}</span>
+                              ) : null
+                            ) : hasSalesInvoice ? (
+                              <span>{msi!.buyer_name} {msi!.invoice_number ? `(${msi!.invoice_number})` : ''}</span>
+                            ) : mp ? (
                               <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
                             ) : hasClaims ? (
                               <span>{txn.matched_claims.length} claim{txn.matched_claims.length > 1 ? 's' : ''} — {txn.matched_claims[0].employee_name}</span>
@@ -859,13 +913,13 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                             )}
                             {txn.recon_status === 'matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doConfirm([txn.id]); }} disabled={confirming} className="btn-thick-green text-label-sm w-[70px] py-1.5 text-white text-center disabled:opacity-50">Confirm</button>
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} className="text-label-sm w-[70px] py-1.5 text-center font-bold uppercase tracking-wide" style={{ background: 'linear-gradient(180deg, #F5C842 0%, #E8B830 100%)', color: '#1A1A1A', border: 'none', borderTop: '1px solid rgba(255,255,255,0.35)', boxShadow: '0 4px 0 0 #A8820A, 2px 0 0 0 #C49A15, 2px 4px 0 0 #A8820A, -1px 0 0 0 #D4A820, inset 1px 1px 0 0 rgba(255,255,255,0.2), inset -1px -1px 0 0 rgba(0,0,0,0.15)', textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}>Review</button>
+                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
                               </div>
                             )}
                             {txn.recon_status === 'manually_matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); doUnmatch(txn.id); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
                               </div>
                             )}
                           </td>
@@ -965,7 +1019,20 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                 const receipt = mp.receipts[0];
                                 const hasExplicitGl = !!(receipt?.gl_label && receipt?.contra_gl_label);
                                 const bankGl = statement.bank_gl_label;
-                                const amount = txn.credit ?? txn.debit;
+                                // Use matched item amounts (not bank txn amount) — partial matches
+                                const matchedAmt = (() => {
+                                  let total = 0;
+                                  if (txn.matched_invoice_allocations?.length) {
+                                    for (const a of txn.matched_invoice_allocations) total += Number(a.allocation_amount);
+                                  } else if (txn.matched_invoice) {
+                                    total += Number(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount);
+                                  }
+                                  if (txn.matched_claims?.length) {
+                                    for (const c of txn.matched_claims) total += Number(c.amount);
+                                  }
+                                  if (txn.matched_sales_invoice) total += Number(txn.matched_sales_invoice.total_amount);
+                                  return total > 0 ? total.toFixed(2) : (txn.credit ?? txn.debit ?? '0');
+                                })();
 
                                 const debitLabel = hasExplicitGl ? receipt.gl_label! : (txn.credit ? (bankGl ?? `${statement.bank_name} (no GL mapped)`) : (receipt?.gl_label ?? 'Trade Payables (default)'));
                                 const creditLabel = hasExplicitGl ? receipt.contra_gl_label! : (txn.credit ? (receipt?.gl_label ?? 'Staff Claims Payable (default)') : (bankGl ?? `${statement.bank_name} (no GL mapped)`));
@@ -984,8 +1051,8 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td><td className="py-1 text-right">-</td></tr>
-                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(amount)}</td></tr>
+                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{debitLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(matchedAmt)}</td><td className="py-1 text-right">-</td></tr>
+                                        <tr><td className="py-1 text-[var(--text-primary)] font-medium">{creditLabel}</td><td className="py-1 text-right">-</td><td className="py-1 text-right tabular-nums">{formatRM(matchedAmt)}</td></tr>
                                       </tbody>
                                     </table>
                                     {glMismatch && (
@@ -1052,7 +1119,10 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
               confirming={confirming}
               onClose={() => setPreviewTxn(null)}
               onConfirm={doConfirm}
-              onUnmatch={doUnmatch}
+              onUnmatch={(txnId) => {
+                const txn = statement?.transactions.find(t => t.id === txnId);
+                if (txn) { setPreviewTxn(null); requestUnmatch(txn); }
+              }}
               onOpenMatchModal={openMatchModal}
               onSetExpandedDocUrl={setExpandedDocUrl}
               onSetPreviewInvoice={setPreviewInvoice}
@@ -1266,6 +1336,108 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           </div>
         </>
       )}
+
+      {/* ═══ UNMATCH CONFIRMATION MODAL ═══ */}
+      {unmatchConfirmTxn && (() => {
+        const ut = unmatchConfirmTxn;
+        const mi = ut.matched_invoice;
+        const msi = ut.matched_sales_invoice;
+        const mia = ut.matched_invoice_allocations;
+        const mc = ut.matched_claims;
+        const mp = ut.matched_payment;
+        const hasInv = !!(mi || (mia && mia.length > 0));
+        const hasSales = !!msi;
+        const hasClaims = mc && mc.length > 0;
+        const hasPayment = !!mp;
+        const isConfirmed = ut.recon_status === 'manually_matched';
+
+        return (
+          <>
+            <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[60]" onClick={() => setUnmatchConfirmTxn(null)} />
+            <div className="fixed inset-0 z-[65] flex items-center justify-center p-4" onClick={() => setUnmatchConfirmTxn(null)}>
+              <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+                <div className="px-6 py-4 bg-[var(--reject-red)]">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Unmatch</h3>
+                  <p className="text-xs text-white/80 mt-1">This will reverse all effects of this match:</p>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  {/* Transaction summary */}
+                  <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                    <p className="text-xs text-[var(--text-secondary)]">{ut.description.split(' | ')[0]}</p>
+                    <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">
+                      {ut.debit ? `Debit ${formatRM(ut.debit)}` : `Credit ${formatRM(ut.credit)}`}
+                    </p>
+                    <p className="text-xs text-[var(--text-secondary)]">{formatDate(ut.transaction_date)}</p>
+                  </div>
+
+                  {/* What will happen */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">The following will be reversed:</p>
+                    <ul className="space-y-1.5 text-sm text-[var(--text-primary)]">
+                      {isConfirmed && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                          <span>Journal Entry will be <strong>reversed</strong> (DR/CR flipped)</span>
+                        </li>
+                      )}
+                      {hasInv && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                          <span>
+                            {mia && mia.length > 1
+                              ? `${mia.length} invoice allocations removed`
+                              : `Invoice ${mi?.invoice_number ?? ''} — ${mi?.vendor_name ?? ''}`
+                            } — payment status reset
+                          </span>
+                        </li>
+                      )}
+                      {hasSales && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                          <span>Sales invoice {msi!.invoice_number ?? ''} — {msi!.buyer_name} — payment status reset</span>
+                        </li>
+                      )}
+                      {hasClaims && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                          <span>{mc!.length} claim{mc!.length > 1 ? 's' : ''} — payment status reset to unpaid</span>
+                        </li>
+                      )}
+                      {hasPayment && (
+                        <li className="flex items-start gap-2">
+                          <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                          <span>Payment record {mp!.reference ?? ''} — {mp!.supplier_name} unlinked</span>
+                        </li>
+                      )}
+                      <li className="flex items-start gap-2">
+                        <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                        <span>Transaction status reset to <strong>Unmatched</strong></span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+                  <button
+                    onClick={() => doUnmatch(ut.id)}
+                    disabled={unmatching}
+                    className="btn-thick-red flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
+                  >
+                    {unmatching ? 'Unmatching...' : 'Confirm Unmatch'}
+                  </button>
+                  <button
+                    onClick={() => setUnmatchConfirmTxn(null)}
+                    className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

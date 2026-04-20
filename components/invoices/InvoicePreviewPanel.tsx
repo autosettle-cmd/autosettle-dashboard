@@ -205,6 +205,7 @@ export default function InvoicePreviewPanel({
   refresh,
 }: InvoicePreviewPanelProps) {
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
+  const [showRevertConfirm, setShowRevertConfirm] = useState(false);
 
   const amount = Math.abs(Number(previewInvoice.total_amount));
   const isCreditNote = Number(previewInvoice.total_amount) < 0;
@@ -812,7 +813,7 @@ export default function InvoicePreviewPanel({
                       </div>
                     ) : (
                       <button
-                        onClick={() => batchAction([previewInvoice.id], 'revert')}
+                        onClick={() => setShowRevertConfirm(true)}
                         className="btn-thick-white flex-1 py-1.5 text-xs font-semibold"
                       >
                         Revert Approval
@@ -936,28 +937,73 @@ export default function InvoicePreviewPanel({
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-[var(--surface-low)]">
-                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
-                      {debitLabel ? `${debitLabel.account_code} — ${debitLabel.name}` : 'Expense GL'}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
-                      {isCreditNote ? '—' : formatRM(amount)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
-                      {isCreditNote ? formatRM(amount) : '—'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
-                      {contraLabel ? `${contraLabel.account_code} — ${contraLabel.name}` : 'Trade Payables GL'}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
-                      {isCreditNote ? formatRM(amount) : '—'}
-                    </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
-                      {isCreditNote ? '—' : formatRM(amount)}
-                    </td>
-                  </tr>
+                  {previewInvoice.lines.length > 0 ? (
+                    /* Multi-line: show grouped debit lines + contra */
+                    <>
+                      {(() => {
+                        const fallbackGlId = selectedGlAccountId || previewInvoice.gl_account_id;
+                        const glTotals = new Map<string, number>();
+                        for (const line of previewInvoice.lines) {
+                          const lineGlId = line.gl_account_id || fallbackGlId || '';
+                          glTotals.set(lineGlId, (glTotals.get(lineGlId) || 0) + Math.abs(Number(line.line_total)));
+                        }
+                        const entries = Array.from(glTotals.entries());
+                        return entries.map(([glId, amt], i) => {
+                          const gl = glId ? glAccounts.find(a => a.id === glId) : null;
+                          return (
+                            <tr key={`line-${i}`} className="border-b border-[var(--surface-low)]">
+                              <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                                {gl ? `${gl.account_code} — ${gl.name}` : 'Expense GL'}
+                              </td>
+                              <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                                {isCreditNote ? '—' : formatRM(amt)}
+                              </td>
+                              <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
+                                {isCreditNote ? formatRM(amt) : '—'}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                      <tr>
+                        <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                          {contraLabel ? `${contraLabel.account_code} — ${contraLabel.name}` : 'Trade Payables GL'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
+                          {isCreditNote ? formatRM(amount) : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                          {isCreditNote ? '—' : formatRM(amount)}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    /* Single GL: simple 2-line preview */
+                    <>
+                      <tr className="border-b border-[var(--surface-low)]">
+                        <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                          {debitLabel ? `${debitLabel.account_code} — ${debitLabel.name}` : 'Expense GL'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                          {isCreditNote ? '—' : formatRM(amount)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
+                          {isCreditNote ? formatRM(amount) : '—'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                          {contraLabel ? `${contraLabel.account_code} — ${contraLabel.name}` : 'Trade Payables GL'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">
+                          {isCreditNote ? formatRM(amount) : '—'}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">
+                          {isCreditNote ? '—' : formatRM(amount)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
                 </tbody>
               </table>
 
@@ -980,6 +1026,69 @@ export default function InvoicePreviewPanel({
               </button>
               <button
                 onClick={() => setShowApproveConfirm(false)}
+                className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ REVERT APPROVAL CONFIRMATION MODAL ═══ */}
+      {showRevertConfirm && (
+        <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowRevertConfirm(false)}>
+          <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--reject-red)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Revert Approval</h3>
+              <p className="text-xs text-white/80 mt-1">This will reverse the Journal Entry posted on approval:</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                <p className="text-xs text-[var(--text-secondary)]">{previewInvoice.vendor_name_raw} — {previewInvoice.invoice_number || 'No #'}</p>
+                <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{formatRM(previewInvoice.total_amount)}</p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">The following will be reversed:</p>
+                <ul className="space-y-1.5 text-sm text-[var(--text-primary)]">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                    <span>Journal Entry will be <strong>reversed</strong> (DR/CR flipped, both stay posted)</span>
+                  </li>
+                  {previewInvoice.gl_account_label && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                      <span>Expense GL: {previewInvoice.gl_account_label}</span>
+                    </li>
+                  )}
+                  {(previewInvoice.contra_gl_account_label || contraLabel) && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                      <span>Contra GL: {previewInvoice.contra_gl_account_label || (contraLabel ? `${contraLabel.account_code} — ${contraLabel.name}` : 'Trade Payables')}</span>
+                    </li>
+                  )}
+                  <li className="flex items-start gap-2">
+                    <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
+                    <span>Approval status reset to <strong>Pending Approval</strong></span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button
+                onClick={() => {
+                  setShowRevertConfirm(false);
+                  batchAction([previewInvoice.id], 'revert');
+                }}
+                className="btn-thick-red flex-1 py-2.5 text-sm font-semibold"
+              >
+                Confirm Revert
+              </button>
+              <button
+                onClick={() => setShowRevertConfirm(false)}
                 className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
               >
                 Cancel

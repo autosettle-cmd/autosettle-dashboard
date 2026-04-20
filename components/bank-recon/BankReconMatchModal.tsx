@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import Field from '@/components/forms/Field';
 import type { BankReconDetailConfig } from '@/components/pages/BankReconDetailContent';
@@ -93,7 +93,7 @@ export interface BankReconMatchModalProps {
   // Match actions
   matchSubmitting: boolean;
   matchError: string;
-  onMatchItem: (item?: { type: string; id: string }) => void;
+  onMatchItem: (item?: { type: string; id: string }, invoiceIds?: string[]) => void;
   onMatchLegacy: (paymentId: string) => void;
   onClose: () => void;
 
@@ -183,6 +183,71 @@ export default function BankReconMatchModal({
   onFetchNextVoucherNumber,
   onFetchNextReceiptNumber,
 }: BankReconMatchModalProps) {
+  const [showJvConfirm, setShowJvConfirm] = useState(false);
+  const [showVoucherConfirm, setShowVoucherConfirm] = useState(false);
+  const [showReceiptConfirm, setShowReceiptConfirm] = useState(false);
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
+  const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
+  const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
+
+  // Resolve JV preview labels for confirmation modal
+  const isOutgoing = !!matchingTxn.debit;
+  const txnAmount = isOutgoing ? matchingTxn.debit! : matchingTxn.credit!;
+  const bankGlLabel = statement?.bank_gl_label || 'Bank GL';
+
+  // JV amount = matched item amount (not bank transaction amount — could be partial match)
+  // Outstanding items use camelCase: { remaining, totalAmount, amount }
+  const getJvAmount = () => {
+    if (selectedInvoiceIds.size > 0) {
+      const total = outstandingItems
+        .filter((i) => selectedInvoiceIds.has(i.id))
+        .reduce((sum, i) => sum + Math.abs(Number(i.remaining ?? i.totalAmount ?? 0)), 0);
+      return total.toFixed(2);
+    }
+    if (selectedClaimIds.size > 0) {
+      const total = outstandingItems
+        .filter((i) => selectedClaimIds.has(i.id))
+        .reduce((sum, i) => sum + Math.abs(Number(i.remaining ?? i.amount ?? i.totalAmount ?? 0)), 0);
+      return total.toFixed(2);
+    }
+    if (!selectedItem) return txnAmount;
+    const found = outstandingItems.find((i) => i.id === selectedItem.id);
+    if (!found) return txnAmount;
+    const remaining = Number(found.remaining ?? found.amount ?? found.totalAmount ?? 0);
+    return Math.abs(remaining).toFixed(2);
+  };
+
+  const isPartialMatch = () => {
+    const jvAmt = Number(getJvAmount());
+    const bankAmt = Number(txnAmount);
+    return Math.abs(jvAmt - bankAmt) > 0.01;
+  };
+
+  const getMatchedLabel = () => {
+    if (selectedInvoiceIds.size > 0) {
+      const items = outstandingItems.filter((i) => selectedInvoiceIds.has(i.id));
+      if (items.length === 1) {
+        const name = items[0].name || '';
+        const num = items[0].reference || '';
+        return `${name}${num ? ` — ${num}` : ''}`;
+      }
+      const suppliers = new Set(items.map((i) => i.name));
+      return `${items.length} Invoices${suppliers.size === 1 ? ` — ${items[0].name}` : ''}`;
+    }
+    if (selectedClaimIds.size > 1) return `${selectedClaimIds.size} Expense Claims`;
+    if (!selectedItem) return '';
+    const found = outstandingItems.find((i) => i.id === selectedItem.id);
+    if (!found) return selectedItem.type === 'invoice' ? 'Invoice' : selectedItem.type === 'sales_invoice' ? 'Sales Invoice' : 'Claim';
+    const name = found.supplier_name || found.buyer_name || found.employee_name || found.merchant || found.name || '';
+    const num = found.invoice_number || found.receipt_number || found.reference || '';
+    return `${name}${num ? ` — ${num}` : ''}`;
+  };
+
+  const getContraLabel = () => {
+    if (isOutgoing) return 'Trade Payables / Expense GL';
+    return 'Trade Receivables / Income GL';
+  };
+
   return (
     <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-6" onClick={onClose}>
       <div className={`bg-white shadow-2xl w-full ${config.showDescriptionEdit ? 'max-w-[1200px]' : 'max-w-[720px]'} max-h-[90vh] flex flex-col animate-in`} onClick={(e) => e.stopPropagation()}>
@@ -340,78 +405,177 @@ export default function BankReconMatchModal({
               const showInvoices = !matchingTxn.debit || matchTab === 'invoices';
               const showClaims = matchingTxn.debit && matchTab === 'claims';
 
+              // Group invoices by supplier for multi-select
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const supplierGroups = new Map<string, { supplierName: string; invoices: any[]; total: number }>();
+              for (const inv of invoiceItems) {
+                const key = inv.name || 'Unknown';
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const group = supplierGroups.get(key) ?? { supplierName: inv.name, invoices: [] as any[], total: 0 };
+                group.invoices.push(inv);
+                group.total += inv.remaining;
+                supplierGroups.set(key, group);
+              }
+
+              const toggleInvoice = (invId: string) => {
+                onSetSelectedItem(null);
+                onSetSelectedClaimIds(() => new Set());
+                setSelectedInvoiceIds(prev => {
+                  const next = new Set(prev);
+                  if (next.has(invId)) next.delete(invId); else next.add(invId);
+                  return next;
+                });
+              };
+
+              const toggleSupplierAll = (ids: Set<string>, allSelected: boolean) => {
+                onSetSelectedItem(null);
+                onSetSelectedClaimIds(() => new Set());
+                setSelectedInvoiceIds(prev => {
+                  const next = new Set(prev);
+                  if (allSelected) { ids.forEach(id => next.delete(id)); }
+                  else { ids.forEach(id => next.add(id)); }
+                  return next;
+                });
+              };
+
               return (
                 <>
-                  {/* Invoice / Sales Invoice items */}
+                  {/* Invoice / Sales Invoice items — grouped by supplier with checkboxes */}
                   {showInvoices && config.showDescriptionEdit && invoiceItems.length > 0 && (
                     <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
                       {matchingTxn.debit ? 'Outstanding Invoices' : 'Outstanding Sales Invoices'} ({invoiceItems.length})
+                      {selectedInvoiceIds.size > 0 && (
+                        <span className="ml-2 text-[var(--primary)]">
+                          — {selectedInvoiceIds.size} selected · {formatRM(outstandingItems.filter(i => selectedInvoiceIds.has(i.id)).reduce((s, i) => s + i.remaining, 0).toFixed(2))}
+                        </span>
+                      )}
                     </p>
                   )}
-                  {showInvoices && invoiceItems.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string; fileUrl?: string | null }) => {
-                    const isSelected = selectedItem?.id === item.id;
+                  {showInvoices && Array.from(supplierGroups.entries()).map(([supplierKey, group]) => {
+                    const allIds = new Set(group.invoices.map((inv: { id: string }) => inv.id));
+                    const allSelected = group.invoices.every((inv: { id: string }) => selectedInvoiceIds.has(inv.id));
+                    const someSelected = group.invoices.some((inv: { id: string }) => selectedInvoiceIds.has(inv.id));
+                    const isOpen = expandedSupplier === supplierKey || group.invoices.length === 1;
+                    const isSingleInvoice = group.invoices.length === 1;
 
-                    // Accountant: expandable doc preview
+                    // Accountant: collapsible keycap cards grouped by supplier
                     if (config.showDescriptionEdit) {
-                      const docUrl = item.fileUrl;
-                      const driveMatch = docUrl?.match(/\/d\/([^/]+)/);
-                      const fileId = driveMatch?.[1];
-                      const isItemExpanded = expandedDocUrl === `match-${item.id}`;
                       return (
-                        <div key={`${item.type}-${item.id}`} className="mb-1.5">
+                        <div key={supplierKey} className="mb-1.5">
+                          {/* Supplier card — btn-thick-white keycap, click to expand */}
                           <button
-                            onClick={() => {
-                              onSetSelectedItem(isSelected ? null : { type: item.type, id: item.id });
-                              onSetSelectedClaimIds(() => new Set());
-                              onSetExpandedDocUrl(isItemExpanded ? null : `match-${item.id}`);
+                            onClick={(e) => {
+                              if (isSingleInvoice) {
+                                // Single invoice: toggle selection directly
+                                toggleInvoice(group.invoices[0].id);
+                              } else {
+                                // Multi-invoice: toggle expand/collapse
+                                setExpandedSupplier(isOpen ? null : supplierKey);
+                              }
+                              e.stopPropagation();
                             }}
-                            className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${
-                              isSelected ? '!bg-blue-50' : ''
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className={`btn-thick-white w-full flex items-center justify-between px-3 py-2.5 text-left ${
+                              allSelected ? '!bg-blue-50' : someSelected ? '!bg-blue-50/50' : ''
                             }`}
                           >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
-                                  item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
-                                }`}>
-                                  {item.type === 'invoice' ? 'INV' : 'SALES'}
-                                </span>
-                                <p className="text-sm font-medium text-[var(--text-primary)] truncate normal-case tracking-normal">{item.name}</p>
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <input
+                                type="checkbox"
+                                checked={isSingleInvoice ? selectedInvoiceIds.has(group.invoices[0].id) : allSelected}
+                                ref={(el) => { if (el) el.indeterminate = !isSingleInvoice && someSelected && !allSelected; }}
+                                onChange={() => {}}
+                                className="ds-table-checkbox"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (isSingleInvoice) { toggleInvoice(group.invoices[0].id); }
+                                  else { toggleSupplierAll(allIds, allSelected); }
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${isSingleInvoice ? 'badge-amber' : 'badge-blue'}`}>
+                                    {isSingleInvoice ? 'INV' : 'ACCOUNT'}
+                                  </span>
+                                  <p className="text-sm font-medium text-[var(--text-primary)] truncate normal-case tracking-normal">{group.supplierName}</p>
+                                  {!isSingleInvoice && <span className="text-label-sm text-[var(--text-secondary)] normal-case tracking-normal">({group.invoices.length})</span>}
+                                </div>
+                                {isSingleInvoice && (
+                                  <p className="text-xs text-[var(--text-secondary)] mt-0.5 normal-case tracking-normal">
+                                    {group.invoices[0].reference ?? ''} {group.invoices[0].reference ? '·' : ''} {formatDate(group.invoices[0].date)}
+                                  </p>
+                                )}
                               </div>
-                              <p className="text-xs text-[var(--text-secondary)] mt-0.5 normal-case tracking-normal">
-                                {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
-                              </p>
                             </div>
-                            <div className="text-right flex-shrink-0 ml-3">
-                              <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
-                              {item.remaining !== item.totalAmount && (
-                                <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(String(item.totalAmount))}</p>
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                              <div className="text-right">
+                                <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(isSingleInvoice ? String(group.invoices[0].remaining) : group.total.toFixed(2))}</p>
+                                {isSingleInvoice && group.invoices[0].remaining !== group.invoices[0].totalAmount && (
+                                  <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(String(group.invoices[0].totalAmount))}</p>
+                                )}
+                              </div>
+                              {!isSingleInvoice && (
+                                <svg className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
                               )}
                             </div>
                           </button>
-                          {isItemExpanded && fileId && (
-                            <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[300px] border border-t-0 border-[#E0E3E5]" title="Document Preview" allow="autoplay" />
-                          )}
-                          {isItemExpanded && !fileId && (
-                            <div className="border border-t-0 border-[#E0E3E5] p-3 bg-[var(--surface-low)] space-y-1">
-                              <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Type</dt><dd className="text-[var(--text-primary)]">{item.type === 'invoice' ? 'Purchase Invoice' : 'Sales Invoice'}</dd></div>
-                                <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">{item.type === 'invoice' ? 'Invoice No.' : 'Receipt No.'}</dt><dd className="text-[var(--text-primary)]">{item.reference ?? '—'}</dd></div>
-                                <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Date</dt><dd className="text-[var(--text-primary)]">{formatDate(item.date)}</dd></div>
-                                <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Total</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(String(item.totalAmount))}</dd></div>
-                                <div><dt className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">Remaining</dt><dd className="text-[var(--text-primary)] tabular-nums">{formatRM(String(item.remaining))}</dd></div>
-                              </dl>
+
+                          {/* Expanded invoice list (multi-invoice suppliers only) */}
+                          {!isSingleInvoice && isOpen && (
+                            <div className="border-x border-b border-[#E0E3E5] bg-[var(--surface-low)]">
+                              {group.invoices.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string; fileUrl?: string | null }) => {
+                                const isInvSelected = selectedInvoiceIds.has(item.id);
+                                const docUrl = item.fileUrl;
+                                const driveMatch = docUrl?.match(/\/d\/([^/]+)/);
+                                const fileId = driveMatch?.[1];
+                                const isItemExpanded = expandedDocUrl === `match-${item.id}`;
+                                return (
+                                  <div key={`${item.type}-${item.id}`}>
+                                    <div
+                                      onClick={() => {
+                                        toggleInvoice(item.id);
+                                        if (docUrl || fileId) onSetExpandedDocUrl(isItemExpanded ? null : `match-${item.id}`);
+                                      }}
+                                      className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[#E0E3E5] first:border-t-0 ${
+                                        isInvSelected ? 'bg-blue-50' : 'hover:bg-white'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        <input type="checkbox" checked={isInvSelected} onChange={() => {}} className="ds-table-checkbox" onClick={e => { e.stopPropagation(); toggleInvoice(item.id); }} />
+                                        <div className="min-w-0">
+                                          <p className="text-xs text-[var(--text-secondary)]">
+                                            {item.reference ?? ''} {item.reference ? '·' : ''} {formatDate(item.date)}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right flex-shrink-0 ml-3">
+                                        <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(item.remaining))}</p>
+                                        {item.remaining !== item.totalAmount && (
+                                          <p className="text-[10px] text-[var(--text-secondary)] tabular-nums">of {formatRM(String(item.totalAmount))}</p>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {isItemExpanded && fileId && (
+                                      <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[300px] border-t border-[#E0E3E5]" title="Document Preview" allow="autoplay" />
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
                       );
                     }
 
-                    // Admin: simple click-to-select
-                    return (
+                    // Admin: simple click-to-select (single invoice only)
+                    return group.invoices.map((item: { type: string; id: string; reference: string | null; name: string; totalAmount: number; remaining: number; date: string }) => {
+                      const isSelected = selectedItem?.id === item.id;
+                      return (
                       <div
                         key={`${item.type}-${item.id}`}
-                        onClick={() => { onSetSelectedItem(isSelected ? null : { type: item.type, id: item.id }); onSetSelectedClaimIds(() => new Set()); }}
+                        onClick={() => { onSetSelectedItem(isSelected ? null : { type: item.type, id: item.id }); onSetSelectedClaimIds(() => new Set()); setSelectedInvoiceIds(new Set()); }}
                         className={`flex items-center justify-between p-3 border-b cursor-pointer transition-colors ${
                           isSelected ? 'border-[var(--primary)] bg-blue-50' : 'border-[var(--surface-low)] hover:bg-[var(--surface-low)]'
                         }`}
@@ -419,7 +583,7 @@ export default function BankReconMatchModal({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
-                              item.type === 'invoice' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                              item.type === 'invoice' ? 'badge-amber' : 'badge-green'
                             }`}>
                               {item.type === 'invoice' ? 'INV' : 'SALES'}
                             </span>
@@ -437,20 +601,24 @@ export default function BankReconMatchModal({
                         </div>
                       </div>
                     );
+                    });
                   })}
 
                   {showInvoices && invoiceItems.length === 0 && (
                     <p className="text-sm text-[var(--text-secondary)] py-4 text-center">No outstanding invoices.</p>
                   )}
 
-                  {/* Claims grouped by employee */}
+                  {/* Claims grouped by employee — collapsible keycap cards */}
                   {showClaims && Array.from(employeeGroups.entries()).map(([empKey, group]) => {
                     const allIds = new Set(group.claims.map((c: { id: string }) => c.id));
                     const allSelected = group.claims.every((c: { id: string }) => selectedClaimIds.has(c.id));
                     const someSelected = group.claims.some((c: { id: string }) => selectedClaimIds.has(c.id));
+                    const isSingleClaim = group.claims.length === 1;
+                    const isEmpOpen = expandedEmployee === empKey || isSingleClaim;
 
                     const toggleAll = () => {
                       onSetSelectedItem(null);
+                      setSelectedInvoiceIds(new Set());
                       onSetSelectedClaimIds(prev => {
                         const next = new Set(prev);
                         if (allSelected) { allIds.forEach(aid => next.delete(aid)); }
@@ -461,6 +629,7 @@ export default function BankReconMatchModal({
 
                     const toggleOne = (claimId: string) => {
                       onSetSelectedItem(null);
+                      setSelectedInvoiceIds(new Set());
                       onSetSelectedClaimIds(prev => {
                         const next = new Set(prev);
                         if (next.has(claimId)) next.delete(claimId); else next.add(claimId);
@@ -469,65 +638,109 @@ export default function BankReconMatchModal({
                     };
 
                     return (
-                      <div key={empKey} className="border-b border-[var(--surface-low)] overflow-hidden">
-                        <div
-                          onClick={toggleAll}
-                          className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
-                            allSelected ? 'bg-blue-50' : someSelected ? 'bg-blue-50/50' : 'hover:bg-[var(--surface-low)]'
+                      <div key={empKey} className="mb-1.5">
+                        {/* Employee card — btn-thick-white keycap */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isSingleClaim) {
+                              toggleOne(group.claims[0].id);
+                            } else {
+                              setExpandedEmployee(isEmpOpen ? null : empKey);
+                            }
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          className={`btn-thick-white w-full flex items-center justify-between px-3 py-2.5 text-left ${
+                            allSelected ? '!bg-blue-50' : someSelected ? '!bg-blue-50/50' : ''
                           }`}
                         >
-                          <div className="flex items-center gap-2">
-                            <input type="checkbox" checked={allSelected} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
-                            <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 bg-blue-100 text-blue-700">CLAIMS</span>
-                            <p className="text-body-sm font-medium text-[var(--text-primary)]">{group.employeeName}</p>
-                            <span className="text-label-sm text-[var(--text-secondary)]">({group.claims.length})</span>
-                          </div>
-                          <p className="text-body-md font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(String(group.total))}</p>
-                        </div>
-                        <div className="border-t border-[var(--surface-low)]">
-                          {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null; fileUrl?: string | null; thumbnailUrl?: string | null }) => {
-                            // Accountant: expandable doc preview for claims
-                            const claimDocUrl = c.fileUrl;
-                            const claimDriveMatch = claimDocUrl?.match(/\/d\/([^/]+)/);
-                            const claimFileId = claimDriveMatch?.[1];
-                            const isClaimExpanded = config.showDescriptionEdit && expandedDocUrl === `match-claim-${c.id}`;
-
-                            return (
-                            <div key={c.id}>
-                              <div
-                                onClick={() => {
-                                  toggleOne(c.id);
-                                  if (config.showDescriptionEdit && (claimDocUrl || c.thumbnailUrl)) onSetExpandedDocUrl(isClaimExpanded ? null : `match-claim-${c.id}`);
-                                }}
-                                className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[var(--surface-low)] first:border-t-0 ${
-                                  selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-[var(--surface-low)]'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0 flex-1">
-                                  <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="border-gray-300 text-[var(--primary)]" onClick={e => e.stopPropagation()} />
-                                  <div className="min-w-0">
-                                    <p className="text-body-sm text-[var(--text-primary)] truncate">{c.merchant}</p>
-                                    <p className="text-label-sm text-[var(--text-secondary)]">
-                                      {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
-                                      {c.categoryName ? ` · ${c.categoryName}` : ''}
-                                    </p>
-                                  </div>
-                                </div>
-                                <p className="text-body-sm font-medium tabular-nums text-[var(--text-primary)] ml-3">{formatRM(String(c.remaining))}</p>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <input
+                              type="checkbox"
+                              checked={isSingleClaim ? selectedClaimIds.has(group.claims[0].id) : allSelected}
+                              ref={(el) => { if (el) el.indeterminate = !isSingleClaim && someSelected && !allSelected; }}
+                              onChange={() => {}}
+                              className="ds-table-checkbox"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isSingleClaim) { toggleOne(group.claims[0].id); }
+                                else { toggleAll(); }
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${isSingleClaim ? 'badge-purple' : 'badge-blue'}`}>
+                                  {isSingleClaim ? 'CLAIM' : 'CLAIMS'}
+                                </span>
+                                <p className="text-sm font-medium text-[var(--text-primary)] truncate normal-case tracking-normal">
+                                  {isSingleClaim ? group.claims[0].merchant : group.employeeName}
+                                </p>
+                                {!isSingleClaim && <span className="text-label-sm text-[var(--text-secondary)] normal-case tracking-normal">({group.claims.length})</span>}
                               </div>
-                              {isClaimExpanded && claimFileId && (
-                                <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-[250px] border border-t-0 border-[var(--surface-low)]" title="Claim Preview" allow="autoplay" />
-                              )}
-                              {isClaimExpanded && c.thumbnailUrl && !claimFileId && (
-                                <div className="border border-t-0 border-[var(--surface-low)] p-2">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={c.thumbnailUrl} alt="Claim" className="w-full object-contain max-h-[250px]" />
-                                </div>
+                              {isSingleClaim && (
+                                <p className="text-xs text-[var(--text-secondary)] mt-0.5 normal-case tracking-normal">
+                                  {group.claims[0].reference ?? ''}{group.claims[0].reference ? ' · ' : ''}{formatDate(group.claims[0].date)}
+                                  {group.claims[0].categoryName ? ` · ${group.claims[0].categoryName}` : ''}
+                                </p>
                               )}
                             </div>
-                            );
-                          })}
-                        </div>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                            <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)]">{formatRM(isSingleClaim ? String(group.claims[0].remaining) : String(group.total.toFixed(2)))}</p>
+                            {!isSingleClaim && (
+                              <svg className={`w-4 h-4 text-[var(--text-secondary)] transition-transform ${isEmpOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+
+                        {/* Expanded claims list */}
+                        {!isSingleClaim && isEmpOpen && (
+                          <div className="border-x border-b border-[#E0E3E5] bg-[var(--surface-low)]">
+                            {group.claims.map((c: { id: string; merchant: string; remaining: number; date: string; categoryName?: string; reference: string | null; fileUrl?: string | null; thumbnailUrl?: string | null }) => {
+                              const claimDocUrl = c.fileUrl;
+                              const claimDriveMatch = claimDocUrl?.match(/\/d\/([^/]+)/);
+                              const claimFileId = claimDriveMatch?.[1];
+                              const isClaimExpanded = config.showDescriptionEdit && expandedDocUrl === `match-claim-${c.id}`;
+
+                              return (
+                                <div key={c.id}>
+                                  <div
+                                    onClick={() => {
+                                      toggleOne(c.id);
+                                      if (config.showDescriptionEdit && (claimDocUrl || c.thumbnailUrl)) onSetExpandedDocUrl(isClaimExpanded ? null : `match-claim-${c.id}`);
+                                    }}
+                                    className={`flex items-center justify-between px-3 py-2 pl-10 cursor-pointer transition-colors border-t border-[#E0E3E5] first:border-t-0 ${
+                                      selectedClaimIds.has(c.id) ? 'bg-blue-50' : 'hover:bg-white'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                                      <input type="checkbox" checked={selectedClaimIds.has(c.id)} onChange={() => {}} className="ds-table-checkbox" onClick={e => { e.stopPropagation(); toggleOne(c.id); }} />
+                                      <div className="min-w-0">
+                                        <p className="text-sm text-[var(--text-primary)]">{c.merchant}</p>
+                                        <p className="text-xs text-[var(--text-secondary)]">
+                                          {c.reference ?? ''}{c.reference ? ' · ' : ''}{formatDate(c.date)}
+                                          {c.categoryName ? ` · ${c.categoryName}` : ''}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <p className="text-sm font-semibold tabular-nums text-[var(--text-primary)] ml-3">{formatRM(String(c.remaining))}</p>
+                                  </div>
+                                  {isClaimExpanded && claimFileId && (
+                                    <iframe src={`https://drive.google.com/file/d/${claimFileId}/preview`} className="w-full h-[250px] border-t border-[#E0E3E5]" title="Claim Preview" allow="autoplay" />
+                                  )}
+                                  {isClaimExpanded && c.thumbnailUrl && !claimFileId && (
+                                    <div className="border-t border-[#E0E3E5] p-2">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={c.thumbnailUrl} alt="Claim" className="w-full object-contain max-h-[250px]" />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -561,13 +774,13 @@ export default function BankReconMatchModal({
             <div className="flex-shrink-0 px-5 pb-5 pt-2 bg-[var(--surface-low)]">
         {matchError && <p className="text-sm text-[var(--reject-red)] mb-2">{matchError}</p>}
 
-        {(selectedItem || selectedClaimIds.size > 0) && (
+        {(selectedItem || selectedClaimIds.size > 0 || selectedInvoiceIds.size > 0) && (
           <button
-            onClick={() => onMatchItem(selectedItem ?? undefined)}
+            onClick={() => setShowJvConfirm(true)}
             disabled={matchSubmitting}
             className="btn-thick-green w-full py-2.5 text-sm font-semibold disabled:opacity-50"
           >
-            {matchSubmitting ? 'Matching...' : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create JV'}
+            {matchSubmitting ? 'Matching...' : selectedInvoiceIds.size > 1 ? `Match ${selectedInvoiceIds.size} Invoices` : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create JV'}
           </button>
         )}
 
@@ -659,7 +872,7 @@ export default function BankReconMatchModal({
                 </div>
                 {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                 <div className="flex gap-3">
-                  <button onClick={onCreateReceipt} disabled={creatingVoucher} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={() => setShowReceiptConfirm(true)} disabled={creatingVoucher} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {creatingVoucher ? 'Creating...' : 'Create & Match'}
                   </button>
                   <button onClick={onCloseReceiptForm} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Cancel</button>
@@ -760,7 +973,7 @@ export default function BankReconMatchModal({
                 </div>
                 {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                 <div className="flex gap-3">
-                  <button onClick={onCreateVoucher} disabled={creatingVoucher || !voucherData.category_id} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={() => setShowVoucherConfirm(true)} disabled={creatingVoucher || !voucherData.category_id} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {creatingVoucher ? 'Creating...' : 'Create & Match'}
                   </button>
                   <button onClick={onCloseVoucherForm} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Cancel</button>
@@ -777,6 +990,269 @@ export default function BankReconMatchModal({
           </div>
         </div>
       </div>
+
+      {/* ═══ JV CONFIRMATION MODAL ═══ */}
+      {showJvConfirm && (
+        <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowJvConfirm(false)}>
+          <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--match-green)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm & Create JV</h3>
+              <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Transaction summary */}
+              <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                <p className="text-xs text-[var(--text-secondary)]">{getMatchedLabel()}</p>
+                <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{formatRM(getJvAmount())}</p>
+                {isPartialMatch() && (
+                  <p className="text-xs text-amber-600">
+                    Partial match — bank transaction is {formatRM(txnAmount)}, remaining {formatRM((Number(txnAmount) - Number(getJvAmount())).toFixed(2))} unmatched
+                  </p>
+                )}
+              </div>
+
+              {/* JV Preview */}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="ds-table-header text-left">
+                    <th className="px-3 py-2">Account</th>
+                    <th className="px-3 py-2 text-right">Debit</th>
+                    <th className="px-3 py-2 text-right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    // Build per-item debit/credit lines
+                    const selectedItems = selectedInvoiceIds.size > 0
+                      ? outstandingItems.filter(i => selectedInvoiceIds.has(i.id))
+                      : selectedClaimIds.size > 0
+                      ? outstandingItems.filter(i => selectedClaimIds.has(i.id))
+                      : selectedItem ? [outstandingItems.find(i => i.id === selectedItem.id)].filter(Boolean) : [];
+
+                    if (selectedItems.length > 1) {
+                      // Multi-item: one line per item + bank GL total
+                      return isOutgoing ? (
+                        <>
+                          {selectedItems.map((item, i) => (
+                            <tr key={i} className="border-b border-[var(--surface-low)]">
+                              <td className="px-3 py-2 text-[var(--text-primary)] font-medium text-xs">
+                                Trade Payables — {item.name || item.merchant}
+                                {item.reference ? <span className="text-[var(--text-secondary)] font-normal ml-1">({item.reference})</span> : null}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">{formatRM(String(item.remaining ?? item.amount))}</td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)] text-xs">—</td>
+                            </tr>
+                          ))}
+                          <tr>
+                            <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGlLabel}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(getJvAmount())}</td>
+                          </tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr className="border-b border-[var(--surface-low)]">
+                            <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGlLabel}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(getJvAmount())}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                          </tr>
+                          {selectedItems.map((item, i) => (
+                            <tr key={i} className="border-b border-[var(--surface-low)] last:border-b-0">
+                              <td className="px-3 py-2 text-[var(--text-primary)] font-medium text-xs">
+                                Trade Receivables — {item.name || item.merchant}
+                                {item.reference ? <span className="text-[var(--text-secondary)] font-normal ml-1">({item.reference})</span> : null}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums text-[var(--text-secondary)] text-xs">—</td>
+                              <td className="px-3 py-2 text-right tabular-nums font-semibold text-[var(--text-primary)] text-xs">{formatRM(String(item.remaining ?? item.amount))}</td>
+                            </tr>
+                          ))}
+                        </>
+                      );
+                    }
+
+                    // Single item: simple 2-line preview
+                    return isOutgoing ? (
+                      <>
+                        <tr className="border-b border-[var(--surface-low)]">
+                          <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{getContraLabel()}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(getJvAmount())}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGlLabel}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(getJvAmount())}</td>
+                        </tr>
+                      </>
+                    ) : (
+                      <>
+                        <tr className="border-b border-[var(--surface-low)]">
+                          <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGlLabel}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(getJvAmount())}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{getContraLabel()}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(getJvAmount())}</td>
+                        </tr>
+                      </>
+                    );
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button
+                onClick={() => {
+                  setShowJvConfirm(false);
+                  if (selectedInvoiceIds.size > 0) {
+                    onMatchItem(undefined, Array.from(selectedInvoiceIds));
+                  } else {
+                    onMatchItem(selectedItem ?? undefined);
+                  }
+                }}
+                disabled={matchSubmitting}
+                className="btn-thick-green flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
+              >
+                {matchSubmitting ? 'Posting...' : 'Confirm & Post JV'}
+              </button>
+              <button
+                onClick={() => setShowJvConfirm(false)}
+                className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ PAYMENT VOUCHER CONFIRMATION MODAL ═══ */}
+      {showVoucherConfirm && (
+        <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowVoucherConfirm(false)}>
+          <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Payment Voucher</h3>
+              <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {voucherData.supplier_id ? voucherSuppliers.find(s => s.id === voucherData.supplier_id)?.name : voucherData.new_supplier_name || 'Walk-in Customer'}
+                  {voucherData.reference ? ` — ${voucherData.reference}` : ''}
+                </p>
+                <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{formatRM(matchingTxn.debit!)}</p>
+              </div>
+
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="ds-table-header text-left">
+                    <th className="px-3 py-2">Account</th>
+                    <th className="px-3 py-2 text-right">Debit</th>
+                    <th className="px-3 py-2 text-right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-[var(--surface-low)]">
+                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                      {(() => {
+                        const gl = receiptGlAccounts.find(a => a.id === voucherData.gl_account_id);
+                        return gl ? `${gl.account_code} — ${gl.name}` : 'Expense GL';
+                      })()}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(matchingTxn.debit!)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGlLabel}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(matchingTxn.debit!)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button
+                onClick={() => { setShowVoucherConfirm(false); onCreateVoucher(); }}
+                disabled={creatingVoucher}
+                className="btn-thick-green flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
+              >
+                {creatingVoucher ? 'Creating...' : 'Confirm & Post JV'}
+              </button>
+              <button onClick={() => setShowVoucherConfirm(false)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ OFFICIAL RECEIPT CONFIRMATION MODAL ═══ */}
+      {showReceiptConfirm && (
+        <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowReceiptConfirm(false)}>
+          <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[var(--primary)]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Official Receipt</h3>
+              <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-[var(--surface-low)] p-3 space-y-1">
+                <p className="text-xs text-[var(--text-secondary)]">
+                  {voucherData.supplier_id ? voucherSuppliers.find(s => s.id === voucherData.supplier_id)?.name : voucherData.new_supplier_name || 'Walk-in Customer'}
+                  {voucherData.reference ? ` — ${voucherData.reference}` : ''}
+                </p>
+                <p className="text-lg font-bold text-[var(--text-primary)] tabular-nums">{formatRM(matchingTxn.credit!)}</p>
+              </div>
+
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="ds-table-header text-left">
+                    <th className="px-3 py-2">Account</th>
+                    <th className="px-3 py-2 text-right">Debit</th>
+                    <th className="px-3 py-2 text-right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-[var(--surface-low)]">
+                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGlLabel}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(matchingTxn.credit!)}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">
+                      {(() => {
+                        const gl = receiptGlAccounts.find(a => a.id === voucherData.gl_account_id);
+                        return gl ? `${gl.account_code} — ${gl.name}` : 'Income / Revenue GL';
+                      })()}
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-[var(--text-secondary)]">—</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-[var(--text-primary)]">{formatRM(matchingTxn.credit!)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-3 p-4 bg-[var(--surface-low)]">
+              <button
+                onClick={() => { setShowReceiptConfirm(false); onCreateReceipt(); }}
+                disabled={creatingVoucher}
+                className="btn-thick-green flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
+              >
+                {creatingVoucher ? 'Creating...' : 'Confirm & Post JV'}
+              </button>
+              <button onClick={() => setShowReceiptConfirm(false)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -581,7 +581,7 @@ export default function AccountantDashboard() {
                 <div className="px-5 py-12 text-center text-sm text-[#444650]">Loading...</div>
               ) : pendingInvoices.length === 0 ? (
                 <div className="px-5 py-12 text-center">
-                  <p className="text-sm text-[#444650]">No invoices pending review</p>
+                  <p className="text-sm text-[#444650]">No invoices pending approval</p>
                   <p className="text-xs text-[#444650] mt-1">You&apos;re all caught up.</p>
                 </div>
               ) : (

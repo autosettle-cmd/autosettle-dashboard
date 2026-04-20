@@ -100,11 +100,32 @@ export default function BankReconPreviewModal({
   onSetPreviewInvoice,
   onSetPreviewClaim,
 }: BankReconPreviewModalProps) {
-  const cfg = STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched;
   const mp = txn.matched_payment;
   const hasInvoices = !!(txn.matched_invoice || (txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0));
   const hasSalesInvoice = !!txn.matched_sales_invoice;
   const hasClaims = txn.matched_claims && txn.matched_claims.length > 0;
+
+  // Detect partial match: matched amount < bank transaction amount
+  const bankAmt = Number(txn.debit ?? txn.credit ?? 0);
+  const matchedAmt = (() => {
+    let total = 0;
+    if (txn.matched_invoice_allocations?.length) {
+      for (const a of txn.matched_invoice_allocations) total += Number(a.allocation_amount);
+    } else if (txn.matched_invoice) {
+      total += Number(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount);
+    }
+    if (txn.matched_sales_invoice) total += Number(txn.matched_sales_invoice.total_amount);
+    if (txn.matched_claims?.length) {
+      for (const c of txn.matched_claims) total += Number(c.amount);
+    }
+    if (mp) total += Number(mp.amount);
+    return total;
+  })();
+  const isPartial = txn.recon_status === 'manually_matched' && matchedAmt > 0 && Math.abs(matchedAmt - bankAmt) > 0.01;
+
+  const cfg = isPartial
+    ? { label: 'Partial', cls: 'badge-amber' }
+    : (STATUS_CFG[txn.recon_status] ?? STATUS_CFG.unmatched);
   const hasMatches = hasInvoices || hasSalesInvoice || hasClaims || !!mp;
 
   return (
@@ -279,25 +300,36 @@ export default function BankReconPreviewModal({
                   {/* Rich JV Preview (accountant) */}
                   {(txn.recon_status === 'matched' || txn.recon_status === 'manually_matched') && hasMatches && (() => {
                     const bankGl = statement?.bank_gl_label;
-                    const amount = txn.debit ?? txn.credit;
 
                     const jvLines: { account: string; debit: string | null; credit: string | null }[] = [];
+                    let matchedTotal = 0;
 
                     if (txn.debit) {
                       const invoiceAllocs = txn.matched_invoice_allocations?.length
                         ? txn.matched_invoice_allocations
                         : txn.matched_invoice ? [{ vendor_name: txn.matched_invoice.vendor_name, allocation_amount: txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount }] : [];
                       for (const alloc of invoiceAllocs) {
+                        const amt = Number(alloc.allocation_amount);
+                        matchedTotal += amt;
                         jvLines.push({ account: `Trade Payables — ${alloc.vendor_name}`, debit: formatRM(String(alloc.allocation_amount)), credit: null });
                       }
                       if (txn.matched_claims?.length) {
                         for (const c of txn.matched_claims) {
+                          matchedTotal += Number(c.amount);
                           jvLines.push({ account: `${c.category_name} — ${c.merchant}`, debit: formatRM(c.amount), credit: null });
                         }
                       }
-                      jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: null, credit: formatRM(amount) });
+                      jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: null, credit: formatRM(matchedTotal.toFixed(2)) });
                     } else {
-                      jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: formatRM(amount), credit: null });
+                      if (txn.matched_sales_invoice) {
+                        matchedTotal += Number(txn.matched_sales_invoice.total_amount);
+                      }
+                      if (txn.matched_claims?.length) {
+                        for (const c of txn.matched_claims) {
+                          matchedTotal += Number(c.amount);
+                        }
+                      }
+                      jvLines.push({ account: bankGl ?? `${statement?.bank_name ?? 'Bank'} (no GL)`, debit: formatRM(matchedTotal > 0 ? matchedTotal.toFixed(2) : (txn.credit ?? '0')), credit: null });
                       if (txn.matched_sales_invoice) {
                         jvLines.push({ account: `Trade Receivables — ${txn.matched_sales_invoice.buyer_name}`, debit: null, credit: formatRM(txn.matched_sales_invoice.total_amount) });
                       }
@@ -352,9 +384,14 @@ export default function BankReconPreviewModal({
               <div className="flex gap-2">
                 {txn.recon_status === 'matched' && (
                   <>
-                    <button onClick={() => { onConfirm([txn.id]); onClose(); }} disabled={confirming} className="btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-50">
-                      Confirm
-                    </button>
+                    <div className="flex-1 relative group/confirm">
+                      <button onClick={() => { onConfirm([txn.id]); onClose(); }} disabled={confirming} className="btn-thick-green w-full py-1.5 text-xs disabled:opacity-50">
+                        Confirm
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-[var(--reject-red)] text-white text-[10px] font-bold uppercase tracking-wide whitespace-nowrap opacity-0 group-hover/confirm:opacity-100 transition-opacity duration-75 pointer-events-none shadow-lg">
+                        Auto-suggested match — review before confirming
+                      </div>
+                    </div>
                     <button onClick={() => { onUnmatch(txn.id); onClose(); }} className="btn-thick-red flex-1 py-1.5 text-xs">
                       Unmatch
                     </button>

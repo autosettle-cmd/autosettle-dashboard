@@ -47,11 +47,12 @@ export async function PATCH(request: NextRequest) {
   const oldMap = new Map(invoices.map((inv) => [inv.id, inv]));
 
   // ─── Pre-validation for approve: block if JV cannot be created ─────────
+  // Firm defaults map — reused across pre-validation and JV creation
+  const firmDefaultsMap = new Map<string, string | null>();
   if (action === 'approve') {
     const errors: string[] = [];
 
     // Check contra GL — supplier's sub-account → firm default → provided
-    const firmDefaultsMap = new Map<string, string | null>();
     for (const inv of invoices) {
       if (!firmDefaultsMap.has(inv.firm_id)) {
         const firm = await prisma.firm.findUnique({
@@ -98,114 +99,123 @@ export async function PATCH(request: NextRequest) {
       ? { approval: 'pending_approval' as const, rejection_reason: null as string | null }
       : { approval: 'not_approved' as const, rejection_reason: (reason ?? null) as string | null };
 
-  const CHUNK = 20;
-  const chunks: string[][] = [];
-  for (let i = 0; i < invoiceIds.length; i += CHUNK) {
-    chunks.push(invoiceIds.slice(i, i + CHUNK));
+  // ─── Approve: transactional — invoice update + JV + supplier learning ──
+  if (action === 'approve') {
+    await prisma.$transaction(async (tx) => {
+      // Update all invoices to approved
+      const CHUNK = 20;
+      const chunks: string[][] = [];
+      for (let i = 0; i < invoiceIds.length; i += CHUNK) {
+        chunks.push(invoiceIds.slice(i, i + CHUNK));
+      }
+      await Promise.all(
+        chunks.map((chunk) =>
+          tx.invoice.updateMany({
+            where: { id: { in: chunk }, ...scope },
+            data: updateData,
+          })
+        )
+      );
+
+      // Create JVs + save GL to invoices and suppliers
+      for (const inv of invoices) {
+        const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
+        const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaultsMap.get(inv.firm_id);
+        const amount = Math.abs(Number(inv.total_amount));
+        const isCreditNote = Number(inv.total_amount) < 0;
+
+        // Build JV lines: multi-debit when line items exist, single debit otherwise
+        let jvLines: { glAccountId: string; debitAmount: number; creditAmount: number; description?: string }[];
+
+        if (inv.lines.length > 0) {
+          const glTotals = new Map<string, number>();
+          for (const line of inv.lines) {
+            const lineGlId = line.gl_account_id || expenseGlId!;
+            glTotals.set(lineGlId, (glTotals.get(lineGlId) || 0) + Math.abs(Number(line.line_total)));
+          }
+
+          const debitLines = Array.from(glTotals.entries()).map(([glId, amt]) => ({
+            glAccountId: glId,
+            debitAmount: isCreditNote ? 0 : amt,
+            creditAmount: isCreditNote ? amt : 0,
+            description: inv.vendor_name_raw,
+          }));
+
+          const contraLine = {
+            glAccountId: contraGlId!,
+            debitAmount: isCreditNote ? amount : 0,
+            creditAmount: isCreditNote ? 0 : amount,
+            description: isCreditNote ? 'Trade Payables (reversal)' : 'Trade Payables',
+          };
+
+          jvLines = isCreditNote ? [contraLine, ...debitLines] : [...debitLines, contraLine];
+        } else {
+          jvLines = isCreditNote
+            ? [
+                { glAccountId: contraGlId!, debitAmount: amount, creditAmount: 0, description: 'Trade Payables (reversal)' },
+                { glAccountId: expenseGlId!, debitAmount: 0, creditAmount: amount, description: inv.vendor_name_raw },
+              ]
+            : [
+                { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: inv.vendor_name_raw },
+                { glAccountId: contraGlId!, debitAmount: 0, creditAmount: amount, description: 'Trade Payables' },
+              ];
+        }
+
+        await createJournalEntry({
+          firmId: inv.firm_id,
+          postingDate: inv.issue_date,
+          description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${inv.vendor_name_raw}`,
+          sourceType: 'invoice_posting',
+          sourceId: inv.id,
+          lines: jvLines,
+          createdBy: session.user.id,
+          tx,
+        });
+
+        // Save resolved GL on the invoice itself (so preview shows it)
+        const glUpdates: Record<string, string> = {};
+        if (expenseGlId && !inv.gl_account_id) glUpdates.gl_account_id = expenseGlId;
+        if (contraGlId) glUpdates.contra_gl_account_id = contraGlId;
+        if (Object.keys(glUpdates).length > 0) {
+          await tx.invoice.update({ where: { id: inv.id }, data: glUpdates });
+        }
+
+        // Save GL to supplier for future auto-fill (skip when multiple GLs — no single default)
+        const uniqueLineGls = new Set(inv.lines.map(l => l.gl_account_id).filter(Boolean));
+        if (inv.supplier && uniqueLineGls.size <= 1) {
+          const updates: Record<string, string> = {};
+          // Use full resolution chain so invoice record matches the GL used in JV
+          const resolvedGlId = gl_account_id || inv.gl_account_id || inv.supplier.default_gl_account_id;
+          if (resolvedGlId && !inv.supplier.default_gl_account_id) {
+            updates.default_gl_account_id = resolvedGlId;
+          }
+          // Always save resolved contra GL — improves future auto-fill
+          if (contraGlId) {
+            updates.default_contra_gl_account_id = contraGlId;
+          }
+          if (Object.keys(updates).length > 0) {
+            await tx.supplier.update({ where: { id: inv.supplier.id }, data: updates });
+          }
+        }
+      }
+    });
   }
 
-  await Promise.all(
-    chunks.map((chunk) =>
-      prisma.invoice.updateMany({
-        where: { id: { in: chunk }, ...scope },
-        data: updateData,
-      })
-    )
-  );
-
-  // ─── Create / reverse JVs ─────────────────────────────────────────────
-  if (action === 'approve') {
-    const firmDefaults = new Map<string, string | null>();
-    for (const inv of invoices) {
-      if (!firmDefaults.has(inv.firm_id)) {
-        const firm = await prisma.firm.findUnique({
-          where: { id: inv.firm_id },
-          select: { default_trade_payables_gl_id: true },
-        });
-        firmDefaults.set(inv.firm_id, firm?.default_trade_payables_gl_id ?? null);
-      }
+  // ─── Reject / Revert: non-transactional (safe — no JV creation) ───────
+  if (action !== 'approve') {
+    const CHUNK = 20;
+    const chunks: string[][] = [];
+    for (let i = 0; i < invoiceIds.length; i += CHUNK) {
+      chunks.push(invoiceIds.slice(i, i + CHUNK));
     }
-
-    for (const inv of invoices) {
-      const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
-      const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaults.get(inv.firm_id);
-      const amount = Math.abs(Number(inv.total_amount));
-      const isCreditNote = Number(inv.total_amount) < 0;
-
-      // Build JV lines: multi-debit when line items exist, single debit otherwise
-      let jvLines: { glAccountId: string; debitAmount: number; creditAmount: number; description?: string }[];
-
-      if (inv.lines.length > 0) {
-        // Group line items by GL account
-        const glTotals = new Map<string, number>();
-        for (const line of inv.lines) {
-          const lineGlId = line.gl_account_id || expenseGlId!;
-          glTotals.set(lineGlId, (glTotals.get(lineGlId) || 0) + Math.abs(Number(line.line_total)));
-        }
-
-        const debitLines = Array.from(glTotals.entries()).map(([glId, amt]) => ({
-          glAccountId: glId,
-          debitAmount: isCreditNote ? 0 : amt,
-          creditAmount: isCreditNote ? amt : 0,
-          description: inv.vendor_name_raw,
-        }));
-
-        const contraLine = {
-          glAccountId: contraGlId!,
-          debitAmount: isCreditNote ? amount : 0,
-          creditAmount: isCreditNote ? 0 : amount,
-          description: isCreditNote ? 'Trade Payables (reversal)' : 'Trade Payables',
-        };
-
-        jvLines = isCreditNote ? [contraLine, ...debitLines] : [...debitLines, contraLine];
-      } else {
-        // Legacy single-GL path
-        jvLines = isCreditNote
-          ? [
-              { glAccountId: contraGlId!, debitAmount: amount, creditAmount: 0, description: 'Trade Payables (reversal)' },
-              { glAccountId: expenseGlId!, debitAmount: 0, creditAmount: amount, description: inv.vendor_name_raw },
-            ]
-          : [
-              { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: inv.vendor_name_raw },
-              { glAccountId: contraGlId!, debitAmount: 0, creditAmount: amount, description: 'Trade Payables' },
-            ];
-      }
-
-      await createJournalEntry({
-        firmId: inv.firm_id,
-        postingDate: inv.issue_date,
-        description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${inv.vendor_name_raw}`,
-        sourceType: 'invoice_posting',
-        sourceId: inv.id,
-        lines: jvLines,
-        createdBy: session.user.id,
-      });
-
-      // Save resolved GL on the invoice itself (so preview shows it)
-      const glUpdates: Record<string, string> = {};
-      if (expenseGlId && !inv.gl_account_id) glUpdates.gl_account_id = expenseGlId;
-      if (contraGlId) glUpdates.contra_gl_account_id = contraGlId;
-      if (Object.keys(glUpdates).length > 0) {
-        await prisma.invoice.update({ where: { id: inv.id }, data: glUpdates });
-      }
-
-      // Save GL to supplier for future auto-fill (skip when multiple GLs — no single default)
-      const uniqueLineGls = new Set(inv.lines.map(l => l.gl_account_id).filter(Boolean));
-      if (inv.supplier && uniqueLineGls.size <= 1) {
-        const updates: Record<string, string> = {};
-        const resolvedGlId = gl_account_id || inv.gl_account_id;
-        if (resolvedGlId && !inv.supplier.default_gl_account_id) {
-          updates.default_gl_account_id = resolvedGlId;
-        }
-        // Always save contra GL when explicitly provided — improves future auto-fill
-        if (contra_gl_account_id) {
-          updates.default_contra_gl_account_id = contra_gl_account_id;
-        }
-        if (Object.keys(updates).length > 0) {
-          await prisma.supplier.update({ where: { id: inv.supplier.id }, data: updates });
-        }
-      }
-    }
+    await Promise.all(
+      chunks.map((chunk) =>
+        prisma.invoice.updateMany({
+          where: { id: { in: chunk }, ...scope },
+          data: updateData,
+        })
+      )
+    );
   }
 
   if (action === 'revert') {
@@ -215,9 +225,9 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  // Audit log per invoice
+  // Audit log per invoice (fire-and-forget, outside transaction)
   for (const inv of invoices) {
-    await auditLog({
+    auditLog({
       firmId: inv.firm_id,
       tableName: 'Invoice',
       recordId: inv.id,
