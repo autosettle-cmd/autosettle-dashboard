@@ -29,19 +29,42 @@ export async function GET(request: NextRequest) {
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { ...firmScope(firmIds, firmId) };
-
+  const scope: any = { ...firmScope(firmIds, firmId) };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dateFilter: any = {};
   if (dateFrom || dateTo) {
-    where.issue_date = {};
-    if (dateFrom) where.issue_date.gte = new Date(dateFrom);
-    if (dateTo) where.issue_date.lte = new Date(dateTo);
+    dateFilter.issue_date = {};
+    if (dateFrom) dateFilter.issue_date.gte = new Date(dateFrom);
+    if (dateTo) dateFilter.issue_date.lte = new Date(dateTo);
   }
-  if (status && status !== 'all') where.status = status;
-  if (paymentStatus && paymentStatus !== 'all') where.payment_status = paymentStatus;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extraFilters: any = {};
+  if (status && status !== 'all') extraFilters.status = status;
+  if (paymentStatus && paymentStatus !== 'all') extraFilters.payment_status = paymentStatus;
   if (overdue === 'true') {
-    where.due_date = { lt: new Date() };
-    where.payment_status = { not: 'paid' };
+    extraFilters.due_date = { lt: new Date() };
+    extraFilters.payment_status = { not: 'paid' };
   }
+
+  // Always show pending approval (accountant) / pending review (admin) regardless of date
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let where: any;
+  const hasDates = dateFrom || dateTo;
+  if (hasDates && !search) {
+    where = {
+      ...scope,
+      ...extraFilters,
+      OR: [
+        dateFilter, // within date range
+        { approval: 'pending_approval' }, // always show pending approval (accountant)
+        { status: 'pending_review' }, // always show pending review (admin)
+      ],
+    };
+  } else {
+    where = { ...scope, ...dateFilter, ...extraFilters };
+  }
+
   if (search) {
     where.OR = [
       { vendor_name_raw: { contains: search, mode: 'insensitive' } },

@@ -25,20 +25,42 @@ export async function GET(request: NextRequest) {
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { firm_id: firmId };
-
+  const scope: any = { firm_id: firmId };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dateFilter: any = {};
   if (dateFrom || dateTo) {
-    where.issue_date = {};
-    if (dateFrom) where.issue_date.gte = new Date(dateFrom);
-    if (dateTo) where.issue_date.lte = new Date(dateTo);
+    dateFilter.issue_date = {};
+    if (dateFrom) dateFilter.issue_date.gte = new Date(dateFrom);
+    if (dateTo) dateFilter.issue_date.lte = new Date(dateTo);
   }
-  if (status && status !== 'all') where.status = status;
-  if (paymentStatus && paymentStatus !== 'all') where.payment_status = paymentStatus;
-  if (supplierId) where.supplier_id = supplierId;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extraFilters: any = {};
+  if (status && status !== 'all') extraFilters.status = status;
+  if (paymentStatus && paymentStatus !== 'all') extraFilters.payment_status = paymentStatus;
+  if (supplierId) extraFilters.supplier_id = supplierId;
   if (overdue === 'true') {
-    where.due_date = { lt: new Date() };
-    where.payment_status = { not: 'paid' };
+    extraFilters.due_date = { lt: new Date() };
+    extraFilters.payment_status = { not: 'paid' };
   }
+
+  // Always show pending review (admin) regardless of date
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let where: any;
+  const hasDates = dateFrom || dateTo;
+  if (hasDates && !search) {
+    where = {
+      ...scope,
+      ...extraFilters,
+      OR: [
+        dateFilter,
+        { status: 'pending_review' },
+      ],
+    };
+  } else {
+    where = { ...scope, ...dateFilter, ...extraFilters };
+  }
+
   if (search) {
     where.OR = [
       { vendor_name_raw: { contains: search, mode: 'insensitive' } },
