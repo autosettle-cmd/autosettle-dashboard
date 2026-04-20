@@ -19,8 +19,11 @@ Schema source: `/prisma/schema.prisma`
 | is_active | Boolean | Default true |
 | plan | Enum | free / paid |
 | mileage_rate_per_km | Decimal(4,2)? | RM per km, default 0.55 |
+| receipt_count | Int | Default 0, tracks usage |
 | default_trade_payables_gl_id | UUID FK? | GL default for AP |
 | default_staff_claims_gl_id | UUID FK? | GL default for claims |
+| default_trade_receivables_gl_id | UUID FK? | GL default for AR |
+| default_retained_earnings_gl_id | UUID FK? | GL default for year-end close |
 | drive_*_folder_id | String? | Google Drive folders |
 | LHDN fields | Various | tin, brn, msic_code, sst, address |
 
@@ -75,7 +78,9 @@ Maps accountants to their assigned firms. Zero assignments = sees all firms.
 | amount_paid | Decimal(10,2) | Default 0 |
 | gl_account_id | UUID FK? | Expense GL |
 | contra_gl_account_id | UUID FK? | Staff Claims Payable GL |
-| file_url, thumbnail_url | String? | Google Drive links |
+| file_url, file_download_url, thumbnail_url | String? | Google Drive links |
+| matched_bank_txn_id | UUID FK? | Direct bank transaction link (for reimbursement) |
+| file_hash | String? | Dedup check |
 | Mileage fields | | from_location, to_location, distance_km, trip_purpose |
 
 **Indexes:** (firm_id, type, claim_date), (firm_id, approval), (firm_id, payment_status)
@@ -110,18 +115,6 @@ Maps accountants to their assigned firms. Zero assignments = sees all firms.
 | payment_status | Enum | |
 | lhdn_* fields | Various | MyInvois integration |
 
-### Supplier
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID PK | |
-| firm_id | UUID FK | |
-| name | String | |
-| is_active | Boolean | Soft delete |
-| LHDN buyer fields | Various | tin, brn, address |
-
-### SupplierAlias
-Maps variant vendor names to single supplier (OCR matching).
-
 ### InvoiceLine
 Optional line items per invoice for mixed-GL scenarios (reimbursement, pay-on-behalf).
 
@@ -130,8 +123,12 @@ Optional line items per invoice for mixed-GL scenarios (reimbursement, pay-on-be
 | id | UUID PK | |
 | invoice_id | UUID FK | CASCADE delete |
 | description | String | |
-| amount | Decimal(10,2) | |
+| quantity | Decimal(10,3) | Default 1 |
+| unit_price | Decimal(10,2) | |
+| tax_amount | Decimal(10,2) | Default 0 |
+| line_total | Decimal(10,2) | |
 | gl_account_id | UUID FK? | Per-line expense GL |
+| sort_order | Int | Default 0 |
 
 When lines exist, JV creates multiple debit entries (one per line GL).
 
@@ -142,8 +139,8 @@ When lines exist, JV creates multiple debit entries (one per line GL).
 | firm_id | UUID FK | |
 | name | String | |
 | is_active | Boolean | Soft delete |
-| default_gl_account_id | UUID FK? | Auto-fill on invoices |
-| default_contra_gl_account_id | UUID FK? | Auto-fill contra GL |
+| default_gl_account_id | UUID FK? | Auto-fill on invoices (learned on first approval) |
+| default_contra_gl_account_id | UUID FK? | Auto-fill contra GL (overwritten each approval) |
 | LHDN buyer fields | Various | tin, brn, address |
 
 ### SupplierAlias
@@ -153,7 +150,8 @@ Maps variant vendor names to single supplier (OCR matching). CASCADE delete with
 |-------|------|-------|
 | id | UUID PK | |
 | supplier_id | UUID FK | CASCADE delete |
-| alias_name | String | Variant name from OCR |
+| alias | String | Normalized vendor name from OCR (`toLowerCase().trim()`) |
+| is_confirmed | Boolean | Default false; true when accountant/admin confirms |
 
 ### Payment
 Bridge entity between bank transactions and invoices/claims.
@@ -205,9 +203,13 @@ Line items for sales invoices. CASCADE delete with parent.
 | id | UUID PK | |
 | sales_invoice_id | UUID FK | CASCADE delete |
 | description | String | |
-| quantity | Int | |
+| quantity | Decimal(10,3) | |
 | unit_price | Decimal(10,2) | |
-| amount | Decimal(10,2) | |
+| discount | Decimal(10,2) | Default 0 |
+| tax_type | String? | |
+| tax_amount | Decimal(10,2) | Default 0 |
+| line_total | Decimal(10,2) | |
+| sort_order | Int | Default 0 |
 
 ---
 
@@ -233,6 +235,7 @@ Line items for sales invoices. CASCADE delete with parent.
 | posting_date | Date | |
 | period_id | UUID FK | Must be open period |
 | source_type | Enum | claim_approval / invoice_posting / sales_invoice_posting / bank_recon / year_end_close / manual |
+| created_by | String? | User who created |
 | source_id | String? | Links to source record |
 | status | Enum | posted / reversed |
 | reversed_by_id | UUID FK? | Links to reversal JV |
@@ -271,7 +274,9 @@ Line items for sales invoices. CASCADE delete with parent.
 |-------|------|-------|
 | firm_id | UUID FK | |
 | bank_name | String | |
+| account_number | String? | Bank account number |
 | statement_date | Date | |
+| period_start, period_end | Date? | Statement period range |
 | file_hash | String UNIQUE | Dedup check |
 | opening_balance, closing_balance | Decimal(12,2)? | |
 
@@ -364,8 +369,44 @@ Per-firm enable/disable of global categories + GL mapping.
 ### Session (WhatsApp)
 Tracks WhatsApp conversation state for multi-step flows.
 
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| phone | String UNIQUE | WhatsApp number |
+| state | String | IDLE / COLLECTING |
+| step | String? | Current step in flow |
+| intent | String? | receipt / invoice / mileage |
+| pending_receipt | JSON? | Buffered data during multi-step |
+
 ### MessageLog
 Logs all WhatsApp messages for debugging.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| phone | String | Sender phone |
+| employee_id | String? FK | |
+| direction | String | inbound / outbound |
+| message_type | String | text / image / document |
+| body | String? | Message content |
+| media_url | String? | |
+| created_at | DateTime | |
+
+### OcrLog
+Tracks OCR processing results for analytics and debugging.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID PK | |
+| firm_id | String FK | |
+| file_name | String | |
+| document_type | String | receipt / invoice |
+| confidence | String? | HIGH / MEDIUM / LOW |
+| success | Boolean | |
+| error_message | String? | |
+| processing_ms | Int? | Processing time |
+| source | String | whatsapp / dashboard |
+| created_at | DateTime | |
 
 ---
 

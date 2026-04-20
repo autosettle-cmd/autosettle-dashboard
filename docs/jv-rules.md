@@ -6,7 +6,7 @@ Hard guardrails for JV creation, reversal, and GL resolution. These rules are no
 
 ## Core Principles
 
-1. **Approved = JV created. Always. No exceptions.** No migration, bulk upload, historical, or admin tool may skip JV.
+1. **Approved = JV created, except claims.** Invoice/sales invoice approval creates JV. Claim approval does NOT — claims get JV at bank recon when reimbursement is matched.
 2. **JVs are never deleted** — only reversed (new JV with flipped DR/CR).
 3. **Every JV must balance** — total debits = total credits (0.5 cent tolerance for rounding).
 4. **Every JV must have a valid source** — `source_type` + `source_id` link back to the originating record.
@@ -19,11 +19,12 @@ Hard guardrails for JV creation, reversal, and GL resolution. These rules are no
 
 | source_type | Trigger | source_id | Debit | Credit |
 |-------------|---------|-----------|-------|--------|
-| `claim_approval` | Accountant approves claim/mileage | claim.id | Expense GL | Staff Claims Payable GL |
+| `claim_approval` | **Legacy only** — no longer created. Claims get JV at bank recon instead. | claim.id | — | — |
 | `invoice_posting` | Accountant approves purchase invoice | invoice.id | Expense GL (or line-item GLs) | Trade Payables GL |
 | `sales_invoice_posting` | Accountant approves sales invoice | sales_invoice.id | Trade Receivables GL | Revenue GL |
 | `bank_recon` | Bank transaction matched/confirmed | bank_transaction.id | Varies by transaction type (see below) |
 | `year_end_close` | Fiscal year closed | fiscal_year.id | Revenue/Expense accounts → Retained Earnings |
+| `manual` | Accountant creates manual JV | journal_entry.id | User-defined | User-defined |
 
 ### Bank Recon JV Details
 
@@ -33,7 +34,7 @@ Bank recon JVs vary by what the transaction is matched to:
 |------------|-------|--------|
 | **Payment Voucher** (debit txn → invoice) | Expense/Payables GL | Bank Account GL |
 | **Official Receipt** (credit txn → sales invoice) | Bank Account GL | Revenue/Receivables GL |
-| **Claim Reimbursement** (debit txn → claim) | Staff Claims Payable GL | Bank Account GL |
+| **Claim Reimbursement** (debit txn → claim) | Expense GL | Bank Account GL |
 
 ---
 
@@ -57,9 +58,10 @@ GL accounts are resolved in priority order. First match wins.
 2. Invoice's `gl_account_id`
 3. Firm default (for contra: Trade Receivables)
 
-### Claim/Mileage Approval
-1. Claim's `gl_account_id` (explicit GL on record)
-2. Firm's `default_staff_claims_gl_id` (for contra)
+### Claim/Mileage (at Bank Recon)
+Claims do NOT create JV on approval. JV is created when the reimbursement is matched at bank reconciliation.
+1. Bank Account GL (from `BankAccount.gl_account_id`) — **required**
+2. Claim's `gl_account_id` or category GL (for expense side)
 
 ### Bank Reconciliation
 1. Bank Account's mapped GL (`BankAccount.gl_account_id`) — **required, block if missing**
@@ -85,7 +87,7 @@ Multi-level suggestion system for pre-filling GL fields:
 | Bank recon match (payment voucher) | Bank GL + Expense GL | "Bank account '{name}' has no GL account mapped. Go to Bank Recon → Manage Accounts." |
 | Bank recon match (official receipt) | Bank GL + Income GL | Same as above |
 | Bank recon match (claim) | Bank GL + Claims Payable GL | Same as above |
-| Claim approval | Expense GL + Contra GL | "Claim has no GL account. Select one before approving." |
+| Bank recon claim match | Bank GL + Expense GL | "Bank account has no GL account mapped." |
 
 **Error messages must tell the user exactly what's missing and where to fix it.**
 
@@ -120,9 +122,9 @@ Used by:
 ### When Reversals Happen
 | User Action | JV Reversed |
 |-------------|------------|
-| Delete approved claim | `claim_approval` + `bank_recon` (if bank-matched) |
-| Revert claim approval | `claim_approval` |
-| Edit approved claim | `claim_approval` (auto-revert approval first) |
+| Delete approved claim | `claim_approval` (legacy) + `bank_recon` (if bank-matched) |
+| Revert claim approval | `claim_approval` (legacy cleanup) + cascade unmatch bank recon for receipts |
+| Edit approved claim | Auto-revert approval first |
 | Delete approved invoice | `invoice_posting` |
 | Revert invoice approval | `invoice_posting` |
 | Unmatch bank transaction | `bank_recon` |
@@ -153,6 +155,44 @@ When a fiscal year is closed:
 5. Idempotency: only one closing JV per FY (checks before creating)
 
 Reopening reverses this JV and reopens all non-locked periods.
+
+---
+
+## Fiscal Periods & Posting Guards
+
+### Fiscal Year Lifecycle
+```
+Create FY (POST /api/fiscal-years)
+    → 12 monthly periods auto-created (status: open)
+    → year_label, start_date, end_date set
+    |
+    v
+Operating (all periods open)
+    → JVs posted to matching period based on posting_date
+    → Individual periods can be closed/locked
+    |
+    v
+Close FY (PATCH status=closed)
+    → Year-end closing JV created (Revenue/Expense → Retained Earnings)
+    → All periods set to closed
+    |
+    v
+Reopen FY (PATCH status=open)
+    → Reverse year_end_close JV
+    → All non-locked periods reopened
+```
+
+### Period States
+| State | Can post JVs? | Can reopen? |
+|-------|--------------|-------------|
+| `open` | Yes | N/A |
+| `closed` | No | Yes |
+| `locked` | No | **No — permanent** |
+
+### Guards
+- **Edit/delete FY blocked** if any JVs exist in its periods
+- **Posting blocked** if target period is closed or locked
+- JV creation falls back to today's period if original date's period is closed
 
 ---
 

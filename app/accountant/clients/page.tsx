@@ -236,11 +236,12 @@ export default function ClientsPage() {
                   </thead>
                   <tbody>
                     {firms.map((firm, i) => (
-                      <tr key={firm.id} className={`group hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                      <tr key={firm.id} className={`group hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`} onClick={() => window.location.href = `/accountant/clients/${firm.id}`}>
                         <td data-col="Firm Name" className="px-6 py-3 font-medium">
                           <Link
                             href={`/accountant/clients/${firm.id}`}
-                            className="text-[var(--text-primary)] hover:text-[var(--primary)] transition-colors"
+                            className="text-[var(--primary)] hover:underline font-semibold transition-colors"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {firm.name}
                           </Link>

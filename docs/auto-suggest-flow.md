@@ -25,7 +25,8 @@ When a document is uploaded (WhatsApp, dashboard, batch), the system matches the
 ### Key Files
 | File | Role |
 |------|------|
-| `app/api/invoices/route.ts` | Supplier matching on invoice creation (lines 192-239) |
+| `app/api/invoices/route.ts` | Supplier matching on invoice creation (lines 232-253) |
+| `lib/supplier-resolver.ts` | `resolveSupplier()` — alias lookup + new supplier creation |
 | `lib/whatsapp/invoices.ts` | Supplier matching for WhatsApp uploads |
 | `app/api/suppliers/alias/route.ts` | Manual alias confirmation endpoint |
 
@@ -172,6 +173,73 @@ Confirmed → recon_status = "manually_matched"
 - GL dropdowns pre-filled from supplier defaults / alias lookup / category mapping
 - Accountant sees the pre-filled value and can change before approval
 - Approval confirmation modal shows JV preview with actual GL account names
+
+---
+
+## 4. Bank Statement Parsing
+
+### Parse Pipeline
+```
+PDF uploaded → pdf-parse extracts text → detect bank (regex)
+    |
+    v
+Try Gemini first (gemini-1.5-flash)
+    → Sends full text + bank-specific prompt
+    → Returns structured JSON transactions
+    |-- Success + transactions found → use Gemini result
+    |-- Fail or 0 transactions → fallback to regex parser
+    |
+    v
+Regex parser (bank-specific)
+    → Maybank: DD/MM/YY + description + amount±
+    → OCBC: description + DD MMM YYYY + amounts (right-to-left)
+    → Other banks: Gemini-only (no regex fallback)
+```
+
+### Supported Banks
+| Bank | Parser | Notes |
+|------|--------|-------|
+| Maybank | Regex + Gemini | Continuation lines joined with ` \| ` |
+| OCBC | Regex + Gemini | Cheque number extraction, columns concatenated |
+| CIMB, Public Bank, AmBank, RHB, Hong Leong | Gemini only | Detected but no dedicated regex |
+
+### Transaction Dedup (`lib/bank-dedup.ts`)
+Prevents duplicate transactions across overlapping statements:
+1. Find existing statements with overlapping date range (same firm + account)
+2. For each new transaction, find candidates: same date + same amount (±0.01)
+3. **Tier 1 match**: exact normalized description or first 15 chars identical → skip (duplicate)
+4. **Tier 2**: multiple description matches → pick first as duplicate
+5. **Tier 3**: single amount+date candidate, description differs → still marked duplicate
+6. New unique transactions inserted; duplicates skipped
+
+### Key Files
+| File | Role |
+|------|------|
+| `lib/bank-pdf-parser.ts` | PDF extraction, bank detection, Gemini call, regex parsers |
+| `lib/bank-dedup.ts` | `deduplicateTransactions()` — overlap detection + fuzzy dedup |
+
+---
+
+## 5. Duplicate Detection (Claims & Invoices)
+
+### Claim Dedup (`lib/claim-dedup.ts`)
+Runs on claim creation via `checkClaimDuplicate()`:
+
+| Claim Type | Strategy | Fields Checked |
+|-----------|----------|----------------|
+| `mileage` | Composite key | firm_id + employee_id + claim_date + from_location + to_location + distance_km |
+| `claim` / `receipt` | Receipt # first, then composite | 1. receipt_number (firm-wide) → 2. firm_id + employee_id + claim_date + merchant + amount + type |
+
+### Invoice Dedup
+Checked on upload in `app/api/invoices/route.ts`:
+1. **File hash**: exact binary match via `file_hash` field → "Duplicate file: already uploaded"
+2. **Invoice number**: same firm + supplier + invoice_number → "Duplicate: invoice # already exists"
+3. **Composite key**: same firm + vendor_name + issue_date + total_amount → "Possible duplicate"
+
+### When Dedup Runs
+- Claims: on creation (WhatsApp + dashboard + batch)
+- Invoices: on upload, before OCR processing
+- Bank statements: on save, after parsing (file_hash on statement, fuzzy on transactions)
 
 ---
 

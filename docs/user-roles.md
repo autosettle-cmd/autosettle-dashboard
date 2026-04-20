@@ -220,7 +220,7 @@ Quick reference:
 
 | Entity | Who Approves | JV Created | source_type |
 |--------|--------------|------------|-------------|
-| Claim/Mileage | Accountant | On approval | `claim_approval` |
+| Claim/Mileage | Accountant | At bank recon (not on approval) | `bank_recon` |
 | Receipt | Accountant | At bank recon | `bank_recon` |
 | Invoice | Accountant | On approval | `invoice_posting` |
 | Sales Invoice | Accountant | On approval | `sales_invoice_posting` |

@@ -55,7 +55,7 @@ These are nulled out when parent is deleted:
 |------|--------|
 | **Can hard delete?** | Yes, with conditions |
 | **Delete blocker** | Has linked `PaymentReceipt` records (must remove payments first) |
-| **Delete cascade** | 1. Reverse `claim_approval` JVs (if approved) → 2. Delete `BankTransactionClaim` links + revert bank txn to `unmatched` + reverse `bank_recon` JVs → 3. Delete `InvoiceReceiptLink` records + recalc invoice `amount_paid` → 4. Hard delete claim |
+| **Delete cascade** | 1. Reverse `claim_approval` JVs (legacy cleanup) → 2. Delete `BankTransactionClaim` links + revert bank txn to `unmatched` + reverse `bank_recon` JVs → 3. Delete `InvoiceReceiptLink` records + recalc invoice `amount_paid` → 4. Hard delete claim |
 | **Edit approved** | Auto-reverts approval, reverses JVs, resets to `reviewed`/`pending_review` |
 | **Soft delete?** | No — hard delete only |
 | **Audit** | Logs old values (merchant, amount, status, approval) |
@@ -174,6 +174,34 @@ These are critical — getting them wrong causes GL drift.
 
 The `recalcInvoicePaid()` function handles invoice recalculation from both receipt links AND bank recon allocations.
 
+### Payment Allocation Engine
+
+Three allocation join tables link payments to their targets:
+
+| Join Table | Links | Cascade |
+|-----------|-------|---------|
+| `PaymentAllocation` | Payment → Invoice | CASCADE both sides |
+| `PaymentReceipt` | Payment → Claim | CASCADE both sides |
+| `SalesPaymentAllocation` | Payment → SalesInvoice | CASCADE both sides |
+
+**Recalc functions** (called after any allocation change):
+
+| Function | File | Formula |
+|----------|------|---------|
+| `recalcInvoicePaid()` | `lib/invoice-payment.ts` | `MIN(MAX(receipt_links, bank_recon_allocations), total_amount)` |
+| `recalcInvoicePayment()` | `lib/payment-utils.ts` | `SUM(PaymentAllocation.amount)` |
+| `recalcClaimPayment()` | `lib/payment-utils.ts` | `SUM(PaymentReceipt.amount) + SUM(InvoiceReceiptLink.amount)` |
+| `recalcSalesInvoicePayment()` | `lib/sales-payment-utils.ts` | `SUM(SalesPaymentAllocation.amount)` |
+
+**Payment status transitions** (same for all entities):
+- `unpaid`: amount_paid = 0
+- `partially_paid`: 0 < amount_paid < total
+- `paid`: amount_paid >= total
+
+**Orphan cleanup:** When last `PaymentAllocation` is removed from a Payment, the Payment itself is auto-deleted along with its `PaymentReceipt` links. Each affected claim's payment_status is recalculated.
+
+**Credit application** (`/api/payments/apply-credit`): Finds unallocated payment amounts (payment.amount - SUM allocations > 0.005), allocates chronologically against open invoices oldest-first.
+
 ---
 
 ## Cascade Flow Diagram
@@ -195,7 +223,7 @@ approval: approved → JV created (claims/mileage only, NOT receipts)
 REVERT undoes in reverse order:
     Delete bank links → reverse bank_recon JV
     Delete invoice links → recalc invoice amount_paid
-    Revert approval → reverse claim_approval JV
+    Revert approval → reverse claim_approval JV (legacy cleanup only, no new JVs created on approval)
 ```
 
 ---
@@ -204,7 +232,7 @@ REVERT undoes in reverse order:
 
 | Entity | Hard Delete? | Blocker | Soft Delete? | JV Reversal? |
 |--------|-------------|---------|-------------|-------------|
-| Claim | Yes | PaymentReceipt exists | No | claim_approval + bank_recon |
+| Claim | Yes | PaymentReceipt exists | No | claim_approval (legacy) + bank_recon |
 | Invoice | Yes | None | No | invoice_posting |
 | Payment | Orphaned only | PaymentAllocation exists | No | bank_recon (if matched) |
 | PaymentAllocation | Yes | None | No | No (data cleanup) |

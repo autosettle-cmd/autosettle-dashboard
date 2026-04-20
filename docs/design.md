@@ -630,3 +630,24 @@ Every button that creates or reverses a Journal Entry **must** show a confirmati
 - Use gradient fills on buttons — flat color + 3D borders only
 - Make active sidebar button same color as inactive — use white to distinguish
 - Hardcode hex colors in page files — all colors from CSS variables
+
+---
+
+## Global Search (`Cmd+K`)
+
+### Implementation
+| File | Role |
+|------|------|
+| `app/api/search/route.ts` | 5 parallel Prisma queries, role-scoped |
+| `components/GlobalSearch.tsx` | Modal UI, keyboard nav, result grouping |
+
+### Entities Searched
+Claims, Invoices, Bank Transactions, Suppliers, Employees — all in parallel via `Promise.all()`, max 6 results per type.
+
+### Firm Scoping
+- **Accountant**: scoped to assigned firms (null = all)
+- **Admin**: scoped to own firm_id
+- **Employee**: own claims only
+
+### Navigation
+Clicking a result navigates to the entity's list page with `?preview=[id]` query param, which auto-opens the preview modal. "View all" navigates with `?search=[query]`.
