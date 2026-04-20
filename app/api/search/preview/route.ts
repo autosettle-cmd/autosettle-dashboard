@@ -77,8 +77,12 @@ export async function GET(request: NextRequest) {
       where: { id },
       include: {
         firm: { select: { name: true } },
-        supplier: { select: { id: true, name: true } },
+        supplier: { select: { id: true, name: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
         category: { select: { name: true } },
+        glAccount: { select: { id: true, account_code: true, name: true } },
+        contraGlAccount: { select: { id: true, account_code: true, name: true } },
+        uploader: { select: { name: true } },
+        lines: { orderBy: { sort_order: 'asc' }, select: { id: true, description: true, quantity: true, unit_price: true, tax_amount: true, line_total: true, gl_account_id: true, sort_order: true } },
       },
     });
     if (!inv) return NextResponse.json({ data: null });
@@ -91,6 +95,7 @@ export async function GET(request: NextRequest) {
         invoice_number: inv.invoice_number,
         issue_date: inv.issue_date?.toISOString() ?? '',
         due_date: inv.due_date?.toISOString() ?? null,
+        payment_terms: inv.payment_terms,
         subtotal: inv.subtotal?.toString() ?? '0',
         tax_amount: inv.tax_amount?.toString() ?? '0',
         total_amount: inv.total_amount?.toString() ?? '0',
@@ -101,13 +106,25 @@ export async function GET(request: NextRequest) {
         supplier_id: inv.supplier_id,
         supplier_name: inv.supplier?.name ?? null,
         supplier_link_status: inv.supplier_link_status,
+        supplier_default_gl_id: inv.supplier?.default_gl_account_id ?? null,
+        supplier_default_contra_gl_id: inv.supplier?.default_contra_gl_account_id ?? null,
         category_id: inv.category_id,
         category_name: inv.category?.name ?? null,
         file_url: inv.file_url,
         thumbnail_url: inv.thumbnail_url,
         notes: inv.notes,
+        confidence: inv.confidence,
+        uploader_name: inv.uploader?.name ?? '',
+        rejection_reason: inv.rejection_reason,
         gl_account_id: inv.gl_account_id,
+        gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
         contra_gl_account_id: inv.contra_gl_account_id,
+        contra_gl_account_label: inv.contraGlAccount ? `${inv.contraGlAccount.account_code} — ${inv.contraGlAccount.name}` : null,
+        lines: inv.lines.map(l => ({
+          id: l.id, description: l.description ?? '', quantity: l.quantity?.toString() ?? '1',
+          unit_price: l.unit_price?.toString() ?? '0', tax_amount: l.tax_amount?.toString() ?? '0',
+          line_total: l.line_total?.toString() ?? '0', gl_account_id: l.gl_account_id, gl_account_label: null, sort_order: l.sort_order,
+        })),
       },
     });
   }
