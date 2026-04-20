@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import Field from '@/components/forms/Field';
 import type { BankReconDetailConfig } from '@/components/pages/BankReconDetailContent';
@@ -119,6 +119,8 @@ export interface BankReconMatchModalProps {
   onCloseReceiptForm: () => void;
   onFetchNextVoucherNumber: (name: string, supplierId?: string) => void;
   onFetchNextReceiptNumber: (name: string, supplierId?: string) => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -182,9 +184,32 @@ export default function BankReconMatchModal({
   onCloseReceiptForm,
   onFetchNextVoucherNumber,
   onFetchNextReceiptNumber,
+  onPrev,
+  onNext,
 }: BankReconMatchModalProps) {
   const [showJvConfirm, setShowJvConfirm] = useState(false);
   const [showVoucherConfirm, setShowVoucherConfirm] = useState(false);
+
+  // Keyboard nav with visual press feedback
+  const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Don't navigate if user is typing in an input
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (e.key === 'ArrowLeft' && onPrev) { e.preventDefault(); setPressedDir('left'); onPrev(); }
+    if (e.key === 'ArrowRight' && onNext) { e.preventDefault(); setPressedDir('right'); onNext(); }
+  }, [onPrev, onNext]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (!pressedDir) return;
+    const t = setTimeout(() => setPressedDir(null), 150);
+    return () => clearTimeout(t);
+  }, [pressedDir]);
   const [showReceiptConfirm, setShowReceiptConfirm] = useState(false);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
@@ -249,6 +274,17 @@ export default function BankReconMatchModal({
   };
 
   return (
+    <>
+    {onPrev && (
+      <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+      </div>
+    )}
+    {onNext && (
+      <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+      </div>
+    )}
     <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-6" onClick={onClose}>
       <div className={`bg-white shadow-2xl w-full ${config.showDescriptionEdit ? 'max-w-[1200px]' : 'max-w-[720px]'} max-h-[90vh] flex flex-col animate-in`} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -1254,5 +1290,6 @@ export default function BankReconMatchModal({
         </div>
       )}
     </div>
+    </>
   );
 }

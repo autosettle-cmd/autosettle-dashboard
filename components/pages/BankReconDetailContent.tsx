@@ -1211,6 +1211,14 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
               onCloseReceiptForm={() => setShowReceiptForm(false)}
               onFetchNextVoucherNumber={fetchNextVoucherNumber}
               onFetchNextReceiptNumber={fetchNextReceiptNumber}
+              onPrev={(() => {
+                const idx = filteredTxns.findIndex(t => t.id === matchingTxn.id);
+                return idx > 0 ? () => { closeMatchModal(); openMatchModal(filteredTxns[idx - 1]); } : undefined;
+              })()}
+              onNext={(() => {
+                const idx = filteredTxns.findIndex(t => t.id === matchingTxn.id);
+                return idx >= 0 && idx < filteredTxns.length - 1 ? () => { closeMatchModal(); openMatchModal(filteredTxns[idx + 1]); } : undefined;
+              })()}
             />
           )}
 
