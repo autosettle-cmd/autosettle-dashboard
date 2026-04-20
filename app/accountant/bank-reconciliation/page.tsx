@@ -249,19 +249,27 @@ export default function AccountantBankReconciliationPage() {
     loadStatements();
   };
 
+  const [deleteError, setDeleteError] = useState('');
+
   const handleDeleteStatement = async (statementId: string) => {
     if (!confirm('Delete this bank statement and all its transactions? This cannot be undone.')) return;
+    setDeleteError('');
     try {
       const res = await fetch('/api/bank-reconciliation/statements/delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ statementId }),
       });
+      const json = await res.json().catch(() => null);
       if (res.ok) {
         setStatements((prev) => prev.filter((s) => s.id !== statementId));
+      } else {
+        const msg = json?.error || `Delete failed (${res.status})`;
+        setDeleteError(msg);
       }
     } catch (e) {
-      console.error('Delete failed:', e);
+      const msg = e instanceof Error ? e.message : 'Delete failed';
+      setDeleteError(msg);
     }
   };
 
@@ -367,8 +375,8 @@ export default function AccountantBankReconciliationPage() {
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
-            <SearchButton />
-            <button onClick={() => setShowUpload(true)} className="btn-thick-navy px-3 py-1.5 text-body-md font-medium">
+            {!uploading && <SearchButton />}
+            <button onClick={() => setShowUpload(true)} disabled={uploading} className="btn-thick-navy px-3 py-1.5 text-body-md font-medium disabled:opacity-50">
               Upload Statement
             </button>
           </div>
@@ -440,6 +448,13 @@ export default function AccountantBankReconciliationPage() {
 
           {/* Hidden input for PDF re-upload */}
           <input ref={reuploadRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleReuploadPdf(f); e.target.value = ''; }} />
+
+          {deleteError && (
+            <div className="mb-4 bg-red-50 border border-red-200 px-4 py-3 text-sm text-[var(--reject-red)] flex items-center justify-between">
+              <span>{deleteError}</span>
+              <button onClick={() => setDeleteError('')} className="text-[var(--reject-red)] font-bold ml-4">✕</button>
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>

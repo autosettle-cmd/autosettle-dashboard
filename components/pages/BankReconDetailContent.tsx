@@ -258,7 +258,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     finally { setConfirming(false); }
   };
 
-  const doConfirmAll = () => {
+  const _doConfirmAll = () => {
     const suggestedIds = (statement?.transactions ?? [])
       .filter((t) => t.recon_status === 'matched')
       .map((t) => t.id);

@@ -82,6 +82,11 @@ export async function DELETE(request: NextRequest) {
     // Clean up legacy Payment-based matches
     const paymentIds = allTxns.filter(t => t.matched_payment_id).map(t => t.matched_payment_id!);
     if (paymentIds.length > 0) {
+      // Null out FK before deleting payments to avoid constraint violation
+      await prisma.bankTransaction.updateMany({
+        where: { matched_payment_id: { in: paymentIds } },
+        data: { matched_payment_id: null },
+      });
       const paymentReceipts = await prisma.paymentReceipt.findMany({ where: { payment_id: { in: paymentIds } }, select: { claim_id: true } });
       await prisma.paymentReceipt.deleteMany({ where: { payment_id: { in: paymentIds } } });
       await prisma.payment.deleteMany({ where: { id: { in: paymentIds } } });
