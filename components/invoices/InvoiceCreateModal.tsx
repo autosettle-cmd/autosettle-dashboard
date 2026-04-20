@@ -99,7 +99,7 @@ export default function InvoiceCreateModal({
         <div className="bg-white shadow-2xl w-full max-w-[800px] max-h-[90vh] overflow-y-scroll" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between px-5 py-4" style={{ backgroundColor: 'var(--primary)' }}>
             <h2 className="text-white font-bold text-sm uppercase tracking-widest">Submit New Invoice</h2>
-            <button onClick={onClose} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+            <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
           </div>
 
           <div className="p-5 space-y-4">

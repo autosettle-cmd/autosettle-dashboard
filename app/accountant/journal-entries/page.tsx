@@ -203,9 +203,6 @@ export default function JournalEntriesPage() {
                   Cleanup Orphaned JVs
                 </button>
               )}
-              <p className="text-[var(--text-secondary)] text-xs">
-                {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
             </div>
           </div>
         </header>
@@ -325,7 +322,7 @@ export default function JournalEntriesPage() {
               {/* Header */}
               <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
                 <h2 className="text-white font-bold text-sm uppercase tracking-widest">{preview.voucher_number}</h2>
-                <button onClick={() => setPreview(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+                <button onClick={() => setPreview(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-5 space-y-4">

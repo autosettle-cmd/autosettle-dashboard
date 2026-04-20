@@ -690,6 +690,7 @@ export default function AccountantBankReconciliationPage() {
         label="Uploading statements..."
         current={batchProgress?.current ?? 0}
         total={batchProgress?.total ?? 0}
+        onExpand={() => setShowUpload(true)}
         results={!uploading && batchProgress && !showUpload ? batchProgress.results : undefined}
         onDismiss={() => setBatchProgress(null)}
       />

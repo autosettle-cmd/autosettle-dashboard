@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { resolveSupplier } from "@/lib/supplier-resolver";
 
 interface SaveInvoiceInput {
   employeeId: string;
@@ -27,8 +28,6 @@ interface SaveInvoiceInput {
  * 5. If not found → create Supplier + alias, status = unmatched
  */
 export async function saveInvoice(input: SaveInvoiceInput) {
-  const normalizedVendor = input.vendor.toLowerCase().trim();
-
   // Look up category
   const category = await prisma.category.findFirst({
     where: {
@@ -41,38 +40,8 @@ export async function saveInvoice(input: SaveInvoiceInput) {
     throw new Error(`Category not found: ${input.category}`);
   }
 
-  // Search for existing supplier alias in this firm
-  const existingAlias = await prisma.supplierAlias.findFirst({
-    where: {
-      alias: normalizedVendor,
-      supplier: { firm_id: input.firmId },
-    },
-    include: { supplier: true },
-  });
-
-  let supplierId: string;
-  let linkStatus: "auto_matched" | "unmatched" | "confirmed";
-
-  if (existingAlias) {
-    supplierId = existingAlias.supplier_id;
-    linkStatus = existingAlias.is_confirmed ? "confirmed" : "auto_matched";
-  } else {
-    // Create new supplier + alias
-    const newSupplier = await prisma.supplier.create({
-      data: {
-        firm_id: input.firmId,
-        name: input.vendor, // use original casing for display name
-        aliases: {
-          create: {
-            alias: normalizedVendor,
-            is_confirmed: false,
-          },
-        },
-      },
-    });
-    supplierId = newSupplier.id;
-    linkStatus = "unmatched";
-  }
+  // Resolve supplier with fuzzy matching
+  const { supplierId, linkStatus } = await resolveSupplier(input.vendor, input.firmId);
 
   // Parse dates — fallback to today if invalid
   const today = new Date().toISOString().split("T")[0];

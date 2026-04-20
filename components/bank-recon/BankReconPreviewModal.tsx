@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { BankReconDetailConfig } from '@/components/pages/BankReconDetailContent';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,6 +64,8 @@ export interface BankReconPreviewModalProps {
   onSetPreviewInvoice: (inv: any) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSetPreviewClaim: (claim: any) => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,7 +101,26 @@ export default function BankReconPreviewModal({
   onSetExpandedDocUrl,
   onSetPreviewInvoice,
   onSetPreviewClaim,
+  onPrev,
+  onNext,
 }: BankReconPreviewModalProps) {
+  const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' && onPrev) { e.preventDefault(); setPressedDir('left'); onPrev(); }
+    if (e.key === 'ArrowRight' && onNext) { e.preventDefault(); setPressedDir('right'); onNext(); }
+  }, [onPrev, onNext]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (!pressedDir) return;
+    const t = setTimeout(() => setPressedDir(null), 150);
+    return () => clearTimeout(t);
+  }, [pressedDir]);
+
   const mp = txn.matched_payment;
   const hasInvoices = !!(txn.matched_invoice || (txn.matched_invoice_allocations && txn.matched_invoice_allocations.length > 0));
   const hasSalesInvoice = !!txn.matched_sales_invoice;
@@ -130,12 +151,22 @@ export default function BankReconPreviewModal({
 
   return (
     <>
+      {onPrev && (
+        <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        </div>
+      )}
+      {onNext && (
+        <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </div>
+      )}
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={onClose}>
       <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[85vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
         <div className="h-12 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
           <h2 className="text-white font-bold text-xs uppercase tracking-widest">Transaction Details</h2>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+          <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
         <div className="flex-1 flex min-h-0">

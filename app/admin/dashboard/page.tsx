@@ -263,9 +263,6 @@ export default function AdminDashboard() {
           </h1>
           <div className="flex items-center gap-3">
             <SearchButton />
-            <p className="text-[10px] font-label text-[#444650] uppercase tracking-widest">
-              {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
           </div>
         </header>
 
@@ -488,7 +485,7 @@ export default function AdminDashboard() {
           <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Claim Details</h2>
-              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewClaim(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
 
             {/* Two-panel body */}
@@ -639,7 +636,7 @@ export default function AdminDashboard() {
           <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
-              <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewInvoice(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
 
             {/* Two-panel body */}

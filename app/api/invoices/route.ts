@@ -6,6 +6,7 @@ import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { uploadFileForFirm } from '@/lib/google-drive';
 import { createJournalEntry } from '@/lib/journal-entries';
 import { createHash } from 'crypto';
+import { resolveSupplier } from '@/lib/supplier-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -207,35 +208,9 @@ export async function POST(request: NextRequest) {
         }).catch(() => {});
       }
     } else {
-      const normalizedVendor = vendorName.toLowerCase().trim();
-
-      const existingAlias = await prisma.supplierAlias.findFirst({
-        where: {
-          alias: normalizedVendor,
-          supplier: { firm_id: firmId },
-        },
-        include: { supplier: true },
-      });
-
-      if (existingAlias) {
-        supplierId = existingAlias.supplier_id;
-        linkStatus = existingAlias.is_confirmed ? 'confirmed' : 'auto_matched';
-      } else {
-        const newSupplier = await prisma.supplier.create({
-          data: {
-            firm_id: firmId,
-            name: vendorName,
-            aliases: {
-              create: {
-                alias: normalizedVendor,
-                is_confirmed: false,
-              },
-            },
-          },
-        });
-        supplierId = newSupplier.id;
-        linkStatus = 'unmatched';
-      }
+      const resolved = await resolveSupplier(vendorName, firmId);
+      supplierId = resolved.supplierId;
+      linkStatus = resolved.linkStatus;
     }
 
     // ── Calculate due date from payment terms if not provided ──

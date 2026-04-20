@@ -485,11 +485,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Suppliers</h1>
           <div className="flex items-center gap-3">
             <SearchButton />
-            {config.role === 'accountant' && (
-              <p className="text-[var(--text-secondary)] text-xs">
-                {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            )}
           </div>
         </header>
 
@@ -738,6 +733,14 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
             onOpenPayment={openPayment}
             onOpenEdit={openEdit}
             onRefreshInPlace={refreshInPlace}
+            onPrev={(() => {
+              const idx = suppliers.findIndex(sup => sup.id === previewSupplierId);
+              return idx > 0 ? () => setPreviewSupplierId(suppliers[idx - 1].id) : undefined;
+            })()}
+            onNext={(() => {
+              const idx = suppliers.findIndex(sup => sup.id === previewSupplierId);
+              return idx >= 0 && idx < suppliers.length - 1 ? () => setPreviewSupplierId(suppliers[idx + 1].id) : undefined;
+            })()}
           />
         );
       })()}
@@ -793,6 +796,9 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           editExpenseGlId={editExpenseGlId}
           editContraGlId={editContraGlId}
           editGlAccounts={editGlAccounts}
+          mergeTargets={suppliers
+            .filter(s => s.id !== editSupplier.id && s.firm_id === editSupplier.firm_id)
+            .map(s => ({ id: s.id, name: s.name, invoice_count: s.invoice_count }))}
           onClose={() => setEditSupplier(null)}
           onNameChange={setEditName}
           onEmailChange={setEditEmail}
@@ -804,6 +810,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           onAddAlias={addAlias}
           onRemoveAlias={removeAlias}
           onSave={saveSupplier}
+          onMerged={() => { setEditSupplier(null); setRefreshKey(k => k + 1); }}
         />
       )}
 
@@ -815,7 +822,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 border-b bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
-              <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewInvoice(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewInvoice.thumbnail_url ? (
@@ -890,7 +897,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           <div className="bg-white shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 border-b bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Receipt Details</h2>
-              <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewReceipt(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (

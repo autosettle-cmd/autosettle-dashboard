@@ -549,14 +549,20 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   };
 
   const doCreateVoucher = async () => {
-    if (!matchingTxn || !voucherData.category_id) return;
+    if (!matchingTxn) return;
     setCreatingVoucher(true);
     setVoucherError('');
+    // Fallback to Miscellaneous category if none selected
+    const finalData = { ...voucherData };
+    if (!finalData.category_id) {
+      const misc = voucherCategories.find(c => c.name.toLowerCase() === 'miscellaneous');
+      finalData.category_id = misc?.id || '';
+    }
     try {
       const res = await fetch(config.apiCreateVoucher, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bankTransactionId: matchingTxn.id, ...voucherData }),
+        body: JSON.stringify({ bankTransactionId: matchingTxn.id, ...finalData }),
       });
       const json = await res.json();
       if (!res.ok) { setVoucherError(json.error || 'Failed to create payment voucher'); return; }
@@ -1127,6 +1133,14 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
               onSetExpandedDocUrl={setExpandedDocUrl}
               onSetPreviewInvoice={setPreviewInvoice}
               onSetPreviewClaim={setPreviewClaim}
+              onPrev={(() => {
+                const idx = filteredTxns.findIndex(t => t.id === previewTxn.id);
+                return idx > 0 ? () => setPreviewTxn(filteredTxns[idx - 1]) : undefined;
+              })()}
+              onNext={(() => {
+                const idx = filteredTxns.findIndex(t => t.id === previewTxn.id);
+                return idx >= 0 && idx < filteredTxns.length - 1 ? () => setPreviewTxn(filteredTxns[idx + 1]) : undefined;
+              })()}
             />
           )}
 
@@ -1211,7 +1225,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
-              <button onClick={() => setPreviewInvoice(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewInvoice(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="space-y-3">
@@ -1251,7 +1265,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Claim Details</h2>
-              <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewClaim(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               <dl className="grid grid-cols-2 gap-3">
@@ -1287,7 +1301,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           <div className="bg-white shadow-2xl w-full max-w-[640px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">Receipt Details</h2>
-              <button onClick={() => setPreviewReceipt(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => setPreviewReceipt(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {previewReceipt.thumbnail_url ? (

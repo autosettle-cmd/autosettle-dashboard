@@ -494,7 +494,7 @@ export default function AdminEmployeesPage() {
             <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
               <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
                 <h3 className="text-white font-bold text-sm uppercase tracking-wider">Add Admin</h3>
-                <button onClick={() => setShowAdminModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+                <button onClick={() => setShowAdminModal(false)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
               </div>
 
               <div className="p-5 space-y-3">
@@ -553,7 +553,7 @@ export default function AdminEmployeesPage() {
             <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
               <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
                 <h2 className="text-white font-bold text-sm uppercase tracking-wider">Edit Employee</h2>
-                <button onClick={() => setEditEmp(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+                <button onClick={() => setEditEmp(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
               </div>
 
               <div className="flex-1 overflow-auto p-5 space-y-4">
@@ -606,7 +606,7 @@ export default function AdminEmployeesPage() {
             <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-md flex flex-col" onClick={(e) => e.stopPropagation()}>
               <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
                 <h3 className="text-white font-bold text-sm uppercase tracking-wider">Add Employee</h3>
-                <button onClick={() => setShowEmpModal(false)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+                <button onClick={() => setShowEmpModal(false)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
               </div>
 
               <div className="p-5 space-y-3">

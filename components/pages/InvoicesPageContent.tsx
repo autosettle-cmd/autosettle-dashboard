@@ -1151,12 +1151,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           <div className="h-16 flex items-center justify-between pl-14 pr-6">
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Invoices</h1>
             <div className="flex items-center gap-3">
-              <SearchButton />
-              {config.role === 'accountant' ? (
-                <p className="text-[var(--text-secondary)] text-xs">
-                  {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-              ) : (
+              {!batchScanning && !batchSubmitting && <SearchButton />}
+              {config.role === 'admin' && !batchScanning && !batchSubmitting && (
                 <Link href="/admin/suppliers" className="text-body-sm font-medium hover:underline transition-colors" style={{ color: 'var(--primary)' }}>
                   Aging Report &rarr;
                 </Link>
@@ -1194,7 +1190,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   setShowNewInvoice(true);
                   if (config.firms && config.firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: config.firms![0].id }));
                 }}
-                className="btn-thick-navy px-4 py-2 text-sm font-semibold"
+                disabled={batchScanning || batchSubmitting}
+                className="btn-thick-navy px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 + Submit New Invoice
               </button>
@@ -1368,7 +1365,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
 
             {batchScanning && (
@@ -1561,6 +1558,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           setRejectModal={setRejectModal}
           deleteInvoice={deleteInvoice}
           refresh={refresh}
+          onPrev={(() => {
+            const idx = sortedInvoices.findIndex(i => i.id === previewInvoice.id);
+            return idx > 0 ? () => setPreviewInvoice(sortedInvoices[idx - 1]) : undefined;
+          })()}
+          onNext={(() => {
+            const idx = sortedInvoices.findIndex(i => i.id === previewInvoice.id);
+            return idx >= 0 && idx < sortedInvoices.length - 1 ? () => setPreviewInvoice(sortedInvoices[idx + 1]) : undefined;
+          })()}
         />
       )}
 

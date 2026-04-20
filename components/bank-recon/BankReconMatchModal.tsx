@@ -256,14 +256,14 @@ export default function BankReconMatchModal({
           <h2 className="text-white font-bold text-sm uppercase tracking-widest">
             {matchingTxn.debit ? 'Match Outgoing Payment' : 'Match Incoming Payment'}
           </h2>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+          <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
         {/* Body */}
         <div className="flex-1 flex min-h-0">
           {/* Left panel — transaction details (accountant: editable description + rich details; admin: simple summary) */}
           {config.showDescriptionEdit ? (
-            <div className="w-[360px] flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
+            <div className="w-[360px] flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4 self-stretch">
               <div>
                 <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Description</p>
                 <textarea
@@ -872,7 +872,7 @@ export default function BankReconMatchModal({
                 </div>
                 {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                 <div className="flex gap-3">
-                  <button onClick={() => setShowReceiptConfirm(true)} disabled={creatingVoucher} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={() => setShowReceiptConfirm(true)} disabled={creatingVoucher} className="btn-thick-green flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {creatingVoucher ? 'Creating...' : 'Create & Match'}
                   </button>
                   <button onClick={onCloseReceiptForm} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Cancel</button>
@@ -892,7 +892,7 @@ export default function BankReconMatchModal({
             </div>
 
             {!showVoucherForm ? (
-              <button onClick={onOpenVoucherForm} className="btn-thick-navy w-full px-3 py-2 text-body-md font-medium">
+              <button onClick={onOpenVoucherForm} className="btn-thick-red w-full px-3 py-2 text-body-md font-medium">
                 + Create Payment Voucher
               </button>
             ) : (
@@ -973,7 +973,7 @@ export default function BankReconMatchModal({
                 </div>
                 {voucherError && <p className="text-sm text-[var(--reject-red)]">{voucherError}</p>}
                 <div className="flex gap-3">
-                  <button onClick={() => setShowVoucherConfirm(true)} disabled={creatingVoucher || !voucherData.category_id} className="btn-thick-navy flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={() => setShowVoucherConfirm(true)} disabled={creatingVoucher} className="btn-thick-red flex-1 py-2 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
                     {creatingVoucher ? 'Creating...' : 'Create & Match'}
                   </button>
                   <button onClick={onCloseVoucherForm} className="btn-thick-white flex-1 py-2 text-sm font-semibold">Cancel</button>

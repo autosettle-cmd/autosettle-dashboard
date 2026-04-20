@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import Field from '@/components/forms/Field';
 import { STATUS_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 import { formatRM } from '@/lib/formatters';
@@ -117,6 +118,10 @@ export interface ClaimPreviewPanelProps {
   batchReview: (ids: string[]) => void;
   deleteClaims: (ids: string[]) => void;
   refresh: () => void;
+
+  // Navigation
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -163,13 +168,45 @@ export default function ClaimPreviewPanel({
   batchReview,
   deleteClaims,
   refresh,
+  onPrev,
+  onNext,
 }: ClaimPreviewPanelProps) {
   const isAccountant = config.role === 'accountant';
   const driveMatch = previewClaim.file_url?.match(/\/d\/([^/]+)/);
   const fileId = driveMatch?.[1];
 
+  // Keyboard navigation with visual press feedback
+  const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (editMode) return;
+    if (e.key === 'ArrowLeft' && onPrev) { e.preventDefault(); setPressedDir('left'); onPrev(); }
+    if (e.key === 'ArrowRight' && onNext) { e.preventDefault(); setPressedDir('right'); onNext(); }
+  }, [editMode, onPrev, onNext]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (!pressedDir) return;
+    const t = setTimeout(() => setPressedDir(null), 150);
+    return () => clearTimeout(t);
+  }, [pressedDir]);
+
   return (
     <>
+      {/* Prev/Next actuator strips — outside modal flex container */}
+      {onPrev && (
+        <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+        </div>
+      )}
+      {onNext && (
+        <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+        </div>
+      )}
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
       <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
@@ -178,7 +215,7 @@ export default function ClaimPreviewPanel({
           <h2 className="text-white font-bold text-sm uppercase tracking-widest">
             {previewClaim.type === 'mileage' ? 'Mileage Claim' : previewClaim.type === 'receipt' ? 'Receipt Details' : 'Claim Details'}
           </h2>
-          <button onClick={() => setPreviewClaim(null)} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+          <button onClick={() => setPreviewClaim(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
         {/* Body — two panels */}

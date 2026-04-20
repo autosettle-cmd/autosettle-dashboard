@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Field from '@/components/forms/Field';
 import { formatRM } from '@/lib/formatters';
 
@@ -31,6 +31,12 @@ interface GlAccount {
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+interface MergeTarget {
+  id: string;
+  name: string;
+  invoice_count: number;
+}
+
 export interface SupplierEditModalProps {
   supplier: Supplier;
   editName: string;
@@ -44,6 +50,8 @@ export interface SupplierEditModalProps {
   editExpenseGlId: string;
   editContraGlId: string;
   editGlAccounts: GlAccount[];
+  /** Other suppliers in the same firm for merge */
+  mergeTargets?: MergeTarget[];
   onClose: () => void;
   onNameChange: (val: string) => void;
   onEmailChange: (val: string) => void;
@@ -55,6 +63,7 @@ export interface SupplierEditModalProps {
   onAddAlias: () => void;
   onRemoveAlias: (aliasId: string) => void;
   onSave: () => void;
+  onMerged?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -83,13 +92,41 @@ export default function SupplierEditModal({
   onAddAlias,
   onRemoveAlias,
   onSave,
+  mergeTargets,
+  onMerged,
 }: SupplierEditModalProps) {
+  const [showMerge, setShowMerge] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState('');
+  const [merging, setMerging] = useState(false);
+  const [mergeError, setMergeError] = useState('');
+
+  const handleMerge = async () => {
+    if (!mergeTargetId) return;
+    const target = mergeTargets?.find(t => t.id === mergeTargetId);
+    if (!confirm(`Merge "${supplier.name}" into "${target?.name}"?\n\nAll ${supplier.invoice_count} invoices and aliases will be moved. This supplier will be deleted.`)) return;
+    setMerging(true);
+    setMergeError('');
+    try {
+      const res = await fetch('/api/suppliers/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: supplier.id, targetId: mergeTargetId }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setMergeError(json.error || 'Merge failed'); return; }
+      onMerged?.();
+      onClose();
+    } catch (e) {
+      setMergeError(e instanceof Error ? e.message : 'Merge failed');
+    } finally { setMerging(false); }
+  };
+
   return (
     <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
         <div className="h-14 flex items-center justify-between px-5 border-b bg-[var(--primary)]">
           <h2 className="text-white font-bold text-sm uppercase tracking-widest">Edit Supplier</h2>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+          <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -173,6 +210,40 @@ export default function SupplierEditModal({
               <Field label="Overdue" value={formatRM(supplier.overdue_amount)} />
             )}
           </div>
+
+          {/* Merge Into */}
+          {mergeTargets && mergeTargets.length > 0 && (
+            <div>
+              <button
+                onClick={() => setShowMerge(!showMerge)}
+                className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1"
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className={`transition-transform ${showMerge ? 'rotate-90' : ''}`}>
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+                Merge Into Another Supplier
+              </button>
+              {showMerge && (
+                <div className="mt-2 space-y-2">
+                  <select value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)} className="input-recessed w-full text-sm">
+                    <option value="">Select target supplier...</option>
+                    {mergeTargets.map(t => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.invoice_count} invoices)</option>
+                    ))}
+                  </select>
+                  {mergeError && <p className="text-xs text-[var(--reject-red)]">{mergeError}</p>}
+                  <button
+                    onClick={handleMerge}
+                    disabled={!mergeTargetId || merging}
+                    className="btn-thick-red w-full py-2 text-xs font-semibold disabled:opacity-40"
+                  >
+                    {merging ? 'Merging...' : `Merge "${supplier.name}" → Selected`}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] flex gap-3">

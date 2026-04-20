@@ -1069,7 +1069,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
             {isAccountant && <p className="text-[10px] font-label text-[var(--text-secondary)] uppercase tracking-widest">{formatDateDot(todayStr())}</p>}
           </div>
-          <SearchButton />
+          {!batchScanning && !batchSubmitting && <SearchButton />}
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
@@ -1333,7 +1333,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/70 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             {batchScanning && (
               <div className="px-5 pt-3">
@@ -1511,6 +1511,14 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           batchReview={batchReview}
           deleteClaims={deleteClaims}
           refresh={refresh}
+          onPrev={(() => {
+            const idx = sorted.findIndex(c => c.id === previewClaim.id);
+            return idx > 0 ? () => setPreviewClaim(sorted[idx - 1]) : undefined;
+          })()}
+          onNext={(() => {
+            const idx = sorted.findIndex(c => c.id === previewClaim.id);
+            return idx >= 0 && idx < sorted.length - 1 ? () => setPreviewClaim(sorted[idx + 1]) : undefined;
+          })()}
         />
       )}
 
