@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
 
@@ -326,11 +325,7 @@ export default function EmployeeDashboard() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
-
-      <Sidebar role="employee" />
-
-      {/* ═══ MAIN ═══ */}
+    <>
       <div
         className="flex-1 flex flex-col overflow-hidden relative ledger-binding"
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -765,7 +760,7 @@ export default function EmployeeDashboard() {
         </>
       )}
 
-    </div>
+    </>
   );
 }
 

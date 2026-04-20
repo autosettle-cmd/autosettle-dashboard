@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
 import HelpTooltip from '@/components/HelpTooltip';
-import BankReconPreviewModal from '@/components/bank-recon/BankReconPreviewModal';
-import BankReconMatchModal from '@/components/bank-recon/BankReconMatchModal';
+import dynamic from 'next/dynamic';
+const BankReconPreviewModal = dynamic(() => import('@/components/bank-recon/BankReconPreviewModal'));
+const BankReconMatchModal = dynamic(() => import('@/components/bank-recon/BankReconMatchModal'));
 import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -691,9 +691,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden paper-texture">
-      <Sidebar role={config.role} />
-
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[var(--surface-container-highest)]">
           <div className="flex items-center gap-3">
@@ -1460,6 +1458,6 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           </>
         );
       })()}
-    </div>
+    </>
   );
 }

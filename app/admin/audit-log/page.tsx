@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
 
@@ -94,9 +93,6 @@ export default function AdminAuditLogPage() {
   useEffect(() => { setPage(1); }, [tableFilter, dateFrom, dateTo]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-      <Sidebar role="admin" />
-
       <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Audit Log</h1>
@@ -197,6 +193,5 @@ export default function AdminAuditLogPage() {
           )}
         </main>
       </div>
-    </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM } from '@/lib/formatters';
@@ -252,9 +251,7 @@ export default function BankReconciliationPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden paper-texture">
-      <Sidebar role="admin" />
-
+    <>
       <div
         className="flex-1 flex flex-col overflow-hidden relative"
         onDragEnter={handleDragEnter}
@@ -495,6 +492,6 @@ export default function BankReconciliationPage() {
         onDismiss={() => setBatchProgress(null)}
       />
 
-    </div>
+    </>
   );
 }

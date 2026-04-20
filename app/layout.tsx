@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Lato, JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
 import { Providers } from "./providers";
 import BrandingStyles from "@/components/BrandingStyles";
 import { brand } from "@/config/branding";

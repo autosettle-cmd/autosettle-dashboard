@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -179,10 +178,8 @@ export default function AccountantEmployeeClaimsAccountPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-      <Sidebar role="accountant" />
-
-      <main className="flex-1 flex flex-col overflow-hidden">
+    <>
+      <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between bg-white border-b border-[#E0E3E5] pl-14 pr-6">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">
             Claims Account{data?.employee ? ` — ${data.employee.name}` : ''}
@@ -329,7 +326,7 @@ export default function AccountantEmployeeClaimsAccountPage() {
             )}
           </div>
         </div>
-      </main>
+      </div>
 
       {/* ═══ RECORD PAYMENT MODAL ═══ */}
       {showPayModal && (
@@ -443,6 +440,6 @@ export default function AccountantEmployeeClaimsAccountPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

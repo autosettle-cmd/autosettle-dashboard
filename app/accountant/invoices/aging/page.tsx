@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -119,14 +118,8 @@ export default function AccountantAgingReportPage() {
   }, [firmFilter]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-
-      {/* ═══ SIDEBAR ═══ */}
-      <Sidebar role="accountant" />
-
-      {/* ═══ MAIN ═══ */}
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
-
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <div className="flex items-center gap-3">
             <Link href="/accountant/invoices" className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors">
@@ -249,6 +242,6 @@ export default function AccountantAgingReportPage() {
 
         </main>
       </div>
-    </div>
+    </>
   );
 }

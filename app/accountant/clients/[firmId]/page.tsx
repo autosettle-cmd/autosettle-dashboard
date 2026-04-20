@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -222,13 +221,8 @@ export default function FirmDetailPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-
-      <Sidebar role="accountant" />
-
-      {/* === MAIN === */}
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
-
         <header className="h-16 flex-shrink-0 flex items-center justify-between bg-white border-b border-[#E0E3E5] pl-14 pr-6">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Firm Details</h1>
         </header>
@@ -612,6 +606,6 @@ export default function FirmDetailPage() {
         </div>
       )}
 
-    </div>
+    </>
   );
 }

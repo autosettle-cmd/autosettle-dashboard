@@ -1,7 +1,6 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
-import SalesInvoicesContent from '@/components/SalesInvoicesContent';
+const SalesInvoicesContent = dynamic(() => import('@/components/SalesInvoicesContent'));
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
@@ -14,9 +13,10 @@ import { APPROVAL_CFG } from '@/lib/badge-config';
 import FilterBar from '@/components/filters/FilterBar';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import InvoiceCreateModal from '@/components/invoices/InvoiceCreateModal';
-import InvoiceRejectModal from '@/components/invoices/InvoiceRejectModal';
-import InvoicePreviewPanel from '@/components/invoices/InvoicePreviewPanel';
+import dynamic from 'next/dynamic';
+const InvoiceCreateModal = dynamic(() => import('@/components/invoices/InvoiceCreateModal'));
+const InvoiceRejectModal = dynamic(() => import('@/components/invoices/InvoiceRejectModal'));
+const InvoicePreviewPanel = dynamic(() => import('@/components/invoices/InvoicePreviewPanel'));
 import SearchButton from '@/components/SearchButton';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1121,12 +1121,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden">
-
-      {/* SIDEBAR */}
-      <Sidebar role={config.role} />
-
-      {/* MAIN */}
+    <>
       <div
         className="flex-1 flex flex-col overflow-hidden relative"
         onDragEnter={handleDragEnter}
@@ -1588,6 +1583,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         onCancel={batchScanning && !showBatchReview ? cancelBatchScan : undefined}
       />
 
-    </div>
+    </>
   );
 }

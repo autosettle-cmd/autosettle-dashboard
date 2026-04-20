@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
 import SearchButton from '@/components/SearchButton';
@@ -140,14 +139,8 @@ export default function AdminsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-
-      {/* ═══ SIDEBAR ═══ */}
-      <Sidebar role="accountant" />
-
-      {/* ═══ MAIN ═══ */}
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
-
         <header className="h-16 flex-shrink-0 flex items-center justify-between bg-white border-b border-[#E0E3E5] pl-14 pr-6">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Admins</h1>
           <SearchButton />
@@ -306,6 +299,6 @@ export default function AdminsPage() {
         </div>
       )}
 
-    </div>
+    </>
   );
 }

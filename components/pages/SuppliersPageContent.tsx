@@ -3,10 +3,10 @@
 import React from 'react';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import Field from '@/components/forms/Field';
-import Sidebar from '@/components/Sidebar';
-import SupplierPreviewPanel from '@/components/suppliers/SupplierPreviewPanel';
-import SupplierPaymentModal from '@/components/suppliers/SupplierPaymentModal';
-import SupplierEditModal from '@/components/suppliers/SupplierEditModal';
+import dynamic from 'next/dynamic';
+const SupplierPreviewPanel = dynamic(() => import('@/components/suppliers/SupplierPreviewPanel'));
+const SupplierPaymentModal = dynamic(() => import('@/components/suppliers/SupplierPaymentModal'));
+const SupplierEditModal = dynamic(() => import('@/components/suppliers/SupplierEditModal'));
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
@@ -477,9 +477,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden paper-texture">
-      <Sidebar role={config.role} />
-
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Suppliers</h1>
@@ -933,6 +931,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

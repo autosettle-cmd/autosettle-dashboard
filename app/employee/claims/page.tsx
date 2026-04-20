@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Sidebar from '@/components/Sidebar';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
@@ -505,12 +504,7 @@ export default function EmployeeClaimsPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface">
-
-      {/* ═══ SIDEBAR ═══ */}
-      <Sidebar role="employee" />
-
-      {/* ═══ MAIN ═══ */}
+    <>
       <div
         className="flex-1 flex flex-col overflow-hidden relative ledger-binding"
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -1192,6 +1186,6 @@ export default function EmployeeClaimsPage() {
         total={batchSubmitProgress.total}
       />
 
-    </div>
+    </>
   );
 }

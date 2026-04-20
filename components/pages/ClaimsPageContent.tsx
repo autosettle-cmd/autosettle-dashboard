@@ -4,15 +4,15 @@ import { Suspense, useState, useEffect, useRef, useCallback, useMemo } from 'rea
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
-import Sidebar from '@/components/Sidebar';
 import { StatusCell, ConfidenceCell, LinkedCell, PaymentStatusCell } from '@/components/table/StatusBadge';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { todayStr, formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
 import FilterBar from '@/components/filters/FilterBar';
-import ClaimCreateModal from '@/components/claims/ClaimCreateModal';
-import ClaimPreviewPanel from '@/components/claims/ClaimPreviewPanel';
+import dynamic from 'next/dynamic';
+const ClaimCreateModal = dynamic(() => import('@/components/claims/ClaimCreateModal'));
+const ClaimPreviewPanel = dynamic(() => import('@/components/claims/ClaimPreviewPanel'));
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import SearchButton from '@/components/SearchButton';
 
@@ -1038,12 +1038,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface-base)]">
-
-      {/* === SIDEBAR === */}
-      <Sidebar role={config.role} />
-
-      {/* === MAIN === */}
+    <>
       <div
         className="flex-1 flex flex-col overflow-hidden relative"
         onDragEnter={handleDragEnter}
@@ -1531,6 +1526,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         onCancel={batchScanning && !showBatchReview ? cancelBatchScan : undefined}
       />
 
-    </div>
+    </>
   );
 }

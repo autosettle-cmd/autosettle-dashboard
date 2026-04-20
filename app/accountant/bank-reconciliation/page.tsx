@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Sidebar from '@/components/Sidebar';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
@@ -349,9 +348,7 @@ export default function AccountantBankReconciliationPage() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden paper-texture">
-      <Sidebar role="accountant" />
-
+    <>
       <div
         className="flex-1 flex flex-col overflow-hidden relative"
         onDragEnter={handleDragEnter}
@@ -695,6 +692,6 @@ export default function AccountantBankReconciliationPage() {
         onDismiss={() => setBatchProgress(null)}
       />
 
-    </div>
+    </>
   );
 }

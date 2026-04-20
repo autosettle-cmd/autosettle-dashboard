@@ -144,7 +144,17 @@
       "WebFetch(domain:bukku.my)",
       "Bash(find /Users/jeffrylau/autosettle-dashboard/app/api -type f -name *invoice*)",
       "Bash(find /Users/jeffrylau/autosettle-dashboard/app/components/pages -name *.tsx -type f)",
-      "Bash(xxd /Users/jeffrylau/autosettle-dashboard/app/admin/audit-log/page.tsx2)"
+      "Bash(xxd /Users/jeffrylau/autosettle-dashboard/app/admin/audit-log/page.tsx2)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/components -name *Dashboard* -o -name *dashboard*)",
+      "Bash(find . -name '*.tsx' -not -path './node_modules/*' -not -path './.next/*' -exec grep -l 'className=\"\"\"\"text-white/70 hover:text-white text-xl leading-none\"\"\"\">&times;</button>' {})",
+      "Bash(while read:*)",
+      "Bash(do sed:*)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/app/api -type f -name *.ts -o -name *.tsx -o -name *.js)",
+      "Bash(find /Users/jeffrylau/autosettle-dashboard/lib -type f -name *.ts -o -name *.tsx)",
+      "Bash(JUNORISE SDN. BHD. *)",
+      "Bash(find .next/static/chunks/app -name *.js -size +100k -exec ls -lhS {})",
+      "Bash(2)",
+      "Bash(sort -k5 -rh)"
     ]
   }
 }

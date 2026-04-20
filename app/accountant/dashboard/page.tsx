@@ -3,7 +3,6 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
@@ -398,12 +397,7 @@ export default function AccountantDashboard() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
-
-      {/* ═══ SIDEBAR ═══ */}
-      <Sidebar role="accountant" />
-
-      {/* ═══ MAIN ═══ */}
+    <>
       <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[#191C1E]">
@@ -999,7 +993,7 @@ export default function AccountantDashboard() {
         );
       })()}
 
-    </div>
+    </>
   );
 }
 

@@ -17,8 +17,6 @@
     "@prisma/client": "^7.6.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.20.0",
-    "ag-grid-community": "^35.2.0",
-    "ag-grid-react": "^35.2.0",
     "bcryptjs": "^3.0.3",
     "googleapis": "^171.4.0",
     "heic-convert": "^2.1.0",

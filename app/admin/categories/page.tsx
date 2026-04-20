@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -178,12 +177,7 @@ export default function AdminCategoriesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-
-      {/* === SIDEBAR === */}
-      <Sidebar role="admin" />
-
-      {/* === MAIN === */}
+    <>
       <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
@@ -457,6 +451,6 @@ export default function AdminCategoriesPage() {
         </>
       )}
 
-    </div>
+    </>
   );
 }

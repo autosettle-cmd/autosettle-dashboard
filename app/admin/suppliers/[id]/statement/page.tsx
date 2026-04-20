@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { generateSOAPdf } from '@/lib/generate-soa-pdf';
 import type { StatementData } from '@/lib/generate-soa-pdf';
-import Sidebar from '@/components/Sidebar';
 import { usePageTitle } from '@/lib/use-page-title';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,13 +79,8 @@ export default function AdminSupplierStatementPage() {
   }, [id, dateFrom, dateTo]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-
-      {/* ═══ SIDEBAR ═══ */}
-      <Sidebar role="admin" />
-
-      {/* ═══ MAIN ═══ */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+    <>
+      <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center bg-white border-b border-[#E0E3E5] pl-14 pr-6">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">
             Statement of Account{data?.supplier ? ` — ${data.supplier.name}` : ''}
@@ -232,7 +226,7 @@ export default function AdminSupplierStatementPage() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </>
   );
 }

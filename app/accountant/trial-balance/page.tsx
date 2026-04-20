@@ -1,6 +1,5 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
 import React, { useState, useEffect } from 'react';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
@@ -194,10 +193,8 @@ export default function TrialBalancePage() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-      <Sidebar role="accountant" />
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
-
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Trial Balance</h1>
           <SearchButton />
@@ -389,6 +386,6 @@ export default function TrialBalancePage() {
           </div>
         </main>
       </div>
-    </div>
+    </>
   );
 }

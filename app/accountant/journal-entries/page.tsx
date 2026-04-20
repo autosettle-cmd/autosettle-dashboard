@@ -1,6 +1,5 @@
 'use client';
 
-import Sidebar from '@/components/Sidebar';
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import { useState, useEffect } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
@@ -170,9 +169,7 @@ export default function JournalEntriesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--surface)]">
-      <Sidebar role="accountant" />
-
+    <>
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="flex-shrink-0 bg-white border-b border-[#E0E3E5]">
           <div className="h-16 flex items-center justify-between pl-14 pr-6">
@@ -434,7 +431,7 @@ export default function JournalEntriesPage() {
         </>
       )}
 
-    </div>
+    </>
   );
 }
 
