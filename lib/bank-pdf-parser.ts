@@ -121,8 +121,11 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
     const line = rawLine.trim();
     if (!line) continue;
 
-    // Skip known non-transaction lines
-    if (line.includes('URUSNIAGA AKAUN') || line.includes('TARIKH MASUK') ||
+    // Skip known non-transaction lines — BUT only when NOT building a transaction.
+    // When inside a transaction (currentTxn != null), continuation lines like
+    // "JUNORISE SDN. BHD. *" or "I000034" must be kept as description lines.
+    const isPageNoise =
+        line.includes('URUSNIAGA AKAUN') || line.includes('TARIKH MASUK') ||
         line.includes('ENTRY DATE') || line.includes('進支日期') ||
         line.includes('Maybank Islamic') || line.includes('PROTECTED BY PIDM') ||
         line.includes('Perhation') || line.includes('Semua maklumat') ||
@@ -130,24 +133,31 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
         line.includes('Sila beritahu') || line.includes('請通知') ||
         line.includes('Please notify') || line.startsWith('IBS ') ||
         line.includes('MUKA/') || line.includes('NOMBOR AKAUN') ||
-        line.includes('STATEMENT DATE') || line.includes('ACCOUNT') ||
-        line.includes('TARIKH PENYATA') || line.includes('結單日期') ||
-        line.includes('戶號') || line.includes('tempoh 21 hari') ||
-        line.includes('戶口進支項') || line.includes('進支項說明') ||
-        line.includes('银碼') || line.includes('結單存餘') ||
-        line.match(/^\d{6}\s/) ||
+        line.includes('STATEMENT DATE') || line.includes('TARIKH PENYATA') ||
+        line.includes('結單日期') || line.includes('戶號') ||
+        line.includes('tempoh 21 hari') || line.includes('戶口進支項') ||
+        line.includes('進支項說明') || line.includes('银碼') ||
+        line.includes('結單存餘') || line.match(/^\d{6}\s/) ||
         line.includes('SELANGOR ,MYS') || line.includes('47500') ||
-        line.includes('CURRENT ACCOUNT') || line.includes('SDN BHD') ||
-        line.includes('SDN. BHD') || line.match(/^NO\s+\d/) ||
-        line.match(/^JALAN\s/) || line.match(/^TAMAN\s/) ||
-        line.match(/^\d{5}\s/)) {
-      // If we hit a page header/footer while building a transaction, flush it
-      // This prevents page noise from leaking into the last transaction's description
-      if (currentTxn) {
+        line.includes('CURRENT ACCOUNT');
+
+    // Strong page-noise markers that flush even during a transaction
+    const isStrongPageNoise =
+        line.includes('URUSNIAGA AKAUN') || line.includes('ENTRY DATE') ||
+        line.includes('MUKA/') || line.includes('NOMBOR AKAUN') ||
+        line.includes('STATEMENT DATE') || line.includes('TARIKH PENYATA') ||
+        line.includes('PROTECTED BY PIDM') || line.includes('Maybank Islamic');
+
+    if (isPageNoise) {
+      if (currentTxn && isStrongPageNoise) {
+        // Definite page header — flush current transaction
         flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
         currentTxn = null;
+      } else if (!currentTxn) {
+        // Not in a transaction — safe to skip
       }
-      continue;
+      // If in a transaction and NOT strong noise, fall through to continuation logic below
+      if (!currentTxn || isStrongPageNoise) continue;
     }
     if (line.startsWith('BEGINNING BALANCE') || line.startsWith('ENDING BALANCE') ||
         line.startsWith('TOTAL CREDIT') || line.startsWith('TOTAL DEBIT') ||
@@ -160,12 +170,9 @@ function parseMaybank(fullText: string): Omit<ParseResult, 'fileHash'> {
     }
 
     // Check for address/name lines that appear in page headers
-    // These typically contain the account holder info repeated on every page
-    if (line.match(/^[A-Z\s,]+\d{5}/) || line.match(/NO \d+ ,/)) {
-      if (currentTxn) {
-        flushTransaction(currentTxn, transactions, statementDate?.getFullYear());
-        currentTxn = null;
-      }
+    // Only skip when NOT building a transaction — these patterns are too broad
+    // and can match payee names like "JUNORISE SDN. BHD." or "NO 10 , JALAN..."
+    if (!currentTxn && (line.match(/^[A-Z\s,]+\d{5}/) || line.match(/NO \d+ ,/))) {
       continue;
     }
 
