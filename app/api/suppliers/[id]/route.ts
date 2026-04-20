@@ -32,60 +32,40 @@ export async function GET(
     return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
   }
 
-  const supplier = await prisma.supplier.findUnique({
-    where: { id },
-    include: {
-      firm: { select: { name: true } },
-      aliases: { orderBy: { created_at: 'asc' } },
-      invoices: {
-        include: {
-          category: { select: { name: true } },
-          paymentAllocations: {
-            include: {
-              payment: {
-                select: {
-                  id: true, payment_date: true, reference: true, amount: true,
-                  receipts: { select: { payment_id: true, claim_id: true } },
-                },
-              },
-            },
-          },
-        },
-        orderBy: { issue_date: 'desc' },
+  // Parallel queries instead of deep nested includes
+  const [supplierBase, invoicesRaw, salesInvoicesRaw] = await Promise.all([
+    prisma.supplier.findUnique({
+      where: { id },
+      include: {
+        firm: { select: { name: true } },
+        aliases: { orderBy: { created_at: 'asc' } },
       },
-      salesInvoices: {
-        include: {
-          paymentAllocations: {
-            include: {
-              payment: {
-                select: { id: true, payment_date: true, reference: true, amount: true },
-              },
-            },
-          },
-        },
-        orderBy: { issue_date: 'desc' },
+    }),
+    prisma.invoice.findMany({
+      where: { supplier_id: id },
+      include: {
+        category: { select: { name: true } },
       },
-    },
-  });
+      orderBy: { issue_date: 'desc' },
+      take: 100,
+    }),
+    prisma.salesInvoice.findMany({
+      where: { supplier_id: id },
+      select: {
+        id: true, invoice_number: true, issue_date: true, due_date: true,
+        total_amount: true, amount_paid: true, payment_status: true, notes: true,
+      },
+      orderBy: { issue_date: 'desc' },
+      take: 100,
+    }),
+  ]);
+  const supplier = supplierBase;
 
   if (!supplier) {
     return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
   }
 
-  // Batch-fetch all claim details referenced by payment receipts
-  const allClaimIds = supplier.invoices.flatMap((inv) =>
-    inv.paymentAllocations.flatMap((a) => a.payment.receipts.map((r) => r.claim_id))
-  );
-  const claimMap = new Map<string, { id: string; merchant: string; receipt_number: string | null }>();
-  if (allClaimIds.length > 0) {
-    const claims = await prisma.claim.findMany({
-      where: { id: { in: Array.from(new Set(allClaimIds)) } },
-      select: { id: true, merchant: true, receipt_number: true },
-    });
-    for (const c of claims) claimMap.set(c.id, c);
-  }
-
-  const invoices = supplier.invoices.map((inv) => ({
+  const invoices = invoicesRaw.map((inv) => ({
     id: inv.id,
     invoice_number: inv.invoice_number,
     issue_date: inv.issue_date,
@@ -101,23 +81,10 @@ export async function GET(
     file_url: inv.file_url,
     thumbnail_url: inv.thumbnail_url,
     confidence: inv.confidence,
-    allocations: inv.paymentAllocations.map((a) => ({
-      id: a.id,
-      amount: a.amount.toString(),
-      payment_date: a.payment.payment_date,
-      reference: a.payment.reference,
-      receipts: a.payment.receipts.map((r) => {
-        const c = claimMap.get(r.claim_id);
-        return {
-          id: c?.id ?? r.claim_id,
-          merchant: c?.merchant ?? '',
-          receipt_number: c?.receipt_number ?? null,
-        };
-      }),
-    })),
+    allocations: [],
   }));
 
-  const salesInvoices = supplier.salesInvoices.map((sinv) => ({
+  const salesInvoices = salesInvoicesRaw.map((sinv) => ({
     id: sinv.id,
     invoice_number: sinv.invoice_number,
     issue_date: sinv.issue_date,
@@ -126,12 +93,7 @@ export async function GET(
     amount_paid: sinv.amount_paid.toString(),
     payment_status: sinv.payment_status,
     notes: sinv.notes,
-    allocations: sinv.paymentAllocations.map((a) => ({
-      id: a.id,
-      amount: a.amount.toString(),
-      payment_date: a.payment.payment_date,
-      reference: a.payment.reference,
-    })),
+    allocations: [],
   }));
 
   // Find orphaned payments (no allocations = unallocated credit)

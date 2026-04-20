@@ -67,19 +67,31 @@ export async function GET(request: NextRequest) {
         category: { select: { name: true } },
         glAccount: { select: { id: true, account_code: true, name: true } },
         _count: { select: { paymentReceipts: true, invoiceReceiptLinks: true } },
-        paymentReceipts: {
-          include: {
-            payment: {
-              select: { id: true, amount: true, payment_date: true, reference: true, supplier: { select: { name: true } }, employee: { select: { name: true } } },
-            },
-          },
-        },
       },
       orderBy: { claim_date: 'desc' },
       take: takeParam || 100,
     }),
     prisma.claim.count({ where }),
   ]);
+
+  // Batch-load payment receipts only for claims that have them
+  const claimIdsWithPayments = claims.filter(c => c._count.paymentReceipts > 0).map(c => c.id);
+  const allPaymentReceipts = claimIdsWithPayments.length > 0
+    ? await prisma.paymentReceipt.findMany({
+        where: { claim_id: { in: claimIdsWithPayments } },
+        include: {
+          payment: {
+            select: { id: true, amount: true, payment_date: true, reference: true, supplier: { select: { name: true } }, employee: { select: { name: true } } },
+          },
+        },
+      })
+    : [];
+  const receiptsByClaim = new Map<string, typeof allPaymentReceipts>();
+  for (const pr of allPaymentReceipts) {
+    const arr = receiptsByClaim.get(pr.claim_id) ?? [];
+    arr.push(pr);
+    receiptsByClaim.set(pr.claim_id, arr);
+  }
 
   const data = claims.map((c) => ({
     id: c.id,
@@ -111,7 +123,7 @@ export async function GET(request: NextRequest) {
     distance_km: c.distance_km?.toString() ?? null,
     trip_purpose: c.trip_purpose,
     linked_payment_count: c._count.paymentReceipts + c._count.invoiceReceiptLinks,
-    linked_payments: c.paymentReceipts.map((pr) => ({
+    linked_payments: (receiptsByClaim.get(c.id) ?? []).map((pr) => ({
       payment_id: pr.payment.id,
       amount: pr.payment.amount.toString(),
       payment_date: pr.payment.payment_date,

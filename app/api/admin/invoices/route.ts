@@ -53,13 +53,29 @@ export async function GET(request: NextRequest) {
         uploader: { select: { name: true } },
         supplier: { select: { id: true, name: true } },
         category: { select: { name: true } },
-        lines: { orderBy: { sort_order: 'asc' }, include: { glAccount: { select: { id: true, account_code: true, name: true } } } },
+        _count: { select: { lines: true } },
       },
       orderBy: { issue_date: 'desc' },
       take: takeParam || 100,
     }),
     prisma.invoice.count({ where }),
   ]);
+
+  // Batch-load line items separately
+  const invoiceIdsWithLines = invoices.filter(inv => inv._count.lines > 0).map(inv => inv.id);
+  const allLines = invoiceIdsWithLines.length > 0
+    ? await prisma.invoiceLine.findMany({
+        where: { invoice_id: { in: invoiceIdsWithLines } },
+        include: { glAccount: { select: { id: true, account_code: true, name: true } } },
+        orderBy: { sort_order: 'asc' },
+      })
+    : [];
+  const linesByInvoice = new Map<string, typeof allLines>();
+  for (const line of allLines) {
+    const arr = linesByInvoice.get(line.invoice_id) ?? [];
+    arr.push(line);
+    linesByInvoice.set(line.invoice_id, arr);
+  }
 
   const data = invoices.map((inv) => ({
     id: inv.id,
@@ -85,7 +101,7 @@ export async function GET(request: NextRequest) {
     thumbnail_url: inv.thumbnail_url,
     notes: inv.notes,
     submitted_via: inv.submitted_via,
-    lines: inv.lines.map((l) => ({
+    lines: (linesByInvoice.get(inv.id) ?? []).map((l) => ({
       id: l.id,
       description: l.description,
       quantity: l.quantity.toString(),
