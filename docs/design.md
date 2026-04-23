@@ -271,6 +271,22 @@ Styled as a **physical keycap button** matching action buttons — not a standar
 
 **Portal pattern (important):** The dropdown uses fixed positioning calculated from the trigger button's `getBoundingClientRect()`. Click-outside detection checks both the container ref and the portal dropdown ref. This ensures the dropdown is never clipped by scrollable parent panels.
 
+### Searchable Dropdowns
+
+All dropdowns where users select from a list must be **searchable** — never use plain `<select>` for entity selection (suppliers, employees, firms, etc.). Use the type-to-filter pattern:
+
+- **Text input** styled as `input-recessed`, user types to filter
+- **Dropdown list** appears below on focus, filters as user types, `max-h-40 overflow-y-auto`
+- **Selected state**: input shows selected item name, with `x` button to clear
+- **No match**: show helper text ("No match — a new supplier will be created")
+- **Status badge** next to the label when applicable (Suggested/Confirmed for supplier linking)
+
+**When to use plain `<select>`:** Only for short fixed lists (Plan: Free/Paid, Status filter, Month picker). Never for entity lists that grow.
+
+**Existing components:**
+- `GlAccountSelect` — GL accounts with navy keycap style + portal dropdown
+- Supplier Account field — `input-recessed` with type-to-filter dropdown
+
 ### Clickable Entity Cards (Expand-to-Preview Pattern)
 When displaying a list of matched/linked entities (invoices, claims, sales invoices), use `btn-thick-white` as the card. Clicking the card:
 1. **Selects** the item (highlights blue)

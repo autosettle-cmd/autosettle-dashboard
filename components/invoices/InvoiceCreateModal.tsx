@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { LINK_CFG } from '@/lib/badge-config';
 import { type RefObject } from 'react';
@@ -103,6 +104,8 @@ export default function InvoiceCreateModal({
   dismissPvMatch,
 }: InvoiceCreateModalProps) {
 
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
   const hasPreview = !!newInvFile;
 
   return (
@@ -188,24 +191,58 @@ export default function InvoiceCreateModal({
                       return cfg ? <span className={`text-label-sm ${cfg.cls}`} data-tooltip={cfg.tooltip}>{cfg.label}</span> : null;
                     })()}
                   </div>
-                  <select
-                    value={newInv.supplier_id}
+                  <input
+                    type="text"
+                    value={newInv.supplier_id ? suppliers.find(s => s.id === newInv.supplier_id)?.name || '' : supplierSearch}
                     onChange={(e) => {
-                      const supplierId = e.target.value;
-                      if (supplierId) {
-                        const s = suppliers.find(s => s.id === supplierId);
-                        setNewInv({ ...newInv, supplier_id: supplierId, supplier_link_status: 'confirmed', vendor_name: newInv.vendor_name || s?.name || '' });
-                      } else {
+                      setSupplierSearch(e.target.value);
+                      setSupplierDropdownOpen(true);
+                      if (newInv.supplier_id) {
                         setNewInv({ ...newInv, supplier_id: '', supplier_link_status: 'unmatched' });
                       }
                     }}
+                    onFocus={() => setSupplierDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setSupplierDropdownOpen(false), 150)}
                     className="input-recessed w-full"
-                  >
-                    <option value="">-- New supplier (will be created) --</option>
-                    {(config.role === 'accountant' && newInv.firm_id ? suppliers.filter(s => s.firm_id === newInv.firm_id) : suppliers).map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                    placeholder="Search existing supplier or leave empty for new"
+                    autoComplete="off"
+                  />
+                  {newInv.supplier_id && (
+                    <button
+                      type="button"
+                      onClick={() => { setNewInv({ ...newInv, supplier_id: '', supplier_link_status: 'unmatched' }); setSupplierSearch(''); }}
+                      className="absolute right-3 top-[calc(50%+4px)] text-xs text-[var(--text-secondary)] hover:text-[var(--reject-red)]"
+                    >
+                      &times;
+                    </button>
+                  )}
+                  {supplierDropdownOpen && !newInv.supplier_id && (() => {
+                    const firmSuppliers = config.role === 'accountant' && newInv.firm_id ? suppliers.filter(s => s.firm_id === newInv.firm_id) : suppliers;
+                    const q = supplierSearch.toLowerCase();
+                    const filtered = q ? firmSuppliers.filter(s => s.name.toLowerCase().includes(q)) : firmSuppliers;
+                    return (
+                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#E0E3E5] shadow-lg max-h-40 overflow-y-auto">
+                        <div className="px-4 py-2 text-xs text-[var(--text-secondary)] bg-[var(--surface-low)] border-b border-[#E0E3E5]">
+                          {filtered.length > 0 ? `${filtered.length} supplier${filtered.length > 1 ? 's' : ''}` : 'No match — a new supplier will be created'}
+                        </div>
+                        {filtered.slice(0, 10).map(s => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onMouseDown={e => e.preventDefault()}
+                            onClick={() => {
+                              setNewInv({ ...newInv, supplier_id: s.id, supplier_link_status: 'confirmed' });
+                              setSupplierSearch('');
+                              setSupplierDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--surface-low)] transition-colors"
+                          >
+                            {s.name}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div>
