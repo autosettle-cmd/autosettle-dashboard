@@ -432,13 +432,13 @@ export default function InvoicePreviewPanel({
               {/* Status row */}
               <div className="flex flex-wrap items-center gap-1.5">
                 {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
-                  <span key={cfg!.label} className={`${cfg!.cls} inline-flex items-center gap-1`}>
+                  <span key={cfg!.label} className={`${cfg!.cls} inline-flex items-center gap-1`} data-tooltip={cfg!.tooltip}>
                     <span className={cfg!.label === 'Reviewed' || cfg!.label === 'Paid' ? 'led-green' : cfg!.label === 'Unpaid' ? 'led-off' : 'led-amber'} />
                     {cfg!.label}
                   </span>
                 ))}
                 {config.showApproval && APPROVAL_CFG[previewInvoice.approval] && (
-                  <span className={`${APPROVAL_CFG[previewInvoice.approval].cls} inline-flex items-center gap-1`}>
+                  <span className={`${APPROVAL_CFG[previewInvoice.approval].cls} inline-flex items-center gap-1`} data-tooltip={APPROVAL_CFG[previewInvoice.approval].tooltip}>
                     <span className={previewInvoice.approval === 'approved' ? 'led-green' : previewInvoice.approval === 'not_approved' ? 'led-red' : 'led-amber'} />
                     {APPROVAL_CFG[previewInvoice.approval].label}
                   </span>
@@ -482,7 +482,7 @@ export default function InvoicePreviewPanel({
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</span>
                   {(() => {
                     const cfg = LINK_CFG[previewInvoice.supplier_link_status];
-                    return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
+                    return cfg ? <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span> : null;
                   })()}
                 </div>
                 <p className="text-sm text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>

@@ -120,28 +120,8 @@ interface EditData {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
-  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
-};
-
-const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',  cls: 'badge-amber' },
-  approved:         { label: 'Approved', cls: 'badge-green' },
-  not_approved:     { label: 'Rejected', cls: 'badge-red'   },
-};
-
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
-  partially_paid: { label: 'Partial', cls: 'badge-amber'  },
-  paid:           { label: 'Paid',    cls: 'badge-purple' },
-};
-
-const LINK_CFG: Record<string, { label: string; cls: string }> = {
-  confirmed:    { label: 'Confirmed',   cls: 'badge-green' },
-  auto_matched: { label: 'Suggested',   cls: 'badge-amber' },
-  unmatched:    { label: 'Unconfirmed', cls: 'badge-red'   },
-};
+// Badge configs imported from shared lib (includes tooltips)
+import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG, LINK_CFG } from '@/lib/badge-config';
 
 function formatDate(val: string) {
   if (!val) return '';
@@ -701,7 +681,7 @@ export default function AccountantDashboard() {
                             <td data-col="Category" className="px-6 py-3 text-[#444650]">{c.category_name}</td>
                             <td data-col="Amount" className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                             <td data-col="Status" className="px-6 py-3">
-                              {cfg && <span className={cfg.cls}>{cfg.label}</span>}
+                              {cfg && <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>}
                             </td>
                           </tr>
                         );
@@ -787,8 +767,8 @@ export default function AccountantDashboard() {
                             <td data-col="Invoice #" className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>
                             <td data-col="Due Date" className="px-6 py-3 text-[#444650] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
                             <td data-col="Amount" className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                            <td data-col="Payment" className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
-                            <td data-col="Supplier" className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
+                            <td data-col="Payment" className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls} data-tooltip={pmtCfg.tooltip}>{pmtCfg.label}</span>}</td>
+                            <td data-col="Supplier" className="px-6 py-3">{linkCfg && <span className={linkCfg.cls} data-tooltip={linkCfg.tooltip}>{linkCfg.label}</span>}</td>
                           </tr>
                         );
                       })}
@@ -868,7 +848,7 @@ export default function AccountantDashboard() {
                   </dl>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {[STATUS_CFG[previewClaim.status], APPROVAL_CFG[previewClaim.approval]].filter(Boolean).map((cfg) => (
-                      <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                      <span key={cfg!.label} className={cfg!.cls} data-tooltip={cfg!.tooltip}>{cfg!.label}</span>
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">

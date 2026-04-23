@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
+import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,22 +36,6 @@ interface Category {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
-  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
-};
-
-const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',  cls: 'badge-amber' },
-  approved:         { label: 'Approved', cls: 'badge-green' },
-  not_approved:     { label: 'Rejected', cls: 'badge-red'   },
-};
-
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid: { label: 'Unpaid', cls: 'badge-gray'   },
-  paid:   { label: 'Paid',   cls: 'badge-purple' },
-};
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
@@ -598,7 +583,7 @@ export default function EmployeeClaimsPage() {
                           <td data-col="Category" className="px-6 py-5 text-[#444650]">{c.category_name}</td>
                           <td data-col="Amount" className="px-6 py-5 font-medium text-right tabular-nums text-[#0D1B2A]">{formatRM(c.amount)}</td>
                           <td data-col="Status" className="px-6 py-5 text-center">
-                            {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
+                            {sCfg && <span className={sCfg.cls} data-tooltip={sCfg.tooltip}>{sCfg.label}</span>}
                           </td>
                           <td data-col="Reimbursed" className="px-6 py-5 text-center">
                             <span className={c.payment_status === 'paid' ? 'badge-green' : 'badge-amber'}>
@@ -1152,7 +1137,7 @@ export default function EmployeeClaimsPage() {
                   </dl>
                   <div className="flex flex-wrap gap-2 pt-1">
                     {[STATUS_CFG[previewClaim.status], PAYMENT_CFG[previewClaim.payment_status]].filter(Boolean).map((cfg) => (
-                      <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                      <span key={cfg!.label} className={cfg!.cls} data-tooltip={cfg!.tooltip}>{cfg!.label}</span>
                     ))}
                   </div>
                   {previewClaim.rejection_reason && (

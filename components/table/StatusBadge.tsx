@@ -52,7 +52,7 @@ export default function StatusBadge({ type, value }: StatusBadgeProps) {
   const cfg = config[String(value)];
   if (!cfg) return null;
 
-  return <span className={cfg.cls}>{cfg.label}</span>;
+  return <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>;
 }
 
 // Named exports for convenience (drop-in replacements)

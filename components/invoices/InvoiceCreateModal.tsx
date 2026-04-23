@@ -63,6 +63,10 @@ export interface InvoiceCreateModalProps {
   handleInvFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   submitNewInvoice: () => void;
   onClose: () => void;
+  pvMatch?: { id: string; invoice_number: string; vendor_name_raw: string; total_amount: string; issue_date: string } | null;
+  pvAttaching?: boolean;
+  attachToPV?: () => void;
+  dismissPvMatch?: () => void;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -91,6 +95,10 @@ export default function InvoiceCreateModal({
   handleInvFileChange,
   submitNewInvoice,
   onClose,
+  pvMatch,
+  pvAttaching,
+  attachToPV,
+  dismissPvMatch,
 }: InvoiceCreateModalProps) {
   return (
     <>
@@ -148,7 +156,7 @@ export default function InvoiceCreateModal({
                 autoComplete="off"
               />
               {newInv.supplier_id && (
-                <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-label-sm">Linked</span>
+                <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-label-sm" data-tooltip="This vendor is linked to an existing supplier account. GL accounts and trade payables will auto-fill from the supplier defaults.">Linked</span>
               )}
               {vendorDropdownOpen && newInv.vendor_name.length >= 1 && (() => {
                 const q = newInv.vendor_name.toLowerCase();
@@ -299,6 +307,31 @@ export default function InvoiceCreateModal({
             </div>
 
           </div>
+
+          {/* PV Match Banner */}
+          {pvMatch && (
+            <div className="mx-5 mt-3 rounded-lg border border-blue-300 bg-blue-50 p-4">
+              <p className="text-sm font-semibold text-blue-800 mb-1">Payment voucher match found</p>
+              <p className="text-xs text-blue-700 mb-3">
+                This matches <strong>{pvMatch.invoice_number}</strong> — RM {Number(pvMatch.total_amount).toLocaleString('en-MY', { minimumFractionDigits: 2 })}, {pvMatch.vendor_name_raw} ({pvMatch.issue_date?.split('T')[0]}). Attach document to existing record instead of creating a new invoice?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={attachToPV}
+                  disabled={pvAttaching}
+                  className="btn-thick-navy px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+                >
+                  {pvAttaching ? 'Attaching...' : 'Yes, attach to this PV'}
+                </button>
+                <button
+                  onClick={dismissPvMatch}
+                  className="btn-thick-white px-4 py-1.5 text-xs font-semibold"
+                >
+                  No, create new invoice
+                </button>
+              </div>
+            </div>
+          )}
 
           {depositWarning && <div className="px-5 pt-3"><p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">{depositWarning}</p></div>}
           {newInvError && <div className="px-5 pt-3"><p className="text-sm text-[var(--reject-red)] bg-red-50 border border-red-200 px-3 py-2">{newInvError}</p></div>}

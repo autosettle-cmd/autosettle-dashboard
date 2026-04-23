@@ -6,6 +6,7 @@ import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
 import SearchButton from '@/components/SearchButton';
+import { STATUS_CFG } from '@/lib/badge-config';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,11 +39,6 @@ interface JournalEntryRow {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  posted:   { label: 'Posted',   cls: 'badge-green' },
-  reversed: { label: 'Reversed', cls: 'badge-red'   },
-};
 
 const SOURCE_CFG: Record<string, string> = {
   claim_approval:  'Claim',
@@ -287,7 +283,7 @@ export default function JournalEntriesPage() {
                           <td data-col="Period" className="px-3 py-3 text-[var(--text-secondary)] text-xs">{e.period_label}</td>
                           <td data-col="Debit (RM)" className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(e.total_debit)}</td>
                           <td data-col="Credit (RM)" className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(e.total_credit)}</td>
-                          <td data-col="Status" className="px-3 py-3">{sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}</td>
+                          <td data-col="Status" className="px-3 py-3">{sCfg && <span className={sCfg.cls} data-tooltip={sCfg.tooltip}>{sCfg.label}</span>}</td>
                         </tr>
                       );
                     })}
@@ -340,7 +336,7 @@ export default function JournalEntriesPage() {
                   <div>
                     <dt className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Status</dt>
                     <dd className="mt-0.5">
-                      {STATUS_CFG[preview.status] && <span className={STATUS_CFG[preview.status].cls}>{STATUS_CFG[preview.status].label}</span>}
+                      {STATUS_CFG[preview.status] && <span className={STATUS_CFG[preview.status].cls} data-tooltip={STATUS_CFG[preview.status].tooltip}>{STATUS_CFG[preview.status].label}</span>}
                     </dd>
                   </div>
                   {preview.description && (

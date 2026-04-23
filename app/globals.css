@@ -310,7 +310,7 @@ div.ledger-binding {
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
-  .btn-thick-navy:active:not(:disabled) {
+  .btn-thick-navy:active:not(:disabled):not(:has(:active)) {
     background: linear-gradient(180deg, #1C3E5C 0%, #234B6E 100%);
     border-top-color: transparent;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
@@ -338,7 +338,7 @@ div.ledger-binding {
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
-  .btn-thick-white:active:not(:disabled) {
+  .btn-thick-white:active:not(:disabled):not(:has(:active)) {
     background: linear-gradient(180deg, #E8EAEC 0%, #EDEFF1 100%);
     border-top-color: transparent;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
@@ -365,7 +365,7 @@ div.ledger-binding {
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
-  .btn-thick-green:active:not(:disabled) {
+  .btn-thick-green:active:not(:disabled):not(:has(:active)) {
     background: linear-gradient(180deg, #07806B 0%, #0A9981 100%);
     border-top-color: transparent;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
@@ -392,7 +392,7 @@ div.ledger-binding {
     letter-spacing: 0.04em;
     text-transform: uppercase;
   }
-  .btn-thick-red:active:not(:disabled) {
+  .btn-thick-red:active:not(:disabled):not(:has(:active)) {
     background: linear-gradient(180deg, #D42A3A 0%, #F23545 100%);
     border-top-color: transparent;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
@@ -430,7 +430,7 @@ div.ledger-binding {
       inset 0 1px 0 rgba(255,255,255,0.15),
       inset 0 -1px 0 rgba(0,0,0,0.1);
   }
-  .btn-thick-sidebar:active:not(:disabled) {
+  .btn-thick-sidebar:active:not(:disabled):not(:has(:active)) {
     background: linear-gradient(180deg, #1F4B6B 0%, #234B6E 100%);
     border-top-color: transparent;
     box-shadow: inset 0 2px 5px rgba(0,0,0,0.35);
@@ -922,6 +922,39 @@ div.ledger-binding {
     background: linear-gradient(180deg, #FAF0FC 0%, #F0E3F5 100%);
     color: #5A1580;
     border-bottom-color: rgba(106,27,154,0.12);
+  }
+
+  /* ─── Badge Tooltip (instant hover via data-tooltip attr) ─────────────────── */
+  .badge[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 200px;
+    max-width: 280px;
+    padding: 6px 10px;
+    background: var(--tooltip-bg, #1B1F2E);
+    color: var(--tooltip-text, #FFFFFFD9);
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: normal;
+    text-transform: none;
+    font-weight: 400;
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.1s ease;
+    z-index: 50;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+
+  .badge[data-tooltip]:hover {
+    cursor: help;
+  }
+
+  .badge[data-tooltip]:hover::after {
+    opacity: 1;
   }
 
   /* ─── Physical UI: Stamped/Debossed Labels ──────────────────────────────── */

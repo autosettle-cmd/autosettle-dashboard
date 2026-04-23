@@ -333,7 +333,7 @@ export default function ClaimPreviewPanel({
               <>
                 <div className="flex flex-wrap gap-2">
                   {[STATUS_CFG[previewClaim.status], PAYMENT_CFG[previewClaim.payment_status]].filter(Boolean).map((cfg) => (
-                    <span key={cfg!.label} className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${cfg!.cls}`} style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>{cfg!.label}</span>
+                    <span key={cfg!.label} className={`inline-flex items-center px-2.5 py-0.5 text-xs font-medium ${cfg!.cls}`} data-tooltip={cfg!.tooltip} style={{ boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.05)' }}>{cfg!.label}</span>
                   ))}
                   <span className={`text-xs font-semibold ${previewClaim.confidence === 'HIGH' ? 'text-[var(--match-green)]' : previewClaim.confidence === 'MEDIUM' ? 'text-amber-600' : 'text-[var(--reject-red)]'}`}>{previewClaim.confidence}</span>
                 </div>

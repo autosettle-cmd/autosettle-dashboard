@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
+import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -34,17 +35,6 @@ interface ClaimRow {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'badge-amber inset-shadow' },
-  reviewed:       { label: 'Reviewed',       cls: 'badge-blue inset-shadow'  },
-};
-
-const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',  cls: 'badge-amber inset-shadow' },
-  approved:         { label: 'Approved', cls: 'badge-green inset-shadow' },
-  not_approved:     { label: 'Rejected', cls: 'badge-red inset-shadow'   },
-};
-
 function formatDate(val: string) {
   if (!val) return '';
   const d = new Date(val);
@@ -54,11 +44,6 @@ function formatDate(val: string) {
     d.getUTCDate().toString().padStart(2, '0'),
   ].join('.');
 }
-
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid: { label: 'Unpaid', cls: 'badge-gray inset-shadow' },
-  paid:   { label: 'Paid',   cls: 'badge-purple inset-shadow' },
-};
 
 function formatRM(val: string | number) {
   return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -491,10 +476,10 @@ export default function EmployeeDashboard() {
                         </td>
                         <td className="px-6 py-3.5 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                         <td className="px-6 py-3.5">
-                          {sCfg && <span className={sCfg.cls}>{sCfg.label}</span>}
+                          {sCfg && <span className={sCfg.cls} data-tooltip={sCfg.tooltip}>{sCfg.label}</span>}
                         </td>
                         <td className="px-6 py-3.5">
-                          {aCfg && <span className={aCfg.cls}>{aCfg.label}</span>}
+                          {aCfg && <span className={aCfg.cls} data-tooltip={aCfg.tooltip}>{aCfg.label}</span>}
                         </td>
                       </tr>
                     );
@@ -732,9 +717,9 @@ export default function EmployeeDashboard() {
                     <Field label="Description" value={previewClaim.description} />
                   </dl>
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {STATUS_CFG[previewClaim.status] && <span className={STATUS_CFG[previewClaim.status].cls}>{STATUS_CFG[previewClaim.status].label}</span>}
-                    {APPROVAL_CFG[previewClaim.approval] && <span className={APPROVAL_CFG[previewClaim.approval].cls}>{APPROVAL_CFG[previewClaim.approval].label}</span>}
-                    {PAYMENT_CFG[previewClaim.payment_status] && <span className={PAYMENT_CFG[previewClaim.payment_status].cls}>{PAYMENT_CFG[previewClaim.payment_status].label}</span>}
+                    {STATUS_CFG[previewClaim.status] && <span className={STATUS_CFG[previewClaim.status].cls} data-tooltip={STATUS_CFG[previewClaim.status].tooltip}>{STATUS_CFG[previewClaim.status].label}</span>}
+                    {APPROVAL_CFG[previewClaim.approval] && <span className={APPROVAL_CFG[previewClaim.approval].cls} data-tooltip={APPROVAL_CFG[previewClaim.approval].tooltip}>{APPROVAL_CFG[previewClaim.approval].label}</span>}
+                    {PAYMENT_CFG[previewClaim.payment_status] && <span className={PAYMENT_CFG[previewClaim.payment_status].cls} data-tooltip={PAYMENT_CFG[previewClaim.payment_status].tooltip}>{PAYMENT_CFG[previewClaim.payment_status].label}</span>}
                   </div>
                   {previewClaim.rejection_reason && (
                     <div className="bg-[#FFDAD6] p-4 inset-shadow">

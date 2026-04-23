@@ -204,5 +204,5 @@ function ResultRow({ onClick, children }: { onClick: () => void; children: React
 function StatusBadge({ value }: { value: string }) {
   const cfg = STATUS_CFG[value] ?? APPROVAL_CFG[value];
   if (!cfg) return null;
-  return <span className={`${cfg.cls} flex-shrink-0`}>{cfg.label}</span>;
+  return <span className={`${cfg.cls} flex-shrink-0`} data-tooltip={cfg.tooltip}>{cfg.label}</span>;
 }

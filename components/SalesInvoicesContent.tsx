@@ -58,17 +58,7 @@ interface LineItemDraft {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
-  partially_paid: { label: 'Partial', cls: 'badge-amber'  },
-  paid:           { label: 'Paid',    cls: 'badge-green'  },
-};
-
-const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',    cls: 'badge-amber'  },
-  approved:         { label: 'Approved',   cls: 'badge-green'  },
-  not_approved:     { label: 'Rejected',   cls: 'badge-red'    },
-};
+import { PAYMENT_CFG, APPROVAL_CFG } from '@/lib/badge-config';
 
 function formatDate(val: string) {
   if (!val) return '';
@@ -490,10 +480,10 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     <td data-col="Total (RM)" className="px-6 py-3 text-right font-medium text-[#191C1E] tabular-nums">{formatRM(inv.total_amount)}</td>
                     <td data-col="Paid (RM)" className="px-6 py-3 text-right text-[#434654] tabular-nums">{formatRM(inv.amount_paid)}</td>
                     <td data-col="Payment" className="px-6 py-3">
-                      {paymentCfg && <span className={paymentCfg.cls}>{paymentCfg.label}</span>}
+                      {paymentCfg && <span className={paymentCfg.cls} data-tooltip={paymentCfg.tooltip}>{paymentCfg.label}</span>}
                     </td>
                     <td data-col="Approval" className="px-6 py-3">
-                      {APPROVAL_CFG[inv.approval] && <span className={APPROVAL_CFG[inv.approval].cls}>{APPROVAL_CFG[inv.approval].label}</span>}
+                      {APPROVAL_CFG[inv.approval] && <span className={APPROVAL_CFG[inv.approval].cls} data-tooltip={APPROVAL_CFG[inv.approval].tooltip}>{APPROVAL_CFG[inv.approval].label}</span>}
                     </td>
                     <td className="px-6 py-3">
                       <button
@@ -807,7 +797,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               <div className="flex flex-wrap gap-2 pt-1">
                 {(() => {
                   const cfg = PAYMENT_CFG[preview.payment_status];
-                  return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
+                  return cfg ? <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span> : null;
                 })()}
               </div>
 

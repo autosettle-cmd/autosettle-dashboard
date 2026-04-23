@@ -84,10 +84,10 @@ function formatRM(val: string | number | null) {
   return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  matched:          { label: 'Suggested',  cls: 'badge-amber' },
-  manually_matched: { label: 'Confirmed',  cls: 'badge-green' },
-  unmatched:        { label: 'Unmatched',  cls: 'badge-red' },
+const STATUS_CFG: Record<string, { label: string; cls: string; tooltip?: string }> = {
+  matched:          { label: 'Suggested',  cls: 'badge-amber', tooltip: 'AI auto-matched this transaction. Review and confirm the match.' },
+  manually_matched: { label: 'Confirmed',  cls: 'badge-green', tooltip: 'Match confirmed by user. Ready for journal entry creation.' },
+  unmatched:        { label: 'Unmatched',  cls: 'badge-red',   tooltip: 'No matching document found. Drag an invoice or claim to match.' },
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -240,7 +240,7 @@ export default function BankReconPreviewModal({
           {/* Left: Transaction Details */}
           <div className="w-2/5 overflow-y-auto p-5 space-y-3 border-r border-[#E0E3E5]">
             <div className="flex items-center gap-2">
-              <span className={cfg.cls}>{cfg.label}</span>
+              <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>
               {txn.matched_at && <span className="text-[10px] text-[var(--text-secondary)]">Matched {formatDate(txn.matched_at)}</span>}
             </div>
 

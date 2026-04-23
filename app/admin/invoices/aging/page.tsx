@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
+import { PAYMENT_CFG } from '@/lib/badge-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,12 +41,6 @@ interface Summary {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
-  partially_paid: { label: 'Partial', cls: 'badge-amber'  },
-  paid:           { label: 'Paid',    cls: 'badge-purple' },
-};
 
 function formatDate(val: string) {
   if (!val) return '';
@@ -174,7 +169,7 @@ export default function AgingReportPage() {
                               <div className="flex items-center gap-3">
                                 <span className="text-[var(--text-secondary)] tabular-nums">{formatDate(inv.issue_date)}</span>
                                 <span className="text-[var(--text-secondary)] font-medium">{inv.invoice_number ?? '-'}</span>
-                                {pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}
+                                {pmtCfg && <span className={pmtCfg.cls} data-tooltip={pmtCfg.tooltip}>{pmtCfg.label}</span>}
                               </div>
                               <p className="text-label-sm text-[var(--text-muted)] mt-0.5">
                                 Due: {inv.due_date ? formatDate(inv.due_date) : 'N/A'} · {inv.category_name}

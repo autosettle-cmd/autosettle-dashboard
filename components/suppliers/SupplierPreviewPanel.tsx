@@ -305,7 +305,7 @@ export default function SupplierPreviewPanel({
                                   <td className="px-3 py-2.5 text-[var(--text-secondary)]">{inv.category_name}</td>
                                   <td className="px-3 py-2.5 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
                                   <td className="px-3 py-2.5 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(inv.amount_paid)}</td>
-                                  <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
+                                  <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls} data-tooltip={pmtCfg.tooltip}>{pmtCfg.label}</span>}</td>
                                   <td className="px-3 py-2.5">
                                     {inv.payment_status !== 'paid' && (
                                       <span className={`text-label-sm font-medium ${
@@ -412,7 +412,7 @@ export default function SupplierPreviewPanel({
                                   <td className="px-3 py-2.5 text-[var(--text-secondary)] tabular-nums">{sinv.due_date ? formatDate(sinv.due_date) : '-'}</td>
                                   <td className="px-3 py-2.5 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(sinv.total_amount)}</td>
                                   <td className="px-3 py-2.5 text-[var(--text-secondary)] text-right tabular-nums">{formatRM(sinv.amount_paid)}</td>
-                                  <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
+                                  <td className="px-3 py-2.5">{pmtCfg && <span className={pmtCfg.cls} data-tooltip={pmtCfg.tooltip}>{pmtCfg.label}</span>}</td>
                                   <td className="px-3 py-2.5">
                                     {sinv.payment_status !== 'paid' && (
                                       <span className={`text-label-sm font-medium ${

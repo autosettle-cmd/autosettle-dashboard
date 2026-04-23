@@ -437,6 +437,34 @@ Physical translucent acrylic jewels with internal glow. Use `.notification-badge
 - **Sidebar variant (`.sidebar-badge`):** adds `outline: 1px solid rgba(0,0,0,0.25)` — dark rim simulating a drilled socket where the jewel is pressed into the blue groove material
 - **Tab variant (`.notification-badge`):** overlaps the corner of the tab, pinching badge and tab together as one joined object
 
+### Badge Tooltips
+
+Every badge shows an instant CSS tooltip on hover via `data-tooltip` attribute on the `.badge` base class. No wrapper elements needed.
+
+**How it works:**
+- `.badge[data-tooltip]::after` renders tooltip text (`content: attr(data-tooltip)`)
+- Instant on hover (0.1s opacity), no browser delay
+- Dark background (`--tooltip-bg`), positioned above badge, centered
+- CSS vars `--tooltip-bg` and `--tooltip-text` for white-label support
+
+**How to use:**
+```tsx
+// Via StatusBadge component (automatic from badge-config.ts):
+<StatusBadge type="approval" value={invoice.approval} />
+
+// Via badge-config inline:
+<span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>
+
+// Standalone badge:
+<span className="badge-green" data-tooltip="Explanation here">Linked</span>
+```
+
+**Rules:**
+- Every badge config in `lib/badge-config.ts` must include a `tooltip` field
+- Never duplicate badge configs locally — import from `@/lib/badge-config`
+- Tooltips explain what it means + what action to take
+- Keep under 2 sentences
+
 ### Modals
 - **Centered** always
 - **Scrim:** #070E1B at 40% opacity, 2px backdrop-blur

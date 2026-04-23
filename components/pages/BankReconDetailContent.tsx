@@ -133,10 +133,10 @@ function formatRM(val: string | number | null) {
   return `RM ${Number(val).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  matched:          { label: 'Suggested',  cls: 'badge-amber' },
-  manually_matched: { label: 'Confirmed',  cls: 'badge-green' },
-  unmatched:        { label: 'Unmatched',  cls: 'badge-red' },
+const STATUS_CFG: Record<string, { label: string; cls: string; tooltip?: string }> = {
+  matched:          { label: 'Suggested',  cls: 'badge-amber', tooltip: 'AI auto-matched this transaction. Review and confirm the match.' },
+  manually_matched: { label: 'Confirmed',  cls: 'badge-green', tooltip: 'Match confirmed by user. Ready for journal entry creation.' },
+  unmatched:        { label: 'Unmatched',  cls: 'badge-red',   tooltip: 'No matching document found. Drag an invoice or claim to match.' },
 };
 
 // ─── Main component ──────────────────────────────────────────────────────────
@@ -946,7 +946,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                   <path d="M9 18l6-6-6-6" />
                                 </svg>
                               )}
-                              <span className={cfg.cls}>{cfg.label}</span>
+                              <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>
                               {txn.recon_status === 'manually_matched' && (() => {
                                 // Check for missing documents on matched items
                                 const inv = txn.matched_invoice;
@@ -1054,7 +1054,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                 </div>
                                 <div>
                                   <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Match Info</p>
-                                  <span className={cfg.cls}>{cfg.label}</span>
+                                  <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>
                                   {txn.matched_at && <p className="text-label-sm text-[var(--text-secondary)] mt-1">{formatDate(txn.matched_at)}</p>}
                                 </div>
                                 <div>

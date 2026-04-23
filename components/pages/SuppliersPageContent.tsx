@@ -847,7 +847,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
               </dl>
               <div className="flex flex-wrap gap-2 pt-1">
                 {PAYMENT_CFG[previewInvoice.payment_status] && (
-                  <span className={PAYMENT_CFG[previewInvoice.payment_status].cls}>{PAYMENT_CFG[previewInvoice.payment_status].label}</span>
+                  <span className={PAYMENT_CFG[previewInvoice.payment_status].cls} data-tooltip={PAYMENT_CFG[previewInvoice.payment_status].tooltip}>{PAYMENT_CFG[previewInvoice.payment_status].label}</span>
                 )}
               </div>
               {previewInvoice.allocations && previewInvoice.allocations.length > 0 && (

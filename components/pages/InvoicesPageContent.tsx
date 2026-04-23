@@ -316,6 +316,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   });
   const [newInvFile, setNewInvFile] = useState<File | null>(null);
   const [ocrScanning, setOcrScanning] = useState(false);
+  const [pvMatch, setPvMatch] = useState<{ id: string; invoice_number: string; vendor_name_raw: string; total_amount: string; issue_date: string } | null>(null);
+  const [pvAttaching, setPvAttaching] = useState(false);
   const [newInvGlAccounts, setNewInvGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
   const [newInvExpenseGlId, setNewInvExpenseGlId] = useState('');
   const [newInvContraGlId, setNewInvContraGlId] = useState('');
@@ -686,6 +688,20 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           }
           setNewInv(updates);
 
+          // Check for matching payment voucher (PV-) to attach instead of creating new
+          const ocrAmount = updates.total_amount;
+          const ocrVendor = updates.vendor_name;
+          const targetFirmId = getTargetFirmId();
+          if (ocrAmount && targetFirmId) {
+            try {
+              const matchRes = await fetch(`/api/invoices/match-voucher?firmId=${targetFirmId}&totalAmount=${encodeURIComponent(ocrAmount)}${ocrVendor ? `&vendorName=${encodeURIComponent(ocrVendor)}` : ''}`);
+              const matchJson = await matchRes.json();
+              if (matchRes.ok && matchJson.data?.match) {
+                setPvMatch(matchJson.data.match);
+              }
+            } catch { /* ignore */ }
+          }
+
           // Auto-fill GL from matched supplier defaults (parity with drag-drop handler)
           if (config.showGlFields) {
             const vendorName = json.fields.vendor || json.fields.merchant;
@@ -829,6 +845,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
       setShowNewInvoice(false);
       setDepositWarning('');
+      setPvMatch(null);
       setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
@@ -836,6 +853,31 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       refresh();
     } catch (e) { console.error(e); setNewInvError('Network error'); }
     finally { setNewInvSubmitting(false); }
+  };
+
+  const attachToPV = async () => {
+    if (!pvMatch || !newInvFile) return;
+    setPvAttaching(true);
+    setNewInvError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', newInvFile);
+      const res = await fetch(`/api/invoices/${pvMatch.id}/attach`, { method: 'PATCH', body: fd });
+      const json = await res.json();
+      if (!res.ok) { setNewInvError(json.error || 'Failed to attach document'); return; }
+      if (json.data?.warnings?.length > 0) {
+        setNewInvError(`Document attached with warnings: ${json.data.warnings.join('; ')}`);
+      }
+      setShowNewInvoice(false);
+      setDepositWarning('');
+      setPvMatch(null);
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
+      setNewInvFile(null);
+      setNewInvExpenseGlId('');
+      setNewInvContraGlId('');
+      refresh();
+    } catch (e) { console.error(e); setNewInvError('Network error'); }
+    finally { setPvAttaching(false); }
   };
 
   // Reset edit mode when preview changes
@@ -1274,12 +1316,20 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                         )}
                         <td data-col="Issue Date" className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-[var(--text-secondary)] tabular-nums`}>{formatDateDot(inv.issue_date)}</td>
                         <td data-col="Vendor" className="px-3 py-3 text-[var(--text-primary)] font-medium">{inv.vendor_name_raw}</td>
-                        <td data-col="Invoice #" className="px-3 py-3 text-[var(--text-secondary)]">{inv.invoice_number ?? '-'}</td>
+                        <td data-col="Invoice #" className="px-3 py-3 text-[var(--text-secondary)]">
+                          {inv.invoice_number ?? '-'}
+                          {inv.invoice_number?.startsWith('PV-') && !inv.file_url && (
+                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                              No doc
+                            </span>
+                          )}
+                        </td>
                         {config.showFirmColumn && !config.firmId && <td data-col="Firm" className="px-3 py-3 text-[var(--text-secondary)]">{inv.firm_name}</td>}
                         <td data-col="Due Date" className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{inv.due_date ? formatDateDot(inv.due_date) : '-'}</td>
                         <td data-col="Amount" className="px-3 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
                         <td data-col="Status" className="px-3 py-3"><StatusCell value={inv.status} /></td>
-                        {config.showApproval && <td data-col="Approval" className="px-3 py-3">{approvalCfg && <span className={approvalCfg.cls}>{approvalCfg.label}</span>}</td>}
+                        {config.showApproval && <td data-col="Approval" className="px-3 py-3">{approvalCfg && <span className={approvalCfg.cls} data-tooltip={approvalCfg.tooltip}>{approvalCfg.label}</span>}</td>}
                         <td data-col="Payment" className="px-3 py-3"><PaymentCell value={inv.payment_status} /></td>
                         <td data-col="Supplier" className="px-3 py-3"><LinkCell value={inv.supplier_link_status} /></td>
                       </tr>
@@ -1331,7 +1381,11 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           setNewInvContraGlId={setNewInvContraGlId}
           handleInvFileChange={handleInvFileChange}
           submitNewInvoice={submitNewInvoice}
-          onClose={() => setShowNewInvoice(false)}
+          onClose={() => { setShowNewInvoice(false); setPvMatch(null); }}
+          pvMatch={pvMatch}
+          pvAttaching={pvAttaching}
+          attachToPV={attachToPV}
+          dismissPvMatch={() => setPvMatch(null)}
         />
       )}
 

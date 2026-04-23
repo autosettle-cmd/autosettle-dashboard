@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import StatCard from '@/components/StatCard';
 import SearchButton from '@/components/SearchButton';
+import { PAYMENT_CFG, LINK_CFG, STATUS_CFG, APPROVAL_CFG } from '@/lib/badge-config';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ClaimStats {
@@ -78,18 +79,6 @@ interface InvoiceRow {
   file_url: string | null;
 }
 
-const PAYMENT_CFG: Record<string, { label: string; cls: string }> = {
-  unpaid:         { label: 'Unpaid',  cls: 'badge-gray'   },
-  partially_paid: { label: 'Partial', cls: 'badge-amber'  },
-  paid:           { label: 'Paid',    cls: 'badge-purple' },
-};
-
-const LINK_CFG: Record<string, { label: string; cls: string }> = {
-  confirmed:    { label: 'Confirmed',   cls: 'badge-green' },
-  auto_matched: { label: 'Suggested',   cls: 'badge-amber' },
-  unmatched:    { label: 'Unconfirmed', cls: 'badge-red'   },
-};
-
 interface EditData {
   claim_date?: string;
   merchant: string;
@@ -100,17 +89,6 @@ interface EditData {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const STATUS_CFG: Record<string, { label: string; cls: string }> = {
-  pending_review: { label: 'Pending Review', cls: 'badge-amber' },
-  reviewed:       { label: 'Reviewed',       cls: 'badge-blue'  },
-};
-
-const APPROVAL_CFG: Record<string, { label: string; cls: string }> = {
-  pending_approval: { label: 'Pending',  cls: 'badge-amber' },
-  approved:         { label: 'Approved', cls: 'badge-green' },
-  not_approved:     { label: 'Rejected', cls: 'badge-red'   },
-};
 
 function formatDate(val: string) {
   if (!val) return '';
@@ -366,7 +344,7 @@ export default function AdminDashboard() {
                             <td data-col="Category" className="px-6 py-3 text-[#444650]">{c.category_name}</td>
                             <td data-col="Amount" className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(c.amount)}</td>
                             <td data-col="Status" className="px-6 py-3">
-                              {cfg && <span className={cfg.cls}>{cfg.label}</span>}
+                              {cfg && <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span>}
                             </td>
                           </tr>
                         );
@@ -452,8 +430,8 @@ export default function AdminDashboard() {
                             <td data-col="Invoice #" className="px-6 py-3 text-[#444650]">{inv.invoice_number ?? '-'}</td>
                             <td data-col="Due Date" className="px-6 py-3 text-[#444650] tabular-nums">{inv.due_date ? formatDate(inv.due_date) : '-'}</td>
                             <td data-col="Amount" className="px-6 py-3 text-[#191C1E] font-semibold text-right tabular-nums">{formatRM(inv.total_amount)}</td>
-                            <td data-col="Payment" className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls}>{pmtCfg.label}</span>}</td>
-                            <td data-col="Supplier" className="px-6 py-3">{linkCfg && <span className={linkCfg.cls}>{linkCfg.label}</span>}</td>
+                            <td data-col="Payment" className="px-6 py-3">{pmtCfg && <span className={pmtCfg.cls} data-tooltip={pmtCfg.tooltip}>{pmtCfg.label}</span>}</td>
+                            <td data-col="Supplier" className="px-6 py-3">{linkCfg && <span className={linkCfg.cls} data-tooltip={linkCfg.tooltip}>{linkCfg.label}</span>}</td>
                           </tr>
                         );
                       })}
@@ -532,7 +510,7 @@ export default function AdminDashboard() {
                   </dl>
                   <div className="flex flex-wrap gap-2">
                     {[STATUS_CFG[previewClaim.status], APPROVAL_CFG[previewClaim.approval]].filter(Boolean).map((cfg) => (
-                      <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                      <span key={cfg!.label} className={cfg!.cls} data-tooltip={cfg!.tooltip}>{cfg!.label}</span>
                     ))}
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -648,7 +626,7 @@ export default function AdminDashboard() {
                 </dl>
                 <div className="flex flex-wrap gap-2">
                   {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
-                    <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
+                    <span key={cfg!.label} className={cfg!.cls} data-tooltip={cfg!.tooltip}>{cfg!.label}</span>
                   ))}
                 </div>
                 {/* Supplier link */}
@@ -657,7 +635,7 @@ export default function AdminDashboard() {
                     <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</span>
                     {(() => {
                       const cfg = LINK_CFG[previewInvoice.supplier_link_status];
-                      return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
+                      return cfg ? <span className={cfg.cls} data-tooltip={cfg.tooltip}>{cfg.label}</span> : null;
                     })()}
                   </div>
                   <p className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>

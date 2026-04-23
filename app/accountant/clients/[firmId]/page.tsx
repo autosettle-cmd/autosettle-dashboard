@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useTableSort } from '@/lib/use-table-sort';
+import SetupChecklist from '@/components/onboarding/SetupChecklist';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export default function FirmDetailPage() {
 
   // Data
   const [firm, setFirm]                   = useState<FirmDetail | null>(null);
+  const [allFirms, setAllFirms]           = useState<{ id: string; name: string }[]>([]);
   const [firmLoading, setFirmLoading]     = useState(true);
   const [admins, setAdmins]               = useState<AdminRow[]>([]);
   const [adminsLoading, setAdminsLoading] = useState(true);
@@ -160,7 +162,9 @@ export default function FirmDetailPage() {
       .then((r) => r.json())
       .then((j) => {
         if (!cancelled) {
-          const match = (j.data ?? []).find((f: FirmDetail) => f.id === firmId);
+          const data = j.data ?? [];
+          setAllFirms(data.map((f: FirmDetail) => ({ id: f.id, name: f.name })));
+          const match = data.find((f: FirmDetail) => f.id === firmId);
           setFirm(match ?? null);
           setFirmLoading(false);
         }
@@ -256,7 +260,7 @@ export default function FirmDetailPage() {
           lhdn_client_secret: editLhdnSecret.trim(),
         }),
       });
-      if (res.ok) { setShowEditPanel(false); setFirmRefreshKey((k) => k + 1); }
+      if (res.ok) { setShowEditPanel(false); setFirmRefreshKey((k) => k + 1); window.dispatchEvent(new Event('setup-step-completed')); }
     } catch (e) { console.error(e); }
     finally { setEditSaving(false); }
   };
@@ -298,6 +302,7 @@ export default function FirmDetailPage() {
       }
       setShowAdminModal(false);
       refreshAdmins();
+      window.dispatchEvent(new Event('setup-step-completed'));
     } catch {
       setModalError('Network error. Please try again.');
       setModalSaving(false);
@@ -436,13 +441,22 @@ export default function FirmDetailPage() {
               <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Firm not found.</div>
             ) : (
               <>
+                {/* ── SETUP CHECKLIST ── */}
+                <SetupChecklist
+                  firmId={firmId}
+                  firms={allFirms}
+                  onOpenEditFirm={openEditPanel}
+                  onOpenAddAdmin={openAdminModal}
+                />
+
                 {/* ── FIRM INFO CARD ── */}
                 <div className="card-button-pressed p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold text-[var(--text-primary)]">{firm.name}</h2>
                     <button
+                      data-setup="edit-firm"
                       onClick={openEditPanel}
-                      className="btn-thick-white text-xs font-medium px-3 py-1.5"
+                      className="btn-thick-white text-xs font-medium px-3 py-1.5 transition-all duration-300"
                     >
                       Edit
                     </button>
@@ -583,8 +597,9 @@ export default function FirmDetailPage() {
                       {!adminsLoading && <span className="badge-blue">{admins.length}</span>}
                     </div>
                     <button
+                      data-setup="add-admin"
                       onClick={(e) => { e.stopPropagation(); openAdminModal(); }}
-                      className="btn-thick-navy text-xs px-3 py-1.5 font-medium"
+                      className="btn-thick-navy text-xs px-3 py-1.5 font-medium transition-all duration-300"
                     >
                       Add Admin
                     </button>
