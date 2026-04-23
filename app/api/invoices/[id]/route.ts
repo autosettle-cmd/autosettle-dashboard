@@ -8,6 +8,65 @@ import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session || session.user.role !== 'accountant') {
+    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  }
+  const { id } = await params;
+  const firmIds = await getAccountantFirmIds(session.user.id);
+
+  const inv = await prisma.invoice.findUnique({
+    where: { id },
+    include: {
+      uploader: { select: { name: true } },
+      firm: { select: { name: true } },
+      supplier: { select: { id: true, name: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
+      category: { select: { name: true } },
+      glAccount: { select: { id: true, account_code: true, name: true } },
+      contraGlAccount: { select: { id: true, account_code: true, name: true } },
+      lines: { include: { glAccount: { select: { id: true, account_code: true, name: true } } }, orderBy: { sort_order: 'asc' } },
+    },
+  });
+
+  if (!inv || (firmIds && !firmIds.includes(inv.firm_id))) {
+    return NextResponse.json({ data: null, error: 'Invoice not found' }, { status: 404 });
+  }
+
+  return NextResponse.json({
+    data: {
+      id: inv.id, vendor_name_raw: inv.vendor_name_raw, invoice_number: inv.invoice_number,
+      issue_date: inv.issue_date, due_date: inv.due_date, payment_terms: inv.payment_terms,
+      subtotal: inv.subtotal?.toString() ?? null, tax_amount: inv.tax_amount?.toString() ?? null,
+      total_amount: inv.total_amount.toString(), amount_paid: inv.amount_paid.toString(),
+      category_name: inv.category.name, category_id: inv.category_id,
+      status: inv.status, payment_status: inv.payment_status,
+      supplier_id: inv.supplier_id, supplier_name: inv.supplier?.name ?? null,
+      supplier_link_status: inv.supplier_link_status,
+      uploader_name: inv.uploader.name, firm_name: inv.firm.name, firm_id: inv.firm_id,
+      confidence: inv.confidence, file_url: inv.file_url, thumbnail_url: inv.thumbnail_url,
+      notes: inv.notes, gl_account_id: inv.gl_account_id,
+      gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
+      contra_gl_account_id: inv.contra_gl_account_id,
+      contra_gl_account_label: inv.contraGlAccount ? `${inv.contraGlAccount.account_code} — ${inv.contraGlAccount.name}` : null,
+      supplier_default_gl_id: inv.supplier?.default_gl_account_id ?? null,
+      supplier_default_contra_gl_id: inv.supplier?.default_contra_gl_account_id ?? null,
+      approval: inv.approval, rejection_reason: inv.rejection_reason,
+      lines: inv.lines.map(l => ({
+        id: l.id, description: l.description, quantity: l.quantity.toString(),
+        unit_price: l.unit_price.toString(), tax_amount: l.tax_amount.toString(),
+        line_total: l.line_total.toString(), gl_account_id: l.gl_account_id,
+        gl_account_label: l.glAccount ? `${l.glAccount.account_code} — ${l.glAccount.name}` : null,
+        sort_order: l.sort_order,
+      })),
+    },
+    error: null,
+  });
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -176,19 +176,19 @@ export default function SupplierPreviewPanel({
 
   return (
     <>
-      {onPrev && (
-        <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        </div>
-      )}
-      {onNext && (
-        <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-        </div>
-      )}
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={onClose}>
-        <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+        <div className="relative bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+          {onPrev && (
+            <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </div>
+          )}
+          {onNext && (
+            <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </div>
+          )}
           <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
             <div className="flex items-center gap-3">
               <h2 className="text-white font-bold text-sm uppercase tracking-widest">{s.name}</h2>

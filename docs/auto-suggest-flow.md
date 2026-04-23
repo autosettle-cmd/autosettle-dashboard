@@ -127,7 +127,12 @@ Accountant clicks "Confirm" → JV confirmation modal
 Confirmed → recon_status = "manually_matched"
     - JV created (DR Trade Payables / CR Bank for outgoing)
     - Invoice amount_paid updated
+    - Preview stays open with updated status (user navigates to next manually)
 ```
+
+### Post-Action Navigation
+- **Match modal**: After match/voucher/receipt creation → advances to next unmatched transaction. Closes if none remain.
+- **Preview modal**: After confirm → stays on same transaction, refreshes data to show updated status. User presses Next (arrow key or button) when ready.
 
 ### Partial Match Handling
 - One bank transaction can match multiple invoices (multi-invoice allocation)
@@ -135,12 +140,29 @@ Confirmed → recon_status = "manually_matched"
 - Status shows "Partial" (amber badge) when total matched < bank transaction amount
 - JV amounts use matched item amounts, not bank transaction amount
 
+### Match Modal Auto Pre-Selection
+When the match modal opens, a client-side 4-pass engine runs against outstanding items to pre-select the best match. Mirrors the upload-time auto-match logic but operates on the UI list.
+
+| Pass | Strategy | Pre-selects if |
+|------|----------|---------------|
+| 1 | Reference number in bank description (normalized: `I000036` = `I-000036`) | Any match found (multiple OK). Amber warning if amount differs. |
+| 2 | Exact amount + date within ±3 days | Only 1 candidate |
+| 3 | Supplier/employee/merchant name in description + exact amount | Only 1 candidate |
+| 4 | Exact amount only | Only 1 candidate across all types |
+
+Applies to both invoices and claims. Auto-expands the supplier/employee group and switches to the correct tab.
+
 ### Multi-Invoice Selection (Match Modal)
 - Invoices grouped by supplier — collapsible `btn-thick-white` keycap cards
 - Supplier header: select-all checkbox + ACCOUNT badge + supplier name + total + chevron
 - Individual invoices: `ds-table-checkbox` (green LED glow) + reference + remaining amount
 - Claims grouped by employee — same collapsible keycap pattern
 - JV confirmation shows one line per selected item
+
+### Table Footer
+Two summary rows in `<tfoot>`:
+- **Total** row — all transactions, grey background (`var(--surface-low)`)
+- **Matched** row — suggested + confirmed only, Steel Blue background (`var(--primary)`) with white text. Shows reconciled debit/credit at a glance.
 
 ### Key Files
 | File | Role |
@@ -183,25 +205,39 @@ Confirmed → recon_status = "manually_matched"
 PDF uploaded → pdf-parse extracts text → detect bank (regex)
     |
     v
-Try Gemini first (gemini-1.5-flash)
-    → Sends full text + bank-specific prompt
-    → Returns structured JSON transactions
-    |-- Success + transactions found → use Gemini result
-    |-- Fail or 0 transactions → fallback to regex parser
+Try regex parser first (free, instant)
+    → Maybank: DD/MM + description + amount± + balance
+    → OCBC: description + DD MMM YYYY + amounts
+    |-- Success + transactions found → use regex result
+    |-- No regex parser or 0 transactions → fallback to Gemini
     |
     v
-Regex parser (bank-specific)
-    → Maybank: DD/MM/YY + description + amount±
-    → OCBC: description + DD MMM YYYY + amounts (right-to-left)
-    → Other banks: Gemini-only (no regex fallback)
+Gemini fallback (gemini-1.5-flash)
+    → Sends full text + bank-specific prompt
+    → Returns structured JSON transactions
+    |
+    v
+Balance verification → verifyBankStatement()
+    |-- Mismatch? Auto-retry with alternate parser (regex↔Gemini)
+    |-- Compare diffs, pick the better result
+    |
+    v
+Post-dedup balance check
+    |-- If dedup removed transactions AND broke balance → flag DEDUP_BALANCE_MISMATCH
+    |
+    v
+Store verification_issues on BankStatement record
 ```
 
 ### Supported Banks
 | Bank | Parser | Notes |
 |------|--------|-------|
-| Maybank | Regex + Gemini | Continuation lines joined with ` \| ` |
-| OCBC | Regex + Gemini | Cheque number extraction, columns concatenated |
+| Maybank | Regex (primary) + Gemini (fallback/retry) | Continuation lines joined with ` \| ` |
+| OCBC | Regex (primary) + Gemini (fallback/retry) | Cheque number extraction, columns concatenated |
 | CIMB, Public Bank, AmBank, RHB, Hong Leong | Gemini only | Detected but no dedicated regex |
+
+### Date Parsing
+All regex parsers use `Date.UTC()` to avoid timezone shifts. Without UTC, `new Date(2025, 11, 1)` creates Dec 1 at midnight local time (UTC+8), which becomes Nov 30 in UTC — causing incorrect dedup matches against previous month's statements.
 
 ### Transaction Dedup (`lib/bank-dedup.ts`)
 Prevents duplicate transactions across overlapping statements:
@@ -211,12 +247,46 @@ Prevents duplicate transactions across overlapping statements:
 4. **Tier 2**: multiple description matches → pick first as duplicate
 5. **Tier 3**: single amount+date candidate, description differs → still marked duplicate
 6. New unique transactions inserted; duplicates skipped
+7. **Post-dedup balance check**: if removed transactions cause a balance mismatch, stores `DEDUP_BALANCE_MISMATCH` error on the statement
+
+### Upload-Time Verification (`lib/bank-statement-verify.ts`)
+Pure function that runs after parsing. Results stored as `verification_issues` JSON on the BankStatement record.
+
+| Check | Severity | Description |
+|-------|----------|-------------|
+| `MISSING_OPENING_BALANCE` | error | Opening balance not extracted |
+| `MISSING_CLOSING_BALANCE` | error | Closing balance not extracted |
+| `BALANCE_MISMATCH` | error | Opening − Debit + Credit ≠ Closing (tolerance 0.01) |
+| `RUNNING_BALANCE_BREAK` | warning | Transaction running balance doesn't chain (skips null balances) |
+| `DUPLICATE_TRANSACTION` | warning | Same date + amount + description within the statement |
+| `ZERO_AMOUNT` | warning | Transaction has no debit or credit |
+| `DATE_ORDER` | warning | Transaction date before previous transaction |
+| `HEADER_DEBIT_MISMATCH` | warning | PDF header total debit ≠ sum of transaction debits |
+| `HEADER_CREDIT_MISMATCH` | warning | PDF header total credit ≠ sum of transaction credits |
+| `DEDUP_BALANCE_MISMATCH` | error | Dedup removed transactions causing balance mismatch (added post-dedup) |
+
+### Balance Mismatch UI Flow
+```
+Detail page detects mismatch (useMemo on opening/closing/totals)
+    |
+    v
+Has mismatch AND no override?
+    → Red banner above table with balance details
+    → All Match/Review/Unmatch buttons disabled (table + preview modal)
+    → Two actions:
+        1. Delete statement — remove and re-upload
+        2. "Override & Proceed" → POST /api/bank-reconciliation/statements/[id]/override
+            → Sets balance_override=true, records user + timestamp
+            → Banner turns amber (informational), buttons re-enabled
+```
 
 ### Key Files
 | File | Role |
 |------|------|
-| `lib/bank-pdf-parser.ts` | PDF extraction, bank detection, Gemini call, regex parsers |
+| `lib/bank-pdf-parser.ts` | PDF extraction, bank detection, regex parsers, Gemini call, auto-retry |
+| `lib/bank-statement-verify.ts` | `verifyBankStatement()` — 7 verification checks |
 | `lib/bank-dedup.ts` | `deduplicateTransactions()` — overlap detection + fuzzy dedup |
+| `app/api/bank-reconciliation/statements/[id]/override/route.ts` | Balance override endpoint |
 
 ---
 

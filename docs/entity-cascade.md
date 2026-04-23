@@ -94,6 +94,8 @@ These are nulled out when parent is deleted:
 | **Can hard delete?** | Yes — cascades are comprehensive |
 | **Delete cascade (multi-step)** | 1. Revert ALL bank transaction matches (delete `BankTransactionInvoice`, `BankTransactionClaim`, clear `matched_sales_invoice_id`, revert claims to `unpaid`) → 2. Recalc all affected invoice `amount_paid` → 3. Clean up legacy auto-matched Payments + PaymentReceipts → 4. Reverse ALL `bank_recon` JVs for matched transactions → 5. Delete all `BankTransaction` records (Prisma cascade) → 6. Delete statement |
 | **Partial success** | JV reversal errors are logged but don't block deletion. Returns HTTP 207 if reversal errors occur. |
+| **Balance override** | If parsed statement has balance mismatch, matching is blocked until user clicks "Override & Proceed" (`balance_override=true`, records user + timestamp). Override is an acknowledgement, not a fix. |
+| **Verification** | Upload stores `verification_issues` (JSON) from `verifyBankStatement()`. Errors block matching; warnings are informational. See `lib/bank-statement-verify.ts`. |
 
 ### Bank Transaction
 

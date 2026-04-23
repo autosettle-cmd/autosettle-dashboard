@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -18,6 +18,7 @@ interface PaymentAllocation {
   total_amount: string;
   issue_date: string;
   allocated_amount: string;
+  file_url: string | null;
 }
 
 interface PaymentReceipt {
@@ -73,6 +74,7 @@ interface StatementDetail {
   opening_balance: string | null;
   closing_balance: string | null;
   file_url: string | null;
+  balance_override?: boolean;
   summary: { total: number; matched: number; unmatched: number; excluded: number };
   system_balance: { debit: number; credit: number };
   transactions: BankTxn[];
@@ -235,6 +237,25 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   const suggestedCount = statement?.transactions.filter((t) => t.recon_status === 'matched').length ?? 0;
   const confirmedCount = statement?.transactions.filter((t) => t.recon_status === 'manually_matched').length ?? 0;
 
+  // ─── Balance mismatch computation ──────────────────────────────────────────
+
+  const { totalDebit, totalCredit, matchedDebit, matchedCredit, opening, closing, expectedClosing, balanceDiff, hasMismatch } = useMemo(() => {
+    if (!statement) return { totalDebit: 0, totalCredit: 0, matchedDebit: 0, matchedCredit: 0, opening: 0, closing: 0, expectedClosing: 0, balanceDiff: 0, hasMismatch: false };
+    const txns = statement.transactions;
+    const totalDebit = txns.reduce((s, t) => s + Number(t.debit ?? 0), 0);
+    const totalCredit = txns.reduce((s, t) => s + Number(t.credit ?? 0), 0);
+    const matched = txns.filter(t => t.recon_status === 'matched' || t.recon_status === 'manually_matched');
+    const matchedDebit = matched.reduce((s, t) => s + Number(t.debit ?? 0), 0);
+    const matchedCredit = matched.reduce((s, t) => s + Number(t.credit ?? 0), 0);
+    const opening = Number(statement.opening_balance ?? 0);
+    const closing = Number(statement.closing_balance ?? 0);
+    const expectedClosing = opening - totalDebit + totalCredit;
+    const balanceDiff = Math.abs(expectedClosing - closing);
+    return { totalDebit, totalCredit, matchedDebit, matchedCredit, opening, closing, expectedClosing, balanceDiff, hasMismatch: balanceDiff > 0.01 };
+  }, [statement]);
+
+  const matchingBlocked = hasMismatch && !statement?.balance_override;
+
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   const doConfirm = async (txnIds: string[]) => {
@@ -252,13 +273,24 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
         setConfirmError(errMsg);
         alert(errMsg);
       } else {
-        loadStatement();
+        // Reload statement — previewTxn stays on same txn, will show updated status
+        const stmtRes = await fetch(`${config.apiStatements}/${id}`);
+        const stmtJson = await stmtRes.json();
+        if (stmtJson.data) {
+          setStatement(stmtJson.data);
+          // Update previewTxn with refreshed data so status reflects "Confirmed"
+          if (previewTxn) {
+            const updated = (stmtJson.data as StatementDetail).transactions.find((t: BankTxn) => t.id === previewTxn.id);
+            if (updated) setPreviewTxn(updated);
+          }
+        }
       }
     } catch (e) { console.error(e); }
     finally { setConfirming(false); }
   };
 
   const _doConfirmAll = () => {
+    if (matchingBlocked) return;
     const suggestedIds = (statement?.transactions ?? [])
       .filter((t) => t.recon_status === 'matched')
       .map((t) => t.id);
@@ -330,6 +362,26 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     setOutstandingItems(json.data ?? []);
   };
 
+  /** After a successful match, reload statement and advance to next unmatched transaction */
+  const advanceAfterMatch = () => {
+    const currentId = matchingTxn?.id;
+    loadStatement();
+    // Find next unmatched txn after current in the filtered list
+    if (currentId && statement) {
+      const allTxns = statement.transactions;
+      const currentIdx = allTxns.findIndex(t => t.id === currentId);
+      const next = allTxns.slice(currentIdx + 1).find(t => t.recon_status === 'unmatched');
+      if (next) {
+        closeMatchModal();
+        openMatchModal(next);
+      } else {
+        closeMatchModal();
+      }
+    } else {
+      closeMatchModal();
+    }
+  };
+
   const doMatchLegacy = async (paymentId: string) => {
     if (!matchingTxn || !config.apiMatchLegacy) return;
     await fetch(config.apiMatchLegacy, {
@@ -337,8 +389,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bankTransactionId: matchingTxn.id, paymentId }),
     });
-    closeMatchModal();
-    loadStatement();
+    advanceAfterMatch();
   };
 
   const doMatchItem = async (item?: { type: string; id: string }, invoiceIds?: string[]) => {
@@ -349,10 +400,16 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       // Multi-invoice: call API once per invoice (API supports incremental allocation)
       if (invoiceIds && invoiceIds.length > 0) {
         for (const invId of invoiceIds) {
+          // Determine if this is a regular invoice or sales invoice from outstanding items
+          const outItem = outstandingItems.find(i => i.id === invId);
+          const isSales = outItem?.type === 'sales_invoice';
+          const body: Record<string, unknown> = { bankTransactionId: matchingTxn.id };
+          if (isSales) body.salesInvoiceId = invId;
+          else body.invoiceId = invId;
           const res = await fetch(config.apiMatchItem, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bankTransactionId: matchingTxn.id, invoiceId: invId }),
+            body: JSON.stringify(body),
           });
           const json = await res.json();
           if (!res.ok) {
@@ -361,8 +418,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
             return;
           }
         }
-        closeMatchModal();
-        loadStatement();
+        advanceAfterMatch();
         setMatchSubmitting(false);
         return;
       }
@@ -388,8 +444,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
         setMatchSubmitting(false);
         return;
       }
-      closeMatchModal();
-      loadStatement();
+      advanceAfterMatch();
     } catch (e) {
       setMatchError(e instanceof Error ? e.message : 'Network error');
     }
@@ -525,18 +580,10 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
 
   const fetchNextVoucherNumber = async (name: string, supplierId?: string) => {
     if (!statement?.firm_id || !name.trim()) return;
-    const prefix = name.split(/\s+/)[0].toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) || 'PV';
     try {
-      const firmParam = config.useFirmScope ? `&firmId=${statement.firm_id}` : '';
-      const res = await fetch(`${config.apiInvoices}?search=PV-${prefix}${firmParam}&take=50`);
+      const res = await fetch(`/api/bank-reconciliation/next-voucher-number?firmId=${statement.firm_id}`);
       const j = await res.json();
-      let maxNum = 0;
-      const regex = new RegExp(`PV-${prefix}-(\\d+)`);
-      for (const inv of j.data ?? []) {
-        const match = inv.invoice_number?.match(regex);
-        if (match) { const n = parseInt(match[1], 10); if (n > maxNum) maxNum = n; }
-      }
-      setVoucherData(prev => ({ ...prev, reference: `PV-${prefix}-${String(maxNum + 1).padStart(3, '0')}` }));
+      if (j.data) setVoucherData(prev => ({ ...prev, reference: j.data }));
     } catch { /* ignore */ }
     if (supplierId) {
       try {
@@ -569,8 +616,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
       if (config.showGlPersistence && voucherData.gl_account_id) localStorage.setItem('lastVoucherGl', voucherData.gl_account_id);
       saveDescriptionAlias(matchingTxn, voucherData.supplier_id || json.data?.supplier_id);
-      closeMatchModal();
-      loadStatement();
+      advanceAfterMatch();
     } finally { setCreatingVoucher(false); }
   };
 
@@ -617,7 +663,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   const fetchNextReceiptNumber = async (name: string, supplierId?: string) => {
     if (!statement?.firm_id || !name.trim()) return;
     try {
-      const res = await fetch(`/api/bank-reconciliation/next-receipt-number?name=${encodeURIComponent(name.trim())}&firmId=${statement.firm_id}`);
+      const res = await fetch(`/api/bank-reconciliation/next-receipt-number?firmId=${statement.firm_id}`);
       const j = await res.json();
       if (j.data) setVoucherData(prev => ({ ...prev, reference: j.data }));
     } catch { /* ignore */ }
@@ -650,8 +696,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
       if (config.showGlPersistence && voucherData.gl_account_id) localStorage.setItem('lastReceiptGl', voucherData.gl_account_id);
       saveDescriptionAlias(matchingTxn, voucherData.supplier_id || json.data?.supplier_id);
-      closeMatchModal();
-      loadStatement();
+      advanceAfterMatch();
     } finally { setCreatingVoucher(false); }
   };
 
@@ -735,10 +780,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           <div className="flex-shrink-0 px-6 pl-14 pt-4 pb-1">
               {/* Summary cards */}
               <div className="grid grid-cols-7 gap-3 mb-4">
-                {(() => {
-                  const totalDebit = statement.transactions.reduce((s, t) => s + Number(t.debit ?? 0), 0);
-                  const totalCredit = statement.transactions.reduce((s, t) => s + Number(t.credit ?? 0), 0);
-                  return [
+                {[
                     { label: 'Opening Balance', value: formatRM(statement.opening_balance), color: 'text-[var(--text-primary)]' },
                     { label: 'Total Debit', value: formatRM(totalDebit), color: 'text-[var(--reject-red)]' },
                     { label: 'Total Credit', value: formatRM(totalCredit), color: 'text-[var(--match-green)]' },
@@ -746,8 +788,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                     { label: 'Confirmed', value: `${confirmedCount} / ${statement.summary.total}`, color: 'text-[var(--match-green)]' },
                     { label: 'Suggested', value: String(suggestedCount), color: suggestedCount > 0 ? 'text-amber-600' : 'text-[var(--match-green)]' },
                     { label: 'Unmatched', value: String(statement.summary.unmatched), color: statement.summary.unmatched > 0 ? 'text-[var(--reject-red)]' : 'text-[var(--match-green)]' },
-                  ];
-                })().map((c) => (
+                  ].map((c) => (
                   <div key={c.label} className="bg-white card-popped p-3">
                     <p className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1">{c.label}</p>
                     <p className={`text-title-md font-bold tabular-nums ${c.color}`}>{c.value}</p>
@@ -780,6 +821,38 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
               {confirmError && (
                 <div className="mb-3 bg-[var(--error-container)] px-4 py-2 text-sm text-[var(--on-error-container)] whitespace-pre-line">{confirmError}</div>
               )}
+
+              {/* Balance mismatch warning */}
+              {hasMismatch && (
+                <div className={`mb-3 px-4 py-3 text-body-sm border ${matchingBlocked ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <span className="font-semibold">Balance mismatch:</span>{' '}
+                      Opening (<span className="tabular-nums">{formatRM(opening)}</span>) − Debit (<span className="tabular-nums">{formatRM(totalDebit)}</span>) + Credit (<span className="tabular-nums">{formatRM(totalCredit)}</span>) = <span className="tabular-nums">{formatRM(expectedClosing)}</span>, but closing balance is <span className="tabular-nums">{formatRM(closing)}</span>.
+                      {' '}Difference: <strong className="tabular-nums">{formatRM(balanceDiff)}</strong>
+                      {matchingBlocked && ' — matching is disabled until this is resolved.'}
+                      {!matchingBlocked && <span className="italic"> — override active, proceed with caution.</span>}
+                    </div>
+                    {matchingBlocked && (
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Override balance mismatch? You are confirming the statement is correct despite the difference.')) return;
+                            try {
+                              const res = await fetch(`${config.apiStatements}/${id}/override`, { method: 'POST' });
+                              if (res.ok) loadStatement();
+                              else alert('Failed to override');
+                            } catch { alert('Failed to override'); }
+                          }}
+                          className="btn-thick-navy text-label-sm px-3 py-1.5 text-white whitespace-nowrap"
+                        >
+                          Override &amp; Proceed
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
         )}
 
@@ -793,14 +866,14 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                 <table className="w-full">
                   <thead>
                     <tr>
-                      <th className="px-4 py-2.5 text-left w-[70px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
-                      <th className="px-3 py-2.5 text-left w-[80px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
-                      <th className="px-3 py-2.5 text-right w-[110px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
-                      <th className="px-3 py-2.5 text-right w-[110px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
-                      <th className="px-3 py-2.5 text-right w-[110px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
-                      <th className="px-3 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Matched To</th>
-                      <th className="px-3 py-2.5 text-right w-[120px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
+                      <th className="px-2 py-2.5 text-left w-[90px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                      <th className="px-2 py-2.5 text-left w-[78px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
+                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
+                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
+                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
+                      <th className="px-2 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Matched To</th>
+                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
                         <div className="flex items-center justify-end gap-1.5">
                           Actions
                           <HelpTooltip items={[
@@ -865,8 +938,8 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                         <tr className={`transition-colors ${hasExpandable ? 'cursor-pointer hover:bg-[var(--surface-header)]' : 'hover:bg-[var(--surface-header)]'} ${rowBg}`}
                           onClick={handleRowClick}
                         >
-                          <td data-col="Status" className="px-4 py-2.5">
-                            <div className="flex items-center gap-1.5">
+                          <td data-col="Status" className="px-2 py-2.5">
+                            <div className="flex items-center gap-1">
                               {!config.showRichPreview && hasExpandable && (
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                                   className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
@@ -874,6 +947,24 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                 </svg>
                               )}
                               <span className={cfg.cls}>{cfg.label}</span>
+                              {txn.recon_status === 'manually_matched' && (() => {
+                                // Check for missing documents on matched items
+                                const inv = txn.matched_invoice;
+                                const mias = txn.matched_invoice_allocations;
+                                const isPV = inv?.invoice_number?.startsWith('PV-');
+                                const isOR = txn.matched_sales_invoice?.invoice_number?.startsWith('OR-');
+                                const invMissingDoc = inv && !inv.file_url;
+                                const allocMissingDoc = mias?.some(a => !(a as { file_url?: string }).file_url);
+                                if ((isPV || isOR) && (invMissingDoc || allocMissingDoc)) {
+                                  return (
+                                    <span className="relative group/nodoc">
+                                      <span className="text-[11px] font-black text-white bg-[var(--reject-red)] px-1 py-0.5 leading-none whitespace-nowrap cursor-default">!</span>
+                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--text-primary)] text-white text-[10px] whitespace-nowrap opacity-0 group-hover/nodoc:opacity-100 transition-opacity pointer-events-none z-20">No document attached to {isPV ? 'payment voucher' : 'official receipt'}</span>
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
                             </div>
                             {/* Accountant: tooltip on hover */}
                             {config.showRichPreview && (
@@ -884,15 +975,15 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                               </div>
                             )}
                           </td>
-                          <td data-col="Date" className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)] tabular-nums">{formatDate(txn.transaction_date)}</td>
-                          <td data-col="Description" className="px-3 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate" title={txn.description}>
+                          <td data-col="Date" className="px-2 py-2.5 text-body-sm text-[var(--text-secondary)] tabular-nums whitespace-nowrap">{formatDate(txn.transaction_date)}</td>
+                          <td data-col="Description" className="px-2 py-2.5 text-body-sm text-[var(--text-primary)] max-w-[250px] truncate" title={txn.description}>
                             {txn.description.split(' | ')[0]}
                             {txn.reference && <span className="ml-1 text-[var(--text-secondary)] text-label-sm">({txn.reference})</span>}
                           </td>
-                          <td data-col="Debit" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)]">{txn.debit ? formatRM(txn.debit) : '-'}</td>
-                          <td data-col="Credit" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)]">{txn.credit ? formatRM(txn.credit) : '-'}</td>
-                          <td data-col="Balance" className="px-3 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)]">{txn.balance ? formatRM(txn.balance) : '-'}</td>
-                          <td data-col="Matched To" className="px-3 py-2.5 text-body-sm text-[var(--text-secondary)]">
+                          <td data-col="Debit" className="px-2 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)] whitespace-nowrap">{txn.debit ? formatRM(txn.debit) : '-'}</td>
+                          <td data-col="Credit" className="px-2 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)] whitespace-nowrap">{txn.credit ? formatRM(txn.credit) : '-'}</td>
+                          <td data-col="Balance" className="px-2 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)] whitespace-nowrap">{txn.balance ? formatRM(txn.balance) : '-'}</td>
+                          <td data-col="Matched To" className="px-2 py-2.5 text-body-sm text-[var(--text-secondary)]">
                             {hasInvoice ? (
                               mia && mia.length > 0 ? (
                                 <span>{mia.length} invoice{mia.length > 1 ? 's' : ''} — {mia[0].vendor_name}</span>
@@ -909,21 +1000,21 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                               <span className="text-[var(--text-secondary)] italic">{txn.notes}</span>
                             ) : '—'}
                           </td>
-                          <td className="px-3 py-2.5 text-right">
+                          <td className="px-2 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} className="btn-thick-navy text-label-sm w-[70px] py-1.5 text-white text-center">Match</button>
+                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before matching' : undefined} className={`btn-thick-navy text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Match</button>
                               </div>
                             )}
                             {txn.recon_status === 'matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} className="text-label-sm w-[70px] py-1.5 text-center font-bold uppercase tracking-wide" style={{ background: 'linear-gradient(180deg, #F5C842 0%, #E8B830 100%)', color: '#1A1A1A', border: 'none', borderTop: '1px solid rgba(255,255,255,0.35)', boxShadow: '0 4px 0 0 #A8820A, 2px 0 0 0 #C49A15, 2px 4px 0 0 #A8820A, -1px 0 0 0 #D4A820, inset 1px 1px 0 0 rgba(255,255,255,0.2), inset -1px -1px 0 0 rgba(0,0,0,0.15)', textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}>Review</button>
-                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before reviewing' : undefined} className={`text-label-sm w-[70px] py-1.5 text-center font-bold uppercase tracking-wide ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`} style={{ background: 'linear-gradient(180deg, #F5C842 0%, #E8B830 100%)', color: '#1A1A1A', border: 'none', borderTop: '1px solid rgba(255,255,255,0.35)', boxShadow: '0 4px 0 0 #A8820A, 2px 0 0 0 #C49A15, 2px 4px 0 0 #A8820A, -1px 0 0 0 #D4A820, inset 1px 1px 0 0 rgba(255,255,255,0.2), inset -1px -1px 0 0 rgba(0,0,0,0.15)', textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}>Review</button>
+                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Unmatch</button>
                               </div>
                             )}
                             {txn.recon_status === 'manually_matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} className="btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center">Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Unmatch</button>
                               </div>
                             )}
                           </td>
@@ -982,6 +1073,9 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                                         className="flex items-center justify-between bg-white px-3 py-2 border-b border-[var(--surface-low)] hover:bg-[var(--surface-low)] transition-colors cursor-pointer">
                                         <div>
                                           <span className="text-body-sm font-medium text-[var(--primary)]">{a.invoice_number ?? 'No number'}</span>
+                                          {a.invoice_number?.startsWith('PV-') && !a.file_url && (
+                                            <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">No doc</span>
+                                          )}
                                           <span className="text-label-sm text-[var(--text-secondary)] ml-2">{a.vendor_name} — {formatDate(a.issue_date)}</span>
                                         </div>
                                         <div className="text-right">
@@ -1076,33 +1170,30 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                     })}
                   </tbody>
                   <tfoot>
-                    {(() => {
-                      const allTxns = statement.transactions;
-                      const totalDr = allTxns.reduce((s, t) => s + Number(t.debit ?? 0), 0);
-                      const totalCr = allTxns.reduce((s, t) => s + Number(t.credit ?? 0), 0);
-                      const opening = Number(statement.opening_balance ?? 0);
-                      const closing = Number(statement.closing_balance ?? 0);
-                      const expected = opening - totalDr + totalCr;
-                      const diff = Math.abs(expected - closing);
-                      const mismatch = diff > 0.01;
-                      return (
-                        <>
-                          <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
-                            <td colSpan={3} className="px-4 py-2.5 text-body-sm font-semibold text-[var(--text-primary)]">Total</td>
-                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--reject-red)] whitespace-nowrap">{formatRM(totalDr)}</td>
-                            <td className="px-3 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--match-green)] whitespace-nowrap">{formatRM(totalCr)}</td>
-                            <td colSpan={3} />
-                          </tr>
-                          {mismatch && (
-                            <tr className="bg-amber-50 border-t border-amber-200">
-                              <td colSpan={8} className="px-4 py-2.5 text-body-sm text-amber-700">
-                                <span className="font-semibold">Balance mismatch:</span> Opening (<span className="tabular-nums">{formatRM(opening)}</span>) - Debit (<span className="tabular-nums">{formatRM(totalDr)}</span>) + Credit (<span className="tabular-nums">{formatRM(totalCr)}</span>) = <span className="tabular-nums">{formatRM(expected)}</span>, but closing balance is <span className="tabular-nums">{formatRM(closing)}</span>. Difference: <strong className="tabular-nums">{formatRM(diff)}</strong> — the bank statement may have been parsed incorrectly.
-                              </td>
-                            </tr>
-                          )}
-                        </>
-                      );
-                    })()}
+                    <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
+                      <td colSpan={3} className="px-2 py-2.5 text-body-sm font-semibold text-[var(--text-primary)]">Total</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--reject-red)] whitespace-nowrap">{formatRM(totalDebit)}</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--match-green)] whitespace-nowrap">{formatRM(totalCredit)}</td>
+                      <td colSpan={3} />
+                    </tr>
+                    <tr className="bg-[var(--primary)] border-t border-[var(--primary-container)]">
+                      <td colSpan={3} className="px-2 py-2.5 text-body-sm font-semibold text-white">Matched</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-white/80 whitespace-nowrap">{formatRM(matchedDebit)}</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-white/80 whitespace-nowrap">{formatRM(matchedCredit)}</td>
+                      <td colSpan={3} />
+                    </tr>
+                    {statement && statement.summary.unmatched === 0 && (Math.abs(matchedDebit - totalDebit) > 0.01 || Math.abs(matchedCredit - totalCredit) > 0.01) && (
+                      <tr className="bg-amber-50 border-t border-amber-200">
+                        <td colSpan={8} className="px-2 py-2.5 text-body-sm text-amber-700">
+                          <span className="font-semibold">Reconciliation gap:</span>{' '}
+                          All transactions are matched but totals differ —
+                          {Math.abs(matchedDebit - totalDebit) > 0.01 && <> Debit: matched <span className="tabular-nums font-semibold">{formatRM(matchedDebit)}</span> vs total <span className="tabular-nums font-semibold">{formatRM(totalDebit)}</span></>}
+                          {Math.abs(matchedDebit - totalDebit) > 0.01 && Math.abs(matchedCredit - totalCredit) > 0.01 && ' | '}
+                          {Math.abs(matchedCredit - totalCredit) > 0.01 && <> Credit: matched <span className="tabular-nums font-semibold">{formatRM(matchedCredit)}</span> vs total <span className="tabular-nums font-semibold">{formatRM(totalCredit)}</span></>}
+                          . Some matches may be partial.
+                        </td>
+                      </tr>
+                    )}
                   </tfoot>
                 </table>
                 {filteredTxns.length === 0 && (
@@ -1131,6 +1222,8 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
               onSetExpandedDocUrl={setExpandedDocUrl}
               onSetPreviewInvoice={setPreviewInvoice}
               onSetPreviewClaim={setPreviewClaim}
+              matchingDisabled={matchingBlocked}
+              onRefresh={loadStatement}
               onPrev={(() => {
                 const idx = filteredTxns.findIndex(t => t.id === previewTxn.id);
                 return idx > 0 ? () => setPreviewTxn(filteredTxns[idx - 1]) : undefined;

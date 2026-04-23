@@ -212,6 +212,8 @@ export default function InvoicePreviewPanel({
 }: InvoicePreviewPanelProps) {
   const [showApproveConfirm, setShowApproveConfirm] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const [attachingFile, setAttachingFile] = useState(false);
+  const [attachWarnings, setAttachWarnings] = useState<string[]>([]);
 
   // Keyboard navigation (left/right arrows) with visual press feedback
   const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
@@ -245,22 +247,51 @@ export default function InvoicePreviewPanel({
     ? glAccounts.find(a => a.id === previewInvoice.contra_gl_account_id)
     : null;
 
+  const isPV = previewInvoice.invoice_number?.startsWith('PV-');
+  const canAttach = isPV && !previewInvoice.file_url;
+
+  const handleAttachFile = async (file: File) => {
+    setAttachingFile(true);
+    setAttachWarnings([]);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`/api/invoices/${previewInvoice.id}/attach`, {
+        method: 'PATCH',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAttachWarnings([json.error || 'Failed to attach document']);
+        return;
+      }
+      if (json.data?.warnings?.length > 0) {
+        setAttachWarnings(json.data.warnings);
+      }
+      refresh();
+    } catch {
+      setAttachWarnings(['Failed to attach document']);
+    } finally {
+      setAttachingFile(false);
+    }
+  };
+
   return (
     <>
-      {/* Prev/Next actuator strips — outside modal flex container */}
-      {onPrev && (
-        <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        </div>
-      )}
-      {onNext && (
-        <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-        </div>
-      )}
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-      <div className="bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+        {/* Prev/Next actuator strips — beside modal */}
+        {onPrev && (
+          <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </div>
+        )}
+        {onNext && (
+          <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </div>
+        )}
         <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
           <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
           <button onClick={() => setPreviewInvoice(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
@@ -722,6 +753,35 @@ export default function InvoicePreviewPanel({
                   <div className="flex items-center justify-center h-full p-5">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain" />
+                  </div>
+                );
+              }
+              if (canAttach) {
+                return (
+                  <div className="flex flex-col items-center justify-center h-full p-8 gap-4">
+                    {attachingFile ? (
+                      <div className="text-center">
+                        <div className="animate-spin w-8 h-8 border-2 border-[var(--accent-blue)] border-t-transparent rounded-full mx-auto mb-3" />
+                        <p className="text-sm text-[var(--text-muted)]">Scanning document...</p>
+                      </div>
+                    ) : (
+                      <label className="w-full max-w-xs cursor-pointer">
+                        <div className="border-2 border-dashed border-[var(--border-medium)] rounded-lg p-8 text-center hover:border-[var(--accent-blue)] hover:bg-[var(--bg-secondary)] transition-colors">
+                          <svg className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
+                          <p className="text-sm font-medium text-[var(--text-primary)]">Attach Document</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">PDF, JPG, or PNG</p>
+                        </div>
+                        <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => { const f = e.target.files?.[0]; if (f) handleAttachFile(f); e.target.value = ''; }} />
+                      </label>
+                    )}
+                    {attachWarnings.length > 0 && (
+                      <div className="w-full max-w-xs rounded-lg border border-amber-300 bg-amber-50 p-3">
+                        <p className="text-xs font-semibold text-amber-800 mb-1">Mismatch detected</p>
+                        {attachWarnings.map((w, i) => (
+                          <p key={i} className="text-xs text-amber-700">{w}</p>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               }

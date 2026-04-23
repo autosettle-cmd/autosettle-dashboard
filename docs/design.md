@@ -149,6 +149,8 @@ Floating elements (modals, dropdowns): `0px 24px 48px rgba(26, 50, 87, 0.08)` �
 
 All buttons: keycap style, press IN on click (no translateY), no hover animation.
 
+**Nested button isolation:** All `btn-thick-*` `:active` selectors use `:not(:has(:active))` so clicking a child button inside a parent button doesn't trigger the parent's pressed state. This is a global CSS rule — never add inline `onMouseDown` stopPropagation for this purpose.
+
 #### Approve Button (`btn-thick-green`) — Exact CSS
 ```css
 background: linear-gradient(180deg, #0DB897 0%, #0A9981 100%);
@@ -454,6 +456,16 @@ Physical translucent acrylic jewels with internal glow. Use `.notification-badge
 - **Never open a second modal on top** of a preview modal for document viewing — use inline iframe expand or show the document in the right panel
 - **Delete button blocked** (greyed out with hover tooltip) when entity has downstream links (payments, bank recon, approved JVs)
 
+### Nav Actuator Strips (Prev/Next Navigation)
+Keycap-style navigation strips flanking preview modals. Same material as `btn-thick-navy`.
+
+- **Position:** `absolute` relative to the modal box — sits at the modal edges, NOT screen edges
+- `left: -3.5rem` (prev) / `right: -3.5rem` (next), `top: 0`, `bottom: 0`, `width: 3rem`
+- Modal box must have `relative` positioning to contain them
+- Keyboard: `ArrowLeft`/`ArrowRight` with visual press feedback (`nav-actuator-pressed` class)
+- CSS classes: `nav-actuator`, `nav-actuator-left`, `nav-actuator-right`, `nav-actuator-pressed`
+- Applied to: invoices, claims, suppliers, bank recon preview, bank recon match modal
+
 **Bank recon match modal:** Two-panel layout (left=transaction details with always-visible editable textarea for description + date/amount/ref/bank info, right=search/tabs/items list/create forms). `max-w-[1200px]`.
 
 **Bank recon table rows:**
@@ -472,6 +484,12 @@ Physical translucent acrylic jewels with internal glow. Use `.notification-badge
 **Expand-to-preview fallback:** When a clickable entity card has no document (no `file_url`), show inline detail panel (type, number, date, total, remaining) instead of empty space
 
 **Dashboard tab buttons:** Keycap tiles sliding in a milled track. The track is a darker recessed groove (`bg-[#D0D3D8]`, inset shadow, `gap-0.5`) so the darker channel shows between tiles as a 2px seam. Active tab = `btn-thick-navy`, inactive = `btn-thick-white`. Count badges use `.notification-badge` overlay.
+
+**Dashboard preview modals:**
+- **Invoice preview:** Uses shared `InvoicePreviewPanel` (not inline code). Full approve/reject/edit/GL/line items/nav actuators.
+- **Claim preview:** Inline (shared `ClaimPreviewPanel` lacks GL selection + approve/reject — TODO to migrate).
+- **Preview data fetching:** Single `Promise.all` with all fetches (invoice data, GL accounts, categories, settings, suppliers, alias lookup). Never scatter fetches across multiple useEffects — one batch, one render cycle, with cancellation cleanup.
+- **Full invoice data:** Fetched via `GET /api/invoices/{id}` on preview open (dashboard table has minimal data, shared component needs full shape).
 
 ### Sidebar — Raised Slab
 The sidebar is a thick slab of material sitting ON TOP of the page. The main content area is a milled well carved below it.

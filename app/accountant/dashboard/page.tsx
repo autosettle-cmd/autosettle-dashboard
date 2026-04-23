@@ -3,11 +3,16 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 import StatCard from '@/components/StatCard';
 import SearchButton from '@/components/SearchButton';
+import type { InvoicesPageConfig } from '@/components/pages/InvoicesPageContent';
+
+const InvoicePreviewPanel = dynamic(() => import('@/components/invoices/InvoicePreviewPanel'));
+const InvoiceRejectModal = dynamic(() => import('@/components/invoices/InvoiceRejectModal'));
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,24 +79,34 @@ interface InvoiceRow {
   invoice_number: string | null;
   issue_date: string;
   due_date: string | null;
+  payment_terms: string | null;
+  subtotal: string | null;
+  tax_amount: string | null;
   total_amount: string;
   amount_paid: string;
   category_name: string;
   category_id: string;
   firm_id: string;
-  status: string;
-  approval: string;
-  payment_status: string;
+  firm_name: string;
+  status: 'pending_review' | 'reviewed';
+  approval: 'pending_approval' | 'approved' | 'not_approved';
+  payment_status: 'unpaid' | 'partially_paid' | 'paid';
   supplier_name: string | null;
-  supplier_link_status: string;
-  confidence: string;
-  thumbnail_url: string | null;
-  file_url: string | null;
-  gl_account_id: string | null;
-  contra_gl_account_id: string | null;
+  supplier_link_status: 'auto_matched' | 'unmatched' | 'confirmed';
   supplier_id: string | null;
   supplier_default_gl_id: string | null;
   supplier_default_contra_gl_id: string | null;
+  uploader_name: string;
+  confidence: string;
+  thumbnail_url: string | null;
+  file_url: string | null;
+  notes: string | null;
+  gl_account_id: string | null;
+  gl_account_label: string | null;
+  contra_gl_account_id: string | null;
+  contra_gl_account_label: string | null;
+  rejection_reason: string | null;
+  lines: { id: string; description: string; quantity: string; unit_price: string; tax_amount: string; line_total: string; gl_account_id: string | null; gl_account_label: string | null; sort_order: number }[];
 }
 
 interface EditData {
@@ -181,6 +196,36 @@ export default function AccountantDashboard() {
   const [selectedContraGlId, setSelectedContraGlId] = useState('');
   const [_defaultContraGlId, setDefaultContraGlId] = useState('');
 
+  // Invoice preview panel state (for shared component)
+  const [invoiceEditMode, setInvoiceEditMode] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [invoiceEditData, setInvoiceEditData] = useState<any>(null);
+  const [invoiceEditSaving, setInvoiceEditSaving] = useState(false);
+  const [suppliers, setSuppliers] = useState<{ id: string; name: string; firm_id: string; default_gl_account_id?: string | null; default_contra_gl_account_id?: string | null }[]>([]);
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState('');
+  const [showLineItems, setShowLineItems] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [lineItems, setLineItems] = useState<any[]>([]);
+  const [lineSaving] = useState(false);
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; invoiceIds: string[]; reason: string }>({ open: false, invoiceIds: [], reason: '' });
+  const [fullInvoice, setFullInvoice] = useState<InvoiceRow | null>(null);
+
+  const invoiceConfig: InvoicesPageConfig = {
+    role: 'accountant',
+    apiInvoices: '/api/invoices',
+    apiBatch: '/api/invoices/batch',
+    apiDelete: '/api/invoices/delete',
+    apiCategories: '/api/categories',
+    apiSuppliers: '/api/suppliers',
+    linkPrefix: '/accountant',
+    showFirmColumn: false,
+    showApproval: true,
+    showGlFields: true,
+    showLineItems: true,
+    firmsLoaded: true,
+  };
+
   const refresh = () => setRefreshKey((k) => k + 1);
 
   const firstName = session?.user?.name?.split(' ')[0] ?? '';
@@ -242,44 +287,68 @@ export default function AccountantDashboard() {
     }
   }, [previewClaim]);
 
-  // Fetch GL accounts when invoice preview opens — full resolution chain
+  // Fetch full invoice + GL + suppliers in one batch when invoice preview opens
   useEffect(() => {
     if (previewInvoice) {
+      let cancelled = false;
+      setInvoiceEditMode(false);
+      setInvoiceEditData(null);
+      setShowLineItems(false);
+
+      const firmId = previewInvoice.firm_id;
       const aliasPromise = previewInvoice.vendor_name_raw
-        ? fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw)}&firmId=${previewInvoice.firm_id}`).then(r => r.json()).catch(() => ({ data: null }))
+        ? fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw)}&firmId=${firmId}`).then(r => r.json()).catch(() => ({ data: null }))
         : Promise.resolve({ data: null });
 
+      // Single Promise.all: invoice + GL + categories + settings + suppliers + alias
       Promise.all([
-        fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
-        fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
-        fetch(`/api/accounting-settings?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
+        fetch(`/api/invoices/${previewInvoice.id}`).then(r => r.json()),
+        fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/suppliers?firmId=${firmId}`).then(r => r.json()),
         aliasPromise,
-      ]).then(([glJson, catJson, settingsJson, aliasJson]) => {
+      ]).then(([invJson, glJson, catJson, settingsJson, suppJson, aliasJson]) => {
+        if (cancelled) return;
+
+        // Full invoice data
+        if (invJson.data) setFullInvoice(invJson.data);
+        const inv = invJson.data || previewInvoice;
+
+        // GL accounts
         const accounts = glJson.data ?? [];
         setGlAccounts(accounts);
+
+        // Categories
+        setCategories(catJson.data ?? []);
+
+        // Suppliers
+        setSuppliers((suppJson.data ?? []).map((s: { id: string; name: string; firm_id: string; default_gl_account_id?: string; default_contra_gl_account_id?: string }) => ({
+          id: s.id, name: s.name, firm_id: s.firm_id, default_gl_account_id: s.default_gl_account_id, default_contra_gl_account_id: s.default_contra_gl_account_id,
+        })));
+
+        // GL suggestion
         const aliasGl = aliasJson.data?.default_gl_account_id || '';
         const aliasContraGl = aliasJson.data?.default_contra_gl_account_id || '';
 
         // Expense GL: invoice → supplier default → alias match → category → empty
-        if (previewInvoice.gl_account_id) {
-          setSelectedGlAccountId(previewInvoice.gl_account_id);
-        } else if (previewInvoice.supplier_default_gl_id) {
-          setSelectedGlAccountId(previewInvoice.supplier_default_gl_id);
+        if (inv.gl_account_id) {
+          setSelectedGlAccountId(inv.gl_account_id);
+        } else if (inv.supplier_default_gl_id) {
+          setSelectedGlAccountId(inv.supplier_default_gl_id);
         } else if (aliasGl) {
           setSelectedGlAccountId(aliasGl);
         } else {
-          const catData = catJson.data ?? [];
-          const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
+          const match = (catJson.data ?? []).find((c: { id: string; gl_account_id?: string }) => c.id === inv.category_id);
           setSelectedGlAccountId(match?.gl_account_id ?? '');
         }
 
-        // Contra GL: invoice → supplier default → alias match → vendor-name fuzzy match → firm default
+        // Contra GL: invoice → supplier default → alias match → vendor-name fuzzy → firm default
         const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || settingsJson.data?.default_trade_payables_gl_id || '';
-        let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
+        let resolvedContra = inv.contra_gl_account_id || inv.supplier_default_contra_gl_id || aliasContraGl;
 
-        // Fuzzy match: vendor name against Liability GL account names
         if (!resolvedContra) {
-          const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const vendorLower = inv.vendor_name_raw.toLowerCase().replace(/[^a-z0-9]/g, '');
           const liabilityGls = accounts.filter((g: { account_type: string }) => g.account_type === 'Liability');
           const nameMatch = liabilityGls.find((g: { name: string }) => {
             const glLower = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -288,10 +357,11 @@ export default function AccountantDashboard() {
           if (nameMatch) resolvedContra = nameMatch.id;
         }
 
-        const contraId = resolvedContra || firmDefaultContra;
-        setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || aliasContraGl || firmDefaultContra);
-        setSelectedContraGlId(contraId);
+        setDefaultContraGlId(inv.supplier_default_contra_gl_id || aliasContraGl || firmDefaultContra);
+        setSelectedContraGlId(resolvedContra || firmDefaultContra);
       }).catch(console.error);
+
+      return () => { cancelled = true; };
     } else if (!previewClaim) {
       setGlAccounts([]); setSelectedGlAccountId(''); setSelectedContraGlId(''); setDefaultContraGlId('');
     }
@@ -383,14 +453,131 @@ export default function AccountantDashboard() {
     } catch (e) { console.error(e); }
   };
 
+  // ─── Invoice preview actions (for shared InvoicePreviewPanel) ────────────
+
   const markInvoiceReviewed = async (id: string, glAccountId?: string) => {
     try {
+      const body: Record<string, string> = { status: 'reviewed' };
+      if (glAccountId) body.gl_account_id = glAccountId;
       const res = await fetch(`/api/invoices/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'reviewed', ...(glAccountId && { gl_account_id: glAccountId }) }),
+        body: JSON.stringify(body),
       });
-      if (res.ok) { setPreviewInvoice(null); refresh(); }
+      if (res.ok) {
+        refresh();
+        if (fullInvoice) {
+          const glMatch = glAccountId ? glAccounts.find(a => a.id === glAccountId) : null;
+          setFullInvoice({
+            ...fullInvoice,
+            status: 'reviewed',
+            ...(glAccountId ? { gl_account_id: glAccountId, gl_account_label: glMatch ? `${glMatch.account_code} — ${glMatch.name}` : null } : {}),
+          });
+        }
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const invoiceBatchAction = async (invoiceIds: string[], action: 'approve' | 'reject' | 'revert', reason?: string, glAccountId?: string, contraGlId?: string) => {
+    try {
+      const res = await fetch('/api/invoices/batch', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceIds, action, ...(reason && { reason }), ...(glAccountId && { gl_account_id: glAccountId }), ...(contraGlId && { contra_gl_account_id: contraGlId }) }),
+      });
+      if (res.ok) {
+        refresh();
+        if (fullInvoice && invoiceIds.includes(fullInvoice.id)) {
+          const resolvedExpenseGlId = glAccountId || fullInvoice.gl_account_id || fullInvoice.supplier_default_gl_id;
+          const resolvedContraGlId = contraGlId || fullInvoice.supplier_default_contra_gl_id;
+          const expenseGl = resolvedExpenseGlId ? glAccounts.find(a => a.id === resolvedExpenseGlId) : null;
+          const contraGl = resolvedContraGlId ? glAccounts.find(a => a.id === resolvedContraGlId) : null;
+          setFullInvoice({
+            ...fullInvoice,
+            approval: action === 'approve' ? 'approved' : action === 'reject' ? 'not_approved' : 'pending_approval',
+            ...(action === 'reject' && reason ? { rejection_reason: reason } : {}),
+            ...(action === 'approve' ? {
+              ...(resolvedExpenseGlId ? { gl_account_id: resolvedExpenseGlId, gl_account_label: expenseGl ? `${expenseGl.account_code} — ${expenseGl.name}` : fullInvoice.gl_account_label } : {}),
+              ...(resolvedContraGlId ? { contra_gl_account_id: resolvedContraGlId, contra_gl_account_label: contraGl ? `${contraGl.account_code} — ${contraGl.name}` : null } : {}),
+            } : {}),
+          });
+        }
+      } else {
+        const json = await res.json().catch(() => ({ error: 'Unknown error' }));
+        alert(json.error || `Failed to ${action}`);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const invoiceSaveEdit = async () => {
+    if (!fullInvoice || !invoiceEditData) return;
+    setInvoiceEditSaving(true);
+    try {
+      const body: Record<string, unknown> = { ...invoiceEditData };
+      if (selectedGlAccountId) body.gl_account_id = selectedGlAccountId;
+      const res = await fetch(`/api/invoices/${fullInvoice.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setInvoiceEditMode(false);
+        setInvoiceEditData(null);
+        // Refetch full invoice to get updated data
+        const freshRes = await fetch(`/api/invoices/${fullInvoice.id}`);
+        const freshJson = await freshRes.json();
+        if (freshJson.data) setFullInvoice(freshJson.data);
+        refresh();
+      } else {
+        const json = await res.json().catch(() => ({ error: 'Save failed' }));
+        alert(json.error || 'Save failed');
+      }
+    } catch (e) { console.error(e); }
+    finally { setInvoiceEditSaving(false); }
+  };
+
+  const invoiceConfirmSupplier = async (invoiceId: string, supplierId: string) => {
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplier_id: supplierId, supplier_link_status: 'confirmed' }),
+      });
+      if (res.ok && fullInvoice?.id === invoiceId) {
+        const sup = suppliers.find(s => s.id === supplierId);
+        setFullInvoice({ ...fullInvoice, supplier_id: supplierId, supplier_name: sup?.name ?? fullInvoice.supplier_name, supplier_link_status: 'confirmed' });
+        refresh();
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const invoiceCreateAndAssignSupplier = async () => {
+    if (!fullInvoice || !newSupplierName.trim()) return;
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newSupplierName.trim(), firm_id: fullInvoice.firm_id }),
+      });
+      const j = await res.json();
+      if (j.data?.id) {
+        setSuppliers(prev => [...prev, { id: j.data.id, name: newSupplierName.trim(), firm_id: fullInvoice.firm_id }]);
+        setCreatingSupplier(false);
+        setNewSupplierName('');
+        await invoiceConfirmSupplier(fullInvoice.id, j.data.id);
+      }
+    } catch (e) { console.error(e); }
+  };
+
+  const invoiceDelete = async (id: string) => {
+    if (!confirm('Delete this invoice? This cannot be undone.')) return;
+    try {
+      const res = await fetch('/api/invoices/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: id }),
+      });
+      if (res.ok) { setPreviewInvoice(null); setFullInvoice(null); refresh(); }
     } catch (e) { console.error(e); }
   };
 
@@ -826,172 +1013,71 @@ export default function AccountantDashboard() {
         );
       })()}
 
-      {/* ═══ INVOICE PREVIEW PANEL ═══ */}
-      {previewInvoice && (() => {
-        const driveMatch = previewInvoice.file_url?.match(/\/d\/([^/]+)/);
-        const fileId = driveMatch?.[1];
-        return (
-        <>
-          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-          <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-            <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
-              <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invoice Details</h2>
-              <button onClick={() => setPreviewInvoice(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
-            </div>
+      {/* ═══ INVOICE PREVIEW PANEL (shared component) ═══ */}
+      {fullInvoice && (
+        <InvoicePreviewPanel
+          config={invoiceConfig}
+          previewInvoice={fullInvoice}
+          setPreviewInvoice={(inv) => { setFullInvoice(inv as InvoiceRow | null); if (!inv) setPreviewInvoice(null); }}
+          editMode={invoiceEditMode}
+          setEditMode={setInvoiceEditMode}
+          editData={invoiceEditData}
+          setEditData={setInvoiceEditData}
+          editSaving={invoiceEditSaving}
+          saveEdit={invoiceSaveEdit}
+          selectedGlAccountId={selectedGlAccountId}
+          setSelectedGlAccountId={setSelectedGlAccountId}
+          selectedContraGlId={selectedContraGlId}
+          setSelectedContraGlId={setSelectedContraGlId}
+          glAccounts={glAccounts}
+          setGlAccounts={setGlAccounts}
+          categories={categories}
+          suppliers={suppliers}
+          setSuppliers={setSuppliers}
+          creatingSupplier={creatingSupplier}
+          setCreatingSupplier={setCreatingSupplier}
+          newSupplierName={newSupplierName}
+          setNewSupplierName={setNewSupplierName}
+          confirmSupplier={invoiceConfirmSupplier}
+          createAndAssignSupplier={invoiceCreateAndAssignSupplier}
+          showLineItems={showLineItems}
+          setShowLineItems={setShowLineItems}
+          lineItems={lineItems}
+          lineSaving={lineSaving}
+          lineItemsTotal={lineItems.reduce((s, l) => s + Number(l.line_total || 0), 0)}
+          addLineItem={() => setLineItems(prev => [...prev, { description: '', unit_price: '', tax_amount: '', line_total: '', gl_account_id: '' }])}
+          removeLineItem={(idx) => setLineItems(prev => prev.filter((_, i) => i !== idx))}
+          updateLineItem={(idx, field, value) => setLineItems(prev => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l))}
+          saveLineItems={() => {}}
+          removeAllLineItems={() => setLineItems([])}
+          markAsReviewed={markInvoiceReviewed}
+          batchAction={invoiceBatchAction}
+          setRejectModal={setRejectModal}
+          deleteInvoice={invoiceDelete}
+          refresh={refresh}
+          onPrev={(() => {
+            const idx = pendingInvoices.findIndex(i => i.id === fullInvoice.id);
+            return idx > 0 ? () => { setPreviewInvoice(pendingInvoices[idx - 1]); setFullInvoice(null); } : undefined;
+          })()}
+          onNext={(() => {
+            const idx = pendingInvoices.findIndex(i => i.id === fullInvoice.id);
+            return idx >= 0 && idx < pendingInvoices.length - 1 ? () => { setPreviewInvoice(pendingInvoices[idx + 1]); setFullInvoice(null); } : undefined;
+          })()}
+        />
+      )}
 
-            {/* Two-panel body */}
-            <div className="flex-1 flex min-h-0">
-              {/* Left panel — details */}
-              <div className="w-2/5 flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
-                <dl className="grid grid-cols-2 gap-3">
-                  <Field label="Vendor"        value={previewInvoice.vendor_name_raw} />
-                  <Field label="Invoice No."   value={previewInvoice.invoice_number} />
-                  <Field label="Issue Date"    value={formatDate(previewInvoice.issue_date)} />
-                  <Field label="Due Date"      value={previewInvoice.due_date ? formatDate(previewInvoice.due_date) : null} />
-                  <Field label="Total Amount"  value={formatRM(previewInvoice.total_amount)} />
-                  <Field label="Amount Paid"   value={formatRM(previewInvoice.amount_paid)} />
-                  <Field label="Category"      value={previewInvoice.category_name} />
-                </dl>
-                <div className="flex flex-wrap gap-2">
-                  {[STATUS_CFG[previewInvoice.status], PAYMENT_CFG[previewInvoice.payment_status]].filter(Boolean).map((cfg) => (
-                    <span key={cfg!.label} className={cfg!.cls}>{cfg!.label}</span>
-                  ))}
-                </div>
-                {/* Supplier link */}
-                <div className="bg-[var(--surface-low)] p-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier</span>
-                    {(() => {
-                      const cfg = LINK_CFG[previewInvoice.supplier_link_status];
-                      return cfg ? <span className={cfg.cls}>{cfg.label}</span> : null;
-                    })()}
-                  </div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{previewInvoice.supplier_name ?? previewInvoice.vendor_name_raw}</p>
-                </div>
-
-                {/* GL Account Assignment */}
-                {glAccounts.length > 0 && previewInvoice.approval !== 'not_approved' && (
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Expense GL (Debit)</label>
-                      {previewInvoice.approval === 'approved' ? (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[var(--surface-header)]">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                          </svg>
-                          <span className="text-sm font-medium text-[var(--text-primary)]">{glAccounts.find(a => a.id === selectedGlAccountId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedGlAccountId)?.name ?? 'Not assigned'}</span>
-                        </div>
-                      ) : (
-                        <GlAccountSelect
-                          value={selectedGlAccountId}
-                          onChange={setSelectedGlAccountId}
-                          accounts={glAccounts}
-                          firmId={previewInvoice.firm_id}
-                          placeholder="Select GL Account"
-                          preferredType="Expense"
-                          defaultType="Expense"
-                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">Contra GL (Credit)</label>
-                      {previewInvoice.approval === 'approved' ? (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-[var(--surface-low)] border border-[var(--surface-header)]">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2F6F3E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
-                          </svg>
-                          <span className="text-sm font-medium text-[var(--text-primary)]">{glAccounts.find(a => a.id === selectedContraGlId)?.account_code ?? ''} — {glAccounts.find(a => a.id === selectedContraGlId)?.name ?? 'Default'}</span>
-                        </div>
-                      ) : (
-                        <GlAccountSelect
-                          value={selectedContraGlId}
-                          onChange={setSelectedContraGlId}
-                          accounts={glAccounts}
-                          firmId={previewInvoice.firm_id}
-                          placeholder="Select Contra GL Account"
-                          preferredType="Liability"
-                          defaultType="Liability"
-                          defaultBalance="Credit"
-                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                        />
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Right panel — document preview + actions */}
-              <div className="w-3/5 flex flex-col min-h-0">
-                <div className="flex-1 overflow-y-auto">
-                  {fileId ? (
-                    <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-full min-h-[400px]" title="Invoice Preview" allow="autoplay" />
-                  ) : previewInvoice.thumbnail_url ? (
-                    <div className="flex items-center justify-center h-full p-5">
-                      {previewInvoice.file_url ? (
-                        <a href={previewInvoice.file_url} target="_blank" rel="noopener noreferrer">
-                          <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain cursor-pointer hover:opacity-90 transition-opacity" />
-                        </a>
-                      ) : (
-                        <img src={previewInvoice.thumbnail_url} alt="Invoice" className="max-w-full max-h-[60vh] object-contain" />
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">No document available</div>
-                  )}
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex-shrink-0 p-4 space-y-2 bg-[var(--surface-low)]">
-                  <div className="flex gap-3">
-                    {previewInvoice.status === 'pending_review' ? (
-                      <button
-                        onClick={() => markInvoiceReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                        className="btn-thick-navy flex-1 px-5 py-2.5 text-sm font-semibold"
-                      >
-                        Mark as Reviewed
-                      </button>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200">
-                        Reviewed
-                      </div>
-                    )}
-                    {previewInvoice.status === 'reviewed' && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(`/api/invoices/${previewInvoice.id}`, {
-                              method: 'PATCH',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ status: 'pending_review' }),
-                            });
-                            if (res.ok) {
-                              refresh();
-                              setPreviewInvoice({ ...previewInvoice, status: 'pending_review' });
-                            }
-                          } catch (e) { console.error(e); }
-                        }}
-                        className="btn-thick-white flex-1 px-5 py-2.5 text-sm font-semibold"
-                      >
-                        Revert Review
-                      </button>
-                    )}
-                  </div>
-                  <Link
-                    href="/accountant/invoices"
-                    className="btn-thick-white w-full px-5 py-2.5 text-sm font-semibold text-center block"
-                  >
-                    Open in Invoices
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
-        </>
-        );
-      })()}
+      {/* Reject modal for invoice rejection */}
+      <InvoiceRejectModal
+        open={rejectModal.open}
+        invoiceCount={rejectModal.invoiceIds.length}
+        reason={rejectModal.reason}
+        onReasonChange={(reason) => setRejectModal(prev => ({ ...prev, reason }))}
+        onConfirm={() => {
+          invoiceBatchAction(rejectModal.invoiceIds, 'reject', rejectModal.reason);
+          setRejectModal({ open: false, invoiceIds: [], reason: '' });
+        }}
+        onClose={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })}
+      />
 
     </>
   );

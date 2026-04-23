@@ -279,6 +279,10 @@ Line items for sales invoices. CASCADE delete with parent.
 | period_start, period_end | Date? | Statement period range |
 | file_hash | String UNIQUE | Dedup check |
 | opening_balance, closing_balance | Decimal(12,2)? | |
+| verification_issues | Json? | Stored verification result from upload-time checks |
+| balance_override | Boolean (false) | User acknowledged balance mismatch |
+| balance_override_by | String? | User ID who overrode |
+| balance_override_at | DateTime? | When override was set |
 
 ### BankTransaction
 | Field | Type | Notes |

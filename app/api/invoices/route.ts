@@ -66,9 +66,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (search) {
+    const searchAmount = parseFloat(search);
     where.OR = [
       { vendor_name_raw: { contains: search, mode: 'insensitive' } },
       { invoice_number: { contains: search, mode: 'insensitive' } },
+      ...(!isNaN(searchAmount) ? [{ total_amount: { equals: searchAmount } }] : []),
     ];
   }
 

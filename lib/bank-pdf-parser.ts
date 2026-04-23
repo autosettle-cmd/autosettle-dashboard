@@ -55,12 +55,12 @@ function parseMaybankDate(dateStr: string, fallbackYear?: number): Date {
     // DD/MM/YY
     const [dd, mm, yy] = parts;
     const year = yy < 50 ? 2000 + yy : 1900 + yy;
-    return new Date(year, mm - 1, dd);
+    return new Date(Date.UTC(year, mm - 1, dd));
   }
   // DD/MM (no year) — use fallback year from statement date
   const [dd, mm] = parts;
   const year = fallbackYear ?? new Date().getFullYear();
-  return new Date(year, mm - 1, dd);
+  return new Date(Date.UTC(year, mm - 1, dd));
 }
 
 // ─── Maybank Parser ──────────────────────────────────────────────────────────
@@ -256,7 +256,7 @@ function parseOcbcDate(dateStr: string): Date {
   const day = parseInt(parts[0]);
   const month = MONTHS[parts[1].toUpperCase()] ?? 0;
   const year = parseInt(parts[2]);
-  return new Date(year, month, day);
+  return new Date(Date.UTC(year, month, day));
 }
 
 function parseOcbc(fullText: string): Omit<ParseResult, 'fileHash'> {
@@ -566,6 +566,14 @@ OCBC-specific rules (THIS IS AN OCBC STATEMENT):
 
 // ─── Main Export ─────────────────────────────────────────────────────────────
 
+/** Calculate balance diff for a parse result (used for auto-retry comparison) */
+function calcBalanceDiff(r: Omit<ParseResult, 'fileHash'>): number {
+  if (r.openingBalance === null || r.closingBalance === null) return Infinity;
+  const totalDr = r.transactions.reduce((s, t) => s + (t.debit ?? 0), 0);
+  const totalCr = r.transactions.reduce((s, t) => s + (t.credit ?? 0), 0);
+  return Math.abs((r.openingBalance - totalDr + totalCr) - r.closingBalance);
+}
+
 export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string): Promise<ParseResult> {
   const fileHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
@@ -577,62 +585,95 @@ export async function parseBankStatementPDF(pdfBuffer: Buffer, password?: string
     const fullText = data.text;
     const bank = detectBank(fullText);
 
-    // Primary: use Gemini text extraction (reliable, works for any bank)
-    try {
-      console.error(`[BankParser] Using Gemini text extraction for ${bank} statement`);
-      const geminiResult = await extractWithGeminiBankStatement(fullText, bank);
-      if (geminiResult.transactions.length > 0) {
-        // Use detectBank() for consistent bank name (Gemini returns variable names like "OCBC Bank (Malaysia) Berhad")
-        const normalizedBankName = bank !== 'Unknown' ? bank : geminiResult.bankName;
-        // Normalize account number — strip dashes and spaces for consistent grouping
-        const normalizedAccount = geminiResult.accountNumber?.replace(/[-\s]/g, '') || null;
-        return { ...geminiResult, bankName: normalizedBankName, accountNumber: normalizedAccount, fileHash };
+    let primaryResult: Omit<ParseResult, 'fileHash'> | null = null;
+    let primaryMethod: 'gemini' | 'regex' = 'regex';
+
+    // Primary: try regex parser first (free, instant)
+    if (bank === 'Maybank' || bank === 'OCBC') {
+      console.error(`[BankParser] Using regex parser for ${bank} statement`);
+      let regexResult: Omit<ParseResult, 'fileHash'> | null = null;
+      if (bank === 'Maybank') regexResult = parseMaybank(fullText);
+      else if (bank === 'OCBC') regexResult = parseOcbc(fullText);
+
+      if (regexResult && regexResult.transactions.length > 0) {
+        const normalizedAccount = regexResult.accountNumber?.replace(/[-\s]/g, '') || null;
+        primaryResult = { ...regexResult, accountNumber: normalizedAccount, usedGeminiFallback: false };
+        primaryMethod = 'regex';
+      } else {
+        console.error(`[BankParser] Regex returned 0 transactions — falling back to Gemini`);
       }
-      console.error(`[BankParser] Gemini returned 0 transactions — falling back to regex`);
-    } catch (geminiErr) {
-      console.error('[BankParser] Gemini extraction failed, falling back to regex:', geminiErr);
     }
 
-    // Fallback: regex parser (free, offline-safe)
-    let regexResult: Omit<ParseResult, 'fileHash'> | null = null;
-    if (bank === 'Maybank') {
-      regexResult = parseMaybank(fullText);
-    } else if (bank === 'OCBC') {
-      regexResult = parseOcbc(fullText);
+    // Fallback: use Gemini if regex unavailable or returned nothing
+    if (!primaryResult) {
+      try {
+        console.error(`[BankParser] Using Gemini text extraction for ${bank} statement`);
+        const geminiResult = await extractWithGeminiBankStatement(fullText, bank);
+        if (geminiResult.transactions.length > 0) {
+          const normalizedBankName = bank !== 'Unknown' ? bank : geminiResult.bankName;
+          const normalizedAccount = geminiResult.accountNumber?.replace(/[-\s]/g, '') || null;
+          primaryResult = { ...geminiResult, bankName: normalizedBankName, accountNumber: normalizedAccount, usedGeminiFallback: true };
+          primaryMethod = 'gemini';
+        } else {
+          console.error(`[BankParser] Gemini returned 0 transactions`);
+        }
+      } catch (geminiErr) {
+        console.error('[BankParser] Gemini extraction failed:', geminiErr);
+      }
     }
 
-    if (regexResult && regexResult.transactions.length > 0) {
-      const normalizedAccount = regexResult.accountNumber?.replace(/[-\s]/g, '') || null;
-      return { ...regexResult, accountNumber: normalizedAccount, fileHash, usedGeminiFallback: false };
+    if (!primaryResult) {
+      return {
+        transactions: [], bankName: bank, accountNumber: null, statementDate: null,
+        openingBalance: null, closingBalance: null, totalCredit: null, totalDebit: null,
+        fileHash, errors: ['No transactions found by Gemini or regex extraction'],
+      };
     }
 
-    return {
-      transactions: [],
-      bankName: bank,
-      accountNumber: null,
-      statementDate: null,
-      openingBalance: null,
-      closingBalance: null,
-      totalCredit: null,
-      totalDebit: null,
-      fileHash,
-      errors: ['No transactions found by Gemini or regex extraction'],
-    };
+    // ─── Auto-retry: if balance mismatch, try alternate parser and pick best ───
+    const primaryDiff = calcBalanceDiff(primaryResult);
+    if (primaryDiff > 0.01) {
+      console.error(`[BankParser] Balance mismatch (diff=${primaryDiff.toFixed(2)}) with ${primaryMethod} — attempting retry with ${primaryMethod === 'gemini' ? 'regex' : 'Gemini'}`);
+
+      let retryResult: Omit<ParseResult, 'fileHash'> | null = null;
+
+      if (primaryMethod === 'gemini') {
+        // Retry with regex
+        if (bank === 'Maybank') retryResult = parseMaybank(fullText);
+        else if (bank === 'OCBC') retryResult = parseOcbc(fullText);
+      } else {
+        // Retry with Gemini
+        try {
+          const geminiRetry = await extractWithGeminiBankStatement(fullText, bank);
+          if (geminiRetry.transactions.length > 0) {
+            const normalizedBankName = bank !== 'Unknown' ? bank : geminiRetry.bankName;
+            const normalizedAccount = geminiRetry.accountNumber?.replace(/[-\s]/g, '') || null;
+            retryResult = { ...geminiRetry, bankName: normalizedBankName, accountNumber: normalizedAccount };
+          }
+        } catch (e) {
+          console.error('[BankParser] Retry with Gemini failed:', e);
+        }
+      }
+
+      if (retryResult && retryResult.transactions.length > 0) {
+        const retryDiff = calcBalanceDiff(retryResult);
+        console.error(`[BankParser] Retry diff=${retryDiff.toFixed(2)} vs primary diff=${primaryDiff.toFixed(2)}`);
+        if (retryDiff < primaryDiff) {
+          console.error(`[BankParser] Using retry result (better balance match)`);
+          primaryResult = retryResult;
+        }
+      }
+    }
+
+    return { ...primaryResult, fileHash };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const isPasswordError = /password|encrypted|decrypt/i.test(msg);
 
     return {
-      transactions: [],
-      bankName: 'Unknown',
-      accountNumber: null,
-      statementDate: null,
-      openingBalance: null,
-      closingBalance: null,
-      totalCredit: null,
-      totalDebit: null,
-      fileHash,
-      errors: [isPasswordError
+      transactions: [], bankName: 'Unknown', accountNumber: null, statementDate: null,
+      openingBalance: null, closingBalance: null, totalCredit: null, totalDebit: null,
+      fileHash, errors: [isPasswordError
         ? (password ? 'Incorrect password for this PDF.' : 'PASSWORD_REQUIRED')
         : `PDF parsing failed: ${msg}`],
     };

@@ -12,6 +12,7 @@ interface PaymentAllocation {
   total_amount: string;
   issue_date: string;
   allocated_amount: string;
+  file_url: string | null;
 }
 
 interface BankTxn {
@@ -44,6 +45,7 @@ interface BankTxn {
 }
 
 interface StatementDetail {
+  firm_id?: string;
   bank_name: string;
   account_number: string | null;
   bank_gl_label: string | null;
@@ -66,6 +68,8 @@ export interface BankReconPreviewModalProps {
   onSetPreviewClaim: (claim: any) => void;
   onPrev?: () => void;
   onNext?: () => void;
+  onRefresh?: () => void;
+  matchingDisabled?: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -103,8 +107,71 @@ export default function BankReconPreviewModal({
   onSetPreviewClaim,
   onPrev,
   onNext,
+  onRefresh,
+  matchingDisabled,
 }: BankReconPreviewModalProps) {
   const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
+  const [attachingFile, setAttachingFile] = useState(false);
+  const [attachError, setAttachError] = useState('');
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showInvoicePicker, setShowInvoicePicker] = useState(false);
+  const [invoiceSearchResults, setInvoiceSearchResults] = useState<{ id: string; invoice_number: string; vendor_name: string; issue_date: string; total_amount: string; thumbnail_url: string | null }[]>([]);
+  const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+  const isPV = txn.matched_invoice?.invoice_number?.startsWith('PV-');
+  const _canAttachFromRecon = isPV && !txn.matched_invoice?.file_url;
+
+  const handleAttachFile = async (file: File) => {
+    if (!txn.matched_invoice) return;
+    setAttachingFile(true);
+    setAttachError('');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/invoices/${txn.matched_invoice.id}/attach`, { method: 'PATCH', body: fd });
+      const json = await res.json();
+      if (!res.ok) { setAttachError(json.error || 'Failed to attach'); return; }
+      if (json.data?.warnings?.length > 0) setAttachError(`Attached with warnings: ${json.data.warnings.join('; ')}`);
+      onRefresh?.();
+    } catch { setAttachError('Failed to attach document'); }
+    finally { setAttachingFile(false); }
+  };
+
+  const handleLinkExisting = async (sourceInvoiceId: string) => {
+    if (!txn.matched_invoice) return;
+    setAttachingFile(true);
+    setAttachError('');
+    try {
+      const res = await fetch(`/api/invoices/${txn.matched_invoice.id}/link-document`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceInvoiceId }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setAttachError(json.error || 'Failed to link'); return; }
+      setShowInvoicePicker(false);
+      onRefresh?.();
+    } catch { setAttachError('Failed to link document'); }
+    finally { setAttachingFile(false); }
+  };
+
+  const searchInvoices = async (term: string) => {
+    setInvoiceSearchTerm(term);
+    if (!term.trim()) { setInvoiceSearchResults([]); return; }
+    setLoadingInvoices(true);
+    try {
+      const firmId = (statement as { firm_id?: string } | null)?.firm_id;
+      const params = new URLSearchParams({ search: term, hasFile: 'true', take: '10' });
+      if (firmId) params.set('firmId', firmId);
+      const res = await fetch(`/api/invoices?${params}`);
+      const json = await res.json();
+      setInvoiceSearchResults((json.data ?? []).filter((inv: { file_url: string | null }) => inv.file_url).map((inv: { id: string; invoice_number: string; vendor_name_raw: string; issue_date: string; total_amount: string; thumbnail_url: string | null }) => ({
+        id: inv.id, invoice_number: inv.invoice_number, vendor_name: inv.vendor_name_raw, issue_date: inv.issue_date, total_amount: inv.total_amount, thumbnail_url: inv.thumbnail_url,
+      })));
+    } catch { setInvoiceSearchResults([]); }
+    finally { setLoadingInvoices(false); }
+  };
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'ArrowLeft' && onPrev) { e.preventDefault(); setPressedDir('left'); onPrev(); }
     if (e.key === 'ArrowRight' && onNext) { e.preventDefault(); setPressedDir('right'); onNext(); }
@@ -151,19 +218,19 @@ export default function BankReconPreviewModal({
 
   return (
     <>
-      {onPrev && (
-        <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-        </div>
-      )}
-      {onNext && (
-        <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-        </div>
-      )}
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={onClose}>
-      <div className="bg-white shadow-2xl w-full max-w-[1100px] max-h-[85vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-white shadow-2xl w-full max-w-[1100px] max-h-[85vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+        {onPrev && (
+          <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </div>
+        )}
+        {onNext && (
+          <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </div>
+        )}
         <div className="h-12 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
           <h2 className="text-white font-bold text-xs uppercase tracking-widest">Transaction Details</h2>
           <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
@@ -225,13 +292,96 @@ export default function BankReconPreviewModal({
                             className={`btn-thick-white w-full flex items-center justify-between px-3 py-2 text-left ${isDocExpanded ? '!bg-blue-50' : ''}`}>
                             <div>
                               <p className="text-sm font-medium text-[var(--text-primary)]">{alloc.vendor_name}</p>
-                              <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">{alloc.invoice_number} · {formatDate(alloc.issue_date)}</p>
+                              <p className="text-xs text-[var(--text-secondary)] normal-case tracking-normal">
+                                {alloc.invoice_number} · {formatDate(alloc.issue_date)}
+                                {alloc.invoice_number?.startsWith('PV-') && !docUrl && (
+                                  <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">No doc</span>
+                                )}
+                              </p>
                             </div>
-                            <div className="text-right">
-                              <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(String(alloc.allocation_amount))}</p>
-                              <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(alloc.total_amount)}</p>
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-[var(--text-primary)] tabular-nums">{formatRM(String(alloc.allocation_amount))}</p>
+                                <p className="text-[10px] text-[var(--text-secondary)] tabular-nums normal-case tracking-normal">of {formatRM(alloc.total_amount)}</p>
+                              </div>
+                              {alloc.invoice_number?.startsWith('PV-') && !docUrl && (
+                                <span className="relative" onClick={e => e.stopPropagation()}>
+                                  <button
+                                    type="button"
+                                    className={`btn-thick-navy px-2 py-1.5 text-[10px] font-semibold flex items-center gap-1 normal-case tracking-normal text-white ${attachingFile ? 'opacity-50 pointer-events-none' : ''}`}
+                                    onClick={() => setShowAttachMenu(!showAttachMenu)}
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                    {attachingFile ? 'Scanning...' : 'Attach'}
+                                  </button>
+                                  {showAttachMenu && (
+                                    <div className="absolute right-0 top-full mt-1 w-[200px] bg-white border border-[var(--surface-header)] shadow-lg z-30">
+                                      <button
+                                        className="w-full px-3 py-2 text-left text-body-sm text-[var(--text-primary)] hover:bg-[var(--surface-low)] flex items-center gap-2"
+                                        onClick={() => {
+                                          setShowAttachMenu(false);
+                                          const input = document.createElement('input');
+                                          input.type = 'file';
+                                          input.accept = '.pdf,.jpg,.jpeg,.png';
+                                          input.onchange = () => { const f = input.files?.[0]; if (f) handleAttachFile(f); };
+                                          input.click();
+                                        }}
+                                      >
+                                        <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                        Upload from computer
+                                      </button>
+                                      <button
+                                        className="w-full px-3 py-2 text-left text-body-sm text-[var(--text-primary)] hover:bg-[var(--surface-low)] flex items-center gap-2 border-t border-[var(--surface-header)]"
+                                        onClick={() => { setShowAttachMenu(false); setShowInvoicePicker(true); searchInvoices(txn.matched_invoice?.vendor_name || ''); }}
+                                      >
+                                        <svg className="w-3.5 h-3.5 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                        Link existing invoice
+                                      </button>
+                                    </div>
+                                  )}
+                                </span>
+                              )}
                             </div>
                           </button>
+                          {attachError && alloc.invoice_number?.startsWith('PV-') && !docUrl && (
+                            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 mt-0.5">{attachError}</p>
+                          )}
+                          {showInvoicePicker && alloc.invoice_number?.startsWith('PV-') && !docUrl && (
+                            <div className="border border-[var(--surface-header)] bg-white mt-1 p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Link existing invoice</p>
+                                <button onClick={() => setShowInvoicePicker(false)} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs">Cancel</button>
+                              </div>
+                              <input
+                                type="text"
+                                className="input-field w-full text-body-sm mb-2"
+                                placeholder="Search by invoice number, supplier..."
+                                value={invoiceSearchTerm}
+                                onChange={e => searchInvoices(e.target.value)}
+                                autoFocus
+                              />
+                              <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                {loadingInvoices && <p className="text-xs text-[var(--text-secondary)] py-2 text-center">Searching...</p>}
+                                {!loadingInvoices && invoiceSearchResults.length === 0 && invoiceSearchTerm && (
+                                  <p className="text-xs text-[var(--text-secondary)] py-2 text-center">No invoices with documents found</p>
+                                )}
+                                {invoiceSearchResults.map(inv => (
+                                  <button
+                                    key={inv.id}
+                                    onClick={() => handleLinkExisting(inv.id)}
+                                    disabled={attachingFile}
+                                    className="w-full text-left px-2 py-1.5 hover:bg-[var(--surface-low)] flex items-center justify-between gap-2 disabled:opacity-50"
+                                  >
+                                    <div>
+                                      <p className="text-body-sm font-medium text-[var(--text-primary)]">{inv.invoice_number}</p>
+                                      <p className="text-[10px] text-[var(--text-secondary)]">{inv.vendor_name} · {formatDate(inv.issue_date)}</p>
+                                    </div>
+                                    <span className="text-body-sm tabular-nums font-medium text-[var(--text-primary)]">{formatRM(inv.total_amount)}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {isDocExpanded && fileId && (
                             <iframe src={`https://drive.google.com/file/d/${fileId}/preview`} className="w-full h-[350px] border border-t-0 border-[#E0E3E5]" title="Invoice Preview" allow="autoplay" />
                           )}
@@ -416,14 +566,16 @@ export default function BankReconPreviewModal({
                 {txn.recon_status === 'matched' && (
                   <>
                     <div className="flex-1 relative group/confirm">
-                      <button onClick={() => { onConfirm([txn.id]); onClose(); }} disabled={confirming} className="btn-thick-green w-full py-1.5 text-xs disabled:opacity-50">
+                      <button onClick={() => { onConfirm([txn.id]); }} disabled={confirming || matchingDisabled} title={matchingDisabled ? 'Fix balance mismatch before confirming' : undefined} className={`btn-thick-green w-full py-1.5 text-xs disabled:opacity-50 ${matchingDisabled ? 'cursor-not-allowed' : ''}`}>
                         Confirm
                       </button>
-                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-[var(--reject-red)] text-white text-[10px] font-bold uppercase tracking-wide whitespace-nowrap opacity-0 group-hover/confirm:opacity-100 transition-opacity duration-75 pointer-events-none shadow-lg">
-                        Auto-suggested match — review before confirming
-                      </div>
+                      {!matchingDisabled && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-[var(--reject-red)] text-white text-[10px] font-bold uppercase tracking-wide whitespace-nowrap opacity-0 group-hover/confirm:opacity-100 transition-opacity duration-75 pointer-events-none shadow-lg">
+                          Auto-suggested match — review before confirming
+                        </div>
+                      )}
                     </div>
-                    <button onClick={() => { onUnmatch(txn.id); onClose(); }} className="btn-thick-red flex-1 py-1.5 text-xs">
+                    <button onClick={() => { onUnmatch(txn.id); onClose(); }} disabled={matchingDisabled} title={matchingDisabled ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red flex-1 py-1.5 text-xs ${matchingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       Unmatch
                     </button>
                   </>
@@ -441,13 +593,13 @@ export default function BankReconPreviewModal({
                         Unmatch first to edit
                       </div>
                     </div>
-                    <button onClick={() => { onUnmatch(txn.id); onClose(); }} className="btn-thick-red flex-1 py-1.5 text-xs">
+                    <button onClick={() => { onUnmatch(txn.id); onClose(); }} disabled={matchingDisabled} title={matchingDisabled ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red flex-1 py-1.5 text-xs ${matchingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                       Unmatch
                     </button>
                   </>
                 )}
                 {txn.recon_status === 'unmatched' && (
-                  <button onClick={() => { onClose(); onOpenMatchModal(txn); }} className="btn-thick-navy flex-1 py-1.5 text-xs">
+                  <button onClick={() => { onClose(); onOpenMatchModal(txn); }} disabled={matchingDisabled} title={matchingDisabled ? 'Fix balance mismatch before matching' : undefined} className={`btn-thick-navy flex-1 py-1.5 text-xs ${matchingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                     Match
                   </button>
                 )}

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { parseBankStatementPDF } from '@/lib/bank-pdf-parser';
+import { verifyBankStatement } from '@/lib/bank-statement-verify';
 import { autoMatchTransactions } from '@/lib/bank-reconciliation';
 import { deduplicateTransactions, findOverlappingStatements, computePeriodRange } from '@/lib/bank-dedup';
 import { uploadToDriveForFirm, getDriveViewUrl } from '@/lib/google-drive';
@@ -77,6 +78,9 @@ export async function POST(request: NextRequest) {
       driveWarning = `PDF not saved to Drive: ${msg}`;
     }
 
+    // Run verification checks on parsed data
+    const verification = verifyBankStatement(result);
+
     // Deduplicate transactions against existing ones for the same bank account
     const period = computePeriodRange(result.transactions);
     const dedup = await deduplicateTransactions(firmId, result.accountNumber, result.transactions);
@@ -98,6 +102,7 @@ export async function POST(request: NextRequest) {
         uploaded_by: session.user.id,
         period_start: period?.periodStart,
         period_end: period?.periodEnd,
+        verification_issues: verification.issues.length > 0 ? JSON.parse(JSON.stringify(verification.issues)) : undefined,
         transactions: {
           create: dedup.unique.map((t) => ({
             transaction_date: t.transactionDate,
@@ -111,6 +116,29 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Post-dedup balance check: if dedup removed transactions, verify balance still holds
+    if (dedup.duplicates.length > 0 && result.openingBalance !== null && result.closingBalance !== null) {
+      const storedDr = dedup.unique.reduce((s, t) => s + (t.debit ?? 0), 0);
+      const storedCr = dedup.unique.reduce((s, t) => s + (t.credit ?? 0), 0);
+      const storedExpected = result.openingBalance - storedDr + storedCr;
+      const storedDiff = Math.abs(storedExpected - result.closingBalance);
+      if (storedDiff > 0.01) {
+        // Dedup broke the balance — add error to verification issues
+        const dedupIssue = {
+          severity: 'error' as const,
+          code: 'DEDUP_BALANCE_MISMATCH',
+          message: `Dedup removed ${dedup.duplicates.length} transaction(s) causing a balance mismatch of RM ${storedDiff.toFixed(2)}. These may be legitimate transactions, not duplicates. Try deleting overlapping statements and re-uploading.`,
+        };
+        const updatedIssues = [...(verification.issues || []), dedupIssue];
+        await prisma.bankStatement.update({
+          where: { id: statement.id },
+          data: { verification_issues: JSON.parse(JSON.stringify(updatedIssues)) },
+        });
+        verification.issues.push(dedupIssue);
+        verification.passed = false;
+      }
+    }
 
     const matchResult = dedup.unique.length > 0
       ? await autoMatchTransactions(firmId, statement.id)
@@ -130,6 +158,7 @@ export async function POST(request: NextRequest) {
         overlappingStatements: overlappingStmts.map((s) => ({ id: s.id, fileName: s.file_name })),
         matched: matchResult.matched,
         unmatched: matchResult.unmatched,
+        verification,
         errors: result.errors,
         warning: [
           result.usedGeminiFallback ? 'Regex parser failed — transactions extracted via Gemini AI. Please verify accuracy and send the PDF to dev for a fixed regex parser.' : '',

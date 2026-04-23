@@ -64,7 +64,7 @@ export async function GET(
       select: {
         id: true, reference: true, payment_date: true, amount: true, direction: true, notes: true,
         supplier: { select: { name: true } }, employee: { select: { name: true } },
-        allocations: { select: { invoice_id: true, amount: true, invoice: { select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, issue_date: true } } } },
+        allocations: { select: { invoice_id: true, amount: true, invoice: { select: { id: true, invoice_number: true, vendor_name_raw: true, total_amount: true, issue_date: true, file_url: true } } } },
         receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true, gl_account_id: true, glAccount: { select: { account_code: true, name: true } }, contra_gl_account_id: true, contraGlAccount: { select: { account_code: true, name: true } } } } } },
       },
     }) : [],
@@ -141,7 +141,7 @@ export async function GET(
       id: statement.id, firm_id: statement.firm_id, bank_name: statement.bank_name, account_number: statement.account_number, bank_gl_label: bankGlLabel,
       statement_date: statement.statement_date, opening_balance: statement.opening_balance?.toString() ?? null,
       closing_balance: statement.closing_balance?.toString() ?? null, file_name: statement.file_name, file_url: statement.file_url,
-      created_at: statement.created_at,
+      created_at: statement.created_at, balance_override: statement.balance_override,
       summary: { total: statement.transactions.length, matched, unmatched, excluded },
       system_balance: { debit: systemDebit, credit: systemCredit },
       transactions: statement.transactions.map((t) => {
@@ -207,6 +207,7 @@ export async function GET(
             allocations: pmt.allocations.map((a) => ({
               invoice_id: a.invoice_id, invoice_number: a.invoice.invoice_number, vendor_name: a.invoice.vendor_name_raw,
               total_amount: a.invoice.total_amount.toString(), issue_date: a.invoice.issue_date, allocated_amount: a.amount.toString(),
+              file_url: a.invoice.file_url,
             })),
             receipts,
           } : null,

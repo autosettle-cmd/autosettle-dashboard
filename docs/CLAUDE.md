@@ -58,6 +58,8 @@ No hardcoded colors (use CSS vars from `config/branding.ts`). No AG Grid. Center
 | **Every user = Employee** | All users get Employee record, role is just permissions |
 | **Milestone confirmation** | Wait for confirmation before moving to next step |
 | **Explain changes** | After making changes, explain what was done |
+| **Batch API calls** | Multiple fetches for the same action must use a single `Promise.all` — never scatter across separate useEffects or sequential awaits. One batch, one render cycle, with cancellation cleanup. |
+| **Reuse shared components** | Use existing preview panels, modals, and form components. Never duplicate UI code inline — if a shared component is missing a feature, add it to the shared component. |
 
 ---
 

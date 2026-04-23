@@ -214,6 +214,153 @@ export default function BankReconMatchModal({
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
+  const [preSelectRan, setPreSelectRan] = useState(false);
+  const [preSelectWarning, setPreSelectWarning] = useState<string | null>(null);
+
+  // ─── Auto pre-select: 4-pass matching on outstanding items ─────────────
+  useEffect(() => {
+    if (preSelectRan || outstandingItems.length === 0 || loadingCandidates) return;
+    setPreSelectRan(true);
+
+    const descLower = matchingTxn.description.toLowerCase();
+    const txnAmount = Number(matchingTxn.debit ?? matchingTxn.credit ?? 0);
+    const txnDate = new Date(matchingTxn.transaction_date).getTime();
+    const DAY3 = 3 * 86400000;
+    const isOutgoing = !!matchingTxn.debit;
+
+    const invoiceItems = outstandingItems.filter((i: { type: string }) => i.type !== 'claim');
+    const claimItems = outstandingItems.filter((i: { type: string }) => i.type === 'claim');
+
+    // Helper: check if name words appear in description
+    const nameInDesc = (name: string | null | undefined) => {
+      if (!name) return false;
+      const words = name.toLowerCase().split(/\s+/).filter((w: string) => w.length >= 3);
+      return words.some((w: string) => descLower.includes(w));
+    };
+
+    const preSelectedInvIds = new Set<string>();
+    const preSelectedClaimIds = new Set<string>();
+    let warning: string | null = null;
+    let matched = false;
+
+    // ── Pass 1: Reference number in description ──
+    // Check invoices
+    for (const inv of invoiceItems) {
+      const ref = (inv.reference || inv.invoice_number || '').trim();
+      if (!ref) continue;
+      // Try exact match and common variations (I000036 vs I-000036)
+      const refLower = ref.toLowerCase();
+      const refNormalized = refLower.replace(/[-\s]/g, '');
+      const descNormalized = descLower.replace(/[-\s]/g, '');
+      if (descLower.includes(refLower) || descNormalized.includes(refNormalized)) {
+        preSelectedInvIds.add(inv.id);
+        const rem = Number(inv.remaining ?? inv.totalAmount ?? 0);
+        if (Math.abs(rem - txnAmount) > 0.01) {
+          warning = `Invoice ${ref} found in description but amount differs (${formatRM(rem)} vs ${formatRM(txnAmount)})`;
+        }
+        matched = true;
+      }
+    }
+    // Check claims
+    for (const c of claimItems) {
+      const ref = (c.reference || c.receipt_number || '').trim();
+      if (!ref) continue;
+      const refLower = ref.toLowerCase();
+      const refNormalized = refLower.replace(/[-\s]/g, '');
+      const descNormalized = descLower.replace(/[-\s]/g, '');
+      if (descLower.includes(refLower) || descNormalized.includes(refNormalized)) {
+        preSelectedClaimIds.add(c.id);
+        const amt = Number(c.remaining ?? c.amount ?? 0);
+        if (Math.abs(amt - txnAmount) > 0.01) {
+          warning = `Claim ${ref} found in description but amount differs (${formatRM(amt)} vs ${formatRM(txnAmount)})`;
+        }
+        matched = true;
+      }
+    }
+
+    if (!matched) {
+      // ── Pass 2: Exact amount + date within ±3 days (only if 1 candidate) ──
+      const items = isOutgoing ? invoiceItems : invoiceItems; // both use invoices
+      const dateCandidates = items.filter((inv: { remaining: number; totalAmount: number; date: string }) => {
+        const rem = Number(inv.remaining ?? inv.totalAmount ?? 0);
+        if (Math.abs(rem - txnAmount) > 0.01) return false;
+        const invDate = new Date(inv.date).getTime();
+        return Math.abs(invDate - txnDate) <= DAY3;
+      });
+      if (dateCandidates.length === 1) {
+        preSelectedInvIds.add(dateCandidates[0].id);
+        matched = true;
+      }
+      // Also check claims for pass 2
+      if (!matched) {
+        const claimDateCandidates = claimItems.filter((c: { remaining: number; amount: number; date: string }) => {
+          const amt = Number(c.remaining ?? c.amount ?? 0);
+          if (Math.abs(amt - txnAmount) > 0.01) return false;
+          const cDate = new Date(c.date).getTime();
+          return Math.abs(cDate - txnDate) <= DAY3;
+        });
+        if (claimDateCandidates.length === 1) {
+          preSelectedClaimIds.add(claimDateCandidates[0].id);
+          matched = true;
+        }
+      }
+    }
+
+    if (!matched) {
+      // ── Pass 3: Name in description + exact amount (only if 1 candidate) ──
+      const nameCandidates = invoiceItems.filter((inv: { remaining: number; totalAmount: number; name: string }) => {
+        const rem = Number(inv.remaining ?? inv.totalAmount ?? 0);
+        if (Math.abs(rem - txnAmount) > 0.01) return false;
+        return nameInDesc(inv.name);
+      });
+      if (nameCandidates.length === 1) {
+        preSelectedInvIds.add(nameCandidates[0].id);
+        matched = true;
+      }
+      if (!matched) {
+        const claimNameCandidates = claimItems.filter((c: { remaining: number; amount: number; merchant: string; employeeName: string }) => {
+          const amt = Number(c.remaining ?? c.amount ?? 0);
+          if (Math.abs(amt - txnAmount) > 0.01) return false;
+          return nameInDesc(c.merchant) || nameInDesc(c.employeeName);
+        });
+        if (claimNameCandidates.length === 1) {
+          preSelectedClaimIds.add(claimNameCandidates[0].id);
+          matched = true;
+        }
+      }
+    }
+
+    if (!matched) {
+      // ── Pass 4: Exact amount only (only if 1 unique candidate across all types) ──
+      const allAmountMatches = [
+        ...invoiceItems.filter((inv: { remaining: number; totalAmount: number }) => Math.abs(Number(inv.remaining ?? inv.totalAmount ?? 0) - txnAmount) < 0.01).map((i: { id: string }) => ({ id: i.id, type: 'invoice' as const })),
+        ...claimItems.filter((c: { remaining: number; amount: number }) => Math.abs(Number(c.remaining ?? c.amount ?? 0) - txnAmount) < 0.01).map((c: { id: string }) => ({ id: c.id, type: 'claim' as const })),
+      ];
+      if (allAmountMatches.length === 1) {
+        if (allAmountMatches[0].type === 'invoice') preSelectedInvIds.add(allAmountMatches[0].id);
+        else preSelectedClaimIds.add(allAmountMatches[0].id);
+      }
+    }
+
+    // Apply pre-selections
+    if (preSelectedInvIds.size > 0) {
+      setSelectedInvoiceIds(preSelectedInvIds);
+      // Auto-expand the supplier group containing the first match
+      const firstMatch = outstandingItems.find((i: { id: string }) => preSelectedInvIds.has(i.id));
+      if (firstMatch) setExpandedSupplier(firstMatch.name || 'Unknown');
+      onSetSelectedClaimIds(() => new Set());
+      onSetMatchTab('invoices');
+    } else if (preSelectedClaimIds.size > 0) {
+      onSetSelectedClaimIds(() => preSelectedClaimIds);
+      setSelectedInvoiceIds(new Set());
+      // Auto-expand the employee group containing the first match
+      const firstMatch = outstandingItems.find((i: { id: string }) => preSelectedClaimIds.has(i.id));
+      if (firstMatch) setExpandedEmployee(firstMatch.employeeId || firstMatch.name);
+      onSetMatchTab('claims');
+    }
+    if (warning) setPreSelectWarning(warning);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outstandingItems, loadingCandidates]);
 
   // Resolve JV preview labels for confirmation modal
   const isOutgoing = !!matchingTxn.debit;
@@ -275,18 +422,18 @@ export default function BankReconMatchModal({
 
   return (
     <>
-    {onPrev && (
-      <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', left: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-      </div>
-    )}
-    {onNext && (
-      <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'fixed', right: '0.5rem', top: '6vh', bottom: '6vh', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-      </div>
-    )}
     <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-6" onClick={onClose}>
-      <div className={`bg-white shadow-2xl w-full ${config.showDescriptionEdit ? 'max-w-[1200px]' : 'max-w-[720px]'} max-h-[90vh] flex flex-col animate-in`} onClick={(e) => e.stopPropagation()}>
+      <div className={`relative bg-white shadow-2xl w-full ${config.showDescriptionEdit ? 'max-w-[1200px]' : 'max-w-[720px]'} max-h-[90vh] flex flex-col animate-in`} onClick={(e) => e.stopPropagation()}>
+        {onPrev && (
+          <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </div>
+        )}
+        {onNext && (
+          <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+          </div>
+        )}
         {/* Header */}
         <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
           <h2 className="text-white font-bold text-sm uppercase tracking-widest">
@@ -414,6 +561,13 @@ export default function BankReconMatchModal({
                 </div>
               )}
             </div>
+
+            {/* Pre-select warning */}
+            {preSelectWarning && (
+              <div className="mx-5 mt-3 px-3 py-2 bg-amber-50 border border-amber-200 text-amber-700 text-body-sm">
+                <span className="font-semibold">Auto-matched:</span> {preSelectWarning}
+              </div>
+            )}
 
             {/* Scrollable items list */}
             <div className="flex-1 overflow-y-auto px-5 py-4">

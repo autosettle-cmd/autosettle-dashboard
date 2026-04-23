@@ -107,7 +107,7 @@ export async function GET(
       closing_balance: statement.closing_balance?.toString() ?? null,
       file_name: statement.file_name,
       file_url: statement.file_url,
-      created_at: statement.created_at,
+      created_at: statement.created_at, balance_override: statement.balance_override,
       summary: { total: statement.transactions.length, matched, unmatched, excluded },
       system_balance: { debit: systemDebit, credit: systemCredit },
       transactions: statement.transactions.map((t) => {

@@ -670,6 +670,12 @@ model BankStatement {
   period_end      DateTime? @db.Date
   created_at      DateTime  @default(now())
 
+  // Verification
+  verification_issues Json?
+  balance_override    Boolean   @default(false)
+  balance_override_by String?
+  balance_override_at DateTime?
+
   firm         Firm              @relation(fields: [firm_id], references: [id])
   uploader     User              @relation(fields: [uploaded_by], references: [id])
   transactions BankTransaction[]
