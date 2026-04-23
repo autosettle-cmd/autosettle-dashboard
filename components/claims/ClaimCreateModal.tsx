@@ -111,30 +111,20 @@ export default function ClaimCreateModal({
 }: ClaimCreateModalProps) {
   const isAccountant = config.role === 'accountant';
 
+  const hasPreview = !!selectedFile;
+
   return (
     <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-      <div className="bg-white shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className={`bg-white shadow-2xl w-full ${hasPreview ? 'max-w-[1000px]' : 'max-w-lg'} max-h-[90vh] flex flex-col`}>
         <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[var(--primary)]">
           <h3 className="text-white font-bold text-sm uppercase tracking-widest">Submit New {modalType === 'mileage' ? 'Mileage Claim' : modalType === 'claim' ? 'Claim' : 'Receipt'}</h3>
           <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
+        <div className={`flex-1 flex min-h-0 ${hasPreview ? '' : 'flex-col'}`}>
+        {/* Left: Form */}
+        <div className={`${hasPreview ? 'w-1/2 border-r border-[var(--surface-header)]' : 'w-full'} flex flex-col min-h-0`}>
         <div className="flex-1 overflow-y-scroll p-6 space-y-3">
-
-        {/* Document preview */}
-        {selectedFile && (() => {
-          const url = URL.createObjectURL(selectedFile);
-          const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
-          return (
-            <div className="overflow-hidden bg-[var(--surface-low)] mb-4">
-              {isPdf ? (
-                <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
-              ) : (
-                <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
-              )}
-            </div>
-          );
-        })()}
 
         {/* -- Type Toggle -- */}
         <div className="flex overflow-hidden mb-4">
@@ -283,7 +273,7 @@ export default function ClaimCreateModal({
         </div>
         </div>
 
-        <div className="flex gap-3 px-5 py-3 bg-[var(--surface-low)]">
+        <div className="flex gap-3 px-5 py-3 bg-[var(--surface-low)] flex-shrink-0">
           <button
             onClick={submitClaim}
             disabled={modalSaving || ocrScanning}
@@ -299,6 +289,28 @@ export default function ClaimCreateModal({
             Cancel
           </button>
         </div>
+        </div>{/* close left form panel */}
+
+        {/* Right: Document Preview (only when file uploaded) */}
+        {hasPreview && (() => {
+          const url = URL.createObjectURL(selectedFile!);
+          const isPdf = selectedFile!.type === 'application/pdf' || selectedFile!.name.toLowerCase().endsWith('.pdf');
+          return (
+            <div className="w-1/2 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto bg-[var(--surface-low)]">
+                {isPdf ? (
+                  <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-full min-h-[400px]" title="Document preview" />
+                ) : (
+                  <div className="flex items-center justify-center h-full p-5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="Document preview" className="max-w-full max-h-[80vh] object-contain" />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+        </div>{/* close flex row */}
       </div>
     </div>
   );

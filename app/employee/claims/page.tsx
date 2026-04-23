@@ -613,30 +613,18 @@ export default function EmployeeClaimsPage() {
       {/* ═══ SUBMIT CLAIM MODAL ═══ */}
       {showModal && (
         <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-[60] flex items-center justify-center p-4">
-          <div className="bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full max-w-lg max-h-[90vh] flex flex-col">
+          <div className={`bg-white shadow-[0px_24px_48px_rgba(26,50,87,0.08)] w-full ${selectedFile ? 'max-w-[1000px]' : 'max-w-lg'} max-h-[90vh] flex flex-col`}>
             {/* Modal header */}
             <div className="h-14 flex items-center justify-between px-5 flex-shrink-0 bg-[#234B6E]">
               <h3 className="text-white font-bold text-sm uppercase tracking-wider">Submit New Claim</h3>
               <button onClick={() => setShowModal(false)} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
+            <div className={`flex-1 flex min-h-0 ${selectedFile ? '' : 'flex-col'}`}>
+            {/* Left: Form */}
+            <div className={`${selectedFile ? 'w-1/2 border-r border-[#E0E3E5]' : 'w-full'} flex flex-col min-h-0`}>
             <div className="flex-1 overflow-y-auto p-6">
               <p className="text-sm text-[#444650] mb-4">Fill in the details below to submit a new expense claim.</p>
-
-              {/* Document preview */}
-              {selectedFile && (() => {
-                const url = URL.createObjectURL(selectedFile);
-                const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
-                return (
-                  <div className="overflow-hidden bg-[#F2F4F6] mb-4 inset-shadow">
-                    {isPdf ? (
-                      <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-[300px]" title="Document preview" />
-                    ) : (
-                      <img src={url} alt="Document preview" className="w-full max-h-[300px] object-contain" />
-                    )}
-                  </div>
-                );
-              })()}
 
               {/* ── Type Toggle ── */}
               <div className="flex overflow-hidden mb-4 gap-2">
@@ -876,6 +864,28 @@ export default function EmployeeClaimsPage() {
                 Cancel
               </button>
             </div>
+            </div>{/* close left form panel */}
+
+            {/* Right: Document Preview */}
+            {selectedFile && (() => {
+              const url = URL.createObjectURL(selectedFile);
+              const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+              return (
+                <div className="w-1/2 flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto bg-[#F2F4F6]">
+                    {isPdf ? (
+                      <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-full min-h-[400px]" title="Document preview" />
+                    ) : (
+                      <div className="flex items-center justify-center h-full p-5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt="Document preview" className="max-w-full max-h-[80vh] object-contain" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+            </div>{/* close flex row */}
           </div>
         </div>
       )}
