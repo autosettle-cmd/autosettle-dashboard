@@ -1,6 +1,7 @@
 'use client';
 
 import GlAccountSelect from '@/components/GlAccountSelect';
+import { LINK_CFG } from '@/lib/badge-config';
 import { type RefObject } from 'react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -24,6 +25,7 @@ interface NewInvState {
   firm_id: string;
   vendor_name: string;
   supplier_id: string;
+  supplier_link_status: 'confirmed' | 'auto_matched' | 'unmatched';
   invoice_number: string;
   issue_date: string;
   due_date: string;
@@ -170,7 +172,7 @@ export default function InvoiceCreateModal({
                     type="text"
                     value={newInv.vendor_name}
                     onChange={(e) => {
-                      setNewInv({ ...newInv, vendor_name: e.target.value, supplier_id: '' });
+                      setNewInv({ ...newInv, vendor_name: e.target.value, supplier_id: '', supplier_link_status: 'unmatched' });
                       setVendorDropdownOpen(true);
                     }}
                     onFocus={() => setVendorDropdownOpen(true)}
@@ -179,9 +181,12 @@ export default function InvoiceCreateModal({
                     placeholder="Type or select existing supplier"
                     autoComplete="off"
                   />
-                  {newInv.supplier_id && (
-                    <span className="absolute right-3 top-[calc(50%+4px)] badge-green text-label-sm" data-tooltip="This vendor is linked to an existing supplier account. GL accounts and trade payables will auto-fill from the supplier defaults.">Linked</span>
-                  )}
+                  {newInv.vendor_name && (() => {
+                    const status = newInv.supplier_link_status;
+                    const cfg = LINK_CFG[status];
+                    if (!cfg) return null;
+                    return <span className={`absolute right-3 top-[calc(50%+4px)] text-label-sm ${cfg.cls}`} data-tooltip={cfg.tooltip}>{cfg.label}</span>;
+                  })()}
                   {vendorDropdownOpen && newInv.vendor_name.length >= 1 && (() => {
                     const q = newInv.vendor_name.toLowerCase();
                     const firmSuppliers = config.role === 'accountant' && newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
@@ -199,7 +204,7 @@ export default function InvoiceCreateModal({
                             type="button"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => {
-                              setNewInv({ ...newInv, vendor_name: s.name, supplier_id: s.id });
+                              setNewInv({ ...newInv, vendor_name: s.name, supplier_id: s.id, supplier_link_status: 'confirmed' });
                               setVendorDropdownOpen(false);
                             }}
                             className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--surface-low)] transition-colors"

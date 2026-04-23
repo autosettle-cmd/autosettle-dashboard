@@ -306,6 +306,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     firm_id: '',
     vendor_name: '',
     supplier_id: '',
+    supplier_link_status: 'unmatched' as 'confirmed' | 'auto_matched' | 'unmatched',
     invoice_number: '',
     issue_date: new Date().toISOString().split('T')[0],
     due_date: '',
@@ -467,7 +468,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 const vLower = updates.vendor_name.toLowerCase();
                 const firmSuppliers = suppliers.filter((s) => s.firm_id === targetFirmId);
                 const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
-                if (supplierMatch) updates.supplier_id = supplierMatch.id;
+                if (supplierMatch) { updates.supplier_id = supplierMatch.id; updates.supplier_link_status = 'auto_matched'; }
               }
               return updates;
             });
@@ -515,7 +516,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
             if (updates.vendor_name) {
               const vLower = updates.vendor_name.toLowerCase();
               const supplierMatch = suppliers.find((s) => s.name.toLowerCase() === vLower);
-              if (supplierMatch) updates.supplier_id = supplierMatch.id;
+              if (supplierMatch) { updates.supplier_id = supplierMatch.id; updates.supplier_link_status = 'auto_matched'; }
             }
             setNewInv(updates);
           }
@@ -684,7 +685,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
             const vLower = updates.vendor_name.toLowerCase();
             const firmSuppliers = config.role === 'accountant' && newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
             const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
-            if (supplierMatch) updates.supplier_id = supplierMatch.id;
+            if (supplierMatch) { updates.supplier_id = supplierMatch.id; updates.supplier_link_status = 'auto_matched'; }
           }
           setNewInv(updates);
 
@@ -846,7 +847,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       setShowNewInvoice(false);
       setDepositWarning('');
       setPvMatch(null);
-      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', supplier_link_status: 'unmatched', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
       setNewInvContraGlId('');
@@ -871,7 +872,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       setShowNewInvoice(false);
       setDepositWarning('');
       setPvMatch(null);
-      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', supplier_link_status: 'unmatched', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
       setNewInvContraGlId('');
