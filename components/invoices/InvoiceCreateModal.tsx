@@ -129,6 +129,40 @@ export default function InvoiceCreateModal({
                   </div>
                 )}
 
+                {/* Invoice file upload */}
+                <div>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Image{config.role === 'accountant' ? '(s)' : ''}</label>
+                  {newInvFile ? (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200">
+                      <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="text-sm text-blue-700 truncate flex-1">{newInvFile.name}</span>
+                      <button type="button" onClick={() => setNewInvFile(null)} className="text-xs text-blue-500 hover:text-blue-700">Remove</button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        {...(config.role === 'accountant' ? { multiple: true } : {})}
+                        onChange={handleInvFileChange}
+                        className="input-recessed w-full text-sm file:mr-3 file:py-1 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-[var(--surface-low)] file:text-[var(--text-secondary)] hover:file:bg-[var(--surface-header)]"
+                      />
+                      {config.role === 'accountant' && (
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">Select multiple files to batch upload with auto OCR</p>
+                      )}
+                    </>
+                  )}
+                  {ocrScanning && (
+                    <div className="mt-2 flex items-center gap-2 text-sm" style={{ color: 'var(--primary)' }}>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Scanning document... fields will auto-fill shortly
+                    </div>
+                  )}
+                </div>
+
                 <div className="relative">
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor Name *</label>
                   <input
@@ -261,39 +295,6 @@ export default function InvoiceCreateModal({
                     rows={2}
                     placeholder="Phone number, account details, service period, etc."
                   />
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Invoice Image{config.role === 'accountant' ? '(s)' : ''}</label>
-                  {newInvFile ? (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200">
-                      <svg className="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <span className="text-sm text-blue-700 truncate flex-1">{newInvFile.name}</span>
-                      <button type="button" onClick={() => setNewInvFile(null)} className="text-xs text-blue-500 hover:text-blue-700">Remove</button>
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        type="file"
-                        accept="image/*,application/pdf"
-                        {...(config.role === 'accountant' ? { multiple: true } : {})}
-                        onChange={handleInvFileChange}
-                        className="input-recessed w-full text-sm file:mr-3 file:py-1 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-[var(--surface-low)] file:text-[var(--text-secondary)] hover:file:bg-[var(--surface-header)]"
-                      />
-                      {config.role === 'accountant' && (
-                        <p className="text-xs text-[var(--text-secondary)] mt-1">Select multiple files to batch upload with auto OCR</p>
-                      )}
-                    </>
-                  )}
-                  {ocrScanning && (
-                    <div className="mt-2 flex items-center gap-2 text-sm" style={{ color: 'var(--primary)' }}>
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Scanning document... fields will auto-fill shortly
-                    </div>
-                  )}
                 </div>
 
                 {/* PV Match Banner */}
