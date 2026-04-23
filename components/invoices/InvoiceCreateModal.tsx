@@ -165,7 +165,7 @@ export default function InvoiceCreateModal({
                   )}
                 </div>
 
-                <div className="relative">
+                <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor Name *</label>
                   <input
                     ref={vendorInputRef}
@@ -173,48 +173,39 @@ export default function InvoiceCreateModal({
                     value={newInv.vendor_name}
                     onChange={(e) => {
                       setNewInv({ ...newInv, vendor_name: e.target.value, supplier_id: '', supplier_link_status: 'unmatched' });
-                      setVendorDropdownOpen(true);
                     }}
-                    onFocus={() => setVendorDropdownOpen(true)}
-                    onBlur={() => setTimeout(() => setVendorDropdownOpen(false), 150)}
                     className="input-recessed w-full"
-                    placeholder="Type or select existing supplier"
+                    placeholder="Vendor name from invoice"
                     autoComplete="off"
                   />
-                  {newInv.vendor_name && (() => {
-                    const status = newInv.supplier_link_status;
-                    const cfg = LINK_CFG[status];
-                    if (!cfg) return null;
-                    return <span className={`absolute right-3 top-[calc(50%+4px)] text-label-sm ${cfg.cls}`} data-tooltip={cfg.tooltip}>{cfg.label}</span>;
-                  })()}
-                  {vendorDropdownOpen && newInv.vendor_name.length >= 1 && (() => {
-                    const q = newInv.vendor_name.toLowerCase();
-                    const firmSuppliers = config.role === 'accountant' && newInv.firm_id ? suppliers.filter((s) => s.firm_id === newInv.firm_id) : suppliers;
-                    const filtered = firmSuppliers.filter((s) => s.name.toLowerCase().includes(q));
-                    if (filtered.length === 0) return (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#E0E3E5] shadow-lg p-3">
-                        <p className="text-xs text-[var(--text-secondary)]">No matching suppliers -- a new one will be created</p>
-                      </div>
-                    );
-                    return (
-                      <div className="absolute z-10 top-full left-0 right-0 mt-1 bg-white border border-[#E0E3E5] shadow-lg max-h-40 overflow-y-auto">
-                        {filtered.slice(0, 8).map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setNewInv({ ...newInv, vendor_name: s.name, supplier_id: s.id, supplier_link_status: 'confirmed' });
-                              setVendorDropdownOpen(false);
-                            }}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-[var(--surface-low)] transition-colors"
-                          >
-                            {s.name}
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                </div>
+
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-1">
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Supplier Account</label>
+                    {newInv.supplier_id && (() => {
+                      const cfg = LINK_CFG[newInv.supplier_link_status];
+                      return cfg ? <span className={`text-label-sm ${cfg.cls}`} data-tooltip={cfg.tooltip}>{cfg.label}</span> : null;
+                    })()}
+                  </div>
+                  <select
+                    value={newInv.supplier_id}
+                    onChange={(e) => {
+                      const supplierId = e.target.value;
+                      if (supplierId) {
+                        const s = suppliers.find(s => s.id === supplierId);
+                        setNewInv({ ...newInv, supplier_id: supplierId, supplier_link_status: 'confirmed', vendor_name: newInv.vendor_name || s?.name || '' });
+                      } else {
+                        setNewInv({ ...newInv, supplier_id: '', supplier_link_status: 'unmatched' });
+                      }
+                    }}
+                    className="input-recessed w-full"
+                  >
+                    <option value="">-- New supplier (will be created) --</option>
+                    {(config.role === 'accountant' && newInv.firm_id ? suppliers.filter(s => s.firm_id === newInv.firm_id) : suppliers).map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
