@@ -20,12 +20,7 @@ const ADMIN_NAV = [
     ],
   },
   { label: 'Receipts',        href: '/admin/claims?type=receipt',  icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z', countKey: 'receiptPending' },
-  { label: 'Invoices', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
-    children: [
-      { label: 'Received',  href: '/admin/invoices?tab=received', countKey: 'receivedPending' },
-      { label: 'Issued',    href: '/admin/invoices?tab=issued', countKey: 'issuedPending' },
-    ],
-  },
+  { label: 'Invoices', href: '/admin/invoices', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', countKey: 'receivedPending' },
   { label: 'Suppliers',       href: '/admin/suppliers',            icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Bank Recon',      href: '/admin/bank-reconciliation',  icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
   { label: 'Employees',       href: '/admin/employees',            icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197', countKey: 'employeesPending' },
@@ -45,12 +40,7 @@ const ACCOUNTANT_NAV = [
     ],
   },
   { label: 'Receipts',        href: '/accountant/claims?type=receipt',  icon: 'M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z', countKey: 'receiptPending' },
-  { label: 'Invoices', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
-    children: [
-      { label: 'Received',  href: '/accountant/invoices?tab=received', countKey: 'receivedPending' },
-      { label: 'Issued',    href: '/accountant/invoices?tab=issued', countKey: 'issuedPending' },
-    ],
-  },
+  { label: 'Invoices', href: '/accountant/invoices', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', countKey: 'receivedPending' },
   { label: 'Suppliers',       href: '/accountant/suppliers',            icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
   { label: 'Bank Recon',      href: '/accountant/bank-reconciliation',  icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
   { label: 'Clients',         href: '/accountant/clients',              icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
@@ -225,6 +215,13 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
           <span className="text-white font-bold text-[15px] leading-tight block">{brand.name}</span>
           <span className="text-[10px] text-white/50 tracking-tight block truncate">{firmName ?? ROLE_LABELS[role]}</span>
         </div>
+      </div>
+
+      {/* Date */}
+      <div className="px-5 py-2 border-b border-white/10">
+        <p className="text-[10px] font-label font-bold text-white/50 uppercase tracking-widest">
+          {new Date().toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
       </div>
 
       {/* Nav */}
