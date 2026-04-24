@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
-import { createJournalEntry } from '@/lib/journal-entries';
+import { createJournalEntry, type CreateJournalEntryParams } from '@/lib/journal-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const entry = await createJournalEntry({
+    const params: CreateJournalEntryParams = {
       firmId,
       postingDate: new Date(postingDate),
       description,
@@ -139,7 +139,8 @@ export async function POST(request: NextRequest) {
         description: l.description,
       })),
       createdBy: session.user.id,
-    });
+    };
+    const entry = await createJournalEntry(params);
 
     return NextResponse.json({ data: { id: entry.id, voucher_number: entry.voucher_number }, error: null }, { status: 201 });
   } catch (err) {
