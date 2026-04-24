@@ -49,9 +49,14 @@ interface FiscalYear { id: string; year_label: string; periods: { id: string; pe
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const SOURCE_LABELS: Record<string, string> = {
-  claim_approval: 'Claim', invoice_posting: 'Invoice',
+  claim_approval: 'Claim', invoice_posting: 'Purchase Inv',
   sales_invoice_posting: 'Sales Inv', bank_recon: 'Bank Recon', manual: 'Manual',
   year_end_close: 'Year-End Close',
+};
+
+const PREFIX_LABELS: Record<string, string> = {
+  PI: 'Purchase Inv', SI: 'Sales Inv', PV: 'Payment Voucher',
+  OR: 'Official Receipt', CR: 'Claim Reimb', JV: 'Journal Voucher',
 };
 
 function formatRM(val: string | number) {
@@ -518,7 +523,7 @@ export default function GeneralLedgerPage() {
                                 <td data-col="Date" className="px-3 py-2 text-[var(--text-secondary)] tabular-nums whitespace-nowrap">{formatDate(line.posting_date)}</td>
                                 <td data-col="Voucher #" className="px-3 py-2 text-[var(--text-secondary)] font-mono text-xs">{line.voucher_number}</td>
                                 <td data-col="Description" className="px-3 py-2 text-[var(--text-secondary)] truncate max-w-[200px]">{line.line_description || line.entry_description || '-'}</td>
-                                <td data-col="Source" className="px-3 py-2 text-[var(--text-muted)] text-xs">{SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
+                                <td data-col="Source" className="px-3 py-2 text-[var(--text-muted)] text-xs">{PREFIX_LABELS[line.voucher_number?.split('-')[0]] ?? SOURCE_LABELS[line.source_type] ?? line.source_type}</td>
                                 <td data-col="Debit" className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.debit_amount > 0 ? formatRM(line.debit_amount) : '-'}</td>
                                 <td data-col="Credit" className="px-3 py-2 text-right tabular-nums text-[var(--text-primary)]">{line.credit_amount > 0 ? formatRM(line.credit_amount) : '-'}</td>
                                 <td data-col="Balance" className={`px-3 py-2 text-right tabular-nums font-medium ${line.running_balance >= 0 ? 'text-[var(--match-green)]' : 'text-[var(--reject-red)]'}`}>

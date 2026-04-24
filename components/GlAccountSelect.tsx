@@ -28,6 +28,8 @@ interface GlAccountSelectProps {
   defaultBalance?: 'Debit' | 'Credit';
   disabled?: boolean;
   className?: string;
+  /** Pre-fill the account name when "+ Add new account" is opened (e.g. vendor name) */
+  suggestedName?: string;
 }
 
 /**
@@ -36,8 +38,20 @@ interface GlAccountSelectProps {
  */
 function findParentByCode(code: string, allAccounts: GlAccount[]): GlAccount | null {
   const parts = code.split('-');
-  if (parts.length < 2) return null;
-  // Try progressively shorter prefixes
+  if (parts.length < 2) {
+    // No dash — treat as prefix: look for "400-000", "400-00", "400-0", then "400" itself
+    const prefix = code.trim();
+    if (!prefix) return null;
+    for (let pad = 3; pad >= 1; pad--) {
+      const withZeros = `${prefix}-${'0'.repeat(pad)}`;
+      const match = allAccounts.find(a => a.account_code === withZeros);
+      if (match) return match;
+    }
+    const exact = allAccounts.find(a => a.account_code === prefix);
+    if (exact) return exact;
+    return null;
+  }
+  // Has dash — try progressively shorter prefixes
   for (let i = parts.length - 1; i >= 1; i--) {
     const prefix = parts.slice(0, i).join('-');
     // Try prefix-000 first (common pattern), then prefix alone
@@ -68,6 +82,7 @@ export default function GlAccountSelect({
   defaultBalance,
   disabled,
   className = '',
+  suggestedName,
 }: GlAccountSelectProps) {
   const [showAdd, setShowAdd] = useState(false);
   const [newCode, setNewCode] = useState('');
@@ -120,6 +135,29 @@ export default function GlAccountSelect({
 
   // Infer parent from code as user types
   const inferredParent = newCode.trim() ? findParentByCode(newCode.trim(), lookup) : null;
+
+  /**
+   * Auto-complete code when user types just a prefix (e.g. "400").
+   * Finds all existing accounts under that prefix and generates the next number.
+   * E.g. if "400-010" exists, typing "400" → "400-011".
+   */
+  const autoCompleteCode = (input: string): string => {
+    const trimmed = input.trim();
+    // Only auto-complete if it looks like just a prefix (no dash or already has sub-number)
+    if (!trimmed || trimmed.includes('-')) return trimmed;
+    // Find all existing accounts that start with this prefix
+    const existing = lookup.filter(a => a.account_code.startsWith(`${trimmed}-`));
+    if (existing.length === 0) return `${trimmed}-001`;
+    // Find the highest sub-number
+    let maxSub = 0;
+    for (const a of existing) {
+      const sub = a.account_code.slice(trimmed.length + 1);
+      const num = parseInt(sub, 10);
+      if (!isNaN(num) && num > maxSub) maxSub = num;
+    }
+    const padLen = existing[0]?.account_code.slice(trimmed.length + 1).length || 3;
+    return `${trimmed}-${String(maxSub + 1).padStart(padLen, '0')}`;
+  };
 
   // Close dropdown when clicking outside (check both container and portal dropdown)
   useEffect(() => {
@@ -241,7 +279,7 @@ export default function GlAccountSelect({
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type to search..."
-            className="btn-thick-navy w-full py-2.5 text-xs text-left pr-8 !text-white placeholder-white/60 !bg-[#1C3E5C]"
+            className="btn-thick-navy w-full py-2.5 px-3 text-xs text-left pr-8 !text-white placeholder-white/60 !bg-[#1C3E5C]"
             style={{ caretColor: 'white', transform: 'translateY(4px)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)', borderTopColor: 'transparent', textShadow: 'none' }}
           />
           <svg className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -322,7 +360,7 @@ export default function GlAccountSelect({
           {!showAdd ? (
             <button
               type="button"
-              onClick={() => setShowAdd(true)}
+              onClick={() => { setShowAdd(true); setNewName(suggestedName ?? ''); }}
               className="mt-1 text-xs font-medium hover:underline transition-colors"
               style={{ color: 'var(--primary)' }}
             >
@@ -335,7 +373,8 @@ export default function GlAccountSelect({
                   type="text"
                   value={newCode}
                   onChange={(e) => setNewCode(e.target.value)}
-                  placeholder="Code (e.g. 111-001)"
+                  onBlur={() => { if (newCode.trim() && !newCode.includes('-')) setNewCode(autoCompleteCode(newCode)); }}
+                  placeholder="Code (e.g. 400)"
                   className="input-recessed text-xs w-[130px]"
                 />
                 <input

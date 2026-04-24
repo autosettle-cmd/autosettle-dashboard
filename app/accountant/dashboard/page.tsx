@@ -327,13 +327,23 @@ export default function AccountantDashboard() {
         const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || settingsJson.data?.default_trade_payables_gl_id || '';
         let resolvedContra = inv.contra_gl_account_id || inv.supplier_default_contra_gl_id || aliasContraGl;
 
-        if (!resolvedContra) {
-          const vendorLower = inv.vendor_name_raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+        // If no contra or only the generic firm default, try vendor-name fuzzy matching for a supplier-specific sub-account
+        if (!resolvedContra || resolvedContra === firmDefaultContra) {
+          const vendorLower = inv.vendor_name_raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+          const vendorStripped = vendorLower.replace(/\s+/g, '');
+          const vendorWords = vendorLower.split(/\s+/).filter((w: string) => w.length > 2 && !['sdn', 'bhd', 'plt', 'sdn bhd'].includes(w));
           const liabilityGls = accounts.filter((g: { account_type: string }) => g.account_type === 'Liability');
-          const nameMatch = liabilityGls.find((g: { name: string }) => {
-            const glLower = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-            return glLower.length > 2 && (vendorLower.includes(glLower) || glLower.includes(vendorLower));
+          let nameMatch = liabilityGls.find((g: { name: string }) => {
+            const glStripped = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            return glStripped.length > 2 && (vendorStripped.includes(glStripped) || glStripped.includes(vendorStripped));
           });
+          if (!nameMatch && vendorWords.length >= 2) {
+            nameMatch = liabilityGls.find((g: { name: string }) => {
+              const glLower = g.name.toLowerCase();
+              const hits = vendorWords.filter((w: string) => glLower.includes(w));
+              return hits.length >= 2;
+            });
+          }
           if (nameMatch) resolvedContra = nameMatch.id;
         }
 

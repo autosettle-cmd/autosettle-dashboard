@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       _count: { select: { claims: true } },
       users: { where: { role: 'employee' }, select: { status: true }, take: 1 },
     },
-    orderBy: { name: 'asc' },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
   });
 
   // Aggregate outstanding claims per employee

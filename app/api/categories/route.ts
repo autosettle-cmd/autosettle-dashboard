@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         _count: { select: { claims: true } },
         overrides: { where: { firm_id: firmId }, include: { glAccount: { select: { account_code: true, name: true } } } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
 
     // Get firm-specific categories
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         _count: { select: { claims: true } },
         overrides: { where: { firm_id: firmId }, include: { glAccount: { select: { account_code: true, name: true } } } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
 
     const data = [
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
   const globals = await prisma.category.findMany({
     where: { firm_id: null, is_active: true },
     include: { _count: { select: { claims: true } } },
-    orderBy: { name: 'asc' },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
   });
 
   // Firm-specific categories across all assigned firms
@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
       firm: { select: { name: true } },
       _count: { select: { claims: true } },
     },
-    orderBy: [{ firm: { name: 'asc' } }, { name: 'asc' }],
+    orderBy: [{ firm: { name: 'asc' } }, { name: 'asc' }, { id: 'asc' }],
   });
 
   const data = [

@@ -37,16 +37,9 @@ export async function GET(request: NextRequest) {
   else if (paymentStatus.length > 1) where.payment_status = { in: paymentStatus };
 
   if (dateFrom || dateTo) {
-    // Always include pending_approval items of the SAME type regardless of date range
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dateFilter: any = {};
-    if (dateFrom) dateFilter.gte = new Date(dateFrom);
-    if (dateTo) dateFilter.lte = new Date(dateTo);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outstandingFilter: any = { approval: 'pending_approval' };
-    if (type) outstandingFilter.type = type;
-    if (!where.AND) where.AND = [];
-    where.AND.push({ OR: [{ claim_date: dateFilter }, outstandingFilter] });
+    where.claim_date = {};
+    if (dateFrom) where.claim_date.gte = new Date(dateFrom);
+    if (dateTo) where.claim_date.lte = new Date(dateTo);
   }
   if (approval && approval !== 'all') where.approval = approval;
   if (search) {
@@ -68,7 +61,7 @@ export async function GET(request: NextRequest) {
         glAccount: { select: { id: true, account_code: true, name: true } },
         _count: { select: { paymentReceipts: true, invoiceReceiptLinks: true } },
       },
-      orderBy: { claim_date: 'desc' },
+      orderBy: [{ claim_date: 'desc' }, { id: 'asc' }],
       take: takeParam || 100,
     }),
     prisma.claim.count({ where }),

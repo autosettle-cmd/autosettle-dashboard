@@ -399,6 +399,34 @@ div.ledger-binding {
     text-shadow: none;
   }
 
+  /* Amber: suggested / review — physical keycap */
+  .btn-thick-amber {
+    @apply inline-flex items-center justify-center font-bold
+           disabled:opacity-50 disabled:cursor-not-allowed btn-texture;
+    background: linear-gradient(180deg, #F5C842 0%, #E8B830 100%);
+    color: #1A1A1A;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.35);
+    box-shadow:
+      0 4px 0 0 #A8820A,
+      2px 0 0 0 #C49A15,
+      2px 4px 0 0 #A8820A,
+     -1px 0 0 0 #D4A820,
+      inset 1px 1px 0 0 rgba(255,255,255,0.2),
+      inset -1px -1px 0 0 rgba(0,0,0,0.15);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.3);
+    transition: all 0.08s ease;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .btn-thick-amber:active:not(:disabled):not(:has(:active)) {
+    background: linear-gradient(180deg, #D4A820 0%, #E8B830 100%);
+    border-top-color: transparent;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    text-shadow: none;
+  }
+
   /* Sidebar nav: molded keycap tiles on slab surface */
   .btn-thick-sidebar {
     @apply inline-flex items-center justify-center font-bold text-white
@@ -527,6 +555,48 @@ div.ledger-binding {
      -1px 0 0 0 var(--primary),
       inset 1px 1px 0 0 rgba(255,255,255,0.9),
       inset -1px -1px 0 0 rgba(0,0,0,0.1);
+  }
+
+  /* ─── Type Toggle Buttons (filter keycaps with dynamic colors) ──────── */
+  .type-toggle-on {
+    background: linear-gradient(180deg, var(--tt-bg) 0%, color-mix(in srgb, var(--tt-bg) 85%, #000) 100%);
+    color: var(--tt-color);
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.7);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    box-shadow:
+      0 4px 0 0 color-mix(in srgb, var(--tt-color) 40%, transparent),
+      2px 0 0 0 color-mix(in srgb, var(--tt-color) 27%, transparent),
+      2px 4px 0 0 color-mix(in srgb, var(--tt-color) 40%, transparent),
+     -1px 0 0 0 color-mix(in srgb, var(--tt-color) 20%, transparent),
+      inset 1px 1px 0 0 rgba(255,255,255,0.6),
+      inset -1px -1px 0 0 rgba(0,0,0,0.08);
+  }
+  .type-toggle-on:active {
+    transform: translateY(4px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+    border-top-color: transparent;
+  }
+  .type-toggle-off {
+    background: linear-gradient(180deg, #ECEEF0 0%, #DDDFE2 100%);
+    color: var(--text-muted);
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.6);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+    opacity: 0.6;
+    box-shadow:
+      0 4px 0 0 #B0B5BD,
+      2px 0 0 0 #C0C5CC,
+      2px 4px 0 0 #B0B5BD,
+     -1px 0 0 0 #CACED3,
+      inset 1px 1px 0 0 rgba(255,255,255,0.5),
+      inset -1px -1px 0 0 rgba(0,0,0,0.06);
+  }
+  .type-toggle-off:active {
+    transform: translateY(4px);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
+    border-top-color: transparent;
+    opacity: 0.8;
   }
 
   /* ─── Recessed Input Field (sinks IN) ───────────────────────────────────

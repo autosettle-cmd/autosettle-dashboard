@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -149,6 +149,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unmatched' | 'suggested' | 'confirmed'>('all');
   const [confirming, setConfirming] = useState(false);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [confirmError, setConfirmError] = useState('');
   const [matchingTxn, setMatchingTxn] = useState<BankTxn | null>(null);
   const [txnDescDraft, setTxnDescDraft] = useState('');
@@ -258,14 +259,14 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
-  const doConfirm = async (txnIds: string[]) => {
+  const doConfirm = async (txnIds: string[], glOverride?: { debitGlId?: string; creditGlId?: string }) => {
     setConfirming(true);
     setConfirmError('');
     try {
       const res = await fetch(config.apiConfirm, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bankTransactionIds: txnIds }),
+        body: JSON.stringify({ bankTransactionIds: txnIds, ...(glOverride ?? {}) }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -273,16 +274,18 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
         setConfirmError(errMsg);
         alert(errMsg);
       } else {
-        // Reload statement — previewTxn stays on same txn, will show updated status
+        // Save scroll position before reload
+        const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
         const stmtRes = await fetch(`${config.apiStatements}/${id}`);
         const stmtJson = await stmtRes.json();
         if (stmtJson.data) {
           setStatement(stmtJson.data);
-          // Update previewTxn with refreshed data so status reflects "Confirmed"
           if (previewTxn) {
             const updated = (stmtJson.data as StatementDetail).transactions.find((t: BankTxn) => t.id === previewTxn.id);
             if (updated) setPreviewTxn(updated);
           }
+          // Restore scroll position after React re-render
+          requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
         }
       }
     } catch (e) { console.error(e); }
@@ -362,23 +365,23 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     setOutstandingItems(json.data ?? []);
   };
 
-  /** After a successful match, reload statement and advance to next unmatched transaction */
-  const advanceAfterMatch = () => {
+  /** After a successful match, reload statement and show the updated transaction in preview */
+  const advanceAfterMatch = async () => {
     const currentId = matchingTxn?.id;
-    loadStatement();
-    // Find next unmatched txn after current in the filtered list
-    if (currentId && statement) {
-      const allTxns = statement.transactions;
-      const currentIdx = allTxns.findIndex(t => t.id === currentId);
-      const next = allTxns.slice(currentIdx + 1).find(t => t.recon_status === 'unmatched');
-      if (next) {
-        closeMatchModal();
-        openMatchModal(next);
-      } else {
-        closeMatchModal();
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
+    closeMatchModal();
+    if (!currentId) return;
+    try {
+      const res = await fetch(`${config.apiStatements}/${id}`);
+      const json = await res.json();
+      if (json.data) {
+        setStatement(json.data);
+        const updated = (json.data as StatementDetail).transactions.find((t: BankTxn) => t.id === currentId);
+        if (updated) setPreviewTxn(updated);
+        requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
       }
-    } else {
-      closeMatchModal();
+    } catch (e) {
+      console.error('Failed to reload statement:', e);
     }
   };
 
@@ -389,7 +392,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ bankTransactionId: matchingTxn.id, paymentId }),
     });
-    advanceAfterMatch();
+    await advanceAfterMatch();
   };
 
   const doMatchItem = async (item?: { type: string; id: string }, invoiceIds?: string[]) => {
@@ -418,7 +421,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
             return;
           }
         }
-        advanceAfterMatch();
+        await advanceAfterMatch();
         setMatchSubmitting(false);
         return;
       }
@@ -444,7 +447,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
         setMatchSubmitting(false);
         return;
       }
-      advanceAfterMatch();
+      await advanceAfterMatch();
     } catch (e) {
       setMatchError(e instanceof Error ? e.message : 'Network error');
     }
@@ -599,9 +602,10 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     if (!matchingTxn) return;
     setCreatingVoucher(true);
     setVoucherError('');
-    // Fallback to Miscellaneous category if none selected
     const finalData = { ...voucherData };
-    if (!finalData.category_id) {
+    // Admin has category dropdown — fall back to Miscellaneous if none selected
+    // Accountant doesn't see category — GL account is what matters
+    if (!finalData.category_id && !config.showRichPreview) {
       const misc = voucherCategories.find(c => c.name.toLowerCase() === 'miscellaneous');
       finalData.category_id = misc?.id || '';
     }
@@ -616,7 +620,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
       if (config.showGlPersistence && voucherData.gl_account_id) localStorage.setItem('lastVoucherGl', voucherData.gl_account_id);
       saveDescriptionAlias(matchingTxn, voucherData.supplier_id || json.data?.supplier_id);
-      advanceAfterMatch();
+      await advanceAfterMatch();
     } finally { setCreatingVoucher(false); }
   };
 
@@ -630,11 +634,11 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     if (!firmId) return;
     const [suppRes, glRes] = await Promise.all([
       fetch(supplierApiUrl()).then((r) => r.json()),
-      fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()),
+      receiptGlAccounts.length > 0 ? Promise.resolve({ data: receiptGlAccounts }) : fetch(`/api/gl-accounts?firmId=${firmId}`).then((r) => r.json()),
     ]);
     const suppliers = (suppRes.data ?? []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }));
     setVoucherSuppliers(suppliers);
-    setReceiptGlAccounts(glRes.data ?? []);
+    if (glRes.data) setReceiptGlAccounts(glRes.data);
 
     // Auto-resolve supplier from transaction description (accountant only)
     if (config.showAliasLearning && matchingTxn && firmId) {
@@ -696,7 +700,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       if (json.data?.jv_warning) setVoucherError(`Created, but JV warning: ${json.data.jv_warning}`);
       if (config.showGlPersistence && voucherData.gl_account_id) localStorage.setItem('lastReceiptGl', voucherData.gl_account_id);
       saveDescriptionAlias(matchingTxn, voucherData.supplier_id || json.data?.supplier_id);
-      advanceAfterMatch();
+      await advanceAfterMatch();
     } finally { setCreatingVoucher(false); }
   };
 
@@ -856,23 +860,23 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
           </div>
         )}
 
-        <main className="flex-1 overflow-y-auto px-6 pl-14 pt-2 pb-6 animate-in ledger-binding">
+        <main className="flex-1 overflow-hidden flex flex-col px-6 pl-14 pt-2 pb-0 animate-in ledger-binding">
           {loading || !statement ? (
             <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
           ) : (
             <>
               {/* Transaction table */}
-              <div className="bg-white overflow-hidden">
+              <div ref={tableScrollRef} className="bg-white flex-1 min-h-0 overflow-auto">
                 <table className="w-full">
                   <thead>
                     <tr>
                       <th className="px-2 py-2.5 text-left w-[90px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
                       <th className="px-2 py-2.5 text-left w-[78px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
-                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
-                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
-                      <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
-                      <th className="px-2 py-2.5 text-left text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Matched To</th>
+                      <th className="px-2 py-2.5 text-left w-[30%] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Description</th>
+                      <th className="px-2 py-2.5 text-right w-[90px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Debit</th>
+                      <th className="px-2 py-2.5 text-right w-[90px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Credit</th>
+                      <th className="px-2 py-2.5 text-right w-[90px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Balance</th>
+                      <th className="px-2 py-2.5 text-left min-w-[200px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Notes</th>
                       <th className="px-2 py-2.5 text-right w-[100px] text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">
                         <div className="flex items-center justify-end gap-1.5">
                           Actions
@@ -983,22 +987,8 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                           <td data-col="Debit" className="px-2 py-2.5 text-body-sm text-right tabular-nums text-[var(--reject-red)] whitespace-nowrap">{txn.debit ? formatRM(txn.debit) : '-'}</td>
                           <td data-col="Credit" className="px-2 py-2.5 text-body-sm text-right tabular-nums text-[var(--match-green)] whitespace-nowrap">{txn.credit ? formatRM(txn.credit) : '-'}</td>
                           <td data-col="Balance" className="px-2 py-2.5 text-body-sm text-right tabular-nums text-[var(--text-secondary)] whitespace-nowrap">{txn.balance ? formatRM(txn.balance) : '-'}</td>
-                          <td data-col="Matched To" className="px-2 py-2.5 text-body-sm text-[var(--text-secondary)]">
-                            {hasInvoice ? (
-                              mia && mia.length > 0 ? (
-                                <span>{mia.length} invoice{mia.length > 1 ? 's' : ''} — {mia[0].vendor_name}</span>
-                              ) : mi ? (
-                                <span>{mi.vendor_name} {mi.invoice_number ? `(${mi.invoice_number})` : ''}</span>
-                              ) : null
-                            ) : hasSalesInvoice ? (
-                              <span>{msi!.buyer_name} {msi!.invoice_number ? `(${msi!.invoice_number})` : ''}</span>
-                            ) : mp ? (
-                              <span>{mp.supplier_name} {mp.reference ? `(${mp.reference})` : ''}</span>
-                            ) : hasClaims ? (
-                              <span>{txn.matched_claims.length} claim{txn.matched_claims.length > 1 ? 's' : ''} — {txn.matched_claims[0].employee_name}</span>
-                            ) : txn.notes ? (
-                              <span className="text-[var(--text-secondary)] italic">{txn.notes}</span>
-                            ) : '—'}
+                          <td data-col="Notes" className="px-2 py-2.5 text-body-sm text-[var(--text-secondary)]">
+                            {txn.notes || '—'}
                           </td>
                           <td className="px-2 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
@@ -1008,7 +998,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                             )}
                             {txn.recon_status === 'matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before reviewing' : undefined} className={`text-label-sm w-[70px] py-1.5 text-center font-bold uppercase tracking-wide ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`} style={{ background: 'linear-gradient(180deg, #F5C842 0%, #E8B830 100%)', color: '#1A1A1A', border: 'none', borderTop: '1px solid rgba(255,255,255,0.35)', boxShadow: '0 4px 0 0 #A8820A, 2px 0 0 0 #C49A15, 2px 4px 0 0 #A8820A, -1px 0 0 0 #D4A820, inset 1px 1px 0 0 rgba(255,255,255,0.2), inset -1px -1px 0 0 rgba(0,0,0,0.15)', textShadow: '0 1px 0 rgba(255,255,255,0.3)' }}>Review</button>
+                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before reviewing' : undefined} className={`btn-thick-amber text-label-sm w-[70px] py-1.5 text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Review</button>
                                 <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Unmatch</button>
                               </div>
                             )}
@@ -1169,18 +1159,18 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                       );
                     })}
                   </tbody>
-                  <tfoot>
-                    <tr className="bg-[var(--surface-low)] border-t-2 border-[var(--surface-header)]">
-                      <td colSpan={3} className="px-2 py-2.5 text-body-sm font-semibold text-[var(--text-primary)]">Total</td>
-                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--reject-red)] whitespace-nowrap">{formatRM(totalDebit)}</td>
-                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--match-green)] whitespace-nowrap">{formatRM(totalCredit)}</td>
-                      <td colSpan={3} />
+                  <tfoot className="sticky bottom-0 z-10">
+                    <tr className="border-t-2 border-[var(--surface-header)]">
+                      <td colSpan={3} className="px-2 py-2.5 text-body-sm font-semibold text-[var(--text-primary)] bg-[var(--surface-low)]">Total</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--reject-red)] whitespace-nowrap bg-[var(--surface-low)]">{formatRM(totalDebit)}</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-[var(--match-green)] whitespace-nowrap bg-[var(--surface-low)]">{formatRM(totalCredit)}</td>
+                      <td colSpan={3} className="bg-[var(--surface-low)]" />
                     </tr>
-                    <tr className="bg-[var(--primary)] border-t border-[var(--primary-container)]">
-                      <td colSpan={3} className="px-2 py-2.5 text-body-sm font-semibold text-white">Matched</td>
-                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-white/80 whitespace-nowrap">{formatRM(matchedDebit)}</td>
-                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-white/80 whitespace-nowrap">{formatRM(matchedCredit)}</td>
-                      <td colSpan={3} />
+                    <tr className="border-t border-[var(--primary-container)]">
+                      <td colSpan={3} className="px-2 py-2.5 text-body-sm font-semibold text-white bg-[var(--primary)]">Matched</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-white/80 whitespace-nowrap bg-[var(--primary)]">{formatRM(matchedDebit)}</td>
+                      <td className="px-2 py-2.5 text-body-sm text-right tabular-nums font-bold text-white/80 whitespace-nowrap bg-[var(--primary)]">{formatRM(matchedCredit)}</td>
+                      <td colSpan={3} className="bg-[var(--primary)]" />
                     </tr>
                     {statement && statement.summary.unmatched === 0 && (Math.abs(matchedDebit - totalDebit) > 0.01 || Math.abs(matchedCredit - totalCredit) > 0.01) && (
                       <tr className="bg-amber-50 border-t border-amber-200">

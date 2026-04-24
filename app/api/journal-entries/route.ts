@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
           period: { select: { period_number: true, fiscalYear: { select: { year_label: true } } } },
           firm: { select: { name: true } },
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: [{ created_at: 'desc' }, { id: 'asc' }],
         take: takeParam || 100,
       }),
       prisma.journalEntry.count({ where }),
@@ -109,11 +109,12 @@ export async function POST(request: NextRequest) {
   const firmIds = await getAccountantFirmIds(session.user.id);
 
   const body = await request.json();
-  const { firmId, postingDate, description, lines } = body as {
+  const { firmId, postingDate, description, lines, voucherPrefix } = body as {
     firmId: string;
     postingDate: string;
     description?: string;
     lines: { glAccountId: string; debitAmount: number; creditAmount: number; description?: string }[];
+    voucherPrefix?: string;
   };
 
   if (!firmId || !postingDate || !lines || lines.length < 2) {
@@ -130,6 +131,7 @@ export async function POST(request: NextRequest) {
       postingDate: new Date(postingDate),
       description,
       sourceType: 'manual',
+      voucherPrefix: voucherPrefix || undefined,
       lines: lines.map((l) => ({
         glAccountId: l.glAccountId,
         debitAmount: l.debitAmount,

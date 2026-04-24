@@ -26,15 +26,23 @@ export async function GET(request: NextRequest) {
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = { ...firmScope(firmIds, firmId) };
+  const scope: any = { ...firmScope(firmIds, firmId) };
+  if (supplierId) scope.supplier_id = supplierId;
 
-  if (supplierId) where.supplier_id = supplierId;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dateFilter: any = {};
   if (dateFrom || dateTo) {
-    where.issue_date = {};
-    if (dateFrom) where.issue_date.gte = new Date(dateFrom);
-    if (dateTo) where.issue_date.lte = new Date(dateTo);
+    dateFilter.issue_date = {};
+    if (dateFrom) dateFilter.issue_date.gte = new Date(dateFrom);
+    if (dateTo) dateFilter.issue_date.lte = new Date(dateTo);
   }
-  if (paymentStatus && paymentStatus !== 'all') where.payment_status = paymentStatus;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extraFilters: any = {};
+  if (paymentStatus && paymentStatus !== 'all') extraFilters.payment_status = paymentStatus;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let where: any = { ...scope, ...dateFilter, ...extraFilters };
+
   if (search) {
     where.OR = [
       { invoice_number: { contains: search, mode: 'insensitive' } },
@@ -54,7 +62,7 @@ export async function GET(request: NextRequest) {
           select: { id: true, amount: true },
         },
       },
-      orderBy: { issue_date: 'desc' },
+      orderBy: [{ issue_date: 'desc' }, { id: 'asc' }],
       take: takeParam || 100,
     }),
     prisma.salesInvoice.count({ where }),

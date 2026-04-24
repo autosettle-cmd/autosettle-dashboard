@@ -395,37 +395,6 @@ export default function InvoicePreviewPanel({
                   </>
                 )}
               </div>
-              {config.showGlFields && glAccounts.length > 0 && (
-                <>
-                  <div>
-                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Expense GL (Debit)</label>
-                    <GlAccountSelect
-                      value={selectedGlAccountId}
-                      onChange={setSelectedGlAccountId}
-                      accounts={glAccounts}
-                      firmId={previewInvoice.firm_id}
-                      placeholder="Select Expense GL"
-                      preferredType="Expense"
-                      defaultType="Expense"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Contra GL (Credit)</label>
-                    <GlAccountSelect
-                      value={selectedContraGlId}
-                      onChange={setSelectedContraGlId}
-                      accounts={glAccounts}
-                      firmId={previewInvoice.firm_id}
-                      placeholder="Select Contra GL"
-                      preferredType="Liability"
-                      defaultType="Liability"
-                      defaultBalance="Credit"
-                      onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                    />
-                  </div>
-                </>
-              )}
             </div>
           ) : (
             <>
@@ -562,64 +531,61 @@ export default function InvoicePreviewPanel({
                     </button>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {lineItems.map((line, i) => (
-                    <div key={i} className="bg-[var(--surface-low)] border border-[#E0E3E5] p-2 space-y-1.5">
-                      <div className="flex gap-2">
+                    <div key={i} className="bg-[var(--surface-low)] border border-[#E0E3E5] px-2 py-1.5 space-y-1">
+                      <div className="flex gap-1.5">
                         <input
                           type="text"
                           value={line.description}
                           onChange={(e) => updateLineItem(i, 'description', e.target.value)}
                           placeholder="Description"
-                          className="input-recessed flex-1 text-sm"
+                          className="input-recessed flex-1 text-xs py-1 px-2"
                         />
-                        <button onClick={() => removeLineItem(i)} className="text-[var(--reject-red)] hover:opacity-70 px-1" title="Remove line">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                        <button onClick={() => removeLineItem(i)} className="text-[var(--reject-red)] hover:opacity-70 px-0.5" title="Remove line">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-1.5">
                         <div>
-                          <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Amount</label>
+                          <label className="text-[8px] font-label text-[var(--text-secondary)] uppercase">Amount</label>
                           <input
                             type="number"
                             step="0.01"
                             value={line.unit_price}
                             onChange={(e) => updateLineItem(i, 'unit_price', e.target.value)}
                             placeholder="0.00"
-                            className="input-recessed w-full text-sm tabular-nums"
+                            className="input-recessed w-full text-xs py-1 px-2 tabular-nums"
                           />
                         </div>
                         <div>
-                          <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Tax</label>
+                          <label className="text-[8px] font-label text-[var(--text-secondary)] uppercase">Tax</label>
                           <input
                             type="number"
                             step="0.01"
                             value={line.tax_amount}
                             onChange={(e) => updateLineItem(i, 'tax_amount', e.target.value)}
                             placeholder="0.00"
-                            className="input-recessed w-full text-sm tabular-nums"
+                            className="input-recessed w-full text-xs py-1 px-2 tabular-nums"
                           />
                         </div>
                         <div>
-                          <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">Line Total</label>
-                          <div className="input-recessed w-full text-sm tabular-nums bg-[var(--surface-base)] cursor-default">
+                          <label className="text-[8px] font-label text-[var(--text-secondary)] uppercase">Line Total</label>
+                          <div className="input-recessed w-full text-xs py-1 px-2 tabular-nums bg-[var(--surface-base)] cursor-default">
                             {Number(line.line_total || 0).toFixed(2)}
                           </div>
                         </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-label text-[var(--text-secondary)] uppercase">GL Account</label>
-                        <GlAccountSelect
-                          value={line.gl_account_id}
-                          onChange={(val) => updateLineItem(i, 'gl_account_id', val)}
-                          accounts={glAccounts}
-                          firmId={previewInvoice.firm_id}
-                          placeholder="Select GL"
-                          preferredType="Expense"
-                          defaultType="Expense"
-                          onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
-                        />
-                      </div>
+                      <GlAccountSelect
+                        value={line.gl_account_id}
+                        onChange={(val) => updateLineItem(i, 'gl_account_id', val)}
+                        accounts={glAccounts}
+                        firmId={previewInvoice.firm_id}
+                        placeholder="Select GL"
+                        preferredType="Expense"
+                        defaultType="Expense"
+                        onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
+                      />
                     </div>
                   ))}
                   <button onClick={addLineItem} className="text-xs font-medium hover:underline w-full text-left py-1" style={{ color: 'var(--primary)' }}>
@@ -632,7 +598,7 @@ export default function InvoicePreviewPanel({
                   <button
                     onClick={saveLineItems}
                     disabled={lineSaving || lineItems.length === 0 || lineItems.some(l => !l.description || !l.unit_price)}
-                    className="btn-thick-navy w-full py-1.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="btn-thick-green w-full py-1.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {lineSaving ? 'Saving...' : 'Save Line Items'}
                   </button>
@@ -690,6 +656,7 @@ export default function InvoicePreviewPanel({
                       placeholder="Select GL Account"
                       preferredType="Expense"
                       defaultType="Expense"
+                      suggestedName={previewInvoice.vendor_name_raw}
                       onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
                     />
                   )}
@@ -730,6 +697,7 @@ export default function InvoicePreviewPanel({
                   preferredType="Liability"
                   defaultType="Liability"
                   defaultBalance="Credit"
+                  suggestedName={previewInvoice.vendor_name_raw}
                   onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
                 />
               )}
@@ -808,19 +776,22 @@ export default function InvoicePreviewPanel({
                     <>
                       <button
                         onClick={() => markAsReviewed(previewInvoice.id, selectedGlAccountId || undefined)}
-                        className="btn-thick-navy flex-1 py-1.5 text-xs font-semibold"
+                        disabled={showLineItems}
+                        className="btn-thick-navy flex-1 py-1.5 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Mark as Reviewed
                       </button>
                       <button
                         onClick={() => setShowApproveConfirm(true)}
-                        className="btn-thick-green flex-1 py-1.5 text-xs"
+                        disabled={showLineItems}
+                        className="btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                        className="btn-thick-red flex-1 py-1.5 text-xs"
+                        disabled={showLineItems}
+                        className="btn-thick-red flex-1 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Reject
                       </button>
@@ -830,13 +801,15 @@ export default function InvoicePreviewPanel({
                     <>
                       <button
                         onClick={() => setShowApproveConfirm(true)}
-                        className="btn-thick-green flex-1 py-1.5 text-xs"
+                        disabled={showLineItems}
+                        className="btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Approve
                       </button>
                       <button
                         onClick={() => setRejectModal({ open: true, invoiceIds: [previewInvoice.id], reason: '' })}
-                        className="btn-thick-red flex-1 py-1.5 text-xs"
+                        disabled={showLineItems}
+                        className="btn-thick-red flex-1 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         Reject
                       </button>
@@ -1118,7 +1091,7 @@ export default function InvoicePreviewPanel({
                 }}
                 className="btn-thick-green flex-1 py-2.5 text-sm font-semibold"
               >
-                Confirm & Post JV
+                Confirm & Create
               </button>
               <button
                 onClick={() => setShowApproveConfirm(false)}

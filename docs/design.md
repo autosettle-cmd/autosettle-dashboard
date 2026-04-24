@@ -141,13 +141,21 @@ Floating elements (modals, dropdowns): `0px 24px 48px rgba(26, 50, 87, 0.08)` �
 ### Buttons
 | Class | Face Gradient | Side Wall Color | Text | Usage |
 |-------|-------------|----------------|------|-------|
-| `btn-thick-navy` | #2D5F8A → #234B6E | #1A3D5C / #142F47 | White, embossed | Primary CTA, Mark as Reviewed |
-| `btn-thick-white` | #FFFFFF → #EDEFF1 | #d1d5db / #b8bcc2 | Dark, debossed | Secondary actions, Edit, Close |
-| `btn-thick-green` | #0DB897 → #0A9981 | #066656 / #044D3F | White, embossed | Approve, confirm, Pay |
-| `btn-thick-red` | #F75565 → #F23545 | #A81C28 / #8A1620 | White, embossed | Reject, Delete |
+| `btn-thick-navy` | #2D5F8A → #234B6E | #1A3D5C / #142F47 | White, embossed | Primary CTA, Mark as Reviewed, Create new entity |
+| `btn-thick-white` | #FFFFFF → #EDEFF1 | #d1d5db / #b8bcc2 | Dark, debossed | Secondary actions, Edit, Cancel, Close |
+| `btn-thick-green` | #0DB897 → #0A9981 | #066656 / #044D3F | White, embossed | Approve, Confirm, Save, forward-actions |
+| `btn-thick-red` | #F75565 → #F23545 | #A81C28 / #8A1620 | White, embossed | Reject, Delete, Revert, Unmatch — any reversing action |
+| `btn-thick-amber` | #F5C842 → #E8B830 | #C49A15 / #A8820A | Dark (#1A1A1A) | Review (suggested bank recon items) |
 | `btn-thick-sidebar` | #3272A0 → #2A6088 → #234B6E | (inset) | White, stamped | Sidebar nav tiles |
 
 All buttons: keycap style, press IN on click (no translateY), no hover animation.
+
+**Button color semantics:**
+- **Green** = proceed / save / approve — any action that moves a document forward
+- **Red** = destructive / reversing — reject, delete, revert, unmatch
+- **Navy** = primary CTA / create new entity — submit, create, match
+- **White** = neutral — edit, cancel, close, secondary actions
+- **Amber** = review — suggested items needing human confirmation
 
 **Nested button isolation:** All `btn-thick-*` `:active` selectors use `:not(:has(:active))` so clicking a child button inside a parent button doesn't trigger the parent's pressed state. This is a global CSS rule — never add inline `onMouseDown` stopPropagation for this purpose.
 
@@ -389,9 +397,10 @@ When accountant opens the invoice preview, GL accounts auto-fill:
 1. Invoice's saved `contra_gl_account_id`
 2. Supplier's `default_contra_gl_account_id`
 3. Supplier alias lookup contra GL
-4. **Fuzzy name match**: vendor name words matched against Liability GL account names (2+ word overlap)
+4. **Fuzzy name match**: vendor name words matched against Liability GL account names (strips "sdn", "bhd", "plt"; tries full-string match first, then 2+ word overlap)
 5. Firm default Trade Payables GL
 - If resolved contra = firm default, still runs fuzzy name match for a supplier-specific sub-account
+- **This exact algorithm must be applied everywhere invoices are previewed** — InvoicesPageContent, dashboard page, admin invoices, etc. Never simplify or skip steps on any page.
 
 #### 3. Approval (GL Saved to Supplier)
 When accountant approves with a selected contra GL:
@@ -510,7 +519,13 @@ Keycap-style navigation strips flanking preview modals. Same material as `btn-th
 - CSS classes: `nav-actuator`, `nav-actuator-left`, `nav-actuator-right`, `nav-actuator-pressed`
 - Applied to: invoices, claims, suppliers, bank recon preview, bank recon match modal
 
-**Bank recon match modal:** Two-panel layout (left=transaction details with always-visible editable textarea for description + date/amount/ref/bank info, right=search/tabs/items list/create forms). `max-w-[1200px]`.
+**Bank recon match modal:** Two-panel layout (left=transaction details with read-only description + date/amount/ref/bank info, right=search/tabs/items list/create forms). `max-w-[1200px]`. Description is view-only (not editable).
+
+**Bank recon suggested match preview:** Two-panel layout like invoice detail modal:
+- **Left panel (1/2):** Transaction details (status, date, amount, description) + matched invoice info (vendor, invoice #, amount) + Contra GL select (auto-suggested from supplier/firm defaults) + JV preview table (DR/CR lines updating live from GL selection)
+- **Right panel (1/2):** Document preview (Google Drive iframe or thumbnail, auto-expanded on open) + Confirm/Unmatch buttons at bottom
+- GL auto-suggest follows same resolution chain as invoices: invoice contra_gl → supplier default_contra_gl → firm default Trade Payables/Receivables
+- Confirmed matches and non-doc matches use the original layout (2/5 + 3/5 split)
 
 **Bank recon table rows:**
 - Debit rows: `bg-red-50/40` tint
@@ -518,6 +533,13 @@ Keycap-style navigation strips flanking preview modals. Same material as `btn-th
 - No alternating grey/white
 - Hover shows instant full-description tooltip (CSS, not native `title`)
 - Click matched/suggested rows → preview modal; click unmatched rows → match modal directly
+- **Table must never rearrange after confirm/match/unmatch.** API sorts by `[transaction_date asc, created_at asc, id asc]` for deterministic order. Scroll position is saved before reload and restored after React re-render via `requestAnimationFrame`. Apply this pattern to all tables that reload data after an action.
+
+**Date display:** Today's date shown in sidebar only (between logo and nav), not in page headers. `SearchButton` has no date.
+
+**Filter bars:** Plain date inputs (start + end) directly — no preset dropdown (This Month/Last Month/Custom). Default is all time. Entering a date auto-sets custom range.
+
+**LoadMoreBanner:** Dismissible with X button. Resets on filter change.
 
 **Supplier list:** Table rows (not cards) with columns: Supplier, Firm, Invoices, Net Outstanding, Actions (Pay/Statement/Edit as punchy 3D buttons). Row tint: red if owes, green if due, blue if selected. Click row → two-panel preview modal.
 

@@ -187,6 +187,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   const [successMsg, setSuccessMsg]             = useState('');
   const [ocrScanning, setOcrScanning]           = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   // Batch review
   interface BatchClaimItem {
@@ -734,6 +735,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   const refresh = () => setRefreshKey((k) => k + 1);
 
   const batchReview = async (claimIds: string[]) => {
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
     try {
       const res = await fetch(config.apiBatch, {
         method: 'PATCH',
@@ -742,6 +744,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       });
       if (res.ok) {
         refresh();
+        requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
         setSelectedRows([]);
         if (previewClaim && claimIds.includes(previewClaim.id)) setPreviewClaim(null);
       }
@@ -753,6 +756,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   const deleteClaims = async (claimIds: string[]) => {
     const count = claimIds.length;
     if (!confirm(`Delete ${count} claim${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
     try {
       const res = await fetch(config.apiDelete, {
         method: 'DELETE',
@@ -762,6 +766,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       const json = await res.json();
       if (!res.ok) { alert(json.error || 'Failed to delete'); return; }
       refresh();
+      requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
       setSelectedRows([]);
       if (previewClaim && claimIds.includes(previewClaim.id)) setPreviewClaim(null);
     } catch (e) {
@@ -771,6 +776,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
 
   const saveEdit = async () => {
     if (!previewClaim || !editData) return;
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
     setEditSaving(true);
     try {
       const res = await fetch(`${config.apiClaims}/${previewClaim.id}`, {
@@ -782,6 +788,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         setEditMode(false);
         setEditData(null);
         refresh();
+        requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
       }
     } catch (e) {
       console.error(e);
@@ -1067,7 +1074,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           {!batchScanning && !batchSubmitting && <SearchButton />}
         </header>
 
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 pt-8 px-8 pb-0 pl-14 paper-texture ledger-binding animate-in">
 
           {/* -- Filter bar ---------------------------------- */}
           <FilterBar
@@ -1096,7 +1103,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={claims.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
           {/* -- Table ---------------------------------------- */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-white">
+          <div ref={tableScrollRef} className="flex-1 min-h-0 overflow-y-auto bg-white">
             {loading ? (
               <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">Loading...</div>
             ) : claims.length === 0 ? (
@@ -1196,6 +1203,26 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                     );
                   })}
                 </tbody>
+                <tfoot className="sticky bottom-0 z-10">
+                  <tr className="border-t-2 border-[var(--surface-highest)]">
+                    <td className="bg-[var(--surface-header)]" />
+                    <td className="px-5 py-3 text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)] bg-[var(--surface-header)]">
+                      {sorted.length} item{sorted.length !== 1 ? 's' : ''}
+                    </td>
+                    {claimTab === 'claim' && <><td className="bg-[var(--surface-header)]" />{showFirm && <td className="bg-[var(--surface-header)]" />}<td className="bg-[var(--surface-header)]" /><td className="bg-[var(--surface-header)]" /></>}
+                    {claimTab === 'receipt' && <>{showFirm && <td className="bg-[var(--surface-header)]" />}<td className="bg-[var(--surface-header)]" /><td className="bg-[var(--surface-header)]" /><td className="bg-[var(--surface-header)]" /></>}
+                    {claimTab === 'mileage' && <><td className="bg-[var(--surface-header)]" />{showFirm && <td className="bg-[var(--surface-header)]" />}<td className="bg-[var(--surface-header)]" /><td className="bg-[var(--surface-header)]" /><td className="px-5 py-3 text-right font-bold text-[var(--text-primary)] tabular-nums text-sm bg-[var(--surface-header)]">{sorted.reduce((s, c) => s + Number(c.distance_km ?? 0), 0).toFixed(1)} km</td></>}
+                    {claimTab !== 'mileage' && <td className="bg-[var(--surface-header)]" />}
+                    <td className="px-5 py-3 text-right font-bold text-[var(--text-primary)] tabular-nums text-sm bg-[var(--surface-header)]">
+                      {formatRM(sorted.reduce((s, c) => s + Number(c.amount), 0).toFixed(2))}
+                    </td>
+                    <td className="bg-[var(--surface-header)]" />
+                    <td className="bg-[var(--surface-header)]" />
+                    {claimTab === 'claim' && <td className="bg-[var(--surface-header)]" />}
+                    {claimTab === 'receipt' && <td className="bg-[var(--surface-header)]" />}
+                    {claimTab === 'mileage' && <td className="bg-[var(--surface-header)]" />}
+                  </tr>
+                </tfoot>
               </table>
             )}
           </div>

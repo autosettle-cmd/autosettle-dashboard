@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         defaultContraGlAccount: { select: { account_code: true, name: true } },
         _count: { select: { invoices: true, salesInvoices: true } },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: takeParam || 100,
     }),
     prisma.supplier.count({ where }),

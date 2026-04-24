@@ -89,28 +89,20 @@ export default function FilterBar({
 }: FilterBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-      {/* Date Range */}
-      <Select value={dateRange} onChange={onDateRangeChange}>
-        <option value="">All Time</option>
-        <option value="this_week">This Week</option>
-        <option value="this_month">This Month</option>
-        <option value="last_month">Last Month</option>
-        <option value="custom">Custom</option>
-      </Select>
-
-      {dateRange === 'custom' && onCustomFromChange && onCustomToChange && (
+      {/* Date Range — plain date inputs, no preset dropdown */}
+      {onCustomFromChange && onCustomToChange && (
         <>
           <input
             type="date"
             value={customFrom}
-            onChange={(e) => onCustomFromChange(e.target.value)}
+            onChange={(e) => { onCustomFromChange(e.target.value); if (e.target.value) onDateRangeChange('custom'); }}
             className="input-field"
           />
           <span className="text-[#8E9196] text-sm">–</span>
           <input
             type="date"
             value={customTo}
-            onChange={(e) => onCustomToChange(e.target.value)}
+            onChange={(e) => { onCustomToChange(e.target.value); if (e.target.value) onDateRangeChange('custom'); }}
             className="input-field"
           />
         </>

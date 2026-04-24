@@ -449,28 +449,9 @@ export default function BankReconMatchModal({
             <div className="w-[360px] flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4 self-stretch">
               <div>
                 <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5">Description</p>
-                <textarea
-                  value={txnDescDraft}
-                  onChange={(e) => onSetTxnDescDraft(e.target.value)}
-                  className="input-recessed w-full text-sm"
-                  rows={6}
-                />
-                {descriptionChanged && (
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={onSaveDescription}
-                      className="btn-thick-green px-3 py-1 text-[10px]"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={onResetDescription}
-                      className="btn-thick-white px-3 py-1 text-[10px]"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+                <div className="bg-[var(--surface-low)] border border-[var(--surface-highest)] px-3 py-2.5 text-sm text-[var(--text-primary)] whitespace-pre-wrap min-h-[80px]">
+                  {txnDescDraft || matchingTxn.description}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -495,6 +476,42 @@ export default function BankReconMatchModal({
                   {statement.bank_gl_label && <Field label="Bank GL" value={statement.bank_gl_label} />}
                 </div>
               )}
+
+              {/* Inline JV Preview — shows when items are selected */}
+              {(selectedItem || selectedClaimIds.size > 0 || selectedInvoiceIds.size > 0) && (() => {
+                const selItems = selectedInvoiceIds.size > 0
+                  ? outstandingItems.filter(i => selectedInvoiceIds.has(i.id))
+                  : selectedClaimIds.size > 0
+                  ? outstandingItems.filter(i => selectedClaimIds.has(i.id))
+                  : selectedItem ? [outstandingItems.find(i => i.id === selectedItem.id)].filter(Boolean) : [];
+                const jvTotal = selItems.reduce((s, i) => s + Number(i.remaining ?? i.amount ?? 0), 0);
+                if (selItems.length === 0) return null;
+                return (
+                  <div className="border border-[#E0E3E5] p-2 mt-3">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Journal Entry Preview</p>
+                    <table className="w-full text-xs">
+                      <thead><tr className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest"><th className="py-1 text-left">Account</th><th className="py-1 text-right w-20">Debit</th><th className="py-1 text-right w-20">Credit</th></tr></thead>
+                      <tbody>
+                        {isOutgoing ? (
+                          <>
+                            {selItems.map((item, i) => (
+                              <tr key={i}><td className="py-1 text-[var(--text-primary)]">Trade Payables — {item.name || item.merchant}{item.reference ? ` (${item.reference})` : ''}</td><td className="py-1 text-right tabular-nums">{formatRM(String(item.remaining ?? item.amount))}</td><td className="py-1 text-right tabular-nums">-</td></tr>
+                            ))}
+                            <tr><td className="py-1 text-[var(--text-primary)]">{bankGlLabel}</td><td className="py-1 text-right tabular-nums">-</td><td className="py-1 text-right tabular-nums">{formatRM(jvTotal.toFixed(2))}</td></tr>
+                          </>
+                        ) : (
+                          <>
+                            <tr><td className="py-1 text-[var(--text-primary)]">{bankGlLabel}</td><td className="py-1 text-right tabular-nums">{formatRM(jvTotal.toFixed(2))}</td><td className="py-1 text-right tabular-nums">-</td></tr>
+                            {selItems.map((item, i) => (
+                              <tr key={i}><td className="py-1 text-[var(--text-primary)]">Trade Receivables — {item.name || item.merchant}{item.reference ? ` (${item.reference})` : ''}</td><td className="py-1 text-right tabular-nums">-</td><td className="py-1 text-right tabular-nums">{formatRM(String(item.remaining ?? item.amount))}</td></tr>
+                            ))}
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             // Admin: simple inline summary (no left panel, summary at top of right)
@@ -684,9 +701,22 @@ export default function BankReconMatchModal({
                               />
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${isSingleInvoice ? 'badge-amber' : 'badge-blue'}`}>
-                                    {isSingleInvoice ? 'INV' : 'ACCOUNT'}
-                                  </span>
+                                  {(() => {
+                                    if (!isSingleInvoice) return <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 badge-blue">ACCOUNT</span>;
+                                    const ref = group.invoices[0]?.reference ?? '';
+                                    const prefix = ref.split('-')[0];
+                                    const badges: Record<string, { label: string; color: string; bg: string }> = {
+                                      PV: { label: 'PV', color: '#7C3A00', bg: '#FEF0DB' },
+                                      OR: { label: 'OR', color: '#5C2D91', bg: '#EEDDF9' },
+                                      SI: { label: 'SI', color: '#0E6027', bg: '#DEF2E4' },
+                                      PI: { label: 'PI', color: '#234B6E', bg: '#E3EDF6' },
+                                    };
+                                    const fallback = group.invoices[0]?.type === 'sales_invoice'
+                                      ? { label: 'SI', color: '#0E6027', bg: '#DEF2E4' }
+                                      : { label: 'PI', color: '#234B6E', bg: '#E3EDF6' };
+                                    const b = badges[prefix] ?? fallback;
+                                    return <span className="text-[10px] uppercase font-bold px-1.5 py-0.5" style={{ color: b.color, background: b.bg }}>{b.label}</span>;
+                                  })()}
                                   <p className="text-sm font-medium text-[var(--text-primary)] truncate normal-case tracking-normal">{group.supplierName}</p>
                                   {!isSingleInvoice && <span className="text-label-sm text-[var(--text-secondary)] normal-case tracking-normal">({group.invoices.length})</span>}
                                 </div>
@@ -772,11 +802,20 @@ export default function BankReconMatchModal({
                       >
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 ${
-                              item.type === 'invoice' ? 'badge-amber' : 'badge-green'
-                            }`}>
-                              {item.type === 'invoice' ? 'INV' : 'SALES'}
-                            </span>
+                            {(() => {
+                              const prefix = (item.reference ?? '').split('-')[0];
+                              const badges: Record<string, { label: string; color: string; bg: string }> = {
+                                PV: { label: 'PV', color: '#7C3A00', bg: '#FEF0DB' },
+                                OR: { label: 'OR', color: '#5C2D91', bg: '#EEDDF9' },
+                                SI: { label: 'SI', color: '#0E6027', bg: '#DEF2E4' },
+                                PI: { label: 'PI', color: '#234B6E', bg: '#E3EDF6' },
+                              };
+                              const fallback = item.type === 'sales_invoice'
+                                ? { label: 'SI', color: '#0E6027', bg: '#DEF2E4' }
+                                : { label: 'PI', color: '#234B6E', bg: '#E3EDF6' };
+                              const b = badges[prefix] ?? fallback;
+                              return <span className="text-[10px] uppercase font-bold px-1.5 py-0.5" style={{ color: b.color, background: b.bg }}>{b.label}</span>;
+                            })()}
                             <p className="text-body-sm font-medium text-[var(--text-primary)] truncate">{item.name}</p>
                           </div>
                           <p className="text-label-sm text-[var(--text-secondary)] mt-0.5">
@@ -970,7 +1009,7 @@ export default function BankReconMatchModal({
             disabled={matchSubmitting}
             className="btn-thick-green w-full py-2.5 text-sm font-semibold disabled:opacity-50"
           >
-            {matchSubmitting ? 'Matching...' : selectedInvoiceIds.size > 1 ? `Match ${selectedInvoiceIds.size} Invoices` : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create JV'}
+            {matchSubmitting ? 'Matching...' : selectedInvoiceIds.size > 1 ? `Match ${selectedInvoiceIds.size} Invoices` : selectedClaimIds.size > 1 ? `Match ${selectedClaimIds.size} Claims` : 'Confirm & Create'}
           </button>
         )}
 
@@ -1138,6 +1177,7 @@ export default function BankReconMatchModal({
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Voucher No.</label>
                   <input type="text" value={voucherData.reference} onChange={(e) => onSetVoucherData({ ...voucherData, reference: e.target.value })} className="input-recessed w-full" placeholder="Auto-generated" />
                 </div>
+                {!config.showRichPreview && (
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
                   <select value={voucherData.category_id} onChange={(e) => onSetVoucherData({ ...voucherData, category_id: e.target.value })} className="input-recessed w-full">
@@ -1145,6 +1185,7 @@ export default function BankReconMatchModal({
                     {voucherCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
+                )}
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">DR Account (Expense GL)</label>
                   <GlAccountSelect
@@ -1186,7 +1227,7 @@ export default function BankReconMatchModal({
         <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowJvConfirm(false)}>
           <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 bg-[var(--match-green)]">
-              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm & Create JV</h3>
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm & Create</h3>
               <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
             </div>
 
@@ -1307,7 +1348,7 @@ export default function BankReconMatchModal({
                 disabled={matchSubmitting}
                 className="btn-thick-green flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
               >
-                {matchSubmitting ? 'Posting...' : 'Confirm & Post JV'}
+                {matchSubmitting ? 'Posting...' : 'Confirm & Create'}
               </button>
               <button
                 onClick={() => setShowJvConfirm(false)}
@@ -1325,7 +1366,7 @@ export default function BankReconMatchModal({
         <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowVoucherConfirm(false)}>
           <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 bg-[var(--primary)]">
-              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Payment Voucher</h3>
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm & Create</h3>
               <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
             </div>
 
@@ -1372,7 +1413,7 @@ export default function BankReconMatchModal({
                 disabled={creatingVoucher}
                 className="btn-thick-green flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
               >
-                {creatingVoucher ? 'Creating...' : 'Confirm & Post JV'}
+                {creatingVoucher ? 'Creating...' : 'Confirm & Create'}
               </button>
               <button onClick={() => setShowVoucherConfirm(false)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
                 Cancel
@@ -1387,7 +1428,7 @@ export default function BankReconMatchModal({
         <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70] flex items-center justify-center p-4" onClick={() => setShowReceiptConfirm(false)}>
           <div className="bg-white shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-4 bg-[var(--primary)]">
-              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm Official Receipt</h3>
+              <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm & Create</h3>
               <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
             </div>
 
@@ -1434,7 +1475,7 @@ export default function BankReconMatchModal({
                 disabled={creatingVoucher}
                 className="btn-thick-green flex-1 py-2.5 text-sm font-semibold disabled:opacity-50"
               >
-                {creatingVoucher ? 'Creating...' : 'Confirm & Post JV'}
+                {creatingVoucher ? 'Creating...' : 'Confirm & Create'}
               </button>
               <button onClick={() => setShowReceiptConfirm(false)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
                 Cancel

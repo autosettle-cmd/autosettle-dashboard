@@ -47,23 +47,8 @@ export async function GET(request: NextRequest) {
     extraFilters.payment_status = { not: 'paid' };
   }
 
-  // Always show pending approval (accountant) / pending review (admin) regardless of date
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let where: any;
-  const hasDates = dateFrom || dateTo;
-  if (hasDates && !search) {
-    where = {
-      ...scope,
-      ...extraFilters,
-      OR: [
-        dateFilter, // within date range
-        { approval: 'pending_approval' }, // always show pending approval (accountant)
-        { status: 'pending_review' }, // always show pending review (admin)
-      ],
-    };
-  } else {
-    where = { ...scope, ...dateFilter, ...extraFilters };
-  }
+  let where: any = { ...scope, ...dateFilter, ...extraFilters };
 
   if (search) {
     const searchAmount = parseFloat(search);
@@ -86,7 +71,7 @@ export async function GET(request: NextRequest) {
         contraGlAccount: { select: { id: true, account_code: true, name: true } },
         _count: { select: { lines: true } },
       },
-      orderBy: { issue_date: 'desc' },
+      orderBy: [{ issue_date: 'desc' }, { id: 'asc' }],
       take: takeParam || 100,
     }),
     prisma.invoice.count({ where }),

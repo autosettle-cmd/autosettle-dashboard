@@ -35,16 +35,9 @@ export async function GET(request: NextRequest) {
   else if (paymentStatus.length > 1) where.payment_status = { in: paymentStatus };
 
   if (dateFrom || dateTo) {
-    // Always include pending_review items of the SAME type regardless of date range
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dateFilter: any = {};
-    if (dateFrom) dateFilter.gte = new Date(dateFrom);
-    if (dateTo) dateFilter.lte = new Date(dateTo);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const outstandingFilter: any = { status: 'pending_review' };
-    if (type) outstandingFilter.type = type;
-    if (!where.AND) where.AND = [];
-    where.AND.push({ OR: [{ claim_date: dateFilter }, outstandingFilter] });
+    where.claim_date = {};
+    if (dateFrom) where.claim_date.gte = new Date(dateFrom);
+    if (dateTo) where.claim_date.lte = new Date(dateTo);
   }
   if (status && status !== 'all') where.status = status;
   if (approval && approval !== 'all') where.approval = approval;
@@ -65,7 +58,7 @@ export async function GET(request: NextRequest) {
         category: { select: { name: true } },
         _count: { select: { paymentReceipts: true, invoiceReceiptLinks: true } },
       },
-      orderBy: { claim_date: 'desc' },
+      orderBy: [{ claim_date: 'desc' }, { id: 'asc' }],
       take: takeParam || 100,
     }),
     prisma.claim.count({ where }),

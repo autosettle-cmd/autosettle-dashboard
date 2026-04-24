@@ -1,6 +1,6 @@
 'use client';
 
-const SalesInvoicesContent = dynamic(() => import('@/components/SalesInvoicesContent'));
+// Sales invoices are now merged into the main table (no separate tab)
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
@@ -67,6 +67,8 @@ interface InvoiceRow {
   approval: 'pending_approval' | 'approved' | 'not_approved';
   rejection_reason: string | null;
   lines: InvoiceLineRow[];
+  /** Discriminator: 'purchase' for Invoice, 'sales' for SalesInvoice */
+  _type?: 'purchase' | 'sales';
 }
 
 interface SupplierOption {
@@ -82,6 +84,7 @@ interface SupplierOption {
 export interface InvoicesPageConfig {
   role: 'accountant' | 'admin';
   apiInvoices: string;
+  apiSalesInvoices?: string;
   apiBatch: string;
   apiDelete: string;
   apiCategories: string;
@@ -97,6 +100,21 @@ export interface InvoicesPageConfig {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const TYPE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  PI: { label: 'PI', color: '#234B6E', bg: '#E3EDF6' },
+  SI: { label: 'SI', color: '#0E6027', bg: '#DEF2E4' },
+  PV: { label: 'PV', color: '#7C3A00', bg: '#FEF0DB' },
+  OR: { label: 'OR', color: '#5C2D91', bg: '#EEDDF9' },
+};
+
+function getInvoiceTypeBadge(row: InvoiceRow): { label: string; color: string; bg: string } | null {
+  const num = row.invoice_number ?? '';
+  const prefix = num.split('-')[0];
+  if (TYPE_BADGE[prefix]) return TYPE_BADGE[prefix];
+  if (row._type === 'sales') return TYPE_BADGE.SI;
+  return TYPE_BADGE.PI;
+}
 
 function formatDateDot(val: string | null | undefined): string {
   if (!val) return '';
@@ -117,7 +135,6 @@ export default function InvoicesPageContentWrapper({ config }: { config: Invoice
 function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
-  const activeTab: 'received' | 'issued' = pageSearchParams.get('tab') === 'issued' ? 'issued' : 'received';
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -134,6 +151,15 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   const [selectedContraGlId, setSelectedContraGlId] = useState<string>('');
   const [_defaultContraGlId, setDefaultContraGlId] = useState<string>('');
 
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  // Cache GL accounts, categories, and accounting settings per firm (don't change mid-session)
+  const glCacheRef = useRef<Record<string, {
+    glAccounts: { id: string; account_code: string; name: string; account_type: string }[];
+    categories: { id: string; gl_account_id?: string }[];
+    firmDefaultContra: string;
+  }>>({});
+
   // Selection for batch actions (accountant only)
   const [selectedRows, setSelectedRows] = useState<InvoiceRow[]>([]);
   const toggleSelectOne = (row: InvoiceRow) => {
@@ -147,6 +173,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   };
 
   const batchAction = async (invoiceIds: string[], action: 'approve' | 'reject' | 'revert', reason?: string, glAccountId?: string, contraGlId?: string) => {
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
     try {
       const res = await fetch(config.apiBatch, {
         method: 'PATCH',
@@ -155,6 +182,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       });
       if (res.ok) {
         refresh();
+        requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
         setSelectedRows([]);
         if (previewInvoice && invoiceIds.includes(previewInvoice.id)) {
           const resolvedExpenseGlId = glAccountId || previewInvoice.gl_account_id || previewInvoice.supplier_default_gl_id;
@@ -907,70 +935,96 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   }, [previewInvoice, config.showLineItems]);
 
   // Fetch GL accounts + pre-fill suggestion (accountant only)
+  // GL accounts, categories, and settings are cached per firm (they don't change mid-session)
   useEffect(() => {
     if (!config.showGlFields) return;
-    if (previewInvoice) {
-      Promise.all([
-        fetch(`/api/gl-accounts?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
-        fetch(`/api/categories?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
-        fetch(`/api/accounting-settings?firmId=${previewInvoice.firm_id}`).then(r => r.json()),
-        fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw.toLowerCase().trim())}&firmId=${previewInvoice.firm_id}`).then(r => r.json()).catch(() => ({ data: null })),
-      ])
-        .then(([glJson, catJson, settingsJson, aliasJson]) => {
-          setGlAccounts(glJson.data ?? []);
-          const aliasGl = aliasJson.data?.default_gl_account_id || '';
-          const aliasContraGl = aliasJson.data?.default_contra_gl_account_id || '';
-
-          // Expense GL: invoice -> supplier default -> alias match -> category -> empty
-          if (previewInvoice.gl_account_id) {
-            setSelectedGlAccountId(previewInvoice.gl_account_id);
-          } else if (previewInvoice.supplier_default_gl_id) {
-            setSelectedGlAccountId(previewInvoice.supplier_default_gl_id);
-          } else if (aliasGl) {
-            setSelectedGlAccountId(aliasGl);
-          } else {
-            const catData = catJson.data ?? [];
-            const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === previewInvoice.category_id);
-            setSelectedGlAccountId(match?.gl_account_id ?? '');
-          }
-
-          // Contra GL: invoice -> supplier default -> alias match -> name match -> firm default
-          const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || '';
-          let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
-
-          // If resolved contra is the firm's generic default, still try name matching for a supplier-specific sub-account
-          if (!resolvedContra || resolvedContra === firmDefaultContra) {
-            const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-            const vendorStripped = vendorLower.replace(/\s+/g, '');
-            const vendorWords = vendorLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'sdn bhd'].includes(w));
-            const glData = glJson.data ?? [];
-            const liabilityGls = glData.filter((g: { account_type: string }) => g.account_type === 'Liability');
-            // Try exact substring match first
-            let nameMatch = liabilityGls.find((g: { name: string }) => {
-              const glStripped = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-              return glStripped.length > 2 && (vendorStripped.includes(glStripped) || glStripped.includes(vendorStripped));
-            });
-            // Fallback: word-based match — if 2+ significant vendor words appear in GL name
-            if (!nameMatch && vendorWords.length >= 2) {
-              nameMatch = liabilityGls.find((g: { name: string }) => {
-                const glLower = g.name.toLowerCase();
-                const hits = vendorWords.filter(w => glLower.includes(w));
-                return hits.length >= 2;
-              });
-            }
-            if (nameMatch) resolvedContra = nameMatch.id;
-          }
-
-          const contraId = resolvedContra || firmDefaultContra;
-          setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || aliasContraGl || firmDefaultContra);
-          setSelectedContraGlId(contraId);
-        })
-        .catch(console.error);
-    } else {
+    if (!previewInvoice) {
       setGlAccounts([]);
       setSelectedGlAccountId('');
       setSelectedContraGlId('');
       setDefaultContraGlId('');
+      return;
+    }
+
+    const firmId = previewInvoice.firm_id;
+    const cached = glCacheRef.current[firmId];
+
+    // Resolve GL suggestions using cached or fetched data
+    const resolveGl = (
+      glData: typeof glAccounts,
+      catData: { id: string; gl_account_id?: string }[],
+      firmDefaultContra: string,
+      aliasJson: { data?: { default_gl_account_id?: string; default_contra_gl_account_id?: string } | null },
+    ) => {
+      setGlAccounts(glData);
+      const aliasGl = aliasJson.data?.default_gl_account_id || '';
+      const aliasContraGl = aliasJson.data?.default_contra_gl_account_id || '';
+
+      // Expense GL: invoice -> supplier default -> alias match -> category -> empty
+      if (previewInvoice.gl_account_id) {
+        setSelectedGlAccountId(previewInvoice.gl_account_id);
+      } else if (previewInvoice.supplier_default_gl_id) {
+        setSelectedGlAccountId(previewInvoice.supplier_default_gl_id);
+      } else if (aliasGl) {
+        setSelectedGlAccountId(aliasGl);
+      } else {
+        const match = catData.find((c) => c.id === previewInvoice.category_id);
+        setSelectedGlAccountId(match?.gl_account_id ?? '');
+      }
+
+      // Contra GL: invoice -> supplier default -> alias match -> name match -> firm default
+      let resolvedContra = previewInvoice.contra_gl_account_id || previewInvoice.supplier_default_contra_gl_id || aliasContraGl;
+
+      // If resolved contra is the firm's generic default, still try name matching for a supplier-specific sub-account
+      if (!resolvedContra || resolvedContra === firmDefaultContra) {
+        const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+        const vendorStripped = vendorLower.replace(/\s+/g, '');
+        const vendorWords = vendorLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'sdn bhd'].includes(w));
+        const liabilityGls = glData.filter((g) => g.account_type === 'Liability');
+        let nameMatch = liabilityGls.find((g) => {
+          const glStripped = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          return glStripped.length > 2 && (vendorStripped.includes(glStripped) || glStripped.includes(vendorStripped));
+        });
+        if (!nameMatch && vendorWords.length >= 2) {
+          nameMatch = liabilityGls.find((g) => {
+            const glLower = g.name.toLowerCase();
+            const hits = vendorWords.filter(w => glLower.includes(w));
+            return hits.length >= 2;
+          });
+        }
+        if (nameMatch) resolvedContra = nameMatch.id;
+      }
+
+      const contraId = resolvedContra || firmDefaultContra;
+      setDefaultContraGlId(previewInvoice.supplier_default_contra_gl_id || aliasContraGl || firmDefaultContra);
+      setSelectedContraGlId(contraId);
+    };
+
+    // Only alias lookup is per-invoice — GL/categories/settings are cached per firm
+    const aliasFetch = fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw.toLowerCase().trim())}&firmId=${firmId}`).then(r => r.json()).catch(() => ({ data: null }));
+
+    if (cached) {
+      // Firm data already cached — only fetch alias (per-invoice)
+      setGlAccounts(cached.glAccounts); // instant
+      aliasFetch.then((aliasJson) => {
+        resolveGl(cached.glAccounts, cached.categories, cached.firmDefaultContra, aliasJson);
+      });
+    } else {
+      // First invoice for this firm — fetch everything, then cache
+      Promise.all([
+        fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${firmId}`).then(r => r.json()),
+        aliasFetch,
+      ])
+        .then(([glJson, catJson, settingsJson, aliasJson]) => {
+          const glData = glJson.data ?? [];
+          const catData = catJson.data ?? [];
+          const firmDefaultContra = settingsJson.data?.gl_defaults?.trade_payables?.id || '';
+          glCacheRef.current[firmId] = { glAccounts: glData, categories: catData, firmDefaultContra };
+          resolveGl(glData, catData, firmDefaultContra, aliasJson);
+        })
+        .catch(console.error);
     }
   }, [previewInvoice, config.showGlFields]);
 
@@ -1105,8 +1159,14 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     customTo, setCustomTo,
     statusFilter, setStatusFilter,
     approvalFilter, setApprovalFilter,
-  } = useFilters({ initialStatus, initialDateRange: (initialStatus || initialPayment) ? '' : 'this_month' });
+  } = useFilters({ initialStatus, initialDateRange: '' });
   const [paymentFilter, setPaymentFilter] = useState(initialPayment);
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(['PI', 'SI', 'PV', 'OR']));
+  const toggleType = (t: string) => setActiveTypes(prev => {
+    const next = new Set(prev);
+    if (next.has(t)) next.delete(t); else next.add(t);
+    return next;
+  });
 
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
@@ -1126,13 +1186,72 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     if (paymentFilter)   p.set('paymentStatus', paymentFilter);
     if (takeLimit)       p.set('take',          String(takeLimit));
 
-    fetch(`${config.apiInvoices}?${p}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((j) => { setInvoices(j.data ?? []); setHasMore(j.hasMore ?? false); setTotalCount(j.totalCount ?? 0); setLoading(false); })
+    // Sales invoices params (subset — no status filter, sales invoices don't have review status)
+    const sp = new URLSearchParams();
+    if (config.firmId) sp.set('firmId', config.firmId);
+    if (from)          sp.set('dateFrom', from);
+    if (to)            sp.set('dateTo', to);
+    if (paymentFilter) sp.set('paymentStatus', paymentFilter);
+    if (takeLimit)     sp.set('take', String(takeLimit));
+
+    Promise.all([
+      fetch(`${config.apiInvoices}?${p}`, { signal: controller.signal }).then(r => r.json()),
+      config.apiSalesInvoices
+        ? fetch(`${config.apiSalesInvoices}?${sp}`, { signal: controller.signal }).then(r => r.json())
+        : Promise.resolve({ data: [] }),
+    ])
+      .then(([purchaseJson, salesJson]) => {
+        const purchaseRows: InvoiceRow[] = (purchaseJson.data ?? []).map((inv: InvoiceRow) => ({ ...inv, _type: 'purchase' as const }));
+
+        // Normalize SalesInvoice rows into InvoiceRow shape
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const salesRows: InvoiceRow[] = (salesJson.data ?? []).map((si: any) => ({
+          id: si.id,
+          vendor_name_raw: si.buyer_name ?? '',
+          invoice_number: si.invoice_number,
+          issue_date: si.issue_date,
+          due_date: si.due_date ?? null,
+          payment_terms: null,
+          subtotal: si.subtotal,
+          tax_amount: si.tax_amount,
+          total_amount: si.total_amount,
+          amount_paid: si.amount_paid,
+          category_name: si.category_name ?? '',
+          category_id: si.category_id ?? '',
+          status: 'reviewed' as const,
+          payment_status: si.payment_status,
+          supplier_id: si.supplier_id ?? null,
+          supplier_name: si.buyer_name ?? null,
+          supplier_link_status: 'confirmed' as const,
+          uploader_name: '',
+          firm_name: si.firm_name ?? '',
+          firm_id: si.firm_id ?? '',
+          confidence: 'HIGH',
+          file_url: null,
+          thumbnail_url: null,
+          notes: si.notes ?? null,
+          gl_account_id: si.gl_account_id ?? null,
+          gl_account_label: null,
+          contra_gl_account_id: null,
+          contra_gl_account_label: null,
+          supplier_default_gl_id: null,
+          supplier_default_contra_gl_id: null,
+          approval: si.approval,
+          rejection_reason: null,
+          lines: [],
+          _type: 'sales' as const,
+        }));
+
+        const merged = [...purchaseRows, ...salesRows].sort((a, b) => new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime());
+        setInvoices(merged);
+        setHasMore(purchaseJson.hasMore ?? false);
+        setTotalCount((purchaseJson.totalCount ?? 0) + (salesJson.data?.length ?? 0));
+        setLoading(false);
+      })
       .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
 
     return () => controller.abort();
-  }, [config.firmsLoaded, config.firmId, config.apiInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, refreshKey, takeLimit]);
+  }, [config.firmsLoaded, config.firmId, config.apiInvoices, config.apiSalesInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, refreshKey, takeLimit]);
 
   // Auto-open preview from ?preview=id (global search navigation)
   const previewParam = pageSearchParams.get('preview');
@@ -1153,9 +1272,16 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   }, [previewParam, loading, invoices]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
-  const filteredInvoices = config.showApproval && approvalFilter
+  const approvalFiltered = config.showApproval && approvalFilter
     ? invoices.filter((inv) => inv.approval === approvalFilter)
     : invoices;
+  const allTypesActive = activeTypes.size === 4;
+  const filteredInvoices = allTypesActive
+    ? approvalFiltered
+    : approvalFiltered.filter((inv) => {
+        const badge = getInvoiceTypeBadge(inv);
+        return badge ? activeTypes.has(badge.label) : true;
+      });
   const { sorted: sortedInvoices, sortField, sortDir, toggleSort, sortIndicator } = useTableSort(filteredInvoices, 'issue_date', 'desc');
   useEffect(() => { setPage(0); }, [sortField, sortDir]);
   const pagedInvoices = sortedInvoices.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -1199,29 +1325,55 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           </div>
         </header>
 
-        {activeTab === 'issued' ? (
-          <main className="flex-1 overflow-hidden flex flex-col p-8 pl-14 animate-in paper-texture ledger-binding">
-            <SalesInvoicesContent role={config.role} />
-          </main>
-        ) : (
-        <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 animate-in paper-texture ledger-binding">
+        <main className="flex-1 overflow-hidden flex flex-col gap-4 pt-8 px-8 pb-0 pl-14 animate-in paper-texture ledger-binding">
 
           {/* Filter bar */}
-          <FilterBar
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            customFrom={customFrom}
-            customTo={customTo}
-            onCustomFromChange={setCustomFrom}
-            onCustomToChange={setCustomTo}
-            showStatusFilter
-            statusValue={statusFilter}
-            onStatusChange={setStatusFilter}
-            {...(config.showApproval ? { showApprovalFilter: true, approvalValue: approvalFilter, onApprovalChange: setApprovalFilter } : {})}
-            showPaymentFilter
-            paymentValue={paymentFilter}
-            onPaymentChange={setPaymentFilter}
-          >
+          <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+            <input type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); setDateRange('custom'); }} className="input-field" />
+            <span className="text-[#8E9196] text-sm">–</span>
+            <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); setDateRange('custom'); }} className="input-field" />
+
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field">
+              <option value="">All Status</option>
+              <option value="pending_review">Pending Review</option>
+              <option value="reviewed">Reviewed</option>
+            </select>
+
+            {config.showApproval && (
+              <select value={approvalFilter} onChange={(e) => setApprovalFilter(e.target.value)} className="input-field">
+                <option value="">All Approval</option>
+                <option value="pending_approval">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="not_approved">Not Approved</option>
+              </select>
+            )}
+
+            <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="input-field">
+              <option value="">All Payment</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="partially_paid">Partial</option>
+              <option value="paid">Paid</option>
+            </select>
+
+            {/* Type toggle checkboxes — physical keycap style */}
+            <div className="flex items-center gap-1.5">
+              {(['PI', 'SI', 'PV', 'OR'] as const).map((t) => {
+                const b = TYPE_BADGE[t];
+                const on = activeTypes.has(t);
+                return (
+                  <button key={t} type="button" onClick={() => toggleType(t)}
+                    className={`type-toggle-btn px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-100 btn-texture ${on ? 'type-toggle-on' : 'type-toggle-off'}`}
+                    style={{
+                      '--tt-bg': on ? b.bg : undefined,
+                      '--tt-color': on ? b.color : undefined,
+                    } as React.CSSProperties}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="ml-auto">
               <button
                 onClick={() => {
@@ -1234,7 +1386,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 + Submit New Invoice
               </button>
             </div>
-          </FilterBar>
+          </div>
 
           {/* Load More */}
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={invoices.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
@@ -1275,7 +1427,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           )}
 
           {/* Invoice Table */}
-          <div className="flex-1 min-h-0 overflow-auto bg-white">
+          <div ref={tableScrollRef} className="flex-1 min-h-0 overflow-auto bg-white">
             {loading ? (
               <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
             ) : invoices.length === 0 ? (
@@ -1308,7 +1460,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                       <tr
                         key={inv.id}
                         onClick={() => setPreviewInvoice(inv)}
-                        className={`text-body-sm cursor-pointer ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
+                        className={`text-body-sm cursor-pointer hover:bg-[var(--surface-header)] transition-colors ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
                         {config.showApproval && (
                           <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
@@ -1316,7 +1468,10 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                           </td>
                         )}
                         <td data-col="Issue Date" className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-[var(--text-secondary)] tabular-nums`}>{formatDateDot(inv.issue_date)}</td>
-                        <td data-col="Vendor" className="px-3 py-3 text-[var(--text-primary)] font-medium">{inv.vendor_name_raw}</td>
+                        <td data-col="Vendor" className="px-3 py-3 text-[var(--text-primary)] font-medium">
+                          {(() => { const badge = getInvoiceTypeBadge(inv); return badge ? <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 mr-1.5 align-middle" style={{ color: badge.color, background: badge.bg }}>{badge.label}</span> : null; })()}
+                          {inv.vendor_name_raw}
+                        </td>
                         <td data-col="Invoice #" className="px-3 py-3 text-[var(--text-secondary)]">
                           {inv.invoice_number ?? '-'}
                           {inv.invoice_number?.startsWith('PV-') && !inv.file_url && (
@@ -1337,6 +1492,25 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                       );
                     })}
                   </tbody>
+                  <tfoot className="sticky bottom-0 z-10">
+                    <tr className="border-t-2 border-[var(--surface-highest)]">
+                      {config.showApproval && <td className="bg-[var(--surface-header)]" />}
+                      <td className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)] bg-[var(--surface-header)]`}>
+                        {filteredInvoices.length} item{filteredInvoices.length !== 1 ? 's' : ''}
+                      </td>
+                      <td className="bg-[var(--surface-header)]" />
+                      <td className="bg-[var(--surface-header)]" />
+                      {config.showFirmColumn && !config.firmId && <td className="bg-[var(--surface-header)]" />}
+                      <td className="bg-[var(--surface-header)]" />
+                      <td className="px-3 py-3 text-right font-bold text-[var(--text-primary)] tabular-nums text-sm bg-[var(--surface-header)]">
+                        {formatRM(filteredInvoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0).toFixed(2))}
+                      </td>
+                      <td className="bg-[var(--surface-header)]" />
+                      {config.showApproval && <td className="bg-[var(--surface-header)]" />}
+                      <td className="bg-[var(--surface-header)]" />
+                      <td className="bg-[var(--surface-header)]" />
+                    </tr>
+                  </tfoot>
                 </table>
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between px-5 py-3 border-t border-[#E0E3E5]">
@@ -1354,7 +1528,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           </div>
 
         </main>
-        )}
       </div>
 
       {/* SUBMIT NEW INVOICE MODAL */}

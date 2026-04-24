@@ -44,22 +44,8 @@ export async function GET(request: NextRequest) {
     extraFilters.payment_status = { not: 'paid' };
   }
 
-  // Always show pending review (admin) regardless of date
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let where: any;
-  const hasDates = dateFrom || dateTo;
-  if (hasDates && !search) {
-    where = {
-      ...scope,
-      ...extraFilters,
-      OR: [
-        dateFilter,
-        { status: 'pending_review' },
-      ],
-    };
-  } else {
-    where = { ...scope, ...dateFilter, ...extraFilters };
-  }
+  let where: any = { ...scope, ...dateFilter, ...extraFilters };
 
   if (search) {
     where.OR = [
@@ -77,7 +63,7 @@ export async function GET(request: NextRequest) {
         category: { select: { name: true } },
         _count: { select: { lines: true } },
       },
-      orderBy: { issue_date: 'desc' },
+      orderBy: [{ issue_date: 'desc' }, { id: 'asc' }],
       take: takeParam || 100,
     }),
     prisma.invoice.count({ where }),

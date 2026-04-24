@@ -533,7 +533,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto p-8 pl-14 animate-in ledger-binding">
+        <main className="flex-1 overflow-y-auto pt-8 px-8 pb-0 pl-14 animate-in ledger-binding">
           {/* ── Aging expanded table ── */}
           {showAging && agingData.length > 0 && agingSummary && (
             <div className="mb-4">
@@ -703,6 +703,21 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
                     );
                   })}
                 </tbody>
+                <tfoot className="sticky bottom-0 z-10">
+                  <tr className="border-t-2 border-[var(--surface-highest)]">
+                    <td className="px-4 py-2.5 text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)] bg-[var(--surface-header)]">
+                      {sortedSuppliers.length} supplier{sortedSuppliers.length !== 1 ? 's' : ''}
+                    </td>
+                    {config.showFirmColumn && <td className="bg-[var(--surface-header)]" />}
+                    <td className="px-3 py-2.5 text-right text-sm font-bold tabular-nums text-[var(--text-secondary)] bg-[var(--surface-header)]">
+                      {sortedSuppliers.reduce((s, sup) => s + sup.invoice_count + sup.sales_invoice_count, 0)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-bold tabular-nums text-sm text-[var(--text-primary)] bg-[var(--surface-header)]">
+                      {formatRM(sortedSuppliers.reduce((s, sup) => s + Number(sup.total_outstanding) - Number(sup.receivable_amount), 0))}
+                    </td>
+                    <td className="bg-[var(--surface-header)]" />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

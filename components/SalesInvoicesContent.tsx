@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import GlAccountSelect from '@/components/GlAccountSelect';
 
@@ -120,7 +120,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
   // Filters
   const [paymentFilter, setPaymentFilter] = useState('');
-  const [dateRange, setDateRange] = useState('this_month');
+  const [dateRange, setDateRange] = useState('');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
 
@@ -133,6 +133,12 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
   // GL accounts (accountant only)
   const [glAccounts, setGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  // Cache GL accounts and categories per firm (don't change mid-session)
+  const glCacheRef = useRef<Record<string, {
+    glAccounts: { id: string; account_code: string; name: string; account_type: string }[];
+    categories: { id: string; name: string; gl_account_id?: string }[];
+  }>>({});
   const [selectedGlAccountId, setSelectedGlAccountId] = useState('');
   const [selectedContraGlId, setSelectedContraGlId] = useState('');
   const [_categories, setCategories] = useState<{ id: string; name: string; gl_account_id?: string }[]>([]);
@@ -161,6 +167,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
   const refresh = () => setRefreshKey((k) => k + 1);
 
   // Fetch GL accounts + categories when preview opens (accountant only)
+  // GL accounts and categories are cached per firm (don't change mid-session)
   useEffect(() => {
     if (role !== 'accountant' || !preview?.firm_id) {
       setGlAccounts([]);
@@ -168,32 +175,41 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       setSelectedContraGlId('');
       return;
     }
-    Promise.all([
-      fetch(`/api/gl-accounts?firmId=${preview.firm_id}`).then(r => r.json()),
-      fetch(`/api/categories?firmId=${preview.firm_id}`).then(r => r.json()),
-      fetch(`/api/accounting-settings?firmId=${preview.firm_id}`).then(r => r.json()),
-    ]).then(([glJson, catJson, _settingsJson]) => {
-      const accounts = glJson.data ?? [];
-      setGlAccounts(accounts);
-      setCategories(catJson.data ?? []);
 
-      // Pre-fill revenue GL from category mapping
+    const firmId = preview.firm_id;
+    const cached = glCacheRef.current[firmId];
+
+    const resolveGl = (accounts: typeof glAccounts, catData: { id: string; name: string; gl_account_id?: string }[]) => {
+      setGlAccounts(accounts);
+      setCategories(catData);
       if (preview.gl_account_id) {
         setSelectedGlAccountId(preview.gl_account_id);
       } else if (preview.category_id) {
-        const catData = catJson.data ?? [];
-        const match = catData.find((c: { id: string; gl_account_id?: string }) => c.id === preview.category_id);
+        const match = catData.find((c) => c.id === preview.category_id);
         setSelectedGlAccountId(match?.gl_account_id ?? '');
       } else {
         setSelectedGlAccountId('');
       }
-
-      // Pre-fill contra GL (Trade Receivables) — no firm default for this, leave empty
       setSelectedContraGlId('');
-    }).catch(console.error);
+    };
+
+    if (cached) {
+      resolveGl(cached.glAccounts, cached.categories);
+    } else {
+      Promise.all([
+        fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/accounting-settings?firmId=${firmId}`).then(r => r.json()),
+      ]).then(([glJson, catJson, _settingsJson]) => {
+        const accounts = glJson.data ?? [];
+        const catData = catJson.data ?? [];
+        glCacheRef.current[firmId] = { glAccounts: accounts, categories: catData };
+        resolveGl(accounts, catData);
+      }).catch(console.error);
+    }
   }, [preview, role]);
 
-  // Fetch GL accounts + categories when create modal opens
+  // Fetch GL accounts + categories when create modal opens (uses glCacheRef)
   useEffect(() => {
     if (!showCreate) return;
 
@@ -202,9 +218,24 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       const selectedSupplier = suppliers.find(s => s.id === createData.supplier_id);
       const firmId = selectedSupplier?.firm_id || suppliers[0]?.firm_id;
       if (!firmId) { setCreateGlAccounts([]); return; }
-      fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json())
-        .then(j => setCreateGlAccounts(j.data ?? []))
-        .catch(console.error);
+
+      const cached = glCacheRef.current[firmId];
+      if (cached) {
+        setCreateGlAccounts(cached.glAccounts);
+        setCreateCategories(cached.categories);
+        return;
+      }
+
+      Promise.all([
+        fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json()),
+        fetch(`/api/categories?firmId=${firmId}`).then(r => r.json()),
+      ]).then(([glJson, catJson]) => {
+        const glData = glJson.data ?? [];
+        const catData = catJson.data ?? [];
+        glCacheRef.current[firmId] = { glAccounts: glData, categories: catData };
+        setCreateGlAccounts(glData);
+        setCreateCategories(catData);
+      }).catch(console.error);
     } else {
       // Admin: fetch categories (admin API doesn't need firmId)
       fetch(`/api/admin/categories`).then(r => r.json())
@@ -215,6 +246,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
   // Batch approve/reject/revert for sales invoices
   const batchAction = async (ids: string[], action: 'approve' | 'reject' | 'revert', glAccountId?: string, contraGlId?: string) => {
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
     try {
       const res = await fetch('/api/sales-invoices/batch', {
         method: 'PATCH',
@@ -228,6 +260,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       });
       if (res.ok) {
         refresh();
+        requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
         if (preview && ids.includes(preview.id)) {
           setPreview({ ...preview, approval: action === 'approve' ? 'approved' : action === 'reject' ? 'not_approved' : 'pending_approval' });
         }
@@ -248,21 +281,8 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
     if (paymentFilter) p.set('paymentStatus', paymentFilter);
 
     // Date range
-    const now = new Date();
-    if (dateRange === 'this_week') {
-      const d = new Date(now); d.setDate(d.getDate() - d.getDay());
-      p.set('dateFrom', d.toISOString().split('T')[0]);
-    } else if (dateRange === 'this_month') {
-      p.set('dateFrom', `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`);
-    } else if (dateRange === 'last_month') {
-      const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const lmEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-      p.set('dateFrom', lm.toISOString().split('T')[0]);
-      p.set('dateTo', lmEnd.toISOString().split('T')[0]);
-    } else if (dateRange === 'custom') {
-      if (customFrom) p.set('dateFrom', customFrom);
-      if (customTo) p.set('dateTo', customTo);
-    }
+    if (customFrom) p.set('dateFrom', customFrom);
+    if (customTo) p.set('dateTo', customTo);
 
     fetch(`${apiBase}?${p}`)
       .then((r) => r.json())
@@ -270,7 +290,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [paymentFilter, dateRange, customFrom, customTo, refreshKey, apiBase]);
+  }, [paymentFilter, customFrom, customTo, refreshKey, apiBase]);
 
   // ─── Fetch suppliers for create modal ────────────────────────────────────────
 
@@ -400,20 +420,9 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
       {/* ── Filter bar ───────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
-        <Select value={dateRange} onChange={setDateRange}>
-          <option value="">All Time</option>
-          <option value="this_week">This Week</option>
-          <option value="this_month">This Month</option>
-          <option value="last_month">Last Month</option>
-          <option value="custom">Custom</option>
-        </Select>
-
-        {dateRange === 'custom' && (
-          <>
-            <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="input-field" />
-            <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="input-field" />
-          </>
-        )}
+        <input type="date" value={customFrom} onChange={(e) => { setCustomFrom(e.target.value); setDateRange('custom'); }} className="input-field" />
+        <span className="text-[#8E9196] text-sm">&ndash;</span>
+        <input type="date" value={customTo} onChange={(e) => { setCustomTo(e.target.value); setDateRange('custom'); }} className="input-field" />
 
         <Select value={approvalFilter} onChange={setApprovalFilter}>
           <option value="">All Approval</option>
@@ -432,7 +441,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
         <div className="ml-auto">
           <button
             onClick={() => setShowCreate(true)}
-            className="btn-primary px-4 py-2 rounded-lg text-sm font-semibold"
+            className="btn-thick-navy px-4 py-2 rounded-lg text-sm font-semibold"
           >
             + New Invoice
           </button>
@@ -440,7 +449,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
       </div>
 
       {/* ── Table ────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-auto rounded-lg bg-white">
+      <div ref={tableScrollRef} className="flex-1 min-h-0 overflow-auto rounded-lg bg-white">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left">
@@ -470,7 +479,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 return (
                   <tr
                     key={inv.id}
-                    className="group hover:bg-[#F2F4F6] cursor-pointer transition-colors"
+                    className="group hover:bg-[var(--surface-header)] cursor-pointer transition-colors"
                     onClick={() => setPreview(inv)}
                   >
                     <td data-col="Invoice #" className="px-6 py-3 font-medium text-[#191C1E]">{inv.invoice_number || '-'}</td>
@@ -488,7 +497,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                     <td className="px-6 py-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setPreview(inv); }}
-                        className="btn-primary text-label-sm px-3 py-1"
+                        className="btn-thick-navy text-label-sm px-3 py-1"
                       >
                         View
                       </button>
@@ -498,6 +507,19 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
               })
             )}
           </tbody>
+          <tfoot className="sticky bottom-0 z-10">
+            <tr className="text-sm font-semibold">
+              <td className="px-6 py-3 bg-[var(--surface-header)]">{sortedInvoices.length} item{sortedInvoices.length !== 1 ? 's' : ''}</td>
+              <td className="px-6 py-3 bg-[var(--surface-header)]" />
+              <td className="px-6 py-3 bg-[var(--surface-header)]" />
+              <td className="px-6 py-3 bg-[var(--surface-header)]" />
+              <td className="px-6 py-3 text-right bg-[var(--surface-header)] tabular-nums">{formatRM(sortedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0))}</td>
+              <td className="px-6 py-3 text-right bg-[var(--surface-header)] tabular-nums">{formatRM(sortedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid), 0))}</td>
+              <td className="px-6 py-3 bg-[var(--surface-header)]" />
+              <td className="px-6 py-3 bg-[var(--surface-header)]" />
+              <td className="px-6 py-3 bg-[var(--surface-header)]" />
+            </tr>
+          </tfoot>
         </table>
       </div>
 
@@ -555,7 +577,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                         } catch { setCreateError('Failed to create buyer'); }
                         setCreatingBuyer(false);
                       }}
-                      className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-primary transition-all duration-200 disabled:opacity-40"
+                      className="text-label-sm px-3 py-1.5 rounded-lg font-medium text-white btn-thick-navy transition-all duration-200 disabled:opacity-40"
                     >
                       {creatingBuyer ? 'Adding...' : 'Add'}
                     </button>
@@ -754,7 +776,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 <button
                   onClick={submitCreate}
                   disabled={submitting}
-                  className="btn-primary flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn-thick-navy flex-1 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {submitting ? 'Creating...' : 'Create Invoice'}
                 </button>
@@ -884,13 +906,13 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 <div className="flex gap-3">
                   <button
                     onClick={() => batchAction([preview.id], 'approve', selectedGlAccountId || undefined, selectedContraGlId || undefined)}
-                    className="btn-approve flex-1 py-2 rounded-lg text-sm font-semibold"
+                    className="btn-thick-green flex-1 py-2 rounded-lg text-sm font-semibold"
                   >
                     Approve
                   </button>
                   <button
                     onClick={() => batchAction([preview.id], 'reject')}
-                    className="btn-reject flex-1 py-2 rounded-lg text-sm font-semibold"
+                    className="btn-thick-red flex-1 py-2 rounded-lg text-sm font-semibold"
                   >
                     Reject
                   </button>
@@ -900,7 +922,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
                 <div className="flex gap-3">
                   <button
                     onClick={() => batchAction([preview.id], 'revert')}
-                    className="btn-reject flex-1 py-2 rounded-lg text-sm font-semibold"
+                    className="btn-thick-red flex-1 py-2 rounded-lg text-sm font-semibold"
                   >
                     Revert to Pending
                   </button>
