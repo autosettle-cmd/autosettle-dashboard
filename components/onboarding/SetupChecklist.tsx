@@ -43,7 +43,7 @@ function highlightButton(target: string) {
   }, 3000);
 }
 
-export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAddAdmin }: SetupChecklistProps) {
+export default function SetupChecklist({ firmId, firms, onOpenEditFirm: _onOpenEditFirm, onOpenAddAdmin: _onOpenAddAdmin }: SetupChecklistProps) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);

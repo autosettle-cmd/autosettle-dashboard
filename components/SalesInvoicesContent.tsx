@@ -120,7 +120,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
   // Filters
   const [paymentFilter, setPaymentFilter] = useState('');
-  const [dateRange, setDateRange] = useState('');
+  const [_dateRange, setDateRange] = useState('');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
 

@@ -63,7 +63,7 @@ function Select({ value, onChange, children }: { value: string; onChange: (v: st
 }
 
 export default function FilterBar({
-  dateRange,
+  dateRange: _dateRange,
   onDateRangeChange,
   customFrom = '',
   customTo = '',

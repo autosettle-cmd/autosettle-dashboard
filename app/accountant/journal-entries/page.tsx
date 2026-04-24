@@ -138,7 +138,7 @@ export default function JournalEntriesPage() {
   const [dateRange,     setDateRange]     = useState('');
   const [customFrom,    setCustomFrom]    = useState('');
   const [customTo,      setCustomTo]      = useState('');
-  const [sourceFilter,  setSourceFilter]  = useState('');
+  const [sourceFilter,  _setSourceFilter]  = useState('');
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(['PI', 'SI', 'PV', 'OR', 'CR', 'JV']));
   const toggleType = (t: string) => setActiveTypes(prev => { const next = new Set(prev); if (next.has(t)) next.delete(t); else next.add(t); return next; });
   const [statusFilter,  setStatusFilter]  = useState('');

@@ -10,7 +10,6 @@ import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM, getDateRange } from '@/lib/formatters';
 import { useFilters } from '@/hooks/useFilters';
 import { APPROVAL_CFG } from '@/lib/badge-config';
-import FilterBar from '@/components/filters/FilterBar';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
