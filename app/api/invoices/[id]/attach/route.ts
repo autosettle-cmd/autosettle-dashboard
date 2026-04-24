@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { uploadFileForFirm } from '@/lib/google-drive';
-import { extractInvoiceFromPDF, extractFromImage, extractWithGeminiInvoice } from '@/lib/whatsapp/gemini';
+import { extractInvoiceFromPDF, extractWithGeminiInvoice } from '@/lib/whatsapp/gemini';
 import { runOCR, normaliseOCRText } from '@/lib/whatsapp/ocr';
 import { parseGeminiInvoiceOutput } from '@/lib/whatsapp/parser';
 import { createHash } from 'crypto';

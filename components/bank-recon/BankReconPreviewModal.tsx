@@ -104,21 +104,21 @@ export default function BankReconPreviewModal({
   onUnmatch,
   onOpenMatchModal,
   onSetExpandedDocUrl,
-  onSetPreviewInvoice,
-  onSetPreviewClaim,
+  onSetPreviewInvoice: _onSetPreviewInvoice,
+  onSetPreviewClaim: _onSetPreviewClaim,
   onPrev,
   onNext,
   onRefresh,
   matchingDisabled,
 }: BankReconPreviewModalProps) {
   const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
-  const [attachingFile, setAttachingFile] = useState(false);
-  const [attachError, setAttachError] = useState('');
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [showInvoicePicker, setShowInvoicePicker] = useState(false);
-  const [invoiceSearchResults, setInvoiceSearchResults] = useState<{ id: string; invoice_number: string; vendor_name: string; issue_date: string; total_amount: string; thumbnail_url: string | null }[]>([]);
-  const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
-  const [loadingInvoices, setLoadingInvoices] = useState(false);
+  const [_attachingFile, setAttachingFile] = useState(false);
+  const [_attachError, setAttachError] = useState('');
+  const [_showAttachMenu, _setShowAttachMenu] = useState(false);
+  const [_showInvoicePicker, setShowInvoicePicker] = useState(false);
+  const [_invoiceSearchResults, setInvoiceSearchResults] = useState<{ id: string; invoice_number: string; vendor_name: string; issue_date: string; total_amount: string; thumbnail_url: string | null }[]>([]);
+  const [_invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  const [_loadingInvoices, setLoadingInvoices] = useState(false);
 
   const isPV = txn.matched_invoice?.invoice_number?.startsWith('PV-');
   const _canAttachFromRecon = isPV && !txn.matched_invoice?.file_url;
@@ -140,7 +140,7 @@ export default function BankReconPreviewModal({
       setGlAccounts(accounts);
       // Auto-suggest debit GL from matched invoice/claim
       const mi = txn.matched_invoice;
-      const mia = txn.matched_invoice_allocations;
+      const _mia = txn.matched_invoice_allocations;
       const msi = txn.matched_sales_invoice;
       if (txn.debit) {
         // Outgoing: debit = Trade Payables (contra), credit = Bank
@@ -186,7 +186,7 @@ export default function BankReconPreviewModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txn.id, isSuggested]);
 
-  const handleAttachFile = async (file: File) => {
+  const _handleAttachFile = async (file: File) => {
     if (!txn.matched_invoice) return;
     setAttachingFile(true);
     setAttachError('');
@@ -202,7 +202,7 @@ export default function BankReconPreviewModal({
     finally { setAttachingFile(false); }
   };
 
-  const handleLinkExisting = async (sourceInvoiceId: string) => {
+  const _handleLinkExisting = async (sourceInvoiceId: string) => {
     if (!txn.matched_invoice) return;
     setAttachingFile(true);
     setAttachError('');
@@ -220,7 +220,7 @@ export default function BankReconPreviewModal({
     finally { setAttachingFile(false); }
   };
 
-  const searchInvoices = async (term: string) => {
+  const _searchInvoices = async (term: string) => {
     setInvoiceSearchTerm(term);
     if (!term.trim()) { setInvoiceSearchResults([]); return; }
     setLoadingInvoices(true);
