@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 const SupplierPreviewPanel = dynamic(() => import('@/components/suppliers/SupplierPreviewPanel'));
 const SupplierPaymentModal = dynamic(() => import('@/components/suppliers/SupplierPaymentModal'));
 const SupplierEditModal = dynamic(() => import('@/components/suppliers/SupplierEditModal'));
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM } from '@/lib/formatters';
@@ -226,6 +226,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
   const [editExpenseGlId, setEditExpenseGlId] = useState('');
   const [editContraGlId, setEditContraGlId] = useState('');
   const [editGlAccounts, setEditGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
+  const glCacheRef = useRef<Record<string, { id: string; account_code: string; name: string; account_type: string }[]>>({});
 
   // Payment side panel
   const [paymentSupplier, setPaymentSupplier] = useState<Supplier | null>(null);
@@ -350,7 +351,16 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
       setEditExpenseGlId(s.default_gl_account_id ?? '');
       setEditContraGlId(s.default_contra_gl_account_id ?? '');
       if (s.firm_id) {
-        fetch(`/api/gl-accounts?firmId=${s.firm_id}`).then(r => r.json()).then(j => setEditGlAccounts(j.data ?? [])).catch(console.error);
+        const cached = glCacheRef.current[s.firm_id];
+        if (cached) {
+          setEditGlAccounts(cached);
+        } else {
+          fetch(`/api/gl-accounts?firmId=${s.firm_id}`).then(r => r.json()).then(j => {
+            const accounts = j.data ?? [];
+            glCacheRef.current[s.firm_id!] = accounts;
+            setEditGlAccounts(accounts);
+          }).catch(console.error);
+        }
       }
     }
   };
