@@ -2,7 +2,7 @@ import { prisma } from './prisma';
 import { JournalSourceType, Prisma } from '../generated/prisma';
 import { auditLog } from './audit';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface JournalLineInput {
   glAccountId: string;
@@ -19,23 +19,37 @@ export interface CreateJournalEntryParams {
   sourceId?: string;
   lines: JournalLineInput[];
   createdBy?: string;
+  /** Voucher number prefix (e.g. 'PV', 'OR', 'PI', 'SI', 'CR', 'JV'). Defaults based on sourceType. */
+  voucherPrefix?: string;
   /** Optional Prisma transaction client — if provided, runs inside the caller's transaction */
   tx?: Prisma.TransactionClient;
 }
 
+// ─── Voucher Prefix Defaults ───────────────────────────────────────────────
+
+const DEFAULT_PREFIX: Record<JournalSourceType, string> = {
+  invoice_posting: 'PI',
+  sales_invoice_posting: 'SI',
+  bank_recon: 'PV',
+  manual: 'JV',
+  year_end_close: 'JV',
+  claim_approval: 'JV',
+};
+
 // ─── Voucher Number ─────────────────────────────────────────────────────────
 
 /**
- * Generates the next voucher number for a firm in format JV-YYYY-NNNN.
- * Uses the posting year to scope the sequence.
+ * Generates the next voucher number for a firm in format {PREFIX}-YYYY-NNNN.
+ * Each prefix has its own independent sequence per firm per year.
  */
 async function generateVoucherNumber(
   client: Prisma.TransactionClient,
   firmId: string,
-  postingDate: Date
+  postingDate: Date,
+  voucherPrefix: string = 'JV'
 ): Promise<string> {
   const year = postingDate.getFullYear();
-  const prefix = `JV-${year}-`;
+  const prefix = `${voucherPrefix}-${year}-`;
 
   const latest = await client.journalEntry.findFirst({
     where: {
@@ -94,7 +108,8 @@ export async function findOpenPeriod(
  * If `tx` is provided, runs inside the caller's transaction.
  */
 export async function createJournalEntry(params: CreateJournalEntryParams) {
-  const { firmId, postingDate, description, sourceType, sourceId, lines, createdBy, tx } = params;
+  const { firmId, postingDate, description, sourceType, sourceId, lines, createdBy, voucherPrefix, tx } = params;
+  const resolvedPrefix = voucherPrefix ?? DEFAULT_PREFIX[sourceType];
 
   // Validation
   if (lines.length < 2) {
@@ -149,7 +164,7 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
     } catch {
       // No fiscal period — JV still created, period can be assigned later
     }
-    const voucherNumber = await generateVoucherNumber(client, firmId, postingDate);
+    const voucherNumber = await generateVoucherNumber(client, firmId, postingDate, resolvedPrefix);
 
     const entry = await client.journalEntry.create({
       data: {
@@ -235,7 +250,9 @@ export async function reverseJournalEntry(
         // No open period — reversal still created, period can be assigned later
       }
     }
-    const voucherNumber = await generateVoucherNumber(client, original.firm_id, postingDate);
+    // Extract prefix from original voucher number (e.g. "PV-2026-0001" → "PV")
+    const originalPrefix = original.voucher_number.split('-')[0] || 'JV';
+    const voucherNumber = await generateVoucherNumber(client, original.firm_id, postingDate, originalPrefix);
 
     // Create reversal JV with flipped DR/CR
     const reversal = await client.journalEntry.create({
