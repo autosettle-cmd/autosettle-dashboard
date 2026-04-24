@@ -160,6 +160,9 @@ export async function createBankReconJV(
     }
   }
 
+  // Determine voucher prefix: claim reimbursement → CR, outgoing → PV, incoming → OR
+  const legacyPrefix = isClaimPayment ? 'CR' : (payment.direction === 'outgoing' ? 'PV' : 'OR');
+
   try {
     await createJournalEntry({
       firmId,
@@ -167,6 +170,7 @@ export async function createBankReconJV(
       description: `Bank recon — ${counterpartyName}`,
       sourceType: 'bank_recon',
       sourceId: bankTransactionId,
+      voucherPrefix: legacyPrefix,
       lines: [
         { glAccountId: debitGlId!, debitAmount: amount, creditAmount: 0, description: debitLabel },
         { glAccountId: creditGlId!, debitAmount: 0, creditAmount: amount, description: creditLabel },

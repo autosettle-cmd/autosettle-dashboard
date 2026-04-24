@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   }
   const firmIds = await getAccountantFirmIds(session.user.id);
 
-  const { bankTransactionIds } = await request.json();
+  const { bankTransactionIds, debitGlId, creditGlId } = await request.json();
   if (!Array.isArray(bankTransactionIds) || bankTransactionIds.length === 0) {
     return NextResponse.json({ data: null, error: 'bankTransactionIds required' }, { status: 400 });
   }
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
         if (!invoice) continue;
 
         const firm = firmMap.get(firmId);
-        const contraGlId = invoice.supplier?.default_contra_gl_account_id || firm?.default_trade_payables_gl_id;
+        const contraGlId = debitGlId || invoice.supplier?.default_contra_gl_account_id || firm?.default_trade_payables_gl_id;
         if (!contraGlId) { errors.push(`No Trade Payables GL for ${invoice.vendor_name_raw}`); invoiceGlError = true; break; }
 
         const allocAmount = Number(alloc.amount);
@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
         description,
         sourceType: 'bank_recon',
         sourceId: txn.id,
+        voucherPrefix: 'PV',
         lines: jvLines,
         createdBy: session.user.id,
       });
@@ -225,7 +226,7 @@ export async function POST(request: NextRequest) {
       if (!salesInvoice) continue;
 
       const firm = firmMap.get(firmId);
-      const receivablesGlId = firm?.default_trade_receivables_gl_id;
+      const receivablesGlId = creditGlId || firm?.default_trade_receivables_gl_id;
       if (!receivablesGlId) { errors.push('No Trade Receivables GL configured'); continue; }
 
       const newPaid = Number(salesInvoice.amount_paid) + txnAmount;
@@ -240,6 +241,7 @@ export async function POST(request: NextRequest) {
         description: `Bank recon — ${salesInvoice.buyer?.name ?? 'Customer'}`,
         sourceType: 'bank_recon',
         sourceId: txn.id,
+        voucherPrefix: 'OR',
         lines: [
           { glAccountId: bankGlId, debitAmount: txnAmount, creditAmount: 0, description: txn.bankStatement.bank_name },
           { glAccountId: receivablesGlId, debitAmount: 0, creditAmount: txnAmount, description: 'Trade Receivables' },
@@ -291,6 +293,7 @@ export async function POST(request: NextRequest) {
         description: `Bank recon — ${description}`,
         sourceType: 'bank_recon',
         sourceId: txn.id,
+        voucherPrefix: 'CR',
         lines: [
           ...expenseLines,
           { glAccountId: bankGlId, debitAmount: 0, creditAmount: txnAmount, description: txn.bankStatement.bank_name },

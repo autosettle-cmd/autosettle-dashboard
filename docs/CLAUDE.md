@@ -80,3 +80,4 @@ No hardcoded colors (use CSS vars from `config/branding.ts`). No AG Grid. Center
 | [`/docs/platform-owner.md`](/docs/platform-owner.md) | Platform owner portal, analytics dashboard |
 | [`/docs/signup-spec.md`](/docs/signup-spec.md) | Employee self-signup, admin creation |
 | [`/docs/categories-spec.md`](/docs/categories-spec.md) | Category business rules |
+| [`/docs/audit-checklist.md`](/docs/audit-checklist.md) | Patterns the `/audit` skill verifies — voucher prefixes, table stability, GL cache, totals, badges, layouts |

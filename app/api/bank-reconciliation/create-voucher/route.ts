@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
   const firmIds = await getAccountantFirmIds(session.user.id);
 
   const { bankTransactionId, supplier_id, new_supplier_name, category_id, gl_account_id, reference, notes } = await request.json();
-  if (!bankTransactionId || !category_id) {
-    return NextResponse.json({ data: null, error: 'bankTransactionId and category_id are required' }, { status: 400 });
+  if (!bankTransactionId) {
+    return NextResponse.json({ data: null, error: 'bankTransactionId is required' }, { status: 400 });
   }
 
   const txn = await prisma.bankTransaction.findUnique({
@@ -92,7 +92,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: `Cannot create payment voucher — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
   }
 
-  const voucherNumber = reference || `PV-${Date.now()}`;
+  // Generate PV number if no reference provided — PV-001 per-firm sequence
+  let voucherNumber = reference;
+  if (!voucherNumber) {
+    const existing = await prisma.invoice.findMany({
+      where: { firm_id: firmId, invoice_number: { startsWith: 'PV-' } },
+      select: { invoice_number: true },
+      orderBy: { created_at: 'desc' },
+      take: 200,
+    });
+    let maxNum = 0;
+    const regex = /PV-(\d+)/;
+    for (const inv of existing) {
+      const m = inv.invoice_number?.match(regex);
+      if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+    }
+    voucherNumber = `PV-${String(maxNum + 1).padStart(3, '0')}`;
+  }
 
   // Create Invoice record (accounts payable — money going out to supplier, already paid)
   const invoice = await prisma.invoice.create({
@@ -100,12 +116,13 @@ export async function POST(request: NextRequest) {
       firm_id: firmId,
       uploaded_by: session.user.employee_id || session.user.id,
       supplier_id: resolvedSupplierId,
+      supplier_link_status: 'confirmed',
       vendor_name_raw: supplier.name,
       invoice_number: voucherNumber,
       issue_date: txn.transaction_date,
       total_amount: amount,
       amount_paid: amount,
-      category_id: category_id,
+      category_id: category_id || null,
       confidence: 'HIGH',
       status: 'reviewed',
       payment_status: 'paid',
@@ -132,18 +149,19 @@ export async function POST(request: NextRequest) {
       recon_status: 'manually_matched',
       matched_at: new Date(),
       matched_by: session.user.id,
-      notes: `Payment voucher — ${supplier.name}${reference ? ` (${reference})` : ''}`,
+      notes: notes || `Payment voucher — ${supplier.name}${reference ? ` (${reference})` : ''}`,
     },
   });
 
   // Create JV — GL accounts already validated above
-  const category = await prisma.category.findUnique({ where: { id: category_id }, select: { name: true } });
+  const category = category_id ? await prisma.category.findUnique({ where: { id: category_id }, select: { name: true } }) : null;
   await createJournalEntry({
     firmId,
     postingDate: txn.transaction_date,
     description: `Payment voucher — ${supplier.name} (${voucherNumber})`,
     sourceType: 'bank_recon',
     sourceId: bankTransactionId,
+    voucherPrefix: 'PV',
     lines: [
       { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: `${category?.name ?? 'Expense'} — ${supplier.name}` },
       { glAccountId: bankAccount!.gl_account_id, debitAmount: 0, creditAmount: amount, description: txn.bankStatement.bank_name },

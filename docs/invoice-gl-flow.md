@@ -195,6 +195,69 @@ CR  Revenue GL                   RM X,XXX.XX
 
 ---
 
+## Payment Vouchers (PV) & Official Receipts (OR)
+
+### What They Are
+
+- **Payment Voucher (PV):** An Invoice record created from a bank recon **debit** transaction (money going out). Pre-approved, auto-paid, no document.
+- **Official Receipt (OR):** A SalesInvoice record created from a bank recon **credit** transaction (money coming in). Pre-approved, auto-paid, no document.
+
+Both are created when a bank transaction has no matching invoice — the accountant creates one inline to record the payment.
+
+### Numbering
+
+Format: `PV-001`, `PV-002`, `OR-001`, `OR-002` — sequential per firm, no firm name in the number.
+
+- Sequence is global per firm (not per supplier)
+- Different firms can have the same numbers (e.g., both Firm A and Firm B have PV-001)
+- Old records using the legacy format (`PV-{SUPPLIER}-001`) are left as-is
+- Frontend calls `/api/bank-reconciliation/next-voucher-number` (PV) or `/api/bank-reconciliation/next-receipt-number` (OR) to get the next number
+- Backend create routes also generate the number as a fallback if no reference is provided
+
+### PV Document Attachment
+
+Payment goes out first, actual invoice arrives later. Two paths to attach the real document:
+
+**Path 1 — Preview modal:** Open the PV in the invoice preview modal → right panel shows an "Attach Document" dropzone → upload file → OCR runs → warns if amount/vendor mismatch → file saved.
+
+**Path 2 — Normal upload auto-detect:** Upload an invoice normally → after OCR, system calls `/api/invoices/match-voucher` to find a PV with matching vendor + amount (within RM 0.01) → if found, blue banner prompts "Attach to PV-XXX?" → Yes calls `/api/invoices/{id}/attach`.
+
+**Path 3 — Bank recon preview:** In the accountant's bank recon preview modal, PV invoices with no document show a small "Attach" button inline on the matched invoice block.
+
+#### Rules
+
+- **No double accounting:** Attaching a file only updates `file_url`, `file_download_url`, `thumbnail_url`, `file_hash`. No new Invoice, no new JV.
+- **Invoice number update:** If OCR extracts a real invoice number, `invoice_number` is updated from `PV-XXX` to the real number.
+- **Vendor/amount mismatch:** Warn only, no auto-edit. File is saved regardless.
+- **Dedup check:** SHA256 file hash checked before upload — rejects if same file already attached to another invoice.
+- **Supplier link status:** PV creation sets `supplier_link_status: 'confirmed'` (not the default `unmatched`).
+
+### "No doc" Indicator
+
+PV invoices with `file_url === null` show an amber "No doc" badge:
+
+| Location | Condition |
+|----------|-----------|
+| Invoice list table | PV- prefix + no file_url |
+| Bank recon transaction row | `manually_matched` + PV- prefix + no file_url (not shown for `matched`/suggested) |
+| Bank recon preview modal (accountant) | PV- prefix + no file_url, inline on matched invoice block |
+| Bank recon admin inline expansion | PV- prefix + no file_url, in "Linked Invoices" section |
+
+### Key Files
+
+| File | Role |
+|------|------|
+| `app/api/bank-reconciliation/next-voucher-number/route.ts` | Next PV number (per-firm sequence) |
+| `app/api/bank-reconciliation/next-receipt-number/route.ts` | Next OR number (per-firm sequence) |
+| `app/api/bank-reconciliation/create-voucher/route.ts` | Create PV (accountant) |
+| `app/api/admin/bank-reconciliation/create-voucher/route.ts` | Create PV (admin) |
+| `app/api/bank-reconciliation/create-receipt/route.ts` | Create OR (accountant) |
+| `app/api/admin/bank-reconciliation/create-receipt/route.ts` | Create OR (admin) |
+| `app/api/invoices/[id]/attach/route.ts` | Attach document to existing PV |
+| `app/api/invoices/match-voucher/route.ts` | Find PV matching vendor + amount for upload auto-detect |
+
+---
+
 ## Key Files
 
 ### Purchase Invoices

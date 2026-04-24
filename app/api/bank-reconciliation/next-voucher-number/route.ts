@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-// GET — get next receipt number for a firm
-// Pattern: OR-{NNN} — per-firm sequence
+// GET — get next payment voucher number for a firm
+// Pattern: PV-{NNN} — per-firm sequence
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,10 +19,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: null, error: 'firmId required' }, { status: 400 });
     }
 
-    const existing = await prisma.salesInvoice.findMany({
+    const existing = await prisma.invoice.findMany({
       where: {
         firm_id: firmId,
-        invoice_number: { startsWith: 'OR-' },
+        invoice_number: { startsWith: 'PV-' },
       },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
@@ -30,20 +30,20 @@ export async function GET(request: NextRequest) {
     });
 
     let maxNum = 0;
-    const regex = /OR-(\d+)/;
+    const regex = /PV-(\d+)/;
 
     for (const inv of existing) {
-      const match = inv.invoice_number.match(regex);
+      const match = inv.invoice_number?.match(regex);
       if (match) {
         const num = parseInt(match[1], 10);
         if (num > maxNum) maxNum = num;
       }
     }
 
-    const nextNumber = `OR-${String(maxNum + 1).padStart(3, '0')}`;
+    const nextNumber = `PV-${String(maxNum + 1).padStart(3, '0')}`;
     return NextResponse.json({ data: nextNumber, error: null });
   } catch (error) {
-    console.error('Error generating receipt number:', error);
-    return NextResponse.json({ data: null, error: 'Failed to generate receipt number' }, { status: 500 });
+    console.error('Error generating voucher number:', error);
+    return NextResponse.json({ data: null, error: 'Failed to generate voucher number' }, { status: 500 });
   }
 }

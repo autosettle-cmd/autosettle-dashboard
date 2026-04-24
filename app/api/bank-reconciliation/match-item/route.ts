@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
         description: `Bank recon — ${invoice.vendor_name_raw}`,
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
+        voucherPrefix: 'PV',
         lines: [
           { glAccountId: contraGlId, debitAmount: payAmount, creditAmount: 0, description: 'Trade Payables' },
           { glAccountId: bankGlId, debitAmount: 0, creditAmount: payAmount, description: txn.bankStatement.bank_name },
@@ -195,6 +196,7 @@ export async function POST(request: NextRequest) {
         description: `Bank recon — ${salesInvoice.buyer?.name ?? 'Customer'}`,
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
+        voucherPrefix: 'OR',
         lines: [
           { glAccountId: bankGlId, debitAmount: payAmount, creditAmount: 0, description: txn.bankStatement.bank_name },
           { glAccountId: receivablesGlId, debitAmount: 0, creditAmount: payAmount, description: 'Trade Receivables' },
@@ -291,6 +293,7 @@ export async function POST(request: NextRequest) {
         description: `Reimbursement — ${descriptions.join(', ')}`.slice(0, 255),
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
+        voucherPrefix: 'CR',
         lines: jvLines,
         createdBy: session.user.id,
       });

@@ -26,6 +26,7 @@ Read `/docs/CLAUDE.md` for full guidelines before doing anything.
 | `/docs/jv-rules.md` | JV source types, GL resolution, reversal, fiscal periods |
 | `/docs/invoice-gl-flow.md` | Purchase + sales invoices — OCR → GL → approval → learning |
 | `/docs/auto-suggest-flow.md` | Supplier matching, GL suggest, bank recon auto-match, bank parsing, dedup |
+| `/docs/audit-checklist.md` | Established patterns the `/audit` skill must verify — voucher prefixes, table stability, GL cache, sticky totals, type badges, unified layouts |
 | `/docs/gl-reports.md` | General Ledger, Trial Balance, P&L, Balance Sheet |
 | `/docs/auth.md` | Login flow, middleware |
 | `/docs/whatsapp-backend.md` | WhatsApp + OCR pipeline |

@@ -90,7 +90,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: `Cannot create official receipt — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
   }
 
-  const receiptNumber = reference || `OR-${Date.now()}`;
+  // Generate OR number if no reference provided — OR-001 per-firm sequence
+  let receiptNumber = reference;
+  if (!receiptNumber) {
+    const existingOR = await prisma.salesInvoice.findMany({
+      where: { firm_id: firmId, invoice_number: { startsWith: 'OR-' } },
+      select: { invoice_number: true },
+      orderBy: { created_at: 'desc' },
+      take: 200,
+    });
+    let maxNum = 0;
+    const regex = /OR-(\d+)/;
+    for (const inv of existingOR) {
+      const m = inv.invoice_number.match(regex);
+      if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+    }
+    receiptNumber = `OR-${String(maxNum + 1).padStart(3, '0')}`;
+  }
 
   // Create SalesInvoice record (official receipt = issued invoice, already paid)
   const salesInvoice = await prisma.salesInvoice.create({
@@ -120,7 +136,7 @@ export async function POST(request: NextRequest) {
       matched_sales_invoice_id: salesInvoice.id,
       matched_at: new Date(),
       matched_by: session.user.id,
-      notes: `Official receipt — ${supplier.name}${reference ? ` (${reference})` : ''}`,
+      notes: notes || `Official receipt — ${supplier.name}${reference ? ` (${reference})` : ''}`,
     },
   });
 
@@ -131,6 +147,7 @@ export async function POST(request: NextRequest) {
     description: `Official receipt — ${supplier.name} (${receiptNumber})`,
     sourceType: 'bank_recon',
     sourceId: bankTransactionId,
+    voucherPrefix: 'OR',
     lines: [
       { glAccountId: bankAccount!.gl_account_id, debitAmount: amount, creditAmount: 0, description: txn.bankStatement.bank_name },
       { glAccountId: incomeGlId!, debitAmount: 0, creditAmount: amount, description: `${supplier.name} — ${receiptNumber}` },

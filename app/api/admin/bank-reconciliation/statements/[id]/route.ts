@@ -41,7 +41,7 @@ export async function GET(
             },
           },
         },
-        orderBy: { transaction_date: 'asc' },
+        orderBy: [{ transaction_date: 'asc' }, { created_at: 'asc' }, { id: 'asc' }],
       },
     },
   });

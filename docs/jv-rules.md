@@ -102,7 +102,7 @@ Multi-level suggestion system for pre-filling GL fields:
    - Fallback to today if no open period for original date
    - Create JV even without open period (period assigned later)
 3. Create reversal JV:
-   - New voucher number: `JV-YYYY-NNNN` (auto-incremented)
+   - New voucher number: `{PREFIX}-YYYY-NNNN` (same prefix as original, auto-incremented)
    - Description: `"Reversal of {original_voucher}"`
    - Lines: DR/CR amounts flipped from original
    - Bidirectional link: `reversed_by_id` ↔ `reversal_of_id`
@@ -135,10 +135,24 @@ Used by:
 
 ## Voucher Numbering
 
-- Format: `JV-YYYY-NNNN` (e.g., `JV-2026-0001`)
+- Format: `{PREFIX}-YYYY-NNNN` (e.g., `PV-2026-0001`, `PI-2026-0003`)
+- Each prefix has its own independent sequence per firm per year
 - Year-scoped per firm (resets to 0001 each year per firm)
-- Auto-incremented: finds max voucher number for firm+year, adds 1
+- Auto-incremented: finds max voucher number for firm+year+prefix, adds 1
 - Unique per firm (not globally unique)
+
+### Prefix Mapping
+
+| Prefix | Full Name | When Used |
+|--------|-----------|-----------|
+| **PI** | Purchase Invoice | Invoice approval (`invoice_posting`) |
+| **SI** | Sales Invoice | Sales invoice approval (`sales_invoice_posting`) |
+| **PV** | Payment Voucher | Bank recon matched to invoice (money out) |
+| **OR** | Official Receipt | Bank recon matched to sales invoice (money in) |
+| **CR** | Claim Reimbursement | Bank recon matched to employee claims |
+| **JV** | Journal Voucher | Manual entries, year-end close, legacy |
+
+Reversals preserve the original prefix (e.g., reversal of `PV-2026-0003` → `PV-2026-0004`).
 
 ---
 

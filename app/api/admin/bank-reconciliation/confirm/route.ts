@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
       await createJournalEntry({
         firmId, postingDate: txn.transaction_date,
         description: txnAllocations.length === 1 ? `Bank recon — ${descs[0]}` : `Bank recon — ${txnAllocations.length} invoices`,
-        sourceType: 'bank_recon', sourceId: txn.id, lines: jvLines, createdBy: session.user.id,
+        sourceType: 'bank_recon', sourceId: txn.id, voucherPrefix: 'PV', lines: jvLines, createdBy: session.user.id,
       });
 
       for (const alloc of txnAllocations) { await recalcInvoicePaid(alloc.invoice_id); }
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
         await createJournalEntry({
           firmId, postingDate: txn.transaction_date,
           description: `Bank recon — ${si.buyer?.name ?? 'Customer'}`,
-          sourceType: 'bank_recon', sourceId: txn.id,
+          sourceType: 'bank_recon', sourceId: txn.id, voucherPrefix: 'OR',
           lines: [
             { glAccountId: bankGlId, debitAmount: txnAmount, creditAmount: 0, description: txn.bankStatement.bank_name },
             { glAccountId: receivablesGlId, debitAmount: 0, creditAmount: txnAmount, description: 'Trade Receivables' },
@@ -211,7 +211,7 @@ export async function POST(request: NextRequest) {
       await createJournalEntry({
         firmId, postingDate: txn.transaction_date,
         description: `Bank recon — ${txnClaims.length === 1 ? `${txnClaims[0].category?.name} — ${txnClaims[0].merchant}` : `${txnClaims.length} claims (${claimEmployees.join(', ')})`}`,
-        sourceType: 'bank_recon', sourceId: txn.id,
+        sourceType: 'bank_recon', sourceId: txn.id, voucherPrefix: 'CR',
         lines: [...expenseLines, { glAccountId: bankGlId, debitAmount: 0, creditAmount: txnAmount, description: txn.bankStatement.bank_name }],
         createdBy: session.user.id,
       });
