@@ -172,24 +172,12 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     }
   }, [role, firms, firmId]);
 
-  // Fetch pending counts for sidebar badges (filtered by selected firm for accountants)
+  // Fetch pending counts for sidebar badges — single consolidated API call
   useEffect(() => {
     if (role === 'employee') return;
-    const prefix = role === 'admin' ? '/api/admin' : '/api';
-    const firmParam = role === 'accountant' && firmId ? `?firmId=${firmId}` : '';
-    Promise.all([
-      fetch(`${prefix}/claims/counts${firmParam}`).then((r) => r.json()),
-      fetch(`${prefix}/invoices/counts${firmParam}`).then((r) => r.json()),
-      fetch(`/api/admin/employees/pending`).then((r) => r.json()),
-    ]).then(([claimsRes, invoicesRes, employeesRes]) => {
-      setCounts({
-        claimPending: claimsRes.data?.claimPending ?? 0,
-        receiptPending: claimsRes.data?.receiptPending ?? 0,
-        mileagePending: claimsRes.data?.mileagePending ?? 0,
-        receivedPending: invoicesRes.data?.receivedPending ?? 0,
-        issuedPending: invoicesRes.data?.issuedPending ?? 0,
-        employeesPending: employeesRes.meta?.count ?? 0,
-      });
+    const firmParam = firmId ? `?firmId=${firmId}` : '';
+    fetch(`/api/sidebar-counts${firmParam}`).then((r) => r.json()).then((j) => {
+      if (j.data) setCounts(j.data);
     }).catch(() => {});
   }, [role, firmId]);
 
