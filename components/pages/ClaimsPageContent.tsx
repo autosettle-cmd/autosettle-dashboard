@@ -684,14 +684,13 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   useEffect(() => {
     if (editMode && previewClaim) {
       if (isAccountant) {
-        fetch(`${config.apiCategories}?firmId=${previewClaim.firm_id}`)
-          .then(r => r.json())
-          .then(j => setCategories(j.data ?? []))
-          .catch(console.error);
-        fetch(`${config.apiEmployees}?firmId=${previewClaim.firm_id}`)
-          .then(r => r.json())
-          .then(j => setModalEmployees((j.data ?? []).filter((emp: { is_active: boolean }) => emp.is_active)))
-          .catch(console.error);
+        Promise.all([
+          fetch(`${config.apiCategories}?firmId=${previewClaim.firm_id}`).then(r => r.json()),
+          fetch(`${config.apiEmployees}?firmId=${previewClaim.firm_id}`).then(r => r.json()),
+        ]).then(([catJson, empJson]) => {
+          setCategories(catJson.data ?? []);
+          setModalEmployees((empJson.data ?? []).filter((emp: { is_active: boolean }) => emp.is_active));
+        }).catch(console.error);
       }
       // Admin already has categories/employees loaded globally
     }
