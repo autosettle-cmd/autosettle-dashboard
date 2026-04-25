@@ -80,7 +80,7 @@ const glCacheRef = useRef<Record<string, { glAccounts, categories, firmDefaultCo
 - `SalesInvoicesContent.tsx` — ✅ fixed 2026-04-24
 - `BankReconDetailContent.tsx` — ✅ fixed 2026-04-24 (receiptGlAccounts state cache)
 - `BankReconPreviewModal.tsx` — ✅ applied
-- `SuppliersPageContent.tsx` — check if fetches GL on preview
+- `SuppliersPageContent.tsx` — ✅ fixed 2026-04-24 (glCacheRef added)
 - Any component that fetches `/api/gl-accounts`, `/api/categories`, or `/api/accounting-settings` per modal open
 
 ---
@@ -311,10 +311,58 @@ When editing line items on an invoice preview (`showLineItems` is true), Approve
 
 `lib/prisma.ts` uses a `pg` Pool with `max: 5` connections per serverless instance. The PrismaClient and Pool are cached globally via `globalThis` in ALL environments (including production). This prevents connection exhaustion on Vercel.
 
-**Never remove the global caching or increase max beyond 10 without checking VPS `max_connections` (currently 100).**
+**Never remove the global caching or increase max beyond 10 without checking VPS `max_connections` (currently 200).**
 
 ---
 
 ## 25. GlAccountSelect Search Input Padding
 
 The search input in `GlAccountSelect` must have `px-3` for proper left padding so placeholder text doesn't stick to the edge. The input inherits `btn-thick-navy` styling which has no built-in padding.
+
+---
+
+## 26. Sidebar Consolidated Counts
+
+Sidebar badge counts must use a single `/api/sidebar-counts` endpoint — never 3 separate calls to claims/counts + invoices/counts + employees/pending.
+
+**Status:** ✅ Fixed 2026-04-24
+
+---
+
+## 27. CSS-Only Tooltips
+
+All tooltips must be pure CSS (`:hover` + `::after` or `group-hover`). No JS `onMouseEnter`/`onMouseLeave` state, no tooltip libraries.
+
+- Status badges: `data-tooltip` attribute + CSS `::after` ✅
+- Column labels: `data-col` attribute + CSS `::after` ✅
+- HelpTooltip: CSS `group-hover` ✅ (converted from JS 2026-04-24)
+
+---
+
+## 28. API Fetch Batching (Promise.all)
+
+Multiple fetches for the same action must use a single `Promise.all`. Never scatter across separate `useEffect` hooks or use sequential `await` calls.
+
+**Status:** ✅ All pages verified 2026-04-24. ClaimsPageContent edit-mode fetch batched.
+
+---
+
+## 29. Contra GL Resolution Consistency
+
+The contra GL suggestion algorithm must be identical everywhere invoices are previewed. The full chain:
+1. Invoice's saved `contra_gl_account_id`
+2. Supplier's `default_contra_gl_account_id`
+3. Supplier alias lookup contra GL
+4. Fuzzy name match (strips sdn/bhd/plt, full-string + 2-word overlap)
+5. Firm default Trade Payables GL
+- If resolved = firm default, still try fuzzy name match for supplier-specific sub-account
+
+**Applied in:** InvoicesPageContent ✅, dashboard page ✅ (fixed 2026-04-24)
+
+---
+
+## 30. Firm Scoping TTL Cache
+
+`getAccountantFirmIds()` in `lib/accountant-firms.ts` must have a 30-second TTL cache via in-memory Map to prevent hammering DB on every API call.
+
+**Status:** ✅ Already implemented (30s TTL, keyed by userId)
