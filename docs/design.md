@@ -552,7 +552,7 @@ Keycap-style navigation strips flanking preview modals. Same material as `btn-th
 **Dashboard tab buttons:** Keycap tiles sliding in a milled track. The track is a darker recessed groove (`bg-[#D0D3D8]`, inset shadow, `gap-0.5`) so the darker channel shows between tiles as a 2px seam. Active tab = `btn-thick-navy`, inactive = `btn-thick-white`. Count badges use `.notification-badge` overlay.
 
 **Dashboard preview modals:**
-- **Invoice preview:** Uses shared `InvoicePreviewPanel` (not inline code). Full approve/reject/edit/GL/line items/nav actuators.
+- **Invoice preview:** Uses shared `InvoicePreviewPanel` (not inline code). Full approve/reject/edit/GL/line items/nav actuators. When editing line items, approve/reject/review buttons are disabled (greyed out) — user must save or cancel first.
 - **Claim preview:** Inline (shared `ClaimPreviewPanel` lacks GL selection + approve/reject — TODO to migrate).
 - **Preview data fetching:** Single `Promise.all` with all fetches (invoice data, GL accounts, categories, settings, suppliers, alias lookup). Never scatter fetches across multiple useEffects — one batch, one render cycle, with cancellation cleanup.
 - **Full invoice data:** Fetched via `GET /api/invoices/{id}` on preview open (dashboard table has minimal data, shared component needs full shape).

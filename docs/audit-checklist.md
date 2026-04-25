@@ -298,3 +298,23 @@ Never use `btn-primary`, `btn-approve`, `btn-reject` — always use the `btn-thi
 ## 22. Confirm & Create Label
 
 All confirmation buttons that create JVs or documents use the generic label **"Confirm & Create"** — not "Confirm & Create JV", "Confirm & Post JV", "Confirm Payment Voucher", etc. The system knows what it's creating; the user doesn't need to identify it.
+
+---
+
+## 23. Line Item Edit Mode Disables Actions
+
+When editing line items on an invoice preview (`showLineItems` is true), Approve, Reject, and Mark as Reviewed buttons must be disabled (`disabled={showLineItems}` + `disabled:opacity-40 disabled:cursor-not-allowed`). User must save or cancel line items first.
+
+---
+
+## 24. DB Connection Pool
+
+`lib/prisma.ts` uses a `pg` Pool with `max: 5` connections per serverless instance. The PrismaClient and Pool are cached globally via `globalThis` in ALL environments (including production). This prevents connection exhaustion on Vercel.
+
+**Never remove the global caching or increase max beyond 10 without checking VPS `max_connections` (currently 100).**
+
+---
+
+## 25. GlAccountSelect Search Input Padding
+
+The search input in `GlAccountSelect` must have `px-3` for proper left padding so placeholder text doesn't stick to the edge. The input inherits `btn-thick-navy` styling which has no built-in padding.

@@ -137,6 +137,20 @@ Login currently returns 401 error. Fix checklist:
 
 ---
 
+## Database Connection Pool
+
+`lib/prisma.ts` manages connections:
+- **Pool:** `pg` Pool with `max: 5` connections per serverless instance
+- **Timeouts:** idle 30s, connection 10s
+- **Caching:** PrismaClient + Pool cached via `globalThis` in ALL environments (dev + production)
+- **VPS limit:** PostgreSQL `max_connections = 100` (supports ~20 concurrent serverless instances)
+
+**If connections exhaust:** restart PostgreSQL on VPS (`sudo systemctl restart postgresql`), then connections clear immediately.
+
+**Future consideration:** Add PgBouncer on VPS when client count grows significantly.
+
+---
+
 ## Future (not building now)
 - Password reset via email
 - "Set your password" email link for new admin accounts
