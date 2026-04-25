@@ -147,7 +147,21 @@ Login currently returns 401 error. Fix checklist:
 
 **If connections exhaust:** restart PostgreSQL on VPS (`sudo systemctl restart postgresql`), then connections clear immediately.
 
-**Future consideration:** Add PgBouncer on VPS when client count grows significantly.
+**PostgreSQL tuning (8GB VPS):**
+- `shared_buffers = 2GB` (25% of RAM)
+- `work_mem = 16MB`
+- `effective_cache_size = 6GB`
+- `max_connections = 200`
+- `random_page_cost = 1.1` (SSD)
+- `maintenance_work_mem = 512MB`
+- `idle_in_transaction_session_timeout = 30s`
+- Config file: `/etc/postgresql/16/main/postgresql.conf`
+
+**Keep-warm cron:** VPS crontab pings `https://forturaadvisory.com/api/cron/keep-warm` every 5 minutes to prevent Vercel cold starts.
+
+**Vercel region:** Singapore (sin1) — closest to VPS in India and users in Malaysia.
+
+**Future consideration:** Add PgBouncer on VPS when client count grows significantly. Consider migrating VPS to Singapore for same-region DB + serverless.
 
 ---
 
