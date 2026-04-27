@@ -487,3 +487,93 @@ The "Clients" nav item shows a badge count of firms with incomplete required set
 - Add Admin → opens admin modal on the page
 
 **Status:** ✅ All steps implemented with inline modals (2026-04-27)
+
+---
+
+## 11. Batch Upload Global Context
+
+All batch upload/scan/submit operations MUST use `useBatchProcess()` from `contexts/BatchProcessContext.tsx`. Never use local `useState` loops for batch operations — they die on navigation.
+
+### Design Rule
+- **`startScan()`** — for OCR scanning loops (invoices, claims). Worker closure captures page-specific data (categories, suppliers).
+- **`startSubmit()`** — for upload/submit loops (all pages). Worker returns `{ name, ok, msg }` per item.
+- **`BatchUploadOverlay`** renders from the provider globally — never render it from page components.
+- `scan_done` phase keeps the floating bar visible until user clicks it → navigates to `returnPath` → review modal opens.
+- `submit_done` phase shows results summary in floating bar.
+
+### Migrated Pages
+- `components/pages/InvoicesPageContent.tsx` — ✅ scan + submit
+- `components/pages/ClaimsPageContent.tsx` — ✅ scan + submit
+- `app/employee/claims/page.tsx` — ✅ submit only
+- `app/admin/bank-reconciliation/page.tsx` — ✅ upload loop
+- `app/accountant/bank-reconciliation/page.tsx` — ✅ upload loop
+
+### TODO
+- `components/onboarding/SetupCoaModal.tsx` — still local (single API call, would need returnPath to client detail page)
+- Any future upload modal must follow this pattern
+
+**Status:** ✅ All batch pages migrated (2026-04-27). SetupCoaModal deferred.
+
+---
+
+## 12. Google Drive File Cleanup on Delete
+
+When a record with an attached file is deleted, the Google Drive file must be cleaned up.
+
+### Pattern
+- `deleteFileFromDrive(fileUrl)` in `lib/google-drive.ts` — extracts Drive file ID from URL, calls Drive API DELETE
+- **Non-blocking** — DB delete succeeds even if Drive API fails (logs warning)
+- Called AFTER the DB delete (not before)
+
+### Covered Endpoints
+- `app/api/invoices/delete/route.ts` — ✅
+- `app/api/claims/delete/route.ts` — ✅
+- `app/api/admin/claims/delete/route.ts` — ✅
+- `app/api/bank-reconciliation/statements/delete/route.ts` — ✅
+- `app/api/admin/bank-reconciliation/statements/delete/route.ts` — ✅
+
+### TODO
+- Sales invoice delete (if/when added)
+- Historical orphan cleanup — planned for God Mode dashboard
+
+**Status:** ✅ All delete endpoints cleaned up (2026-04-27)
+
+---
+
+## 13. Bank Recon GL Guard
+
+Bank recon statement rows must not be clickable when the bank account has no GL assigned.
+
+### Pattern
+- **Accountant:** `bankGlMap[key]?.gl_account_id` check in row onClick — alerts "Please assign a GL account"
+- **Admin:** `has_gl` field returned from statements API — alerts "Ask your accountant to assign GL"
+
+### Files
+- `app/accountant/bank-reconciliation/page.tsx` — ✅ client-side check
+- `app/admin/bank-reconciliation/page.tsx` — ✅ client-side check + "No GL assigned" badge
+- `app/api/admin/bank-reconciliation/statements/route.ts` — ✅ returns `has_gl` per statement
+
+**Status:** ✅ Both roles blocked (2026-04-27)
+
+---
+
+## 14. Voucher PDF Generation for PV/OR
+
+PV (Payment Voucher) and OR (Official Receipt) records without documents can generate a voucher-style PDF that attaches to the record.
+
+### Pattern
+- `lib/generate-voucher-pdf.ts` — client-side jsPDF, returns Blob
+- Blob uploaded via `/api/invoices/[id]/attach` (PV) or `/api/sales-invoices/[id]/attach` (OR)
+- `generated=true` flag skips OCR and dedup checks
+- After upload, preview refreshes (or modal closes + refresh in bank recon)
+
+### Files
+- `components/invoices/InvoicePreviewPanel.tsx` — generate button for PV/OR without file
+- `components/bank-recon/BankReconPreviewModal.tsx` — generate button for matched PV/OR
+- `app/api/invoices/[id]/attach/route.ts` — accepts PV + OR, `generated` flag
+- `app/api/sales-invoices/[id]/attach/route.ts` — new endpoint for OR records
+
+### Schema
+- `SalesInvoice` now has `file_url`, `file_download_url`, `thumbnail_url`, `file_hash` fields
+
+**Status:** ✅ PV + OR generation working (2026-04-27)
