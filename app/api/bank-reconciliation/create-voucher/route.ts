@@ -110,6 +110,14 @@ export async function POST(request: NextRequest) {
     voucherNumber = `PV-${String(maxNum + 1).padStart(3, '0')}`;
   }
 
+  // Resolve category — fallback to Miscellaneous
+  let resolvedCategoryId = category_id;
+  if (!resolvedCategoryId) {
+    const misc = await prisma.category.findFirst({ where: { name: 'Miscellaneous' }, select: { id: true } });
+    if (!misc) return NextResponse.json({ data: null, error: 'No default category found. Please select a category.' }, { status: 400 });
+    resolvedCategoryId = misc.id;
+  }
+
   // Create Invoice record (accounts payable — money going out to supplier, already paid)
   const invoice = await prisma.invoice.create({
     data: {
@@ -122,7 +130,7 @@ export async function POST(request: NextRequest) {
       issue_date: txn.transaction_date,
       total_amount: amount,
       amount_paid: amount,
-      category_id: category_id || null,
+      category_id: resolvedCategoryId,
       confidence: 'HIGH',
       status: 'reviewed',
       payment_status: 'paid',
