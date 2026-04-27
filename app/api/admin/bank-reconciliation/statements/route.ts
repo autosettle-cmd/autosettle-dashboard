@@ -54,8 +54,23 @@ export async function GET() {
       countMap.set(row.bank_statement_id, entry);
     }
 
+    // Fetch bank account GL mappings for this firm
+    const bankAccounts = await prisma.bankAccount.findMany({
+      where: { firm_id: firmId },
+      select: { bank_name: true, account_number: true, gl_account_id: true, glAccount: { select: { account_code: true, name: true } } },
+    });
+    const glMap: Record<string, { gl_account_id: string | null; gl_account_label: string | null }> = {};
+    for (const ba of bankAccounts) {
+      const key = `${ba.bank_name}|${ba.account_number}`;
+      glMap[key] = {
+        gl_account_id: ba.gl_account_id,
+        gl_account_label: ba.gl_account_id && ba.glAccount ? `${ba.glAccount.account_code} — ${ba.glAccount.name}` : null,
+      };
+    }
+
     const data = statements.map((s) => {
       const counts = countMap.get(s.id) ?? { matched: 0, unmatched: 0, excluded: 0, total: 0 };
+      const glKey = `${s.bank_name}|${s.account_number ?? ''}`;
       return {
         id: s.id,
         bank_name: s.bank_name,
@@ -72,6 +87,7 @@ export async function GET() {
         matched: counts.matched,
         unmatched: counts.unmatched,
         excluded: counts.excluded,
+        has_gl: !!glMap[glKey]?.gl_account_id,
       };
     });
 
