@@ -1,6 +1,3 @@
-import { GoogleAuth } from "google-auth-library";
-import { parseServiceAccountCredentials } from "@/lib/google-drive";
-
 export interface ParsedCoaAccount {
   account_code: string;
   name: string;
@@ -9,39 +6,20 @@ export interface ParsedCoaAccount {
   parent_code: string | null;
 }
 
-const TIMEOUT_MS = 60_000; // COA PDFs can be long
+const TIMEOUT_MS = 60_000;
 const MAX_RETRIES = 2;
 
-let authClient: GoogleAuth | null = null;
-
-function getAuthClient(): GoogleAuth {
-  if (!authClient) {
-    const credentials = parseServiceAccountCredentials();
-    authClient = new GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-    });
-  }
-  return authClient;
-}
-
-async function getGeminiUrl(): Promise<{ url: string; token: string }> {
-  const projectId = process.env.VERTEX_PROJECT_ID!;
-  const location = process.env.VERTEX_LOCATION || "asia-southeast1";
-  const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
-  const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/publishers/google/models/${model}:generateContent`;
-  const auth = getAuthClient();
-  const client = await auth.getClient();
-  const tokenResult = await client.getAccessToken();
-  return { url, token: tokenResult.token! };
-}
-
 /**
- * Parse a Chart of Accounts PDF using Gemini multimodal.
+ * Parse a Chart of Accounts PDF using Google Gemini API.
+ * Uses the simple API key approach (GEMINI_API_KEY) — no Vertex AI dependency.
  * Returns an array of parsed account entries for review before import.
  */
 export async function parseCoaPdf(pdfBuffer: Buffer): Promise<ParsedCoaAccount[]> {
-  const { url, token } = await getGeminiUrl();
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+
+  const model = 'gemini-2.5-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const systemPrompt = `You are an expert accounting chart of accounts parser.
 
@@ -76,10 +54,7 @@ Example: [{"account_code":"100-000","name":"Cash & Bank","account_type":"Asset",
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{
             role: "user",
