@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 // GET — get next payment voucher number for a firm
-// Pattern: PV-{NNN} — per-firm sequence
+// Pattern: PV-{year}-{NNN} — per-firm per-year sequence
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,28 +19,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: null, error: 'firmId required' }, { status: 400 });
     }
 
+    const year = new Date().getFullYear();
+    const prefix = `PV-${year}-`;
+
     const existing = await prisma.invoice.findMany({
-      where: {
-        firm_id: firmId,
-        invoice_number: { startsWith: 'PV-' },
-      },
+      where: { firm_id: firmId, invoice_number: { startsWith: prefix } },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
       take: 200,
     });
 
     let maxNum = 0;
-    const regex = /PV-(\d+)/;
-
     for (const inv of existing) {
-      const match = inv.invoice_number?.match(regex);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
+      const seq = parseInt(inv.invoice_number?.replace(prefix, '') ?? '0', 10);
+      if (seq > maxNum) maxNum = seq;
     }
 
-    const nextNumber = `PV-${String(maxNum + 1).padStart(3, '0')}`;
+    const nextNumber = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
     return NextResponse.json({ data: nextNumber, error: null });
   } catch (error) {
     console.error('Error generating voucher number:', error);

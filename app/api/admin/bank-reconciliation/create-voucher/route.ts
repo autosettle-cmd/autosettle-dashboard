@@ -7,6 +7,7 @@ import { createJournalEntry } from '@/lib/journal-entries';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  try {
   const session = await getServerSession(authOptions);
   if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
     return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
@@ -90,22 +91,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: `Cannot create payment voucher — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
   }
 
-  // Generate PV number if no reference provided — PV-001 per-firm sequence
+  // Generate PV number if no reference provided — PV-{year}-{seq} per-firm sequence
   let voucherNumber = reference;
   if (!voucherNumber) {
+    const year = txn.transaction_date.getFullYear();
+    const prefix = `PV-${year}-`;
     const existing = await prisma.invoice.findMany({
-      where: { firm_id: firmId, invoice_number: { startsWith: 'PV-' } },
+      where: { firm_id: firmId, invoice_number: { startsWith: prefix } },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
       take: 200,
     });
     let maxNum = 0;
-    const regex = /PV-(\d+)/;
     for (const inv of existing) {
-      const m = inv.invoice_number?.match(regex);
-      if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+      const seq = parseInt(inv.invoice_number?.replace(prefix, '') ?? '0', 10);
+      if (seq > maxNum) maxNum = seq;
     }
-    voucherNumber = `PV-${String(maxNum + 1).padStart(3, '0')}`;
+    voucherNumber = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
   }
 
   // Create Invoice record (accounts payable — money going out to supplier, already paid)
@@ -171,4 +173,8 @@ export async function POST(request: NextRequest) {
     data: { recon_status: 'manually_matched', invoice_id: invoice.id },
     error: null,
   });
+  } catch (err) {
+    console.error('[API] admin/bank-reconciliation/create-voucher error:', err);
+    return NextResponse.json({ data: null, error: err instanceof Error ? err.message : 'Failed to create payment voucher' }, { status: 500 });
+  }
 }

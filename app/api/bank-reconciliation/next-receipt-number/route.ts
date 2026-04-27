@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 
 // GET — get next receipt number for a firm
-// Pattern: OR-{NNN} — per-firm sequence
+// Pattern: OR-{year}-{NNN} — per-firm per-year sequence
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -19,28 +19,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: null, error: 'firmId required' }, { status: 400 });
     }
 
+    const year = new Date().getFullYear();
+    const prefix = `OR-${year}-`;
+
     const existing = await prisma.salesInvoice.findMany({
-      where: {
-        firm_id: firmId,
-        invoice_number: { startsWith: 'OR-' },
-      },
+      where: { firm_id: firmId, invoice_number: { startsWith: prefix } },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
       take: 200,
     });
 
     let maxNum = 0;
-    const regex = /OR-(\d+)/;
-
     for (const inv of existing) {
-      const match = inv.invoice_number.match(regex);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        if (num > maxNum) maxNum = num;
-      }
+      const seq = parseInt(inv.invoice_number.replace(prefix, ''), 10);
+      if (seq > maxNum) maxNum = seq;
     }
 
-    const nextNumber = `OR-${String(maxNum + 1).padStart(3, '0')}`;
+    const nextNumber = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
     return NextResponse.json({ data: nextNumber, error: null });
   } catch (error) {
     console.error('Error generating receipt number:', error);

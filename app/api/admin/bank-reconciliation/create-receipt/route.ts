@@ -90,22 +90,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: `Cannot create official receipt — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
   }
 
-  // Generate OR number if no reference provided — OR-001 per-firm sequence
+  // Generate OR number if no reference provided — OR-{year}-{seq} per-firm sequence
   let receiptNumber = reference;
   if (!receiptNumber) {
+    const year = txn.transaction_date.getFullYear();
+    const prefix = `OR-${year}-`;
     const existingOR = await prisma.salesInvoice.findMany({
-      where: { firm_id: firmId, invoice_number: { startsWith: 'OR-' } },
+      where: { firm_id: firmId, invoice_number: { startsWith: prefix } },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
       take: 200,
     });
     let maxNum = 0;
-    const regex = /OR-(\d+)/;
     for (const inv of existingOR) {
-      const m = inv.invoice_number.match(regex);
-      if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+      const seq = parseInt(inv.invoice_number.replace(prefix, ''), 10);
+      if (seq > maxNum) maxNum = seq;
     }
-    receiptNumber = `OR-${String(maxNum + 1).padStart(3, '0')}`;
+    receiptNumber = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
   }
 
   // Create SalesInvoice record (official receipt = issued invoice, already paid)
