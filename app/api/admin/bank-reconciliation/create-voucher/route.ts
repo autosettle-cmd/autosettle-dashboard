@@ -91,23 +91,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: `Cannot create payment voucher — JV requires GL accounts:\n${missing.join('\n')}` }, { status: 400 });
   }
 
-  // Generate PV number if no reference provided — PV-{year}-{seq} per-firm sequence
+  // Generate PV number if no reference provided — PV-{seq} per-firm sequence
   let voucherNumber = reference;
   if (!voucherNumber) {
-    const year = txn.transaction_date.getFullYear();
-    const prefix = `PV-${year}-`;
     const existing = await prisma.invoice.findMany({
-      where: { firm_id: firmId, invoice_number: { startsWith: prefix } },
+      where: { firm_id: firmId, invoice_number: { startsWith: 'PV-' } },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
       take: 200,
     });
     let maxNum = 0;
     for (const inv of existing) {
-      const seq = parseInt(inv.invoice_number?.replace(prefix, '') ?? '0', 10);
-      if (seq > maxNum) maxNum = seq;
+      const m = inv.invoice_number?.match(/PV-(\d+)/);
+      if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
     }
-    voucherNumber = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+    voucherNumber = `PV-${String(maxNum + 1).padStart(3, '0')}`;
   }
 
   // Create Invoice record (accounts payable — money going out to supplier, already paid)
