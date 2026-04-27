@@ -111,7 +111,6 @@ export async function POST(request: NextRequest) {
         // via the onboarding setup wizard after first login
       }
     });
-    }
 
     // TODO: Set up billing/trial period for firm
 
