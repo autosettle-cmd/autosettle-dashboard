@@ -43,7 +43,7 @@ function highlightButton(target: string) {
   }, 3000);
 }
 
-export default function SetupChecklist({ firmId, firms, onOpenEditFirm: _onOpenEditFirm, onOpenAddAdmin: _onOpenAddAdmin }: SetupChecklistProps) {
+export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAddAdmin }: SetupChecklistProps) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -79,7 +79,7 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm: _onOpenE
   const handleStepAction = (key: string) => {
     switch (key) {
       case 'firmDetails':
-        highlightButton('edit-firm');
+        onOpenEditFirm();
         break;
       case 'chartOfAccounts':
         setShowCoaModal(true);
@@ -88,7 +88,7 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm: _onOpenE
         setShowFyModal(true);
         break;
       case 'admin':
-        highlightButton('add-admin');
+        onOpenAddAdmin();
         break;
     }
   };
