@@ -103,7 +103,7 @@ Example: [{"account_code":"100-000","name":"Cash & Bank","account_type":"Asset",
           await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
           continue;
         }
-        throw new Error(`Gemini API error: ${res.status}`);
+        throw new Error(`Gemini API error: ${res.status} — ${errText.slice(0, 300)}`);
       }
 
       const json = await res.json();
