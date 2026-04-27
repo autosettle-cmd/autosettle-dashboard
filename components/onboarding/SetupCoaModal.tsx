@@ -403,8 +403,8 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
 
                     <div className="max-h-[40vh] overflow-y-auto border border-[#E0E3E5]">
                       <table className="w-full text-xs">
-                        <thead className="sticky top-0">
-                          <tr className="ds-table-header text-left">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="ds-table-header text-left bg-[var(--surface-header)]">
                             <th className="px-3 py-2 w-8"></th>
                             <th className="px-3 py-2">Code</th>
                             <th className="px-3 py-2">Name</th>
