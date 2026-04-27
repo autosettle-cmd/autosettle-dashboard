@@ -17,6 +17,8 @@ const InvoiceCreateModal = dynamic(() => import('@/components/invoices/InvoiceCr
 const InvoiceRejectModal = dynamic(() => import('@/components/invoices/InvoiceRejectModal'));
 const InvoicePreviewPanel = dynamic(() => import('@/components/invoices/InvoicePreviewPanel'));
 import SearchButton from '@/components/SearchButton';
+import MobileInvoiceCard from '@/components/mobile/MobileInvoiceCard';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,6 +136,7 @@ export default function InvoicesPageContentWrapper({ config }: { config: Invoice
 function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   usePageTitle('Invoices');
   const pageSearchParams = useSearchParams();
+  const isMobile = useIsMobile();
 
   // Data
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
@@ -1431,6 +1434,43 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               <div className="text-center text-sm text-[var(--text-secondary)] py-12">Loading...</div>
             ) : invoices.length === 0 ? (
               <div className="text-center text-sm text-[var(--text-secondary)] py-12">No invoices found for the selected filters.</div>
+            ) : isMobile ? (
+              <>
+                <div>
+                  {pagedInvoices.map((inv) => {
+                    const isSelected = selectedRows.some((r) => r.id === inv.id);
+                    return (
+                      <MobileInvoiceCard
+                        key={inv.id}
+                        invoice={inv}
+                        onClick={() => setPreviewInvoice(inv)}
+                        selected={isSelected}
+                        onSelect={config.showApproval ? () => toggleSelectOne(inv) : undefined}
+                      />
+                    );
+                  })}
+                  {/* Mobile sticky total */}
+                  <div className="sticky bottom-0 px-4 py-2.5 bg-[var(--surface-header)] border-t-2 border-[var(--surface-highest)] flex items-center justify-between">
+                    <span className="text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                      {filteredInvoices.length} item{filteredInvoices.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="font-bold text-[var(--text-primary)] tabular-nums text-sm">
+                      {formatRM(filteredInvoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0).toFixed(2))}
+                    </span>
+                  </div>
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-[#E0E3E5]">
+                    <p className="text-body-sm text-[var(--text-secondary)]">
+                      {page * PAGE_SIZE + 1}--{Math.min((page + 1) * PAGE_SIZE, sortedInvoices.length)} of {sortedInvoices.length}
+                    </p>
+                    <div className="flex gap-1.5">
+                      <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>
+                      <button onClick={() => setPage(page + 1)} disabled={page + 1 >= totalPages} className="btn-thick-white px-3 py-1.5 text-body-sm font-medium disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <table className="w-full">

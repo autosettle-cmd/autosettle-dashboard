@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { brand } from '@/config/branding';
 import { useFirm } from '@/contexts/FirmContext';
 import GlobalSearch from '@/components/GlobalSearch';
+import { useMobileSidebar } from '@/contexts/MobileSidebarContext';
 
 // ─── Nav configs per role ────────────────────────────────────────────────────
 
@@ -81,7 +82,8 @@ const ROLE_LABELS: Record<string, string> = {
 
 // ─── Sidebar Component ───────────────────────────────────────────────────────
 
-function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
+function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' | 'employee'; mobile?: boolean }) {
+  const { isOpen, close } = useMobileSidebar();
   const { data: session } = useSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -93,6 +95,16 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [firmHighlight, setFirmHighlight] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+
+  // Close mobile sidebar on navigation
+  const onNavClick = useCallback(() => {
+    if (mobile) close();
+  }, [mobile, close]);
+
+  // Close mobile sidebar when route changes
+  useEffect(() => {
+    if (mobile) close();
+  }, [pathname, mobile, close]);
 
   // Listen for highlight-firm-selector events from other pages
   useEffect(() => {
@@ -181,15 +193,13 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
     }).catch(() => {});
   }, [role, firmId]);
 
-  return (<>
+  const sidebarContent = (
     <aside
-      className="w-52 flex-shrink-0 flex flex-col bg-[#234B6E] relative"
+      className={`w-52 flex-shrink-0 flex flex-col bg-[#234B6E] relative ${mobile ? 'h-full' : ''}`}
       style={{
-        /* Slab sitting ON TOP — casts shadow right onto the milled well */
         boxShadow: '10px 0 20px -5px rgba(0,0,0,0.15), 4px 0 8px -2px rgba(0,0,0,0.1)',
-        /* Leading edge highlight — slab corner catching overhead light */
         borderRight: '1px solid rgba(255,255,255,0.15)',
-        zIndex: 10,
+        zIndex: mobile ? 51 : 10,
       }}
     >
       {/* Logo + Brand */}
@@ -252,6 +262,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
                           </svg>
                           <Link
                             href={child.href}
+                            onClick={onNavClick}
                             className={`relative flex-1 flex items-center py-1 px-2.5 text-[11px] tracking-tight transition-all btn-thick-sidebar ${
                               active ? 'btn-thick-sidebar-active' : ''
                             }`}
@@ -277,6 +288,7 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
             <Link
               key={href}
               href={href}
+              onClick={onNavClick}
               className={`relative flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
                 active ? 'btn-thick-sidebar-active' : ''
               }`}
@@ -345,15 +357,41 @@ function SidebarInner({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
         </div>
       </div>
     </aside>
+  );
 
+  if (mobile) {
+    return (<>
+      {/* Backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 transition-opacity"
+          onClick={close}
+        />
+      )}
+      {/* Drawer */}
+      <div
+        className="fixed inset-y-0 left-0 z-50 transition-transform duration-250 ease-out"
+        style={{
+          transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
+          paddingTop: 'var(--safe-top)',
+        }}
+      >
+        {sidebarContent}
+      </div>
       <GlobalSearch open={showSearch} onClose={() => setShowSearch(false)} role={role} firmId={firmId} />
+    </>);
+  }
+
+  return (<>
+    {sidebarContent}
+    <GlobalSearch open={showSearch} onClose={() => setShowSearch(false)} role={role} firmId={firmId} />
   </>);
 }
 
-export default function Sidebar({ role }: { role: 'admin' | 'accountant' | 'employee' }) {
+export default function Sidebar({ role, mobile = false }: { role: 'admin' | 'accountant' | 'employee'; mobile?: boolean }) {
   return (
     <Suspense>
-      <SidebarInner role={role} />
+      <SidebarInner role={role} mobile={mobile} />
     </Suspense>
   );
 }

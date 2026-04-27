@@ -15,6 +15,8 @@ const ClaimCreateModal = dynamic(() => import('@/components/claims/ClaimCreateMo
 const ClaimPreviewPanel = dynamic(() => import('@/components/claims/ClaimPreviewPanel'));
 import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 import SearchButton from '@/components/SearchButton';
+import MobileClaimCard from '@/components/mobile/MobileClaimCard';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,6 +97,7 @@ export default function ClaimsPageContentWrapper({ config }: { config: ClaimsPag
 function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   usePageTitle('Claims');
   const { data: session } = useSession();
+  const isMobile = useIsMobile();
 
   const isAccountant = config.role === 'accountant';
   const firms = useMemo(() => config.firms ?? [], [config.firms]);
@@ -1107,6 +1110,31 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
               <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">Loading...</div>
             ) : claims.length === 0 ? (
               <div className="flex items-center justify-center h-full text-sm text-[var(--text-muted)]">{claimTab === 'receipt' ? 'No receipts' : claimTab === 'mileage' ? 'No mileage claims' : 'No claims'} found for the selected filters.</div>
+            ) : isMobile ? (
+              <div>
+                {pagedClaims.map((c) => {
+                  const isSelected = selectedRows.some((r) => r.id === c.id);
+                  return (
+                    <MobileClaimCard
+                      key={c.id}
+                      claim={c}
+                      type={claimTab}
+                      onClick={() => setPreviewClaim(c)}
+                      selected={isSelected}
+                      onSelect={() => toggleSelectOne(c)}
+                    />
+                  );
+                })}
+                {/* Mobile sticky total */}
+                <div className="sticky bottom-0 px-4 py-2.5 bg-[var(--surface-header)] border-t-2 border-[var(--surface-highest)] flex items-center justify-between">
+                  <span className="text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                    {sorted.length} item{sorted.length !== 1 ? 's' : ''}
+                  </span>
+                  <span className="font-bold text-[var(--text-primary)] tabular-nums text-sm">
+                    {formatRM(sorted.reduce((s, c) => s + Number(c.amount), 0).toFixed(2))}
+                  </span>
+                </div>
+              </div>
             ) : (
               <table className="w-full">
                 <thead>

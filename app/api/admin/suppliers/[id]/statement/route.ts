@@ -32,21 +32,8 @@ export async function GET(
   const to = dateTo ? new Date(dateTo) : new Date();
   to.setHours(23, 59, 59, 999);
 
-  // ── Get supplier's invoice IDs and sales invoice IDs for bank recon lookup ──
-  const [supplierInvoiceIds, supplierSalesInvoiceIds] = await Promise.all([
-    prisma.invoice.findMany({
-      where: { supplier_id: supplierId },
-      select: { id: true },
-    }),
-    prisma.salesInvoice.findMany({
-      where: { supplier_id: supplierId },
-      select: { id: true },
-    }),
-  ]);
-  const invIds = supplierInvoiceIds.map(i => i.id);
-  const sInvIds = supplierSalesInvoiceIds.map(i => i.id);
-
   // ── Opening balance: invoices + bank recon payments + legacy payments ──
+  // Uses relation filters (invoice: { supplier_id }) instead of pre-fetching IDs
   const [invoicesBefore, salesInvoicesBefore, outPaymentsBefore, inPaymentsBefore, bankReconOutBefore, bankReconInBefore] = await Promise.all([
     prisma.invoice.aggregate({
       where: { supplier_id: supplierId, issue_date: { lt: from } },
@@ -64,28 +51,24 @@ export async function GET(
       where: { supplier_id: supplierId, direction: 'incoming', payment_date: { lt: from } },
       _sum: { amount: true },
     }),
-    invIds.length > 0
-      ? prisma.bankTransactionInvoice.aggregate({
-          where: {
-            invoice_id: { in: invIds },
-            bankTransaction: {
-              recon_status: 'manually_matched',
-              transaction_date: { lt: from },
-            },
-          },
-          _sum: { amount: true },
-        })
-      : { _sum: { amount: null } },
-    sInvIds.length > 0
-      ? prisma.bankTransaction.aggregate({
-          where: {
-            matched_sales_invoice_id: { in: sInvIds },
-            recon_status: 'manually_matched',
-            transaction_date: { lt: from },
-          },
-          _sum: { credit: true },
-        })
-      : { _sum: { credit: null } },
+    prisma.bankTransactionInvoice.aggregate({
+      where: {
+        invoice: { supplier_id: supplierId },
+        bankTransaction: {
+          recon_status: 'manually_matched',
+          transaction_date: { lt: from },
+        },
+      },
+      _sum: { amount: true },
+    }),
+    prisma.bankTransaction.aggregate({
+      where: {
+        matchedSalesInvoice: { supplier_id: supplierId },
+        recon_status: 'manually_matched',
+        transaction_date: { lt: from },
+      },
+      _sum: { credit: true },
+    }),
   ]);
 
   // Positive = firm owes supplier, Negative = supplier owes firm
@@ -119,41 +102,37 @@ export async function GET(
       select: { id: true, reference: true, payment_date: true, amount: true, notes: true },
       orderBy: { payment_date: 'asc' },
     }),
-    invIds.length > 0
-      ? prisma.bankTransactionInvoice.findMany({
-          where: {
-            invoice_id: { in: invIds },
-            bankTransaction: {
-              recon_status: 'manually_matched',
-              transaction_date: { gte: from, lte: to },
-            },
-          },
-          select: {
-            amount: true,
-            invoice: { select: { invoice_number: true, vendor_name_raw: true } },
-            bankTransaction: {
-              select: { id: true, transaction_date: true, description: true, debit: true,
-                bankStatement: { select: { bank_name: true, account_number: true } } },
-            },
-          },
-          orderBy: { bankTransaction: { transaction_date: 'asc' } },
-        })
-      : [],
-    sInvIds.length > 0
-      ? prisma.bankTransaction.findMany({
-          where: {
-            matched_sales_invoice_id: { in: sInvIds },
-            recon_status: 'manually_matched',
-            transaction_date: { gte: from, lte: to },
-          },
-          select: {
-            id: true, transaction_date: true, description: true, credit: true,
-            matchedSalesInvoice: { select: { invoice_number: true } },
-            bankStatement: { select: { bank_name: true, account_number: true } },
-          },
-          orderBy: { transaction_date: 'asc' },
-        })
-      : [],
+    prisma.bankTransactionInvoice.findMany({
+      where: {
+        invoice: { supplier_id: supplierId },
+        bankTransaction: {
+          recon_status: 'manually_matched',
+          transaction_date: { gte: from, lte: to },
+        },
+      },
+      select: {
+        amount: true,
+        invoice: { select: { invoice_number: true, vendor_name_raw: true } },
+        bankTransaction: {
+          select: { id: true, transaction_date: true, description: true, debit: true,
+            bankStatement: { select: { bank_name: true, account_number: true } } },
+        },
+      },
+      orderBy: { bankTransaction: { transaction_date: 'asc' } },
+    }),
+    prisma.bankTransaction.findMany({
+      where: {
+        matchedSalesInvoice: { supplier_id: supplierId },
+        recon_status: 'manually_matched',
+        transaction_date: { gte: from, lte: to },
+      },
+      select: {
+        id: true, transaction_date: true, description: true, credit: true,
+        matchedSalesInvoice: { select: { invoice_number: true } },
+        bankStatement: { select: { bank_name: true, account_number: true } },
+      },
+      orderBy: { transaction_date: 'asc' },
+    }),
   ]);
 
   // Batch-fetch receipt names for legacy payments (avoids N+1)

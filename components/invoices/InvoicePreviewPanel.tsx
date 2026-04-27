@@ -279,16 +279,16 @@ export default function InvoicePreviewPanel({
   return (
     <>
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewInvoice(null)} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewInvoice(null)}>
-      <div className="relative bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
-        {/* Prev/Next actuator strips — beside modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 mobile:p-0" onClick={() => setPreviewInvoice(null)}>
+      <div className="relative bg-white shadow-2xl w-full max-w-[1200px] max-h-[90vh] mobile:max-w-none mobile:max-h-none mobile:h-full flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+        {/* Prev/Next actuator strips — beside modal (hidden on mobile) */}
         {onPrev && (
-          <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+          <div onClick={onPrev} className={`nav-actuator nav-actuator-left hidden md:flex${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </div>
         )}
         {onNext && (
-          <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+          <div onClick={onNext} className={`nav-actuator nav-actuator-right hidden md:flex${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </div>
         )}
@@ -297,9 +297,9 @@ export default function InvoicePreviewPanel({
           <button onClick={() => setPreviewInvoice(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex mobile:flex-col min-h-0">
         {/* Left: Details + GL */}
-        <div className={`${config.showGlFields ? 'w-1/2' : 'w-2/5'} flex-shrink-0 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4`}>
+        <div className={`${config.showGlFields ? 'w-1/2' : 'w-2/5'} mobile:w-full mobile:max-h-[50vh] flex-shrink-0 overflow-y-auto border-r mobile:border-r-0 mobile:border-b border-[var(--surface-header)] p-5 mobile:p-4 space-y-4`}>
 
           {editMode && editData ? (
             <div className="space-y-3">

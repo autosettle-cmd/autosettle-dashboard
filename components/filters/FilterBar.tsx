@@ -56,7 +56,7 @@ const DEFAULT_PAYMENT_OPTIONS = [
 
 function Select({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field">
+    <select value={value} onChange={(e) => onChange(e.target.value)} className="input-field mobile:flex-1 mobile:min-w-0">
       {children}
     </select>
   );
@@ -88,7 +88,7 @@ export default function FilterBar({
   children,
 }: FilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+    <div className="flex flex-wrap items-center gap-2.5 mobile:gap-2 flex-shrink-0">
       {/* Date Range — plain date inputs, no preset dropdown */}
       {onCustomFromChange && onCustomToChange && (
         <>
@@ -96,14 +96,14 @@ export default function FilterBar({
             type="date"
             value={customFrom}
             onChange={(e) => { onCustomFromChange(e.target.value); if (e.target.value) onDateRangeChange('custom'); }}
-            className="input-field"
+            className="input-field mobile:flex-1 mobile:min-w-0"
           />
-          <span className="text-[#8E9196] text-sm">–</span>
+          <span className="text-[#8E9196] text-sm mobile:hidden">–</span>
           <input
             type="date"
             value={customTo}
             onChange={(e) => { onCustomToChange(e.target.value); if (e.target.value) onDateRangeChange('custom'); }}
-            className="input-field"
+            className="input-field mobile:flex-1 mobile:min-w-0"
           />
         </>
       )}
@@ -142,7 +142,7 @@ export default function FilterBar({
           placeholder={searchPlaceholder}
           value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="input-field min-w-[210px]"
+          className="input-field min-w-[210px] mobile:min-w-0 mobile:w-full"
         />
       )}
 

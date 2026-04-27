@@ -60,6 +60,8 @@ No hardcoded colors (use CSS vars from `config/branding.ts`). No AG Grid. Center
 | **Explain changes** | After making changes, explain what was done |
 | **Batch API calls** | Multiple fetches for the same action must use a single `Promise.all` — never scatter across separate useEffects or sequential awaits. One batch, one render cycle, with cancellation cleanup. |
 | **Reuse shared components** | Use existing preview panels, modals, and form components. Never duplicate UI code inline — if a shared component is missing a feature, add it to the shared component. |
+| **No N+1 queries** | Never query inside a loop. Pre-fetch all data in one query, then process in-memory. Use `batchAuditLog()` from `lib/audit.ts` for audit logs — never loop `auditLog()`. Use Prisma relation filters (`invoice: { supplier_id }`) instead of pre-fetching IDs. Use `groupBy()` or `aggregate({ _count, _sum })` instead of separate count + sum queries. |
+| **Error boundaries** | Every route group must have an `error.tsx`. Use the shared `ErrorPage` component from `components/ErrorPage.tsx`. `app/global-error.tsx` must use inline styles (no CSS vars). |
 
 ---
 

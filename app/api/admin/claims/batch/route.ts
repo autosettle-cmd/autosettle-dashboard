@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { auditLog } from '@/lib/audit';
+import { batchAuditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,19 +47,19 @@ export async function PATCH(request: NextRequest) {
     )
   );
 
-  // Audit log per claim
-  for (const claim of oldClaims) {
-    await auditLog({
+  // Batch audit log (single INSERT instead of N)
+  batchAuditLog(
+    oldClaims.map((claim) => ({
       firmId,
       tableName: 'Claim',
       recordId: claim.id,
-      action: 'update',
+      action: 'update' as const,
       oldValues: { status: claim.status },
       newValues: { status: 'reviewed' },
       userId: session.user.id,
       userName: session.user.name,
-    });
-  }
+    }))
+  );
 
   return NextResponse.json({ data: { updated: claimIds.length }, error: null });
 }

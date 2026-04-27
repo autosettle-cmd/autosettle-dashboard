@@ -197,15 +197,15 @@ export default function ClaimPreviewPanel({
   return (
     <>
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setPreviewClaim(null)} />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setPreviewClaim(null)}>
-      <div className="relative bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-6 mobile:p-0" onClick={() => setPreviewClaim(null)}>
+      <div className="relative bg-white shadow-2xl w-full max-w-[1100px] max-h-[90vh] mobile:max-w-none mobile:max-h-none mobile:h-full flex flex-col animate-in" onClick={(e) => e.stopPropagation()}>
         {onPrev && (
-          <div onClick={onPrev} className={`nav-actuator nav-actuator-left${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
+          <div onClick={onPrev} className={`nav-actuator nav-actuator-left hidden md:flex${pressedDir === 'left' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', left: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Previous (←)" role="button">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
           </div>
         )}
         {onNext && (
-          <div onClick={onNext} className={`nav-actuator nav-actuator-right${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
+          <div onClick={onNext} className={`nav-actuator nav-actuator-right hidden md:flex${pressedDir === 'right' ? ' nav-actuator-pressed' : ''}`} style={{ position: 'absolute', right: '-3.5rem', top: '0', bottom: '0', width: '3rem', zIndex: 60 }} title="Next (→)" role="button">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
           </div>
         )}
@@ -218,9 +218,9 @@ export default function ClaimPreviewPanel({
         </div>
 
         {/* Body — two panels */}
-        <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex mobile:flex-col min-h-0">
           {/* Left panel — details */}
-          <div className="w-2/5 overflow-y-auto border-r border-[var(--surface-header)] p-5 space-y-4">
+          <div className="w-2/5 mobile:w-full mobile:max-h-[50vh] overflow-y-auto border-r mobile:border-r-0 mobile:border-b border-[var(--surface-header)] p-5 mobile:p-4 space-y-4">
             {editMode && editData ? (
               <dl className="space-y-3">
                 <div>

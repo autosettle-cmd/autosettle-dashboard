@@ -366,3 +366,35 @@ The contra GL suggestion algorithm must be identical everywhere invoices are pre
 `getAccountantFirmIds()` in `lib/accountant-firms.ts` must have a 30-second TTL cache via in-memory Map to prevent hammering DB on every API call.
 
 **Status:** ✅ Already implemented (30s TTL, keyed by userId)
+
+---
+
+## 31. No N+1 Queries in Batch Routes
+
+Batch API routes (approve/reject/revert N items) must never query inside a loop.
+
+### Rules
+- **Audit logs:** Use `batchAuditLog()` from `lib/audit.ts` (single `createMany`) — never loop `auditLog()`.
+- **Pre-fetch lookups:** Collect unique IDs, fetch all in one `findMany({ where: { id: { in: ids } } })`, build a Map, then read from the Map inside the loop.
+- **Relation filters:** Use `invoice: { supplier_id }` instead of pre-fetching IDs then filtering with `{ in: invIds }`.
+- **Aggregate merging:** Use `aggregate({ _count: true, _sum: { field: true } })` instead of separate `count()` + `aggregate()` calls.
+
+**Files to check:** `app/api/invoices/batch/route.ts`, `app/api/claims/batch/route.ts`, `app/api/admin/claims/batch/route.ts`, `app/api/admin/suppliers/[id]/statement/route.ts`, `app/api/suppliers/[id]/statement/route.ts`
+
+**Status:** ✅ All batch routes fixed (2026-04-27)
+
+---
+
+## 32. Error Boundaries
+
+Every route group must have an `error.tsx` file that catches rendering errors.
+
+### Structure
+- `app/global-error.tsx` — catches root layout errors, uses inline styles (no CSS vars)
+- `app/error.tsx` — catches page errors, links to `/`
+- `app/admin/error.tsx` — links to `/admin/dashboard`
+- `app/accountant/error.tsx` — links to `/accountant/dashboard`
+- `app/employee/error.tsx` — links to `/employee/claims`
+- All use shared `components/ErrorPage.tsx` (except global-error which is self-contained)
+
+**Status:** ✅ All error boundaries created (2026-04-27)

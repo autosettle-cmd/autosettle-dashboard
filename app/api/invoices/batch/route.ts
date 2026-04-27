@@ -3,8 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
-import { auditLog } from '@/lib/audit';
-import { createJournalEntry, reverseJVsForSource } from '@/lib/journal-entries';
+import { batchAuditLog } from '@/lib/audit';
+import { createJournalEntry, reverseJournalEntry } from '@/lib/journal-entries';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,20 +47,22 @@ export async function PATCH(request: NextRequest) {
   const oldMap = new Map(invoices.map((inv) => [inv.id, inv]));
 
   // ─── Pre-validation for approve: block if JV cannot be created ─────────
-  // Firm defaults map — reused across pre-validation and JV creation
+  // Pre-fetch all firm defaults in a single query (replaces N lookups)
   const firmDefaultsMap = new Map<string, string | null>();
   if (action === 'approve') {
+    const uniqueFirmIds = Array.from(new Set(invoices.map((inv) => inv.firm_id)));
+    const firms = await prisma.firm.findMany({
+      where: { id: { in: uniqueFirmIds } },
+      select: { id: true, default_trade_payables_gl_id: true },
+    });
+    for (const f of firms) {
+      firmDefaultsMap.set(f.id, f.default_trade_payables_gl_id ?? null);
+    }
+
     const errors: string[] = [];
 
     // Check contra GL — supplier's sub-account → firm default → provided
     for (const inv of invoices) {
-      if (!firmDefaultsMap.has(inv.firm_id)) {
-        const firm = await prisma.firm.findUnique({
-          where: { id: inv.firm_id },
-          select: { default_trade_payables_gl_id: true, name: true },
-        });
-        firmDefaultsMap.set(inv.firm_id, firm?.default_trade_payables_gl_id ?? null);
-      }
       const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaultsMap.get(inv.firm_id);
       if (!contraGlId) {
         errors.push(`No Trade Payables GL for ${inv.vendor_name_raw}. Select a Contra GL (Credit) account before approving.`);
@@ -219,25 +221,32 @@ export async function PATCH(request: NextRequest) {
   }
 
   if (action === 'revert') {
-    for (const inv of invoices) {
-      if (inv.approval !== 'approved') continue;
-      await reverseJVsForSource('invoice_posting', inv.id, session.user.id);
+    // Batch-fetch all posted JVs for approved invoices in one query (instead of N findMany)
+    const approvedIds = invoices.filter((inv) => inv.approval === 'approved').map((inv) => inv.id);
+    if (approvedIds.length > 0) {
+      const jvs = await prisma.journalEntry.findMany({
+        where: { source_type: 'invoice_posting', source_id: { in: approvedIds }, status: 'posted', reversed_by_id: null },
+        include: { lines: true },
+      });
+      for (const jv of jvs) {
+        await reverseJournalEntry(jv.id, session.user.id);
+      }
     }
   }
 
-  // Audit log per invoice (fire-and-forget, outside transaction)
-  for (const inv of invoices) {
-    auditLog({
+  // Batch audit log (single INSERT instead of N)
+  batchAuditLog(
+    invoices.map((inv) => ({
       firmId: inv.firm_id,
       tableName: 'Invoice',
       recordId: inv.id,
-      action: 'update',
+      action: 'update' as const,
       oldValues: { approval: oldMap.get(inv.id)?.approval },
       newValues: { approval: updateData.approval, rejection_reason: updateData.rejection_reason },
       userId: session.user.id,
       userName: session.user.name,
-    });
-  }
+    }))
+  );
 
   return NextResponse.json({ data: { updated: invoiceIds.length }, error: null });
 }

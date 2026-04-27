@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
-import { auditLog } from '@/lib/audit';
+import { batchAuditLog } from '@/lib/audit';
 import { reverseJVsForSource } from '@/lib/journal-entries';
 import { reverseBankReconJV } from '@/lib/bank-recon-jv';
 import { recalcClaimPayment } from '@/lib/payment-utils';
@@ -119,19 +119,19 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  // Audit log per claim
-  for (const claim of oldClaims) {
-    await auditLog({
+  // Batch audit log (single INSERT instead of N)
+  batchAuditLog(
+    oldClaims.map((claim) => ({
       firmId: claim.firm_id,
       tableName: 'Claim',
       recordId: claim.id,
-      action: 'update',
+      action: 'update' as const,
       oldValues: { approval: oldClaimMap.get(claim.id)?.approval, rejection_reason: oldClaimMap.get(claim.id)?.rejection_reason },
       newValues: { approval: updateData.approval, rejection_reason: updateData.rejection_reason },
       userId: session.user.id,
       userName: session.user.name,
-    });
-  }
+    }))
+  );
 
   return NextResponse.json({ data: { updated: claimIds.length }, error: null });
 }

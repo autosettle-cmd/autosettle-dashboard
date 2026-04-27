@@ -50,6 +50,46 @@ export async function auditLog(params: AuditLogParams) {
   }
 }
 
+/**
+ * Batch version of auditLog — uses createMany for N records in a single INSERT.
+ * Same diffing logic as auditLog. Fire-and-forget.
+ */
+export async function batchAuditLog(entries: AuditLogParams[]) {
+  try {
+    const data = entries
+      .map((params) => {
+        const { firmId, tableName, recordId, action, oldValues, newValues, userId, userName } = params;
+
+        let changedFields: string[] | null = null;
+        if (oldValues && newValues) {
+          changedFields = Object.keys(newValues).filter(
+            (key) => JSON.stringify(oldValues[key]) !== JSON.stringify(newValues[key])
+          );
+          if (action === 'update' && changedFields.length === 0) return null;
+        }
+
+        return {
+          firm_id: firmId,
+          table_name: tableName,
+          record_id: recordId,
+          action,
+          changed_fields: changedFields ? (changedFields as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          old_values: oldValues ? (filterChanged(oldValues, changedFields) as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          new_values: newValues ? (filterChanged(newValues, changedFields) as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+          user_id: userId ?? null,
+          user_name: userName ?? null,
+        };
+      })
+      .filter((d): d is NonNullable<typeof d> => d !== null);
+
+    if (data.length > 0) {
+      await prisma.auditLog.createMany({ data });
+    }
+  } catch (err) {
+    console.error('[audit] Failed to write batch audit logs:', err);
+  }
+}
+
 /** Only keep the fields that actually changed (for cleaner diffs) */
 function filterChanged(
   values: Record<string, unknown>,

@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
       unlinkedReceiptsCount, unlinkedReceiptsAmt,
       // 4. Invoice stats grouped by status+approval (replaces 4 count/aggregate queries)
       invoiceGrouped,
-      // 5. Invoices this month (replaces 2 count/aggregate queries)
-      invoicesThisMonth, invoicesThisMonthAmt,
+      // 5. Invoices this month (single aggregate with _count + _sum)
+      invoicesThisMonthAgg,
       // 6. Bank recon stats
       totalStatements, unmatchedTxns, suggestedMatchTxns,
       // 7. Table data
@@ -73,9 +73,8 @@ export async function GET(request: NextRequest) {
         _count: true,
         _sum: { total_amount: true },
       }),
-      // ── Invoices this month ──
-      prisma.invoice.count({ where: { ...scope, issue_date: monthFilter } }),
-      prisma.invoice.aggregate({ where: { ...scope, issue_date: monthFilter }, _sum: { total_amount: true } }),
+      // ── Invoices this month (merged count + sum into single aggregate) ──
+      prisma.invoice.aggregate({ where: { ...scope, issue_date: monthFilter }, _count: true, _sum: { total_amount: true } }),
       // ── Bank recon ──
       prisma.bankStatement.count({ where: firmFilter }),
       prisma.bankTransaction.count({ where: { bankStatement: firmFilter, recon_status: 'unmatched' } }),
@@ -176,8 +175,8 @@ export async function GET(request: NextRequest) {
             notApprovedAmount: receiptNotApprovedAmt.toString(),
           },
           invoices: {
-            thisMonth: invoicesThisMonth,
-            thisMonthAmount: invoicesThisMonthAmt._sum.total_amount?.toString() ?? '0',
+            thisMonth: invoicesThisMonthAgg._count,
+            thisMonthAmount: invoicesThisMonthAgg._sum.total_amount?.toString() ?? '0',
             pendingReview: invPendingReviewCount,
             pendingAmount: invPendingReviewAmt.toString(),
             pendingApproval: invPendingApprovalCount,
