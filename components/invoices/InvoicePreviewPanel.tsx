@@ -756,25 +756,46 @@ export default function InvoicePreviewPanel({
                       <>
                         <div className="text-xs text-[var(--text-muted)]">or</div>
                         <button
-                          onClick={() => generateVoucherPdf({
-                            type: isPV ? 'PV' : 'OR',
-                            voucher_number: previewInvoice.invoice_number || '',
-                            issue_date: previewInvoice.issue_date,
-                            firm_name: previewInvoice.firm_name,
-                            vendor_name: previewInvoice.vendor_name_raw,
-                            total_amount: previewInvoice.total_amount,
-                            category_name: previewInvoice.category_name,
-                            gl_account_label: previewInvoice.gl_account_label,
-                            contra_gl_account_label: previewInvoice.contra_gl_account_label,
-                            notes: previewInvoice.notes,
-                            approval: previewInvoice.approval,
-                            uploader_name: previewInvoice.uploader_name,
-                          })}
+                          onClick={async () => {
+                            setAttachingFile(true);
+                            setAttachWarnings([]);
+                            try {
+                              const blob = generateVoucherPdf({
+                                type: isPV ? 'PV' : 'OR',
+                                voucher_number: previewInvoice.invoice_number || '',
+                                issue_date: previewInvoice.issue_date,
+                                firm_name: previewInvoice.firm_name,
+                                vendor_name: previewInvoice.vendor_name_raw,
+                                total_amount: previewInvoice.total_amount,
+                                category_name: previewInvoice.category_name,
+                                gl_account_label: previewInvoice.gl_account_label,
+                                contra_gl_account_label: previewInvoice.contra_gl_account_label,
+                                notes: previewInvoice.notes,
+                                approval: previewInvoice.approval,
+                                uploader_name: previewInvoice.uploader_name,
+                              });
+                              const file = new File([blob], `${(previewInvoice.invoice_number || 'voucher').replace(/[^a-zA-Z0-9-]/g, '_')}.pdf`, { type: 'application/pdf' });
+                              const fd = new FormData();
+                              fd.append('file', file);
+                              fd.append('generated', 'true');
+                              const res = await fetch(`/api/invoices/${previewInvoice.id}/attach`, { method: 'PATCH', body: fd });
+                              const json = await res.json();
+                              if (!res.ok) {
+                                setAttachWarnings([json.error || 'Failed to attach generated PDF']);
+                              } else {
+                                refresh();
+                              }
+                            } catch {
+                              setAttachWarnings(['Failed to generate and attach PDF']);
+                            } finally {
+                              setAttachingFile(false);
+                            }
+                          }}
                           className="w-full max-w-xs border-2 border-[var(--outline-ghost)] p-4 text-center hover:border-[var(--primary)] hover:bg-[var(--surface-low)] transition-colors"
                         >
                           <svg className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                           <p className="text-sm font-medium text-[var(--text-primary)]">Generate {isPV ? 'Payment Voucher' : 'Official Receipt'}</p>
-                          <p className="text-xs text-[var(--text-muted)] mt-1">Download as PDF</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">Creates PDF and attaches to record</p>
                         </button>
                       </>
                     )}

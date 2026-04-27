@@ -174,7 +174,6 @@ export function generateVoucherPdf(data: VoucherData) {
   doc.text(`Prepared by: ${data.uploader_name}`, 14, y);
   doc.text(`Generated: ${new Date().toLocaleDateString('en-MY')}`, pageWidth - 14, y, { align: 'right' });
 
-  // ── Save ──
-  const safeNum = data.voucher_number.replace(/[^a-zA-Z0-9-]/g, '_');
-  doc.save(`${safeNum}.pdf`);
+  // ── Return as Blob ──
+  return doc.output('blob');
 }

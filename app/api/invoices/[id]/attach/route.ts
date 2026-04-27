@@ -43,9 +43,10 @@ export async function PATCH(
     return NextResponse.json({ data: null, error: 'Not authorized' }, { status: 403 });
   }
 
-  // Must be a PV with no file
-  if (!invoice.invoice_number?.startsWith('PV-')) {
-    return NextResponse.json({ data: null, error: 'Only payment vouchers (PV-) can have documents attached' }, { status: 400 });
+  // Must be a PV or OR with no file
+  const isPVorOR = invoice.invoice_number?.startsWith('PV-') || invoice.invoice_number?.startsWith('OR-');
+  if (!isPVorOR) {
+    return NextResponse.json({ data: null, error: 'Only payment vouchers (PV-) and official receipts (OR-) can have documents attached' }, { status: 400 });
   }
   if (invoice.file_url) {
     return NextResponse.json({ data: null, error: 'This invoice already has a document attached' }, { status: 400 });
@@ -57,22 +58,25 @@ export async function PATCH(
   if (!file) {
     return NextResponse.json({ data: null, error: 'No file provided' }, { status: 400 });
   }
+  const isGenerated = formData.get('generated') === 'true'; // skip OCR for system-generated PDFs
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const fileName = file.name.toLowerCase();
   const isPDF = file.type === 'application/pdf' || fileName.endsWith('.pdf');
 
-  // Dedup check
+  // Dedup check (skip for system-generated PDFs)
   const fileHash = createHash('sha256').update(buffer).digest('hex');
-  const hashDupe = await prisma.invoice.findFirst({
-    where: { firm_id: invoice.firm_id, file_hash: fileHash },
-    select: { id: true, vendor_name_raw: true, invoice_number: true },
-  });
-  if (hashDupe) {
-    return NextResponse.json(
-      { data: null, error: `Duplicate file: this document was already uploaded${hashDupe.invoice_number ? ` as ${hashDupe.invoice_number}` : ''} (${hashDupe.vendor_name_raw})` },
-      { status: 409 }
-    );
+  if (!isGenerated) {
+    const hashDupe = await prisma.invoice.findFirst({
+      where: { firm_id: invoice.firm_id, file_hash: fileHash },
+      select: { id: true, vendor_name_raw: true, invoice_number: true },
+    });
+    if (hashDupe) {
+      return NextResponse.json(
+        { data: null, error: `Duplicate file: this document was already uploaded${hashDupe.invoice_number ? ` as ${hashDupe.invoice_number}` : ''} (${hashDupe.vendor_name_raw})` },
+        { status: 409 }
+      );
+    }
   }
 
   // Upload to Google Drive
@@ -90,11 +94,13 @@ export async function PATCH(
     return NextResponse.json({ data: null, error: 'Failed to upload file to Google Drive' }, { status: 500 });
   }
 
-  // OCR extraction
+  // OCR extraction (skip for system-generated voucher PDFs)
   const warnings: string[] = [];
   let ocrInvoiceNumber: string | null = null;
 
-  try {
+  if (isGenerated) {
+    // No OCR needed — this is a system-generated voucher PDF
+  } else try {
     // Get categories for OCR context
     const categories = await prisma.category.findMany({ select: { name: true } });
     const categoryNames = categories.map(c => c.name);
