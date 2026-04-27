@@ -1569,7 +1569,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                         </td>
                         <td data-col="Invoice #" className="px-3 py-3 text-[var(--text-secondary)]">
                           {inv.invoice_number ?? '-'}
-                          {inv.invoice_number?.startsWith('PV-') && !inv.file_url && (
+                          {(inv.invoice_number?.startsWith('PV-') || inv.invoice_number?.startsWith('OR-')) && !inv.file_url && (
                             <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
                               No doc
