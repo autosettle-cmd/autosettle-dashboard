@@ -42,7 +42,7 @@ interface BankTxn {
   } | null;
   matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null; allocation_amount?: string; contra_gl_account_id?: string | null; supplier_default_contra_gl_id?: string | null } | null;
   matched_invoice_allocations?: { invoice_id: string; invoice_number: string; vendor_name: string; total_amount: string; allocation_amount: string; issue_date: string }[];
-  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string; contra_gl_account_id?: string | null } | null;
+  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string; contra_gl_account_id?: string | null; file_url?: string | null; thumbnail_url?: string | null } | null;
   matched_claims: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_id: string; employee_name: string; category_name: string }[];
 }
 
@@ -492,8 +492,8 @@ export default function BankReconPreviewModal({
             <div className="flex-1 min-h-0 bg-[var(--surface-low)] relative">
               {(() => {
                 // Find the best document to preview
-                const docUrl = txn.matched_invoice?.file_url ?? null;
-                const thumbUrl = txn.matched_invoice?.thumbnail_url ?? txn.matched_claims?.[0]?.thumbnail_url ?? null;
+                const docUrl = txn.matched_invoice?.file_url ?? txn.matched_sales_invoice?.file_url ?? null;
+                const thumbUrl = txn.matched_invoice?.thumbnail_url ?? txn.matched_sales_invoice?.thumbnail_url ?? txn.matched_claims?.[0]?.thumbnail_url ?? null;
                 const claimDocUrl = txn.matched_claims?.[0]?.file_url ?? null;
                 const driveMatch = (docUrl ?? claimDocUrl)?.match(/\/d\/([^/]+)/);
                 const fileId = driveMatch?.[1];
@@ -509,7 +509,7 @@ export default function BankReconPreviewModal({
                 const matchedInv = txn.matched_invoice;
                 const matchedSI = txn.matched_sales_invoice;
                 const canGeneratePV = matchedInv?.invoice_number?.startsWith('PV-') && !matchedInv.file_url;
-                const canGenerateOR = matchedSI?.invoice_number?.startsWith('OR-') && !(matchedInv?.file_url);
+                const canGenerateOR = matchedSI?.invoice_number?.startsWith('OR-') && !matchedSI.file_url;
                 if (hasMatches && (canGeneratePV || canGenerateOR)) {
                   const inv = canGeneratePV ? matchedInv! : null;
                   const si = canGenerateOR ? matchedSI! : null;

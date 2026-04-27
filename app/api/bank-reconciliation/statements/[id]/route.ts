@@ -71,7 +71,7 @@ export async function GET(
     // Sales invoices (only for transactions that have them)
     salesInvIds.length > 0 ? prisma.salesInvoice.findMany({
       where: { id: { in: salesInvIds } },
-      select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, buyer: { select: { name: true } } },
+      select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true, buyer: { select: { name: true } } },
     }) : [],
   ]);
 
@@ -195,6 +195,7 @@ export async function GET(
             id: salesInv.id, invoice_number: salesInv.invoice_number,
             total_amount: salesInv.total_amount.toString(), amount_paid: salesInv.amount_paid.toString(),
             issue_date: salesInv.issue_date, buyer_name: salesInv.buyer?.name ?? 'Unknown',
+            file_url: salesInv.file_url ?? null, thumbnail_url: salesInv.thumbnail_url ?? null,
           } : null,
           matched_claims: claims.map(c => ({
             id: c.id, merchant: c.merchant, amount: c.amount.toString(),
