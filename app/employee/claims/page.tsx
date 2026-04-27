@@ -139,7 +139,7 @@ export default function EmployeeClaimsPage() {
   const batchItems = batch.items as BatchClaimItem[];
   const setBatchItems = batch.setItems as (updater: (prev: BatchClaimItem[]) => BatchClaimItem[]) => void;
   const batchSubmitting = batch.job.phase === 'submitting';
-  const batchSubmitProgress = batchSubmitting ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
+
 
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);

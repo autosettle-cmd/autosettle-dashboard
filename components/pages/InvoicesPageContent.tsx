@@ -382,7 +382,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   const batchScanning = batch.job.phase === 'scanning';
   const batchSubmitting = batch.job.phase === 'submitting';
   const batchScanProgress = batchScanning ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
-  const batchSubmitProgress = batchSubmitting ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
+
 
   const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; dupes: string[] } | null>(null);
