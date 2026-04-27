@@ -64,6 +64,39 @@ export function getDriveDownloadUrl(fileId: string): string {
   return `https://drive.google.com/uc?export=download&id=${fileId}`;
 }
 
+// ─── File Deletion ────────────────────────────────────────────────────────
+
+/**
+ * Extract Google Drive file ID from a view/download URL.
+ * Handles: https://drive.google.com/file/d/{id}/view, /thumbnail?id={id}, /uc?...id={id}
+ */
+export function extractDriveFileId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const match = url.match(/\/d\/([^/]+)/) ?? url.match(/[?&]id=([^&]+)/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * Delete a file from Google Drive. Non-blocking — logs warning on failure.
+ * Safe to call with null/undefined URLs.
+ */
+export async function deleteFileFromDrive(fileUrl: string | null | undefined): Promise<void> {
+  const fileId = extractDriveFileId(fileUrl);
+  if (!fileId) return;
+  try {
+    const token = await getAccessToken();
+    const res = await fetch(`${DRIVE_FILES_URL}/${fileId}?supportsAllDrives=true`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok && res.status !== 404) {
+      console.warn(`[Drive] Failed to delete file ${fileId}: ${res.status}`);
+    }
+  } catch (err) {
+    console.warn(`[Drive] Error deleting file ${fileId}:`, err);
+  }
+}
+
 // ─── Folder Management ─────────────────────────────────────────────────────
 
 async function createDriveFolder(name: string, parentFolderId: string): Promise<string> {

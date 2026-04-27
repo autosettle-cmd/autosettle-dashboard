@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { auditLog } from '@/lib/audit';
 import { reverseJVsForSource } from '@/lib/journal-entries';
 import { recalcInvoicePaid } from '@/lib/invoice-payment';
+import { deleteFileFromDrive } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export async function DELETE(request: NextRequest) {
 
   const claims = await prisma.claim.findMany({
     where: { id: { in: claimIds }, firm_id: firmId },
-    select: { id: true, merchant: true, amount: true, status: true, approval: true, payment_status: true, matched_bank_txn_id: true },
+    select: { id: true, merchant: true, amount: true, status: true, approval: true, payment_status: true, matched_bank_txn_id: true, file_url: true },
   });
 
   if (claims.length === 0) {
@@ -73,6 +74,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   await prisma.claim.deleteMany({ where: { id: { in: claims.map(c => c.id) } } });
+  for (const claim of claims) deleteFileFromDrive(claim.file_url).catch(() => {});
 
   for (const claim of claims) {
     auditLog({

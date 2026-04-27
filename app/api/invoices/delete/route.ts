@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
+import { deleteFileFromDrive } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,7 @@ export async function DELETE(request: NextRequest) {
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, firm_id: true, vendor_name_raw: true, invoice_number: true, total_amount: true, status: true, approval: true },
+      select: { id: true, firm_id: true, vendor_name_raw: true, invoice_number: true, total_amount: true, status: true, approval: true, file_url: true },
     });
 
     if (!invoice) {
@@ -54,6 +55,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     await prisma.invoice.delete({ where: { id: invoiceId } });
+    // Clean up Google Drive file (non-blocking)
+    deleteFileFromDrive(invoice.file_url).catch(() => {});
 
     await auditLog({
       firmId: invoice.firm_id,

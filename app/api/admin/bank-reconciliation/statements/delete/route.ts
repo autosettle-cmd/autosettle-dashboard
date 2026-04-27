@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recalcInvoicePaid } from '@/lib/invoice-payment';
+import { deleteFileFromDrive } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,7 @@ export async function DELETE(request: NextRequest) {
 
     const statement = await prisma.bankStatement.findUnique({
       where: { id: statementId, firm_id: session.user.firm_id },
-      select: { id: true },
+      select: { id: true, file_url: true },
     });
 
     if (!statement) {
@@ -114,6 +115,7 @@ export async function DELETE(request: NextRequest) {
     // Now safe to delete transactions and statement
     await prisma.bankTransaction.deleteMany({ where: { bank_statement_id: statementId } });
     await prisma.bankStatement.delete({ where: { id: statementId } });
+    deleteFileFromDrive(statement.file_url).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (err) {
