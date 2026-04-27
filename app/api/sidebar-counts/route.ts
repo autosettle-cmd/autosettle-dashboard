@@ -36,8 +36,45 @@ export async function GET(request: NextRequest) {
     prisma.user.count({ where: { ...scope, status: 'pending_onboarding', role: 'employee' } }),
   ]);
 
+  // Count firms with incomplete setup (accountant only)
+  let clientsSetupPending = 0;
+  if (role === 'accountant') {
+    const firmIds = await getAccountantFirmIds(session.user.id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const firmWhere: any = { is_active: true };
+    if (firmIds) firmWhere.id = { in: firmIds };
+
+    const firms = await prisma.firm.findMany({
+      where: firmWhere,
+      select: {
+        id: true,
+        default_trade_payables_gl_id: true,
+        default_staff_claims_gl_id: true,
+        _count: { select: { glAccounts: true, fiscalYears: true } },
+      },
+    });
+
+    // Count category GL mappings per firm
+    const categoryMappings = await prisma.categoryFirmOverride.groupBy({
+      by: ['firm_id'],
+      where: { firm_id: { in: firms.map(f => f.id) }, gl_account_id: { not: null } },
+      _count: true,
+    });
+    const catMapCount = new Map(categoryMappings.map(c => [c.firm_id, c._count]));
+
+    for (const f of firms) {
+      const hasCoa = f._count.glAccounts > 0;
+      const hasFy = f._count.fiscalYears > 0;
+      const hasGlDefaults = !!f.default_trade_payables_gl_id && !!f.default_staff_claims_gl_id;
+      const hasCatMappings = (catMapCount.get(f.id) ?? 0) > 0;
+      if (!hasCoa || !hasFy || !hasGlDefaults || !hasCatMappings) {
+        clientsSetupPending++;
+      }
+    }
+  }
+
   return NextResponse.json({
-    data: { claimPending, receiptPending, mileagePending, receivedPending, issuedPending: 0, employeesPending },
+    data: { claimPending, receiptPending, mileagePending, receivedPending, issuedPending: 0, employeesPending, clientsSetupPending },
     error: null,
   });
 }

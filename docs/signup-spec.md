@@ -197,6 +197,23 @@ SMTP_PASS=google-app-password
 
 ---
 
+---
+
+## Post-Signup: Firm Setup Checklist
+
+After an accountant signs up and verifies email, they must complete the firm setup checklist on `/accountant/clients/{firmId}` before uploading any documents:
+
+1. **Firm Details** — registration number, contact email (required)
+2. **Chart of Accounts** — import via template, copy from firm, or PDF upload (required)
+3. **GL Defaults** — set Trade Payables + Staff Claims contra accounts (required)
+4. **Category → GL Mapping** — map claim categories to GL expense accounts (required)
+5. **Fiscal Year** — create first fiscal year (required)
+6. **Add Admin** — create admin user for the firm (optional)
+
+Uploads are blocked with an amber warning banner until all required steps are complete. The "Clients" sidebar nav shows a badge count of firms with incomplete setup.
+
+---
+
 ## Future (not built yet)
 
 - Email notification to employee when approved

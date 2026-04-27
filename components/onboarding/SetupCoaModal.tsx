@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import BatchUploadOverlay from '@/components/BatchUploadOverlay';
 
 interface FirmOption {
   id: string;
@@ -164,17 +165,13 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
   // Minimized floating bar (when user clicks outside during loading)
   if (minimized) {
     return (
-      <div
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-white px-5 py-3 shadow-2xl flex items-center gap-3 cursor-pointer animate-in"
-        onClick={() => setMinimized(false)}
-      >
-        <svg className="animate-spin h-4 w-4 flex-shrink-0" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <span className="text-sm font-semibold">Extracting Chart of Accounts...</span>
-        <span className="text-xs text-white/50">Click to expand</span>
-      </div>
+      <BatchUploadOverlay
+        active={loading}
+        label="Extracting Chart of Accounts..."
+        current={1}
+        total={1}
+        onExpand={() => setMinimized(false)}
+      />
     );
   }
 
@@ -345,9 +342,9 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
                         </div>
                         {/* Indeterminate progress bar */}
                         <div className="w-full h-1.5 bg-[var(--surface-header)] overflow-hidden">
-                          <div className="h-full bg-[var(--primary)] animate-pulse" style={{ width: '60%', animation: 'indeterminate 1.5s ease-in-out infinite' }} />
+                          <div className="h-full bg-[var(--primary)]" style={{ width: '30%', animation: 'coa-indeterminate 1.5s ease-in-out infinite' }} />
                         </div>
-                        <style>{`@keyframes indeterminate { 0% { margin-left: -30%; width: 30%; } 50% { margin-left: 20%; width: 60%; } 100% { margin-left: 100%; width: 30%; } }`}</style>
+                        <style>{`@keyframes coa-indeterminate { 0% { margin-left: -30%; } 50% { margin-left: 50%; } 100% { margin-left: 110%; } }`}</style>
                       </div>
                     ) : (
                       <>

@@ -1046,6 +1046,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         if (j.data) {
           const missing: string[] = [];
           if (!j.data.chartOfAccounts.complete) missing.push('Chart of Accounts');
+          if (j.data.glDefaults && !j.data.glDefaults.complete) missing.push('GL Defaults');
+          if (j.data.categories && !j.data.categories.complete) missing.push('Categories');
           if (!j.data.fiscalYear.complete) missing.push('Fiscal Year');
           if (missing.length > 0) {
             setFirmSetupReady(false);

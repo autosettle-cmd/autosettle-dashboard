@@ -3,12 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import SetupCoaModal from './SetupCoaModal';
 import CreateFiscalYearModal from './CreateFiscalYearModal';
+import SetupGlDefaultsModal from './SetupGlDefaultsModal';
+import SetupCategoriesModal from './SetupCategoriesModal';
 
 interface SetupStatus {
   firmDetails: { complete: boolean; missing: string[] };
   chartOfAccounts: { complete: boolean; count: number };
+  glDefaults: { complete: boolean; missing: string[] };
+  categories: { complete: boolean; count: number };
   fiscalYear: { complete: boolean; count: number };
-  admin: { complete: boolean; count: number };
+  admin: { complete: boolean; count: number; optional?: boolean };
 }
 
 interface FirmOption {
@@ -23,19 +27,24 @@ interface SetupChecklistProps {
   onOpenAddAdmin: () => void;
 }
 
-const STEPS = [
+type StepKey = keyof SetupStatus;
+
+const STEPS: { key: StepKey; label: string; description: string; optional?: boolean }[] = [
   { key: 'firmDetails', label: 'Firm Details', description: 'Name, registration number, and contact email' },
   { key: 'chartOfAccounts', label: 'Chart of Accounts', description: 'GL accounts, tax codes, and category mappings' },
+  { key: 'glDefaults', label: 'GL Defaults', description: 'Set default contra accounts for invoices, claims, and year-end' },
+  { key: 'categories', label: 'Category → GL Mapping', description: 'Map categories to GL expense accounts for auto-suggestion' },
   { key: 'fiscalYear', label: 'Fiscal Year', description: 'Create your first fiscal year with 12 monthly periods' },
-  { key: 'admin', label: 'Add Admin', description: 'Create an admin user for this firm' },
-] as const;
-
+  { key: 'admin', label: 'Add Admin', description: 'Create an admin user for this firm', optional: true },
+];
 
 export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAddAdmin }: SetupChecklistProps) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [showCoaModal, setShowCoaModal] = useState(false);
+  const [showGlDefaultsModal, setShowGlDefaultsModal] = useState(false);
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [showFyModal, setShowFyModal] = useState(false);
 
   const fetchStatus = useCallback(async () => {
@@ -52,7 +61,6 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  // Listen for external changes (firm edit saved, admin created)
   useEffect(() => {
     const handler = () => fetchStatus();
     window.addEventListener('setup-step-completed', handler);
@@ -61,16 +69,23 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
 
   if (loading || !status) return null;
 
-  const completedCount = STEPS.filter(s => status[s.key].complete).length;
-  const allComplete = completedCount === STEPS.length;
+  const requiredSteps = STEPS.filter(s => !s.optional);
+  const completedRequired = requiredSteps.filter(s => status[s.key]?.complete).length;
+  const allRequiredComplete = completedRequired === requiredSteps.length;
 
-  const handleStepAction = (key: string) => {
+  const handleStepAction = (key: StepKey) => {
     switch (key) {
       case 'firmDetails':
         onOpenEditFirm();
         break;
       case 'chartOfAccounts':
         setShowCoaModal(true);
+        break;
+      case 'glDefaults':
+        setShowGlDefaultsModal(true);
+        break;
+      case 'categories':
+        setShowCategoriesModal(true);
         break;
       case 'fiscalYear':
         setShowFyModal(true);
@@ -83,6 +98,8 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
 
   const handleStepComplete = () => {
     setShowCoaModal(false);
+    setShowGlDefaultsModal(false);
+    setShowCategoriesModal(false);
     setShowFyModal(false);
     fetchStatus();
   };
@@ -101,13 +118,13 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
               <path d="M9 18l6-6-6-6" />
             </svg>
             <h2 className="text-title-sm font-semibold text-[var(--text-primary)]">Firm Setup</h2>
-            {allComplete ? (
+            {allRequiredComplete ? (
               <span className="badge-green flex items-center gap-1">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                Complete
+                Ready
               </span>
             ) : (
-              <span className="badge-amber">{completedCount} of {STEPS.length}</span>
+              <span className="badge-amber">{completedRequired} of {requiredSteps.length}</span>
             )}
           </div>
         </div>
@@ -116,12 +133,10 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
         {!collapsed && (
           <div className="px-5 pb-4 space-y-2">
             {STEPS.map((step, i) => {
-              const isComplete = status[step.key].complete;
+              const stepStatus = status[step.key];
+              const isComplete = stepStatus?.complete ?? false;
               return (
-                <div
-                  key={step.key}
-                  className="flex items-center gap-3 py-2"
-                >
+                <div key={step.key} className="flex items-center gap-3 py-2">
                   {/* Step number */}
                   <div className={`w-7 h-7 flex items-center justify-center flex-shrink-0 text-xs font-bold ${
                     isComplete
@@ -139,6 +154,7 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium ${isComplete ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>
                       {step.label}
+                      {step.optional && <span className="text-[10px] text-[var(--text-muted)] ml-1.5 font-normal">(optional)</span>}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)] truncate">{step.description}</p>
                   </div>
@@ -149,7 +165,7 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
                   ) : (
                     <button
                       onClick={() => handleStepAction(step.key)}
-                      className="btn-thick-navy text-xs px-3 py-1.5 font-medium flex-shrink-0"
+                      className={`text-xs px-3 py-1.5 font-medium flex-shrink-0 ${step.optional ? 'btn-thick-white' : 'btn-thick-navy'}`}
                     >
                       Set Up
                     </button>
@@ -168,6 +184,20 @@ export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAd
           firms={firms}
           onComplete={handleStepComplete}
           onClose={() => setShowCoaModal(false)}
+        />
+      )}
+      {showGlDefaultsModal && (
+        <SetupGlDefaultsModal
+          firmId={firmId}
+          onComplete={handleStepComplete}
+          onClose={() => setShowGlDefaultsModal(false)}
+        />
+      )}
+      {showCategoriesModal && (
+        <SetupCategoriesModal
+          firmId={firmId}
+          onComplete={handleStepComplete}
+          onClose={() => setShowCategoriesModal(false)}
         />
       )}
       {showFyModal && (

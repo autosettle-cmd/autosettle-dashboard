@@ -419,3 +419,71 @@ All pages that allow file uploads must check if the firm has completed setup (CO
 - Any future upload page must include this guard
 
 **Status:** ✅ Applied to invoices + claims (2026-04-27)
+
+---
+
+## 34. Batch Upload Overlay Pattern
+
+All background upload/parse/scan operations must use the shared `components/BatchUploadOverlay.tsx` component for their minimized/progress state.
+
+### Component API
+```tsx
+<BatchUploadOverlay
+  active={boolean}        // whether operation is running
+  label="Uploading..."    // text shown in the bar
+  current={5}             // progress count
+  total={20}              // total items
+  onExpand={() => ...}    // click bar to reopen modal
+  onCancel={() => ...}    // optional cancel button
+  results={[...]}         // optional: show results summary after completion
+  onDismiss={() => ...}   // dismiss results
+/>
+```
+
+### Features provided
+- Fixed bottom-right floating bar with spinner + progress %
+- Progress bar fills as current/total increases
+- "Click to expand" and optional "Cancel" in footer
+- Results summary mode (succeeded/failed counts + details)
+- Navigation blocker (sidebar locked during upload)
+- `beforeunload` warning to prevent accidental page close
+
+### Applied in
+- `components/pages/InvoicesPageContent.tsx` — batch invoice upload + scan
+- `components/pages/ClaimsPageContent.tsx` — batch claims/receipts upload + scan
+- `components/onboarding/SetupCoaModal.tsx` — COA PDF parsing (minimized state)
+- Any future upload, scan, or long-running parse operation must use this component
+
+**Status:** ✅ Shared component, applied everywhere (2026-04-27)
+
+---
+
+## 35. Firm Setup Checklist Steps
+
+The client detail page (`/accountant/clients/[firmId]`) has a setup checklist with 6 steps. All required steps must be complete before uploads are allowed.
+
+### Required Steps (block uploads if incomplete)
+1. **Firm Details** — name, registration number, contact email
+2. **Chart of Accounts** — at least 1 GL account imported (template, copy, or PDF)
+3. **GL Defaults** — Trade Payables + Staff Claims Payable must be set (`default_trade_payables_gl_id`, `default_staff_claims_gl_id`)
+4. **Category → GL Mapping** — at least 1 `CategoryFirmOverride` with `gl_account_id` set
+5. **Fiscal Year** — at least 1 fiscal year created
+
+### Optional Steps
+6. **Add Admin** — create admin user (not required for uploads)
+
+### Setup Status API
+`GET /api/accountant/firms/{firmId}/setup-status` returns completion status for each step.
+
+### Sidebar Badge
+The "Clients" nav item shows a badge count of firms with incomplete required setup. Computed in `/api/sidebar-counts` by checking COA, GL defaults, category mappings, and fiscal year per firm.
+
+### Setup Modals (inline, no page navigation)
+- Firm Details → opens edit panel on the page
+- COA → `SetupCoaModal` (template / copy / PDF upload)
+- GL Defaults → `SetupGlDefaultsModal` (4 dropdowns filtered by account type)
+- Categories → `SetupCategoriesModal` (table of categories with GL account dropdowns)
+- Fiscal Year → `CreateFiscalYearModal`
+- Add Admin → opens admin modal on the page
+
+**Status:** ✅ All steps implemented with inline modals (2026-04-27)

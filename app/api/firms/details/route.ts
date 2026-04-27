@@ -52,6 +52,10 @@ export async function GET() {
     is_active: f.is_active,
     employee_count: f._count.employees,
     claims_this_month: claimCountMap.get(f.id) ?? 0,
+    default_trade_payables_gl_id: f.default_trade_payables_gl_id,
+    default_staff_claims_gl_id: f.default_staff_claims_gl_id,
+    default_trade_receivables_gl_id: f.default_trade_receivables_gl_id,
+    default_retained_earnings_gl_id: f.default_retained_earnings_gl_id,
   }));
 
   return NextResponse.json({ data, error: null });

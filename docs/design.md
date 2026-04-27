@@ -735,3 +735,37 @@ Claims, Invoices, Bank Transactions, Suppliers, Employees — all in parallel vi
 
 ### Navigation
 Clicking a result navigates to the entity's list page with `?preview=[id]` query param, which auto-opens the preview modal. "View all" navigates with `?search=[query]`.
+
+---
+
+## 17. Batch Upload / Background Processing Overlay
+
+All background upload, scan, parse, or long-running operations use the shared `components/BatchUploadOverlay.tsx` component.
+
+**Never build custom progress bars or minimized states** — always use this component.
+
+### Usage
+```tsx
+<BatchUploadOverlay
+  active={isRunning}          // show floating bar
+  label="Scanning invoices…"  // main label
+  current={5}                 // progress count
+  total={20}                  // total items
+  onExpand={() => openModal()} // click bar → reopen modal
+  onCancel={() => cancel()}    // optional cancel button
+  results={completedResults}   // optional: post-completion summary
+  onDismiss={() => dismiss()}  // dismiss results
+/>
+```
+
+### Behavior
+- **During operation**: fixed bottom-right floating bar, spinner, progress %, "Click to expand"
+- **After completion** (if `results` provided): shows succeeded/failed summary with "Done" button
+- **Navigation blocker**: sidebar links disabled with tooltip during active operation
+- **Page close warning**: `beforeunload` prevents accidental tab close
+
+### Applied to
+- Invoice batch upload + OCR scan
+- Claims/receipts batch upload + OCR scan
+- COA PDF parsing (minimized state)
+- **Every new upload or long-running parse operation must use this**
