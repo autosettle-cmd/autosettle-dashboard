@@ -551,6 +551,10 @@ model SalesInvoice {
   category_id          String?
   gl_account_id        String?
   approval             ApprovalStatus       @default(pending_approval)
+  file_url             String?
+  file_download_url    String?
+  thumbnail_url        String?
+  file_hash            String?
 
   // LHDN MyInvois fields
   lhdn_submission_uid  String?

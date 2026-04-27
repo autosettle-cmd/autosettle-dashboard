@@ -538,7 +538,8 @@ export default function BankReconPreviewModal({
                           const fd = new FormData();
                           fd.append('file', file);
                           fd.append('generated', 'true');
-                          const res = await fetch(`/api/invoices/${invoiceId}/attach`, { method: 'PATCH', body: fd });
+                          const apiPath = canGeneratePV ? `/api/invoices/${invoiceId}/attach` : `/api/sales-invoices/${invoiceId}/attach`;
+                          const res = await fetch(apiPath, { method: 'PATCH', body: fd });
                           if (res.ok) onRefresh?.();
                         }}
                         className="border-2 border-[var(--outline-ghost)] px-6 py-4 text-center hover:border-[var(--primary)] hover:bg-[var(--surface-low)] transition-colors"
