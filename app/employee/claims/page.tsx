@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import BatchUploadOverlay from '@/components/BatchUploadOverlay';
+import { useBatchProcess } from '@/contexts/BatchProcessContext';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
 import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
@@ -134,11 +134,14 @@ export default function EmployeeClaimsPage() {
     ocrError: string;
     selected: boolean;
   }
-  const [showBatchReview, setShowBatchReview] = useState(false);
-  const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
+  // Batch process context (submit loop + overlay live here, survive navigation)
+  const batch = useBatchProcess();
+  const batchItems = batch.items as BatchClaimItem[];
+  const setBatchItems = batch.setItems as (updater: (prev: BatchClaimItem[]) => BatchClaimItem[]) => void;
+  const batchSubmitting = batch.job.phase === 'submitting';
+  const batchSubmitProgress = batchSubmitting ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
 
-  const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchSubmitProgress, setBatchSubmitProgress] = useState({ current: 0, total: 0 });
+  const [showBatchReview, setShowBatchReview] = useState(false);
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
@@ -152,6 +155,18 @@ export default function EmployeeClaimsPage() {
       else setBatchPreviewUrl(null);
     } else setBatchPreviewUrl(null);
   };
+
+  // When submit completes via context, convert results to batchWarning and refresh
+  useEffect(() => {
+    if (batch.submitResults && batch.job.phase === 'submit_done') {
+      const ok = batch.submitResults.filter(r => r.ok).length;
+      const fail = batch.submitResults.filter(r => !r.ok).length;
+      const errors = batch.submitResults.filter(r => !r.ok).map(r => `${r.name}: ${r.msg}`);
+      setBatchWarning({ ok, fail, errors });
+      batch.clear();
+      refresh();
+    }
+  }, [batch.submitResults, batch.job.phase]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mileage-specific fields
   const [mileageFrom, setMileageFrom]       = useState('');
@@ -249,7 +264,7 @@ export default function EmployeeClaimsPage() {
             selected: true,
           };
         });
-        setBatchItems(items);
+        setBatchItems(() => items);
         setShowBatchReview(true);
         return;
       }
@@ -345,22 +360,17 @@ export default function EmployeeClaimsPage() {
     }
   };
 
-  const submitBatchClaims = async () => {
+  const submitBatchClaims = () => {
     const valid = batchItems.filter((item) => item.selected && item.merchant && item.amount && item.category_id);
     if (valid.length === 0) return;
 
     setShowBatchReview(false);
-    setBatchItems([]);
     setBatchPreviewId(null);
-    setBatchSubmitting(true);
-    setBatchSubmitProgress({ current: 0, total: valid.length });
-    let submitted = 0;
 
-    const errors: string[] = [];
-    for (let si = 0; si < valid.length; si++) {
-      const item = valid[si];
-      setBatchSubmitProgress({ current: si + 1, total: valid.length });
-      try {
+    batch.startSubmit({
+      label: 'Uploading claims...',
+      items: valid,
+      worker: async (item: BatchClaimItem) => {
         const fd = new FormData();
         fd.append('claim_date', item.claim_date);
         fd.append('merchant', item.merchant.trim());
@@ -371,20 +381,14 @@ export default function EmployeeClaimsPage() {
         fd.append('file', item.file);
 
         const res = await fetch('/api/employee/claims', { method: 'POST', body: fd });
-        if (res.ok) submitted++;
-        else {
+        if (res.ok) {
+          return { name: item.file.name, ok: true, msg: 'Uploaded' };
+        } else {
           const json = await res.json().catch(() => ({ error: 'Failed' }));
-          errors.push(`${item.file.name}: ${json.error}`);
+          return { name: item.file.name, ok: false, msg: json.error || 'Failed' };
         }
-      } catch (err) {
-        console.error('Batch submit error:', err);
-      }
-    }
-
-    setBatchSubmitting(false);
-    const failed = valid.length - submitted;
-    setBatchWarning({ ok: submitted, fail: failed, errors });
-    refresh();
+      },
+    });
   };
 
   // ─── Drag & drop on page ────────────────────────────────────────────────────
@@ -455,7 +459,7 @@ export default function EmployeeClaimsPage() {
             selected: true,
           };
         });
-        setBatchItems(items);
+        setBatchItems(() => items);
         setShowBatchReview(true);
         return;
       }
@@ -910,7 +914,7 @@ export default function EmployeeClaimsPage() {
                   <span className="text-white/70 text-xs">Select All</span>
                 </label>
               </div>
-              <button onClick={() => { if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
+              <button onClick={() => { if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems(() => []); setBatchPreviewId(null); } }} className="text-white/50 hover:text-white text-xl leading-none">&times;</button>
             </div>
 
             <div className="flex-1 overflow-hidden flex">
@@ -991,7 +995,7 @@ export default function EmployeeClaimsPage() {
                 {batchSubmitting ? 'Submitting...' : `Submit Selected (${batchItems.filter(i => i.selected).length})`}
               </button>
               <button
-                onClick={() => { if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }}
+                onClick={() => { if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems(() => []); setBatchPreviewId(null); } }}
                 disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-3 text-sm"
               >
@@ -1174,12 +1178,6 @@ export default function EmployeeClaimsPage() {
         </>
       )}
 
-      <BatchUploadOverlay
-        active={batchSubmitting}
-        label="Uploading claims..."
-        current={batchSubmitProgress.current}
-        total={batchSubmitProgress.total}
-      />
 
     </>
   );

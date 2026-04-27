@@ -13,7 +13,7 @@ import FilterBar from '@/components/filters/FilterBar';
 import dynamic from 'next/dynamic';
 const ClaimCreateModal = dynamic(() => import('@/components/claims/ClaimCreateModal'));
 const ClaimPreviewPanel = dynamic(() => import('@/components/claims/ClaimPreviewPanel'));
-import BatchUploadOverlay from '@/components/BatchUploadOverlay';
+import { useBatchProcess } from '@/contexts/BatchProcessContext';
 import SearchButton from '@/components/SearchButton';
 import MobileClaimCard from '@/components/mobile/MobileClaimCard';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -208,13 +208,16 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     ocrError: string;
     selected: boolean;
   }
+  // Batch process context (scan/submit loops + overlay live here, survive navigation)
+  const batch = useBatchProcess();
+  const batchItems = batch.items as BatchClaimItem[];
+  const setBatchItems = batch.setItems as (updater: (prev: BatchClaimItem[]) => BatchClaimItem[]) => void;
+  const batchScanning = batch.job.phase === 'scanning';
+  const batchSubmitting = batch.job.phase === 'submitting';
+  const batchScanProgress = batchScanning ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
+  const batchSubmitProgress = batchSubmitting ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
+
   const [showBatchReview, setShowBatchReview] = useState(false);
-  const [batchItems, setBatchItems] = useState<BatchClaimItem[]>([]);
-  const [batchScanning, setBatchScanning] = useState(false);
-  const batchCancelRef = useRef(false);
-  const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchSubmitProgress, setBatchSubmitProgress] = useState({ current: 0, total: 0 });
-  const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; errors: string[] } | null>(null);
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
@@ -232,12 +235,31 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
 
   const cancelBatchScan = () => {
     if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;
-    batchCancelRef.current = true;
-    setBatchScanning(false);
+    batch.cancel();
     setShowBatchReview(false);
-    setBatchItems([]);
+    setBatchItems(() => []);
     setBatchPreviewId(null);
   };
+
+  // On mount: if scan already done (user navigated back), open review modal immediately
+  useEffect(() => {
+    if (batch.job.phase === 'scan_done' && batchItems.length > 0) {
+      setShowBatchReview(true);
+      batch.dismiss();
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When submit completes via context, convert results to batchWarning and refresh
+  useEffect(() => {
+    if (batch.submitResults && batch.job.phase === 'submit_done') {
+      const ok = batch.submitResults.filter(r => r.ok).length;
+      const fail = batch.submitResults.filter(r => !r.ok).length;
+      const errors = batch.submitResults.filter(r => !r.ok).map(r => `${r.name}: ${r.msg}`);
+      setBatchWarning({ ok, fail, errors });
+      batch.clear();
+      refresh();
+    }
+  }, [batch.submitResults, batch.job.phase]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -380,7 +402,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
               selected: true,
             };
           });
-          setBatchItems(items);
+          setBatchItems(() => items);
           if (isAccountant) setBatchFirmId(targetFirmId);
           // Auto-match employee for batch
           const firstR = json.receipts[0];
@@ -390,7 +412,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             if (empMatch) setModalEmployeeId(empMatch.id);
           }
           setShowBatchReview(true);
-          setBatchScanning(false);
           return;
         }
 
@@ -446,7 +467,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     const items: BatchClaimItem[] = droppedFiles.map((file, fi) => ({
       _id: `${Date.now()}-${fi}`, file, merchant: '', amount: '', claim_date: todayStr(), receipt_number: '', category_id: '', description: '', ocrDone: false, ocrError: '', selected: true,
     }));
-    setBatchItems(items);
     if (isAccountant) {
       setBatchFirmId(targetFirmId);
       setModalEmployeeId('');
@@ -457,18 +477,17 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       }).catch(console.error);
     }
     setShowBatchReview(true);
-    setBatchScanning(true);
-    batchCancelRef.current = false;
-    setBatchScanProgress({ current: 0, total: droppedFiles.length });
 
-    for (let i = 0; i < items.length; i++) {
-      if (batchCancelRef.current) break;
-      const itemId = items[i]._id;
-      setBatchScanProgress({ current: i + 1, total: items.length });
-      try {
+    const catSnapshot = (isAccountant ? batchCategories : modalCategories).map((c) => ({ id: c.id, name: c.name }));
+
+    batch.startScan({
+      label: 'Scanning claims...',
+      returnPath: `${config.linkPrefix}/claims`,
+      items,
+      worker: async (item: BatchClaimItem, _index: number, updateItem) => {
         const ocrFd = new FormData();
-        ocrFd.append('file', items[i].file);
-        ocrFd.append('categories', JSON.stringify((isAccountant ? batchCategories : modalCategories).map((c) => c.name)));
+        ocrFd.append('file', item.file);
+        ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
         ocrFd.append('context', 'claim');
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
@@ -478,43 +497,38 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           const isInvoice = ocrJson.documentType === 'invoice';
           updates.merchant = (isInvoice ? f.vendor : f.merchant) || '';
           updates.receipt_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
-          updates.claim_date = (isInvoice ? f.issueDate : f.date) || items[i].claim_date;
+          updates.claim_date = (isInvoice ? f.issueDate : f.date) || item.claim_date;
           updates.amount = String(isInvoice ? f.totalAmount : f.amount) || '';
           updates.description = f.notes || '';
           if (f.category) {
-            const match = (isAccountant ? batchCategories : modalCategories).find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            const match = catSnapshot.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) updates.category_id = match.id;
           }
         }
-        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ...updates } : it));
-      } catch (err) {
-        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, ocrError: err instanceof Error ? err.message : 'OCR failed' } : it));
-      }
-    }
-    setBatchScanning(false);
-    setShowBatchReview(true);
+        updateItem(item._id, updates);
+      },
+    });
   };
 
-  const submitBatchClaims = async () => {
+  const submitBatchClaims = () => {
     const selected = batchItems.filter(i => i.selected);
     if (selected.length === 0) return;
     setShowBatchReview(false);
-    setBatchItems([]);
     setBatchPreviewId(null);
-    setBatchSubmitting(true);
-    setBatchSubmitProgress({ current: 0, total: selected.length });
+
     const firmIdForBatch = isAccountant ? batchFirmId : '';
-    let ok = 0;
-    let fail = 0;
-    const errors: string[] = [];
-    for (let si = 0; si < selected.length; si++) {
-      const item = selected[si];
-      setBatchSubmitProgress({ current: si + 1, total: selected.length });
-      try {
+    const empId = modalEmployeeId;
+    const tab = claimTab;
+    const apiUrl = config.apiClaims;
+
+    batch.startSubmit({
+      label: 'Uploading claims...',
+      items: selected,
+      worker: async (item: BatchClaimItem) => {
         const fd = new FormData();
         if (isAccountant && firmIdForBatch) fd.append('firm_id', firmIdForBatch);
-        if (modalEmployeeId) fd.append('employee_id', modalEmployeeId);
-        fd.append('type', claimTab);
+        if (empId) fd.append('employee_id', empId);
+        fd.append('type', tab);
         fd.append('file', item.file);
         fd.append('claim_date', item.claim_date || todayStr());
         fd.append('merchant', item.merchant || item.file.name.replace(/\.[^/.]+$/, ''));
@@ -522,18 +536,15 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         if (item.receipt_number) fd.append('receipt_number', item.receipt_number);
         if (item.category_id) fd.append('category_id', item.category_id);
         if (item.description) fd.append('description', item.description);
-        const res = await fetch(config.apiClaims, { method: 'POST', body: fd });
-        if (res.ok) ok++;
-        else {
+        const res = await fetch(apiUrl, { method: 'POST', body: fd });
+        if (res.ok) {
+          return { name: item.file.name, ok: true, msg: 'Uploaded' };
+        } else {
           const json = await res.json().catch(() => ({ error: 'Failed' }));
-          errors.push(`${item.file.name}: ${json.error}`);
-          fail++;
+          return { name: item.file.name, ok: false, msg: json.error || 'Failed' };
         }
-      } catch { fail++; }
-    }
-    setBatchSubmitting(false);
-    setBatchWarning({ ok, fail, errors });
-    refresh();
+      },
+    });
   };
 
   // Mileage fields
@@ -901,10 +912,9 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
               selected: true,
             };
           });
-          setBatchItems(items);
+          setBatchItems(() => items);
           if (isAccountant) setBatchFirmId(modalFirmId);
           setShowBatchReview(true);
-          setBatchScanning(false);
           return;
         }
 
@@ -957,45 +967,39 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     const items: BatchClaimItem[] = fileList.map((file, fi) => ({
       _id: `${Date.now()}-${fi}`, file, merchant: '', amount: '', claim_date: todayStr(), receipt_number: '', category_id: '', description: '', ocrDone: false, ocrError: '', selected: true,
     }));
-    setBatchItems(items);
     if (isAccountant) setBatchFirmId(modalFirmId);
     setShowBatchReview(true);
-    setBatchScanning(true);
-    batchCancelRef.current = false;
-    setBatchScanProgress({ current: 0, total: fileList.length });
 
-    for (let i = 0; i < fileList.length; i++) {
-      if (batchCancelRef.current) break;
-      setBatchScanProgress({ current: i + 1, total: fileList.length });
-      try {
+    const catSnapshot = modalCategories.map((c) => ({ id: c.id, name: c.name }));
+
+    batch.startScan({
+      label: 'Scanning claims...',
+      returnPath: `${config.linkPrefix}/claims`,
+      items,
+      worker: async (item: BatchClaimItem, _index: number, updateItem) => {
         const ocrFd = new FormData();
-        ocrFd.append('file', fileList[i]);
-        ocrFd.append('categories', JSON.stringify(modalCategories.map((c) => c.name)));
+        ocrFd.append('file', item.file);
+        ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
         ocrFd.append('context', 'claim');
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
+        const updates: Partial<BatchClaimItem> = { ocrDone: true };
         if (ocrRes.ok && ocrJson.fields) {
           const f = ocrJson.fields;
           const isInvoiceDoc = ocrJson.documentType === 'invoice';
-          items[i].merchant = (isInvoiceDoc ? f.vendor : f.merchant) || '';
-          items[i].receipt_number = (isInvoiceDoc ? f.invoiceNumber : f.receiptNumber) || '';
-          items[i].claim_date = (isInvoiceDoc ? f.issueDate : f.date) || items[i].claim_date;
-          items[i].amount = String(isInvoiceDoc ? f.totalAmount : f.amount) || '';
-          items[i].description = f.notes || '';
+          updates.merchant = (isInvoiceDoc ? f.vendor : f.merchant) || '';
+          updates.receipt_number = (isInvoiceDoc ? f.invoiceNumber : f.receiptNumber) || '';
+          updates.claim_date = (isInvoiceDoc ? f.issueDate : f.date) || item.claim_date;
+          updates.amount = String(isInvoiceDoc ? f.totalAmount : f.amount) || '';
+          updates.description = f.notes || '';
           if (f.category) {
-            const match = modalCategories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
-            if (match) items[i].category_id = match.id;
+            const match = catSnapshot.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            if (match) updates.category_id = match.id;
           }
         }
-        items[i].ocrDone = true;
-      } catch (err) {
-        items[i].ocrDone = true;
-        items[i].ocrError = err instanceof Error ? err.message : 'OCR failed';
-      }
-      setBatchItems([...items]);
-    }
-    setBatchScanning(false);
-    setShowBatchReview(true);
+        updateItem(item._id, updates);
+      },
+    });
   };
 
   const clearFile = () => {
@@ -1423,7 +1427,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems(() => []); setBatchPreviewId(null); } }} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
             {batchScanning && (
               <div className="px-5 pt-3">
@@ -1520,7 +1524,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             </div>
             <div className="px-5 py-3 flex items-center gap-2 flex-shrink-0 bg-[var(--surface-low)] border-t border-[#E0E3E5]">
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} disabled={batchSubmitting}
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems(() => []); setBatchPreviewId(null); } }} disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40">
                 Cancel
               </button>
@@ -1612,14 +1616,6 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         />
       )}
 
-      <BatchUploadOverlay
-        active={batchSubmitting || (batchScanning && !showBatchReview)}
-        label={batchSubmitting ? 'Uploading claims...' : 'Scanning documents...'}
-        current={batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current}
-        total={batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}
-        onExpand={batchScanning && !showBatchReview ? () => setShowBatchReview(true) : undefined}
-        onCancel={batchScanning && !showBatchReview ? cancelBatchScan : undefined}
-      />
 
     </>
   );

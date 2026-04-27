@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import BatchUploadOverlay from '@/components/BatchUploadOverlay';
+import { useBatchProcess } from '@/contexts/BatchProcessContext';
 import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
@@ -50,7 +50,13 @@ export default function AccountantBankReconciliationPage() {
   const [uploadError, setUploadError] = useState('');
   const [needsPassword, setNeedsPassword] = useState(false);
   const [pdfPassword, setPdfPassword] = useState('');
-  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; results: { name: string; ok: boolean; msg: string }[] } | null>(null);
+  const batch = useBatchProcess();
+  const batchActive = batch.job.phase === 'submitting' || batch.job.phase === 'submit_done';
+  const batchProgress = batchActive ? {
+    current: batch.job.current,
+    total: batch.job.total,
+    results: batch.submitResults ?? [],
+  } : null;
   const reuploadRef = useRef<HTMLInputElement>(null);
   const [reuploadId, setReuploadId] = useState<string | null>(null);
   const { firms, firmId: firmFilter, firmsLoaded } = useFirm();
@@ -82,6 +88,11 @@ export default function AccountantBankReconciliationPage() {
   };
 
   useEffect(() => { if (!firmsLoaded) return; setLoading(true); loadStatements(); }, [firmsLoaded, firmFilter]);
+
+  // When batch submit completes via context, refresh statements
+  useEffect(() => {
+    if (batch.job.phase === 'submit_done') loadStatements();
+  }, [batch.job.phase]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load GL accounts + bank mappings when statements change
   useEffect(() => {
@@ -217,35 +228,20 @@ export default function AccountantBankReconciliationPage() {
       return;
     }
 
-    // Multiple files — batch upload with floating progress bar
+    // Multiple files — batch upload via global context
     const fileList = Array.from(files);
-    const results: BatchResult[] = [];
-    setShowUpload(false); // close modal, show floating bar
-    setBatchProgress({ current: 0, total: fileList.length, results });
+    const fId = uploadFirmId;
+    setShowUpload(false);
 
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      setBatchProgress({ current: i, total: fileList.length, results: [...results] });
-
-      // Dedup check before upload
-      const dupMsg = await checkDuplicate(file);
-      if (dupMsg) {
-        results.push({ name: file.name, ok: true, msg: 'Already uploaded — skipped' });
-        setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
-        continue;
-      }
-
-      try {
-        const result = await uploadSingleFile(file, uploadFirmId);
-        results.push(result);
-      } catch (e) {
-        results.push({ name: file.name, ok: false, msg: e instanceof Error ? e.message : 'Failed' });
-      }
-      setBatchProgress({ current: i + 1, total: fileList.length, results: [...results] });
-    }
-
-    setUploading(false);
-    loadStatements();
+    batch.startSubmit({
+      label: 'Uploading statements...',
+      items: fileList.map((f, i) => ({ _id: `${Date.now()}-${i}`, file: f })),
+      worker: async (item: { _id: string; file: File }) => {
+        const dupMsg = await checkDuplicate(item.file);
+        if (dupMsg) return { name: item.file.name, ok: true, msg: 'Already uploaded — skipped' };
+        return uploadSingleFile(item.file, fId);
+      },
+    });
   };
 
   const [deleteError, setDeleteError] = useState('');
@@ -299,35 +295,20 @@ export default function AccountantBankReconciliationPage() {
       return;
     }
 
-    // Start batch upload — floating bar (no modal)
-    setUploading(true);
+    // Start batch upload via global context
     setUploadError('');
     setUploadFirmId(targetFirmId);
-    const results: BatchResult[] = [];
-    setBatchProgress({ current: 0, total: files.length, results });
+    const fId = targetFirmId;
 
-    for (let i = 0; i < files.length; i++) {
-      setBatchProgress({ current: i, total: files.length, results: [...results] });
-
-      // Dedup check before upload
-      const dupMsg = await checkDuplicate(files[i]);
-      if (dupMsg) {
-        results.push({ name: files[i].name, ok: true, msg: 'Already uploaded — skipped' });
-        setBatchProgress({ current: i + 1, total: files.length, results: [...results] });
-        continue;
-      }
-
-      try {
-        const result = await uploadSingleFile(files[i], targetFirmId);
-        results.push(result);
-      } catch (err) {
-        results.push({ name: files[i].name, ok: false, msg: err instanceof Error ? err.message : 'Failed' });
-      }
-      setBatchProgress({ current: i + 1, total: files.length, results: [...results] });
-    }
-
-    setUploading(false);
-    loadStatements();
+    batch.startSubmit({
+      label: 'Uploading statements...',
+      items: files.map((f, i) => ({ _id: `${Date.now()}-${i}`, file: f })),
+      worker: async (item: { _id: string; file: File }) => {
+        const dupMsg = await checkDuplicate(item.file);
+        if (dupMsg) return { name: item.file.name, ok: true, msg: 'Already uploaded — skipped' };
+        return uploadSingleFile(item.file, fId);
+      },
+    });
   };
 
   const handleReuploadPdf = async (file: File) => {
@@ -396,7 +377,7 @@ export default function AccountantBankReconciliationPage() {
                   )}
                   <div>
                     <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest block mb-1">PDF File</label>
-                    <input ref={fileRef} type="file" accept=".pdf" multiple className="input-recessed w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); setBatchProgress(null); }} />
+                    <input ref={fileRef} type="file" accept=".pdf" multiple className="input-recessed w-full text-body-md" onChange={() => { setNeedsPassword(false); setPdfPassword(''); setUploadError(''); batch.clear(); }} />
                   </div>
                   {needsPassword && (
                     <div>
@@ -429,10 +410,10 @@ export default function AccountantBankReconciliationPage() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <button onClick={() => { setShowUpload(false); setBatchProgress(null); }} className={`flex-1 px-3 py-2 text-body-md ${batchProgress && !uploading ? 'btn-thick-green text-white' : 'btn-thick-white'}`}>
-                      {batchProgress && !uploading ? 'Done' : 'Cancel'}
+                    <button onClick={() => { setShowUpload(false); if (batch.job.phase === 'submit_done') batch.clear(); }} className={`flex-1 px-3 py-2 text-body-md ${batch.job.phase === 'submit_done' ? 'btn-thick-green text-white' : 'btn-thick-white'}`}>
+                      {batch.job.phase === 'submit_done' ? 'Done' : 'Cancel'}
                     </button>
-                    {!batchProgress && (
+                    {!batchActive && (
                       <button onClick={handleUpload} disabled={uploading || !uploadFirmId} className="btn-thick-navy flex-1 px-3 py-2 text-body-md disabled:opacity-50">
                         {uploading ? 'Processing...' : 'Upload & Parse'}
                       </button>
@@ -682,15 +663,6 @@ export default function AccountantBankReconciliationPage() {
         </div>
       )}
 
-      <BatchUploadOverlay
-        active={uploading && !!batchProgress && !showUpload}
-        label="Uploading statements..."
-        current={batchProgress?.current ?? 0}
-        total={batchProgress?.total ?? 0}
-        onExpand={() => setShowUpload(true)}
-        results={!uploading && batchProgress && !showUpload ? batchProgress.results : undefined}
-        onDismiss={() => setBatchProgress(null)}
-      />
 
     </>
   );

@@ -2,7 +2,7 @@
 
 // Sales invoices are now merged into the main table (no separate tab)
 import LoadMoreBanner from '@/components/LoadMoreBanner';
-import BatchUploadOverlay from '@/components/BatchUploadOverlay';
+import { useBatchProcess } from '@/contexts/BatchProcessContext';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
@@ -375,14 +375,17 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     selected: boolean;
     dupMessage: string;
   }
+  // Batch process context (scan/submit loops + overlay live here, survive navigation)
+  const batch = useBatchProcess();
+  const batchItems = batch.items as BatchItem[];
+  const setBatchItems = batch.setItems as (updater: (prev: BatchItem[]) => BatchItem[]) => void;
+  const batchScanning = batch.job.phase === 'scanning';
+  const batchSubmitting = batch.job.phase === 'submitting';
+  const batchScanProgress = batchScanning ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
+  const batchSubmitProgress = batchSubmitting ? { current: batch.job.current, total: batch.job.total } : { current: 0, total: 0 };
+
   const [showBatchReview, setShowBatchReview] = useState(false);
-  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
-  const [batchScanning, setBatchScanning] = useState(false);
-  const batchCancelRef = useRef(false);
-  const [batchSubmitting, setBatchSubmitting] = useState(false);
-  const [batchSubmitProgress, setBatchSubmitProgress] = useState({ current: 0, total: 0 });
   const [batchWarning, setBatchWarning] = useState<{ ok: number; fail: number; dupes: string[] } | null>(null);
-  const [batchScanProgress, setBatchScanProgress] = useState({ current: 0, total: 0 });
   const [batchPreviewId, _setBatchPreviewId] = useState<string | null>(null);
   const [batchPreviewUrl, setBatchPreviewUrl] = useState<string | null>(null);
   const [batchPreviewType, setBatchPreviewType] = useState<string>('');
@@ -398,12 +401,31 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
   const cancelBatchScan = () => {
     if (!confirm('Cancel scanning? All scanned items will be discarded.')) return;
-    batchCancelRef.current = true;
-    setBatchScanning(false);
+    batch.cancel();
     setShowBatchReview(false);
-    setBatchItems([]);
+    setBatchItems(() => []);
     setBatchPreviewId(null);
-     };
+  };
+
+  // On mount: if scan already done (user navigated back), open review modal immediately
+  useEffect(() => {
+    if (batch.job.phase === 'scan_done' && batchItems.length > 0) {
+      setShowBatchReview(true);
+      batch.dismiss();
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When submit completes via context, convert results to batchWarning and refresh
+  useEffect(() => {
+    if (batch.submitResults && batch.job.phase === 'submit_done') {
+      const ok = batch.submitResults.filter(r => r.ok).length;
+      const fail = batch.submitResults.filter(r => !r.ok).length;
+      const dupes = batch.submitResults.filter(r => !r.ok).map(r => `${r.name}: ${r.msg}`);
+      setBatchWarning({ ok, fail, dupes });
+      batch.clear();
+      refresh();
+    }
+  }, [batch.submitResults, batch.job.phase]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Drag-and-drop
   const [isDragging, setIsDragging] = useState(false);
@@ -575,30 +597,32 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', supplier_id: '',
       ocrDone: false, ocrError: '', selected: true, dupMessage: '',
     }));
-    setBatchItems(items);
     setShowBatchReview(true);
-    setBatchScanning(true);
-    batchCancelRef.current = false;
-    setBatchScanProgress({ current: 0, total: droppedFiles.length });
 
-    for (let i = 0; i < items.length; i++) {
-      if (batchCancelRef.current) break;
-      const itemId = items[i]._id;
-      setBatchScanProgress({ current: i + 1, total: items.length });
-      try {
+    // Capture current categories/suppliers for the worker closure
+    const catSnapshot = categories.map((c) => ({ id: c.id, name: c.name }));
+    const supSnapshot = suppliers.map((s) => ({ id: s.id, name: s.name }));
+
+    batch.startScan({
+      label: 'Scanning invoices...',
+      returnPath: `${config.linkPrefix}/invoices`,
+      items,
+      worker: async (item: BatchItem, _index: number, updateItem) => {
+        // Duplicate check
         const dupFd = new FormData();
-        dupFd.append('file', items[i].file);
+        dupFd.append('file', item.file);
         if (targetFirmId) dupFd.append('firm_id', targetFirmId);
         const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
         const dupJson = await dupRes.json();
         if (dupJson.data?.isDuplicate) {
-          setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, dupMessage: dupJson.data.message, selected: false } : it));
-          continue;
+          updateItem(item._id, { ocrDone: true, dupMessage: dupJson.data.message, selected: false });
+          return;
         }
 
+        // OCR extraction
         const ocrFd = new FormData();
-        ocrFd.append('file', items[i].file);
-        ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        ocrFd.append('file', item.file);
+        ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
         const updates: Partial<BatchItem> = { ocrDone: true };
@@ -607,49 +631,43 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           const isInvoice = ocrJson.documentType === 'invoice';
           updates.vendor_name = (isInvoice ? f.vendor : f.merchant) || '';
           updates.invoice_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
-          updates.issue_date = (isInvoice ? f.issueDate : f.date) || items[i].issue_date;
+          updates.issue_date = (isInvoice ? f.issueDate : f.date) || item.issue_date;
           updates.due_date = (isInvoice ? f.dueDate : '') || '';
           updates.total_amount = String(isInvoice ? f.totalAmount : f.amount) || '';
           updates.payment_terms = (isInvoice ? f.paymentTerms : '') || '';
           updates.notes = f.notes || '';
           if (f.category) {
-            const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            const match = catSnapshot.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) updates.category_id = match.id;
           }
           const vendorName = updates.vendor_name;
           if (vendorName) {
-            const supplierMatch = suppliers.find((s) => s.name.toLowerCase() === vendorName.toLowerCase());
+            const supplierMatch = supSnapshot.find((s) => s.name.toLowerCase() === vendorName.toLowerCase());
             if (supplierMatch) updates.supplier_id = supplierMatch.id;
           }
         }
-        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ...updates } : it));
-      } catch (err) {
-        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, ocrError: err instanceof Error ? err.message : 'OCR failed' } : it));
-      }
-    }
-    setBatchScanning(false);
-    setShowBatchReview(true);
+        updateItem(item._id, updates);
+      },
+    });
   };
 
-  const submitBatch = async () => {
+  const submitBatch = () => {
     const selected = batchItems.filter(i => i.selected);
     if (selected.length === 0) return;
     setShowBatchReview(false);
-    setBatchItems([]);
     setBatchPreviewId(null);
-    setBatchSubmitting(true);
-    setBatchSubmitProgress({ current: 0, total: selected.length });
-    let ok = 0; let fail = 0;
-    const dupes: string[] = [];
-    const targetFirmId = getTargetFirmId();
-    for (let si = 0; si < selected.length; si++) {
-      const item = selected[si];
-      setBatchSubmitProgress({ current: si + 1, total: selected.length });
-      try {
+
+    // Capture values for worker closure
+    const submitFirmId = newInv.firm_id || getTargetFirmId();
+    const apiUrl = config.apiInvoices;
+    const role = config.role;
+
+    batch.startSubmit({
+      label: 'Uploading invoices...',
+      items: selected,
+      worker: async (item: BatchItem) => {
         const fd = new FormData();
-        if (config.role === 'accountant') {
-          fd.append('firm_id', newInv.firm_id || targetFirmId);
-        }
+        if (role === 'accountant') fd.append('firm_id', submitFirmId);
         fd.append('file', item.file);
         fd.append('vendor_name', item.vendor_name || item.file.name.replace(/\.[^/.]+$/, ''));
         if (item.invoice_number) fd.append('invoice_number', item.invoice_number);
@@ -661,16 +679,15 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         if (item.notes) fd.append('notes', item.notes);
         if (item.supplier_id) fd.append('supplier_id', item.supplier_id);
         fd.append('batch', 'true');
-        const res = await fetch(config.apiInvoices, { method: 'POST', body: fd });
-        if (res.ok) { ok++; } else {
+        const res = await fetch(apiUrl, { method: 'POST', body: fd });
+        if (res.ok) {
+          return { name: item.file.name, ok: true, msg: 'Uploaded' };
+        } else {
           const json = await res.json().catch(() => ({ error: 'Failed' }));
-          dupes.push(`${item.file.name}: ${json.error}`); fail++;
+          return { name: item.file.name, ok: false, msg: json.error || 'Failed' };
         }
-      } catch { fail++; }
-    }
-    setBatchSubmitting(false);
-       setBatchWarning({ ok, fail, dupes });
-    refresh();
+      },
+    });
   };
 
   // Fetch GL accounts when firm is selected in modal (accountant only)
@@ -787,31 +804,30 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', supplier_id: '',
       ocrDone: false, ocrError: '', selected: true, dupMessage: '',
     }));
-    setBatchItems(bItems);
     setShowBatchReview(true);
-    setBatchScanning(true);
-    batchCancelRef.current = false;
-    setBatchScanProgress({ current: 0, total: fileList.length });
 
     const targetFirmId = getTargetFirmId();
-    for (let i = 0; i < bItems.length; i++) {
-      if (batchCancelRef.current) break;
-      const itemId = bItems[i]._id;
-      setBatchScanProgress({ current: i + 1, total: bItems.length });
-      try {
+    const catSnapshot = categories.map((c) => ({ id: c.id, name: c.name }));
+    const supSnapshot = suppliers.map((s) => ({ id: s.id, name: s.name }));
+
+    batch.startScan({
+      label: 'Scanning invoices...',
+      returnPath: `${config.linkPrefix}/invoices`,
+      items: bItems,
+      worker: async (item: BatchItem, _index: number, updateItem) => {
         const dupFd = new FormData();
-        dupFd.append('file', bItems[i].file);
+        dupFd.append('file', item.file);
         if (targetFirmId) dupFd.append('firm_id', targetFirmId);
         const dupRes = await fetch('/api/invoices/check-duplicate', { method: 'POST', body: dupFd });
         const dupJson = await dupRes.json();
         if (dupJson.data?.isDuplicate) {
-          setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, dupMessage: dupJson.data.message, selected: false } : it));
-          continue;
+          updateItem(item._id, { ocrDone: true, dupMessage: dupJson.data.message, selected: false });
+          return;
         }
 
         const ocrFd = new FormData();
-        ocrFd.append('file', bItems[i].file);
-        ocrFd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        ocrFd.append('file', item.file);
+        ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
         const ocrJson = await ocrRes.json();
         const updates: Partial<BatchItem> = { ocrDone: true };
@@ -820,28 +836,24 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           const isInvoice = ocrJson.documentType === 'invoice';
           updates.vendor_name = (isInvoice ? f.vendor : f.merchant) || '';
           updates.invoice_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
-          updates.issue_date = (isInvoice ? f.issueDate : f.date) || bItems[i].issue_date;
+          updates.issue_date = (isInvoice ? f.issueDate : f.date) || item.issue_date;
           updates.due_date = (isInvoice ? f.dueDate : '') || '';
           updates.total_amount = String(isInvoice ? f.totalAmount : f.amount) || '';
           updates.payment_terms = (isInvoice ? f.paymentTerms : '') || '';
           updates.notes = f.notes || '';
           if (f.category) {
-            const match = categories.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
+            const match = catSnapshot.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) updates.category_id = match.id;
           }
           const vendorName = updates.vendor_name;
           if (vendorName) {
-            const supplierMatch = suppliers.find((s) => s.name.toLowerCase() === vendorName.toLowerCase());
+            const supplierMatch = supSnapshot.find((s) => s.name.toLowerCase() === vendorName.toLowerCase());
             if (supplierMatch) updates.supplier_id = supplierMatch.id;
           }
         }
-        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ...updates } : it));
-      } catch (err) {
-        setBatchItems(prev => prev.map(it => it._id === itemId ? { ...it, ocrDone: true, ocrError: err instanceof Error ? err.message : 'OCR failed' } : it));
-      }
-    }
-    setBatchScanning(false);
-    setShowBatchReview(true);
+        updateItem(item._id, updates);
+      },
+    });
   };
 
   const submitNewInvoice = async () => {
@@ -1671,7 +1683,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   </label>
                 )}
               </div>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (!batchSubmitting && confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems(() => []); setBatchPreviewId(null); } }} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
             </div>
 
             {batchScanning && (
@@ -1776,7 +1788,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
             <div className="px-5 py-3 bg-[var(--surface-low)] flex items-center gap-2 flex-shrink-0 border-t border-[#E0E3E5]">
               <span className="text-xs text-[var(--text-secondary)] mr-auto">{batchItems.filter(i => i.selected).length} of {batchItems.length} selected</span>
-              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems([]); setBatchPreviewId(null); } }} disabled={batchSubmitting}
+              <button onClick={() => { if (batchScanning) { cancelBatchScan(); } else if (confirm('Discard batch upload? Your reviewed items will be lost.')) { setShowBatchReview(false); setBatchItems(() => []); setBatchPreviewId(null); } }} disabled={batchSubmitting}
                 className="btn-thick-white px-6 py-2 text-sm font-semibold disabled:opacity-40">Cancel</button>
               <button onClick={submitBatch} disabled={batchScanning || batchSubmitting || batchItems.filter(i => i.selected).length === 0 || batchItems.some(i => i.selected && !i.ocrDone)}
                 className="btn-thick-navy px-6 py-2 text-sm font-semibold disabled:opacity-40">
@@ -1885,14 +1897,6 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         onClose={() => setRejectModal({ open: false, invoiceIds: [], reason: '' })}
       />
 
-      <BatchUploadOverlay
-        active={batchSubmitting || (batchScanning && !showBatchReview)}
-        label={batchSubmitting ? 'Uploading invoices...' : 'Scanning documents...'}
-        current={batchSubmitting ? batchSubmitProgress.current : batchScanProgress.current}
-        total={batchSubmitting ? batchSubmitProgress.total : batchScanProgress.total}
-        onExpand={batchScanning && !showBatchReview ? () => setShowBatchReview(true) : undefined}
-        onCancel={batchScanning && !showBatchReview ? cancelBatchScan : undefined}
-      />
 
     </>
   );
