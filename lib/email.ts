@@ -1,20 +1,22 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 export async function sendTeamInvite(to: string, inviterName: string, token: string) {
   const baseUrl = process.env.NEXTAUTH_URL || 'https://forturaadvisory.com';
   const inviteUrl = `${baseUrl}/signup/accountant?invite=${token}`;
 
-  await transporter.sendMail({
+  await getTransporter().sendMail({
     from: `"Autosettle" <${process.env.SMTP_USER}>`,
     to,
     subject: `${inviterName} invited you to join their team on Autosettle`,
@@ -32,7 +34,7 @@ export async function sendTeamInvite(to: string, inviterName: string, token: str
 }
 
 export async function sendVerificationCode(to: string, code: string, name: string) {
-  await transporter.sendMail({
+  await getTransporter().sendMail({
     from: `"Autosettle" <${process.env.SMTP_USER}>`,
     to,
     subject: 'Your Autosettle verification code',
