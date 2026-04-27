@@ -98,6 +98,8 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   usePageTitle('Claims');
   const { data: session } = useSession();
   const isMobile = useIsMobile();
+  const [firmSetupReady, setFirmSetupReady] = useState(true);
+  const [firmSetupMessage, setFirmSetupMessage] = useState('');
 
   const isAccountant = config.role === 'accountant';
   const firms = useMemo(() => config.firms ?? [], [config.firms]);
@@ -241,6 +243,26 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
 
+  // Check firm setup status (blocks uploads if COA or fiscal year not configured)
+  useEffect(() => {
+    const firmId = isAccountant ? (config.firmId || (firms.length === 1 ? firms[0].id : '')) : '';
+    if (!firmId || !isAccountant) { setFirmSetupReady(true); return; }
+    fetch(`/api/accountant/firms/${firmId}/setup-status`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.data) {
+          const missing: string[] = [];
+          if (!j.data.chartOfAccounts.complete) missing.push('Chart of Accounts');
+          if (!j.data.fiscalYear.complete) missing.push('Fiscal Year');
+          if (missing.length > 0) {
+            setFirmSetupReady(false);
+            setFirmSetupMessage(`This firm needs ${missing.join(' and ')} before you can upload. Set up in Client Details.`);
+          } else { setFirmSetupReady(true); setFirmSetupMessage(''); }
+        }
+      })
+      .catch(() => {});
+  }, [config.firmId, firms, isAccountant]);
+
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     dragCounter.current++;
@@ -270,6 +292,10 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       : '';
     if (isAccountant && !targetFirmId) {
       alert('Please select a firm before uploading.');
+      return;
+    }
+    if (!firmSetupReady) {
+      alert(firmSetupMessage || 'This firm needs to be set up before uploading. Go to Client Details.');
       return;
     }
 
@@ -1099,6 +1125,19 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           {successMsg && (
             <div className="flex-shrink-0 bg-[var(--match-green)]/10 p-3">
               <p className="text-sm text-[var(--match-green)]">{successMsg}</p>
+            </div>
+          )}
+
+          {/* Firm setup warning */}
+          {!firmSetupReady && (
+            <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 flex-shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <p className="text-sm text-amber-800 flex-1">{firmSetupMessage}</p>
+              <a href={`/accountant/clients/${config.firmId || (firms.length === 1 ? firms[0].id : '')}`} className="btn-thick-white text-xs px-3 py-1.5 font-medium flex-shrink-0">
+                Go to Setup
+              </a>
             </div>
           )}
 

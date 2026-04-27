@@ -87,6 +87,11 @@ export default function FirmDetailPage() {
   const [adminsLoading, setAdminsLoading] = useState(true);
   const [adminsKey, setAdminsKey]         = useState(0);
 
+  // Accountants assigned to this firm
+  interface AccountantRow { id: string; name: string; email: string; status: string; role: string; createdAt: string }
+  const [accountants, setAccountants]         = useState<AccountantRow[]>([]);
+  const [accountantsLoading, setAccountantsLoading] = useState(true);
+
   // Employees
   const [employees, setEmployees]   = useState<EmployeeRow[]>([]);
   const [empLoading, setEmpLoading] = useState(true);
@@ -147,8 +152,9 @@ export default function FirmDetailPage() {
   const [editEmpSaving, setEditEmpSaving] = useState(false);
 
   // Collapsible sections
-  const [adminsOpen, setAdminsOpen] = useState(true);
-  const [empsOpen, setEmpsOpen]     = useState(true);
+  const [adminsOpen, setAdminsOpen]       = useState(false);
+  const [empsOpen, setEmpsOpen]           = useState(false);
+  const [accountantsOpen, setAccountantsOpen] = useState(false);
 
   // Table sorting
   const { sorted: sortedAdmins, toggleSort: toggleAdminSort, sortIndicator: adminSortIndicator } = useTableSort(admins, 'name', 'asc');
@@ -172,6 +178,17 @@ export default function FirmDetailPage() {
       .catch((e) => { console.error(e); if (!cancelled) setFirmLoading(false); });
     return () => { cancelled = true; };
   }, [firmId, firmRefreshKey]);
+
+  // ── Fetch accountants assigned to this firm ──
+  useEffect(() => {
+    let cancelled = false;
+    setAccountantsLoading(true);
+    fetch(`/api/accountant/firms/${firmId}/accountants`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) { setAccountants(j.data ?? []); setAccountantsLoading(false); } })
+      .catch((e) => { console.error(e); if (!cancelled) setAccountantsLoading(false); });
+    return () => { cancelled = true; };
+  }, [firmId]);
 
   // ── Fetch admins ──
   useEffect(() => {
@@ -424,7 +441,7 @@ export default function FirmDetailPage() {
         </header>
 
         <main className="flex-1 overflow-auto paper-texture">
-          <div className="ledger-binding p-8 pl-14 flex flex-col gap-4 animate-in">
+          <div className="ledger-binding p-6 pl-14 flex flex-col gap-3 animate-in">
 
             {/* ── Back link ── */}
             <Link
@@ -436,9 +453,9 @@ export default function FirmDetailPage() {
             </Link>
 
             {firmLoading ? (
-              <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+              <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
             ) : !firm ? (
-              <div className="px-6 py-12 text-center text-sm text-[var(--text-secondary)]">Firm not found.</div>
+              <div className="px-5 py-8 text-center text-sm text-[var(--text-secondary)]">Firm not found.</div>
             ) : (
               <>
                 {/* ── SETUP CHECKLIST ── */}
@@ -450,9 +467,9 @@ export default function FirmDetailPage() {
                 />
 
                 {/* ── FIRM INFO CARD ── */}
-                <div className="card-button-pressed p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-[var(--text-primary)]">{firm.name}</h2>
+                <div className="card-button-pressed p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-title-md font-bold text-[var(--text-primary)]">{firm.name}</h2>
                     <button
                       data-setup="edit-firm"
                       onClick={openEditPanel}
@@ -461,7 +478,7 @@ export default function FirmDetailPage() {
                       Edit
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                       <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">Registration Number</p>
                       <p className="text-sm text-[var(--text-primary)]">{firm.registration_number ?? '—'}</p>
@@ -486,9 +503,9 @@ export default function FirmDetailPage() {
 
                   {/* LHDN / E-Invoice Details */}
                   {(firm.tin || firm.brn || firm.msic_code || firm.sst_registration_number || firm.address_line1) && (
-                    <div className="mt-4 pt-4">
-                      <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-3">LHDN / E-Invoice</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="mt-3 pt-3 border-t border-[var(--outline-ghost)]">
+                      <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">LHDN / E-Invoice</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {firm.tin && (
                           <div>
                             <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">TIN</p>
@@ -533,7 +550,7 @@ export default function FirmDetailPage() {
                 </div>
 
                 {/* ── QUICK LINKS ── */}
-                <div className="card-button-pressed p-4 flex items-center gap-3">
+                <div className="card-button-pressed p-3 flex items-center gap-2.5">
                   <Link
                     href={`/accountant/claims?firmId=${firmId}`}
                     className="btn-thick-white text-sm px-4 py-2 font-medium"
@@ -551,7 +568,7 @@ export default function FirmDetailPage() {
                 {/* ── PENDING EMPLOYEES ── */}
                 {!pendingLoading && pending.length > 0 && (
                   <div className="card-button-pressed overflow-hidden">
-                    <div className="px-6 py-3 flex items-center gap-2">
+                    <div className="px-5 py-2.5 flex items-center gap-2">
                       <h2 className="text-body-md font-semibold text-amber-700">Pending Approval</h2>
                       <span className="badge-amber">{pending.length}</span>
                     </div>
@@ -559,21 +576,21 @@ export default function FirmDetailPage() {
                       <table className="w-full">
                         <thead>
                           <tr className="text-left">
-                            <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Name</th>
-                            <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Email</th>
-                            <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Phone</th>
-                            <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date Requested</th>
-                            <th className="px-6 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
+                            <th className="px-5 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Name</th>
+                            <th className="px-5 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Email</th>
+                            <th className="px-5 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Phone</th>
+                            <th className="px-5 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Date Requested</th>
+                            <th className="px-5 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {pending.map((row, i) => (
                             <tr key={row.id} className={`group text-body-md hover:bg-[var(--surface-header)] transition-colors ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                              <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{row.name}</td>
-                              <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{row.email}</td>
-                              <td data-col="Phone" className="px-6 py-3 text-[var(--text-secondary)]">{row.phone || '—'}</td>
-                              <td data-col="Date Requested" className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(row.created_at)}</td>
-                              <td className="px-6 py-3 flex items-center gap-3">
+                              <td data-col="Name" className="px-5 py-2.5 text-[var(--text-primary)] font-medium">{row.name}</td>
+                              <td data-col="Email" className="px-5 py-2.5 text-[var(--text-secondary)]">{row.email}</td>
+                              <td data-col="Phone" className="px-5 py-2.5 text-[var(--text-secondary)]">{row.phone || '—'}</td>
+                              <td data-col="Date Requested" className="px-5 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(row.created_at)}</td>
+                              <td className="px-5 py-2.5 flex items-center gap-3">
                                 <button onClick={() => handleApprove(row.id)} className="btn-thick-green text-xs font-medium px-3 py-1.5">Approve</button>
                                 <button onClick={() => handleReject(row.id)} className="btn-thick-red text-xs font-medium px-3 py-1.5">Reject</button>
                               </td>
@@ -587,8 +604,8 @@ export default function FirmDetailPage() {
 
                 {/* ── ADMINS SECTION ── */}
                 <div className={adminsOpen ? 'card-button-pressed' : 'card-button'}>
-                  <div className="flex items-center justify-between px-6 py-4" onClick={() => setAdminsOpen(!adminsOpen)}>
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between px-5 py-3" onClick={() => setAdminsOpen(!adminsOpen)}>
+                    <div className="flex items-center gap-2.5">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                         className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${adminsOpen ? 'rotate-90' : ''}`}>
                         <path d="M9 18l6-6-6-6" />
@@ -606,32 +623,78 @@ export default function FirmDetailPage() {
                   </div>
                   {adminsOpen && (
                     adminsLoading ? (
-                      <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+                      <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
                     ) : admins.length === 0 ? (
-                      <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
+                      <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">No admins found.</div>
                     ) : (
                       <table className="w-full ds-table-chassis">
                         <thead>
                           <tr className="ds-table-header text-left">
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('status')}>Status{adminSortIndicator('status')}</th>
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleAdminSort('created_at')}>Created{adminSortIndicator('created_at')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleAdminSort('name')}>Name{adminSortIndicator('name')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleAdminSort('email')}>Email{adminSortIndicator('email')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleAdminSort('status')}>Status{adminSortIndicator('status')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleAdminSort('created_at')}>Created{adminSortIndicator('created_at')}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {sortedAdmins.map((admin, i) => (
                             <tr key={admin.id} className={`ds-table-row text-body-md ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                              <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{admin.name}</td>
-                              <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{admin.email}</td>
-                              <td data-col="Status" className="px-6 py-3">
+                              <td data-col="Name" className="px-5 py-2.5 text-[var(--text-primary)] font-medium">{admin.name}</td>
+                              <td data-col="Email" className="px-5 py-2.5 text-[var(--text-secondary)]">{admin.email}</td>
+                              <td data-col="Status" className="px-5 py-2.5">
                                 {admin.status === 'active' ? (
                                   <span className="badge-green">Active</span>
                                 ) : (
                                   <span className="badge-gray">Inactive</span>
                                 )}
                               </td>
-                              <td data-col="Created" className="px-6 py-3 text-[var(--text-secondary)] tabular-nums">{formatDate(admin.created_at)}</td>
+                              <td data-col="Created" className="px-5 py-2.5 text-[var(--text-secondary)] tabular-nums">{formatDate(admin.created_at)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )
+                  )}
+                </div>
+
+                {/* ── ACCOUNTANTS SECTION ── */}
+                <div className={accountantsOpen ? 'card-button-pressed' : 'card-button'}>
+                  <div className="flex items-center justify-between px-5 py-3 cursor-pointer" onClick={() => setAccountantsOpen(!accountantsOpen)}>
+                    <div className="flex items-center gap-2.5">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${accountantsOpen ? 'rotate-90' : ''}`}>
+                        <path d="M9 18l6-6-6-6" />
+                      </svg>
+                      <p className="text-title-sm font-semibold text-[var(--text-primary)]">Accountants</p>
+                      {!accountantsLoading && <span className="badge-blue">{accountants.length}</span>}
+                    </div>
+                  </div>
+                  {accountantsOpen && (
+                    accountantsLoading ? (
+                      <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+                    ) : accountants.length === 0 ? (
+                      <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">No accountants assigned.</div>
+                    ) : (
+                      <table className="w-full ds-table-chassis">
+                        <thead>
+                          <tr className="ds-table-header text-left">
+                            <th className="px-5 py-2">Name</th>
+                            <th className="px-5 py-2">Email</th>
+                            <th className="px-5 py-2">Role</th>
+                            <th className="px-5 py-2">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {accountants.map((acc, i) => (
+                            <tr key={acc.id} className={`ds-table-row text-body-md ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
+                              <td className="px-5 py-2.5 text-[var(--text-primary)] font-medium">{acc.name}</td>
+                              <td className="px-5 py-2.5 text-[var(--text-secondary)]">{acc.email}</td>
+                              <td className="px-5 py-2.5">
+                                {acc.role === 'owner' ? <span className="badge-blue">Owner</span> : <span className="badge-gray">Member</span>}
+                              </td>
+                              <td className="px-5 py-2.5">
+                                {acc.status === 'active' ? <span className="badge-green">Active</span> : <span className="badge-gray">{acc.status}</span>}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -642,7 +705,7 @@ export default function FirmDetailPage() {
 
                 {/* ── EMPLOYEES SECTION ── */}
                 <div className={empsOpen ? 'card-button-pressed' : 'card-button'}>
-                  <div className="flex items-center justify-between px-6 py-4" onClick={() => setEmpsOpen(!empsOpen)}>
+                  <div className="flex items-center justify-between px-5 py-3" onClick={() => setEmpsOpen(!empsOpen)}>
                     <div className="flex items-center gap-3">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
                         className={`text-[var(--text-secondary)] flex-shrink-0 transition-transform duration-200 ${empsOpen ? 'rotate-90' : ''}`}>
@@ -660,30 +723,30 @@ export default function FirmDetailPage() {
                   </div>
                   {empsOpen && (
                     empLoading ? (
-                      <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+                      <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
                     ) : employees.length === 0 ? (
-                      <div className="px-6 py-8 text-center text-sm text-[var(--text-secondary)]">No employees found.</div>
+                      <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">No employees found.</div>
                     ) : (
                       <table className="w-full ds-table-chassis">
                         <thead>
                           <tr className="ds-table-header text-left">
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
-                            <th className="px-6 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
-                            <th className="px-6 py-2.5 text-right cursor-pointer select-none" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
-                            <th className="px-6 py-2.5 cursor-pointer select-none" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
-                            <th className="px-6 py-2.5">Actions</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleEmpSort('name')}>Name{empSortIndicator('name')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleEmpSort('phone')}>Phone{empSortIndicator('phone')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleEmpSort('email')}>Email{empSortIndicator('email')}</th>
+                            <th className="px-5 py-2 text-right cursor-pointer select-none" onClick={() => toggleEmpSort('claims_count')}>Claims{empSortIndicator('claims_count')}</th>
+                            <th className="px-5 py-2 text-right cursor-pointer select-none" onClick={() => toggleEmpSort('outstanding')}>Outstanding{empSortIndicator('outstanding')}</th>
+                            <th className="px-5 py-2 cursor-pointer select-none" onClick={() => toggleEmpSort('is_active')}>Status{empSortIndicator('is_active')}</th>
+                            <th className="px-5 py-2">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {sortedEmployees.map((emp, i) => (
                             <tr key={emp.id} className={`ds-table-row text-body-md ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}>
-                              <td data-col="Name" className="px-6 py-3 text-[var(--text-primary)] font-medium">{emp.name}</td>
-                              <td data-col="Phone" className="px-6 py-3 text-[var(--text-secondary)]">{emp.phone}</td>
-                              <td data-col="Email" className="px-6 py-3 text-[var(--text-secondary)]">{emp.email ?? '—'}</td>
-                              <td data-col="Claims" className="px-6 py-3 text-[var(--text-primary)] font-semibold text-right tabular-nums">{emp.claims_count}</td>
-                              <td data-col="Outstanding" className="px-6 py-3 text-right tabular-nums">
+                              <td data-col="Name" className="px-5 py-2.5 text-[var(--text-primary)] font-medium">{emp.name}</td>
+                              <td data-col="Phone" className="px-5 py-2.5 text-[var(--text-secondary)]">{emp.phone}</td>
+                              <td data-col="Email" className="px-5 py-2.5 text-[var(--text-secondary)]">{emp.email ?? '—'}</td>
+                              <td data-col="Claims" className="px-5 py-2.5 text-[var(--text-primary)] font-semibold text-right tabular-nums">{emp.claims_count}</td>
+                              <td data-col="Outstanding" className="px-5 py-2.5 text-right tabular-nums">
                                 {Number(emp.outstanding) > 0 ? (
                                   <Link href={`/accountant/employees/${emp.id}/claims-account`} className="text-[var(--reject-red)] font-semibold hover:underline">
                                     RM {Number(emp.outstanding).toLocaleString('en-MY', { minimumFractionDigits: 2 })}
@@ -692,7 +755,7 @@ export default function FirmDetailPage() {
                                   <span className="text-[var(--text-secondary)]">—</span>
                                 )}
                               </td>
-                              <td data-col="Status" className="px-6 py-3">
+                              <td data-col="Status" className="px-5 py-2.5">
                                 {emp.user_status === 'pending_onboarding' ? (
                                   <span className="badge-amber">Pending</span>
                                 ) : emp.user_status === 'rejected' ? (
@@ -703,7 +766,7 @@ export default function FirmDetailPage() {
                                   <span className="badge-gray">Inactive</span>
                                 )}
                               </td>
-                              <td className="px-6 py-3 flex items-center gap-2">
+                              <td className="px-5 py-2.5 flex items-center gap-2">
                                 <button onClick={() => openEditEmpPanel(emp)} className="btn-thick-white text-xs font-medium px-3 py-1.5">Edit</button>
                                 <button onClick={() => toggleEmpActive(emp)} className="btn-thick-white text-xs font-medium px-3 py-1.5">
                                   {emp.is_active ? 'Deact' : 'Activate'}

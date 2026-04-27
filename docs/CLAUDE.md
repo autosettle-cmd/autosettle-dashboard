@@ -62,6 +62,7 @@ No hardcoded colors (use CSS vars from `config/branding.ts`). No AG Grid. Center
 | **Reuse shared components** | Use existing preview panels, modals, and form components. Never duplicate UI code inline — if a shared component is missing a feature, add it to the shared component. |
 | **No N+1 queries** | Never query inside a loop. Pre-fetch all data in one query, then process in-memory. Use `batchAuditLog()` from `lib/audit.ts` for audit logs — never loop `auditLog()`. Use Prisma relation filters (`invoice: { supplier_id }`) instead of pre-fetching IDs. Use `groupBy()` or `aggregate({ _count, _sum })` instead of separate count + sum queries. |
 | **Error boundaries** | Every route group must have an `error.tsx`. Use the shared `ErrorPage` component from `components/ErrorPage.tsx`. `app/global-error.tsx` must use inline styles (no CSS vars). |
+| **Firm setup guard** | All upload/submit pages must check firm setup status before allowing uploads. If COA or fiscal year is missing, show amber warning banner with "Go to Setup" link and block the upload with an alert. Check via `GET /api/accountant/firms/{firmId}/setup-status`. Applied to: invoices, claims. Must apply to any new upload page. |
 
 ---
 

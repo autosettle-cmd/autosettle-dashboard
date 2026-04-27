@@ -398,3 +398,24 @@ Every route group must have an `error.tsx` file that catches rendering errors.
 - All use shared `components/ErrorPage.tsx` (except global-error which is self-contained)
 
 **Status:** ✅ All error boundaries created (2026-04-27)
+
+---
+
+## 33. Firm Setup Guard on Uploads
+
+All pages that allow file uploads must check if the firm has completed setup (COA + fiscal year) before allowing uploads.
+
+### Implementation
+- On page load, call `GET /api/accountant/firms/{firmId}/setup-status`
+- If `chartOfAccounts.complete === false` or `fiscalYear.complete === false`:
+  - Set `firmSetupReady = false`
+  - Show amber warning banner with message + "Go to Setup" button linking to `/accountant/clients/{firmId}`
+  - Block `handleDrop` with `alert()` + early return
+- Admin pages skip this check (firm is always set up by accountant first)
+
+### Files with guard
+- `components/pages/InvoicesPageContent.tsx` — invoices upload (drag-drop + batch)
+- `components/pages/ClaimsPageContent.tsx` — claims/receipts upload (drag-drop + batch)
+- Any future upload page must include this guard
+
+**Status:** ✅ Applied to invoices + claims (2026-04-27)
