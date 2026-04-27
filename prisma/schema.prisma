@@ -95,6 +95,11 @@ enum PaymentDirection {
   incoming
 }
 
+enum AccountantFirmRole {
+  owner
+  member
+}
+
 model Firm {
   id                  String    @id @default(uuid())
   name                String
@@ -192,6 +197,9 @@ model User {
   is_active              Boolean    @default(true)
   verification_code      String?
   verification_expires   DateTime?
+  invite_token           String?    @unique
+  invite_token_expires   DateTime?
+  invited_by             String?
   created_at             DateTime   @default(now())
   updated_at             DateTime   @updatedAt
 
@@ -204,10 +212,11 @@ model User {
 }
 
 model AccountantFirm {
-  id         String   @id @default(uuid())
+  id         String              @id @default(uuid())
   user_id    String
   firm_id    String
-  created_at DateTime @default(now())
+  role       AccountantFirmRole  @default(member)
+  created_at DateTime            @default(now())
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
   firm Firm @relation(fields: [firm_id], references: [id], onDelete: Cascade)

@@ -47,3 +47,13 @@ export function firmScope(
   if (!firmIds) return {};
   return { firm_id: { in: firmIds } };
 }
+
+/**
+ * Returns true if the accountant is an owner (has any AccountantFirm with role='owner').
+ */
+export async function isAccountantOwner(userId: string): Promise<boolean> {
+  const ownerRecord = await prisma.accountantFirm.findFirst({
+    where: { user_id: userId, role: 'owner' },
+  });
+  return !!ownerRecord;
+}

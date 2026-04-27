@@ -1,11 +1,20 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { brand } from '@/config/branding';
 
 type PageState = "form" | "loading" | "verify" | "verifying" | "success";
 
 export default function AccountantSignupPage() {
+  return <Suspense><AccountantSignupInner /></Suspense>;
+}
+
+function AccountantSignupInner() {
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
+
   // Form fields
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,7 +41,11 @@ export default function AccountantSignupPage() {
     e.preventDefault();
     setError("");
 
-    if (!name || !email || !phone || !password || !confirmPassword || !firmName) {
+    if (!name || !phone || !password || !confirmPassword) {
+      setError("All fields are required");
+      return;
+    }
+    if (!inviteToken && (!email || !firmName)) {
       setError("All fields are required");
       return;
     }
@@ -48,10 +61,14 @@ export default function AccountantSignupPage() {
     setPageState("loading");
 
     try {
-      const res = await fetch("/api/auth/signup-accountant", {
+      const endpoint = inviteToken ? "/api/auth/accept-invite" : "/api/auth/signup-accountant";
+      const body = inviteToken
+        ? { token: inviteToken, name, phone, password }
+        : { name, email, phone, password, firmName, firmAddress };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone, password, firmName, firmAddress }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
 
@@ -297,43 +314,45 @@ export default function AccountantSignupPage() {
               <div>
                 <div className="mb-8">
                   <h1 className="text-white text-[26px] font-extrabold tracking-tight mb-1.5">
-                    Create your firm
+                    {inviteToken ? "Join your team" : "Create your firm"}
                   </h1>
                   <p className="text-white/35 text-title-sm">
-                    Sign up as an accountant to manage clients
+                    {inviteToken ? "Complete your account to get started" : "Sign up as an accountant to manage clients"}
                   </p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-                  {/* Firm name */}
-                  <div>
-                    <label className={labelClass} htmlFor="firmName">Firm name</label>
-                    <div className="relative">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
-                        </svg>
+                  {!inviteToken && (<>
+                    {/* Firm name */}
+                    <div>
+                      <label className={labelClass} htmlFor="firmName">Firm name</label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" />
+                          </svg>
+                        </div>
+                        <input id="firmName" type="text" required value={firmName} onChange={(e) => setFirmName(e.target.value)} className={`${inputClass} login-input pl-11`} placeholder="Your accounting firm name" />
                       </div>
-                      <input id="firmName" type="text" required value={firmName} onChange={(e) => setFirmName(e.target.value)} className={`${inputClass} login-input pl-11`} placeholder="Your accounting firm name" />
                     </div>
-                  </div>
 
-                  {/* Firm address */}
-                  <div>
-                    <label className={labelClass} htmlFor="firmAddress">Firm address <span className="text-white/20">(optional)</span></label>
-                    <div className="relative">
-                      <div className="absolute left-3.5 top-3.5 text-white/20">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                        </svg>
+                    {/* Firm address */}
+                    <div>
+                      <label className={labelClass} htmlFor="firmAddress">Firm address <span className="text-white/20">(optional)</span></label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-3.5 text-white/20">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                          </svg>
+                        </div>
+                        <textarea id="firmAddress" rows={2} value={firmAddress} onChange={(e) => setFirmAddress(e.target.value)} className={`${inputClass} login-input pl-11 resize-none`} placeholder="Office address" />
                       </div>
-                      <textarea id="firmAddress" rows={2} value={firmAddress} onChange={(e) => setFirmAddress(e.target.value)} className={`${inputClass} login-input pl-11 resize-none`} placeholder="Office address" />
                     </div>
-                  </div>
 
-                  <div className="border-t border-white/[0.06] pt-5 -mx-2 px-2">
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4">Your details</p>
-                  </div>
+                    <div className="border-t border-white/[0.06] pt-5 -mx-2 px-2">
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-4">Your details</p>
+                    </div>
+                  </>)}
 
                   {/* Name */}
                   <div>
@@ -348,18 +367,20 @@ export default function AccountantSignupPage() {
                     </div>
                   </div>
 
-                  {/* Email */}
-                  <div>
-                    <label className={labelClass} htmlFor="signup-email">Email address</label>
-                    <div className="relative">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
-                        </svg>
+                  {/* Email — hidden for invite (already set) */}
+                  {!inviteToken && (
+                    <div>
+                      <label className={labelClass} htmlFor="signup-email">Email address</label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/20">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                          </svg>
+                        </div>
+                        <input id="signup-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputClass} login-input pl-11`} placeholder="you@example.com" />
                       </div>
-                      <input id="signup-email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputClass} login-input pl-11`} placeholder="you@example.com" />
                     </div>
-                  </div>
+                  )}
 
                   {/* Phone */}
                   <div>

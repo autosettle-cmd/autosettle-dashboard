@@ -5,6 +5,18 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import SearchButton from '@/components/SearchButton';
 
+// ─── Team types ──────────────────────────────────────────────────────────────
+
+interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  isActive: boolean;
+  createdAt: string;
+  firms: { id: string; name: string }[];
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FirmRow {
@@ -73,6 +85,18 @@ export default function ClientsPage() {
   const [editLhdnId, setEditLhdnId]             = useState('');
   const [editLhdnSecret, setEditLhdnSecret]     = useState('');
 
+  // Team management
+  const [isOwner, setIsOwner]                     = useState(false);
+  const [teamMembers, setTeamMembers]             = useState<TeamMember[]>([]);
+  const [showInvite, setShowInvite]               = useState(false);
+  const [inviteEmail, setInviteEmail]             = useState('');
+  const [inviteFirmIds, setInviteFirmIds]         = useState<string[]>([]);
+  const [inviteError, setInviteError]             = useState('');
+  const [inviteSaving, setInviteSaving]           = useState(false);
+  const [showTeam, setShowTeam]                   = useState(false);
+  const [editMember, setEditMember]               = useState<TeamMember | null>(null);
+  const [editMemberFirmIds, setEditMemberFirmIds] = useState<string[]>([]);
+
   // Load firms
   useEffect(() => {
     let cancelled = false;
@@ -86,9 +110,65 @@ export default function ClientsPage() {
     return () => { cancelled = true; };
   }, [refreshKey]);
 
+  // Load team members (determines if user is owner)
+  useEffect(() => {
+    fetch('/api/accountant/team')
+      .then((r) => { if (r.ok) { setIsOwner(true); return r.json(); } setIsOwner(false); return null; })
+      .then((j) => { if (j?.data) setTeamMembers(j.data); })
+      .catch(() => setIsOwner(false));
+  }, [refreshKey]);
+
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   const refresh = () => setRefreshKey((k) => k + 1);
+
+  const submitInvite = async () => {
+    if (!inviteEmail.trim()) { setInviteError('Email is required'); return; }
+    if (inviteFirmIds.length === 0) { setInviteError('Select at least one firm'); return; }
+    setInviteSaving(true);
+    setInviteError('');
+    try {
+      const res = await fetch('/api/accountant/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail.trim(), firmIds: inviteFirmIds }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setInviteError(json.error || 'Failed to send invite'); setInviteSaving(false); return; }
+      setShowInvite(false);
+      setInviteEmail('');
+      setInviteFirmIds([]);
+      refresh();
+    } catch { setInviteError('Failed to send invite'); }
+    finally { setInviteSaving(false); }
+  };
+
+  const updateMemberFirms = async (memberId: string, firmIds: string[]) => {
+    try {
+      const res = await fetch(`/api/accountant/team/${memberId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firmIds }),
+      });
+      if (res.ok) { setEditMember(null); refresh(); }
+    } catch (e) { console.error(e); }
+  };
+
+  const removeMember = async (memberId: string) => {
+    if (!confirm('Remove this team member? They will no longer be able to access any firms.')) return;
+    try {
+      const res = await fetch(`/api/accountant/team/${memberId}`, { method: 'DELETE' });
+      if (res.ok) refresh();
+    } catch (e) { console.error(e); }
+  };
+
+  const toggleInviteFirm = (firmId: string) => {
+    setInviteFirmIds((prev) => prev.includes(firmId) ? prev.filter((id) => id !== firmId) : [...prev, firmId]);
+  };
+
+  const toggleEditFirm = (firmId: string) => {
+    setEditMemberFirmIds((prev) => prev.includes(firmId) ? prev.filter((id) => id !== firmId) : [...prev, firmId]);
+  };
 
   const openEdit = (firm: FirmRow) => {
     setEditFirm(firm);
@@ -206,6 +286,16 @@ export default function ClientsPage() {
 
           {/* ── Action bar ────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+            {isOwner && (
+              <>
+                <button onClick={() => setShowTeam((v) => !v)} className="btn-thick-white text-sm px-4 py-2 font-medium">
+                  {showTeam ? 'Hide Team' : `My Team${teamMembers.length > 0 ? ` (${teamMembers.length})` : ''}`}
+                </button>
+                <button onClick={() => { setShowInvite(true); setInviteEmail(''); setInviteFirmIds([]); setInviteError(''); }} className="btn-thick-white text-sm px-4 py-2 font-medium">
+                  Invite Team Member
+                </button>
+              </>
+            )}
             <button
               onClick={openAddModal}
               className="ml-auto btn-thick-navy text-sm px-4 py-2 font-medium"
@@ -213,6 +303,60 @@ export default function ClientsPage() {
               Add Client
             </button>
           </div>
+
+          {/* ── Team Members Section ─────────────────────── */}
+          {isOwner && showTeam && (
+            <div className="bg-white p-5 flex-shrink-0 border border-[var(--outline-ghost)]">
+              <h2 className="text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">Team Members</h2>
+              {teamMembers.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">No team members yet. Invite someone to get started.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left">
+                      <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Name</th>
+                      <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Email</th>
+                      <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Status</th>
+                      <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Firms</th>
+                      <th className="px-4 py-2 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)]">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teamMembers.map((m, i) => (
+                      <tr key={m.id} className={i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}>
+                        <td className="px-4 py-2.5 font-medium">{m.name}</td>
+                        <td className="px-4 py-2.5 text-[var(--text-secondary)]">{m.email}</td>
+                        <td className="px-4 py-2.5">
+                          {m.status === 'active' ? <span className="badge-green">Active</span>
+                            : m.status === 'pending_onboarding' ? <span className="badge-amber">Pending</span>
+                            : <span className="badge-gray">{m.status}</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {m.firms.map((f) => (
+                              <span key={f.id} className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-[var(--surface-low)] text-[var(--text-secondary)]">{f.name}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setEditMember(m); setEditMemberFirmIds(m.firms.map((f) => f.id)); }}
+                              className="text-xs text-[var(--primary)] hover:underline font-medium"
+                            >Edit Firms</button>
+                            <button
+                              onClick={() => removeMember(m.id)}
+                              className="text-xs text-[var(--reject-red)] hover:underline font-medium"
+                            >Remove</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
 
           {/* ── Table ─────────────────────────────────────── */}
           <div className="bg-white overflow-hidden flex-1 min-h-0 flex flex-col">
@@ -524,6 +668,86 @@ export default function ClientsPage() {
         </div>
       )}
 
+      {/* ── Invite Team Member Modal ──────────────── */}
+      {showInvite && (
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setShowInvite(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setShowInvite(false)}>
+            <div className="bg-white w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="h-12 flex items-center justify-between px-5 bg-[var(--primary)]">
+                <h2 className="text-white font-bold text-sm uppercase tracking-widest">Invite Team Member</h2>
+                <button onClick={() => setShowInvite(false)} className="btn-thick-red w-7 h-7 !p-0" title="Close">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                {inviteError && (
+                  <div className="bg-red-50 border border-red-200 p-3">
+                    <p className="text-sm text-red-700">{inviteError}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Email Address *</label>
+                  <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="input-recessed w-full" placeholder="colleague@example.com" autoFocus />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Assign to Firms *</label>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {firms.map((f) => (
+                      <label key={f.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--surface-low)] cursor-pointer transition-colors">
+                        <input type="checkbox" checked={inviteFirmIds.includes(f.id)} onChange={() => toggleInviteFirm(f.id)} className="w-4 h-4" />
+                        <span className="text-sm text-[var(--text-primary)]">{f.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setShowInvite(false)} className="btn-thick-white px-4 py-2 text-sm font-medium">Cancel</button>
+                  <button onClick={submitInvite} disabled={inviteSaving} className="btn-primary px-4 py-2 text-sm font-bold disabled:opacity-40">
+                    {inviteSaving ? 'Sending...' : 'Send Invite'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Edit Member Firms Modal ──────────────── */}
+      {editMember && (
+        <>
+          <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-40" onClick={() => setEditMember(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6" onClick={() => setEditMember(null)}>
+            <div className="bg-white w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="h-12 flex items-center justify-between px-5 bg-[var(--primary)]">
+                <h2 className="text-white font-bold text-sm uppercase tracking-widest">Edit Firm Access — {editMember.name}</h2>
+                <button onClick={() => setEditMember(null)} className="btn-thick-red w-7 h-7 !p-0" title="Close">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2">Assign to Firms</label>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {firms.map((f) => (
+                      <label key={f.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-[var(--surface-low)] cursor-pointer transition-colors">
+                        <input type="checkbox" checked={editMemberFirmIds.includes(f.id)} onChange={() => toggleEditFirm(f.id)} className="w-4 h-4" />
+                        <span className="text-sm text-[var(--text-primary)]">{f.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={() => setEditMember(null)} className="btn-thick-white px-4 py-2 text-sm font-medium">Cancel</button>
+                  <button onClick={() => updateMemberFirms(editMember.id, editMemberFirmIds)} disabled={editMemberFirmIds.length === 0} className="btn-primary px-4 py-2 text-sm font-bold disabled:opacity-40">
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

@@ -105,9 +105,9 @@ export async function POST(request: NextRequest) {
             data: { is_active: true },
           });
 
-          // Link accountant to firm
+          // Link accountant to firm as owner (self-signup = firm creator)
           await tx.accountantFirm.create({
-            data: { user_id: user.id, firm_id: user.firm_id },
+            data: { user_id: user.id, firm_id: user.firm_id, role: 'owner' },
           });
         }
       } else {
