@@ -89,7 +89,7 @@ Example: [{"account_code":"100-000","name":"Cash & Bank","account_type":"Asset",
             ],
           }],
           systemInstruction: { parts: [{ text: systemPrompt }] },
-          generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 65536 },
         }),
         signal: controller.signal,
       });
