@@ -1411,7 +1411,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   setShowNewInvoice(true);
                   if (config.firms && config.firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: config.firms![0].id }));
                 }}
-                disabled={batchScanning || batchSubmitting}
+                disabled={batchScanning || batchSubmitting || !firmSetupReady}
                 className="btn-thick-navy px-4 py-2 text-sm font-semibold disabled:opacity-50"
               >
                 + Submit New Invoice
