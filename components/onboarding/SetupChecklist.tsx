@@ -30,18 +30,6 @@ const STEPS = [
   { key: 'admin', label: 'Add Admin', description: 'Create an admin user for this firm' },
 ] as const;
 
-/**
- * Scroll to a button with [data-setup="target"] and pulse it red for 3 seconds.
- */
-function highlightButton(target: string) {
-  const el = document.querySelector(`[data-setup="${target}"]`) as HTMLElement | null;
-  if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  el.classList.add('animate-pulse', 'bg-red-500', 'border-2', 'border-red-400', 'ring-2', 'ring-red-400/50', 'text-white', 'setup-highlight');
-  setTimeout(() => {
-    el.classList.remove('animate-pulse', 'bg-red-500', 'border-2', 'border-red-400', 'ring-2', 'ring-red-400/50', 'text-white', 'setup-highlight');
-  }, 3000);
-}
 
 export default function SetupChecklist({ firmId, firms, onOpenEditFirm, onOpenAddAdmin }: SetupChecklistProps) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
