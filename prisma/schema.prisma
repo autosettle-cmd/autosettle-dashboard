@@ -189,9 +189,11 @@ model User {
   status        UserStatus @default(active)
   firm_id       String?
   employee_id   String?
-  is_active     Boolean    @default(true)
-  created_at    DateTime   @default(now())
-  updated_at    DateTime   @updatedAt
+  is_active              Boolean    @default(true)
+  verification_code      String?
+  verification_expires   DateTime?
+  created_at             DateTime   @default(now())
+  updated_at             DateTime   @updatedAt
 
   firm           Firm?            @relation(fields: [firm_id], references: [id])
   employee       Employee?        @relation(fields: [employee_id], references: [id])

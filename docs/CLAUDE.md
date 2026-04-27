@@ -83,3 +83,11 @@ No hardcoded colors (use CSS vars from `config/branding.ts`). No AG Grid. Center
 | [`/docs/signup-spec.md`](/docs/signup-spec.md) | Employee self-signup, admin creation |
 | [`/docs/categories-spec.md`](/docs/categories-spec.md) | Category business rules |
 | [`/docs/audit-checklist.md`](/docs/audit-checklist.md) | Patterns the `/audit` skill verifies — voucher prefixes, table stability, GL cache, totals, badges, layouts |
+
+## Diagrams (open in Excalidraw)
+
+| File | Contents |
+|------|----------|
+| `diagram-invoice-flow.excalidraw` | Invoice lifecycle: upload → supplier match → GL suggest → approval → JV → bank recon → paid |
+| `diagram-claim-flow.excalidraw` | Claim lifecycle: submit → review → approve (no JV) → bank recon → JV → paid |
+| `diagram-bank-recon-flow.excalidraw` | Bank recon: upload → 4-pass auto-match → review → confirm → JV (3 match types) |

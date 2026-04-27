@@ -15,7 +15,7 @@ export default function RoleLayout({
     <MobileSidebarProvider>
       <div className="flex h-screen overflow-hidden bg-[#F7F9FB]">
         {/* Desktop sidebar */}
-        <div className="hidden md:block flex-shrink-0">
+        <div className="hidden md:flex flex-shrink-0 h-full">
           <Sidebar role={role} />
         </div>
         {/* Mobile sidebar (drawer) */}

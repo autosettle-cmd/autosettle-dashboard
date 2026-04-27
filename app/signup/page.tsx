@@ -434,6 +434,14 @@ export default function SignupPage() {
             >
               Sign in
             </a>
+            <br />
+            <span className="text-white/15">Are you an accountant?{" "}</span>
+            <a
+              href="/signup/accountant"
+              className="text-white/50 hover:text-white font-medium transition-colors duration-300 underline decoration-white/20 underline-offset-2 hover:decoration-white/50"
+            >
+              Create your firm
+            </a>
           </p>
         </div>
       </main>
