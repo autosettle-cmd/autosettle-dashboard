@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface CategoryRow {
   id: string;
@@ -33,14 +33,29 @@ export default function SetupCategoriesModal({ firmId, onComplete, onClose }: Pr
   // Track GL changes: categoryId → glAccountId
   const [glMap, setGlMap] = useState<Record<string, string>>({});
 
+  // Cache per firm — persists across modal reopen
+  const cacheRef = useRef<Record<string, { categories: CategoryRow[]; glAccounts: GlAccount[] }>>({});
+
   useEffect(() => {
+    if (cacheRef.current[firmId]) {
+      const cached = cacheRef.current[firmId];
+      setCategories(cached.categories);
+      setGlAccounts(cached.glAccounts);
+      const existing: Record<string, string> = {};
+      for (const c of cached.categories) { if (c.gl_account_id) existing[c.id] = c.gl_account_id; }
+      setGlMap(existing);
+      setLoading(false);
+      return;
+    }
     Promise.all([
       fetch(`/api/categories?firmId=${firmId}`).then(r => r.json()),
       fetch(`/api/gl-accounts?firmId=${firmId}`).then(r => r.json()),
     ]).then(([catJson, glJson]) => {
       const cats: CategoryRow[] = (catJson.data ?? []).filter((c: CategoryRow & { is_active: boolean }) => c.is_active);
+      const gl = glJson.data ?? [];
+      cacheRef.current[firmId] = { categories: cats, glAccounts: gl };
       setCategories(cats);
-      setGlAccounts(glJson.data ?? []);
+      setGlAccounts(gl);
 
       // Pre-fill existing mappings
       const existing: Record<string, string> = {};

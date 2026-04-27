@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
 import SearchButton from '@/components/SearchButton';
@@ -37,8 +37,9 @@ export default function CategoriesPage() {
   const [loading, setLoading]       = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // GL accounts for dropdown
+  // GL accounts for dropdown (cached per firm — don't change mid-session)
   const [glAccounts, setGlAccounts] = useState<GLAccountOption[]>([]);
+  const glCacheRef = useRef<Record<string, GLAccountOption[]>>({});
 
   // Modal
   const [showModal, setShowModal]       = useState(false);
@@ -76,13 +77,14 @@ export default function CategoriesPage() {
     return () => { cancelled = true; };
   }, [firmId, refreshKey, firmsLoaded]);
 
-  // Load GL accounts when firm changes
+  // Load GL accounts when firm changes (cached per firm)
   useEffect(() => {
     if (!firmId) { setGlAccounts([]); return; }
+    if (glCacheRef.current[firmId]) { setGlAccounts(glCacheRef.current[firmId]); return; }
     let cancelled = false;
     fetch(`/api/gl-accounts?firmId=${firmId}`)
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) setGlAccounts(j.data ?? []); })
+      .then((j) => { if (!cancelled) { const data = j.data ?? []; glCacheRef.current[firmId] = data; setGlAccounts(data); } })
       .catch((e) => console.error(e));
     return () => { cancelled = true; };
   }, [firmId]);

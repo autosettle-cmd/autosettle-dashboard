@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface GlAccount {
   id: string;
@@ -26,15 +26,25 @@ export default function SetupGlDefaultsModal({ firmId, onComplete, onClose }: Pr
   const [tradeReceivables, setTradeReceivables] = useState('');
   const [retainedEarnings, setRetainedEarnings] = useState('');
 
+  // Cache GL accounts per firm — persists across modal reopen
+  const glCacheRef = useRef<Record<string, GlAccount[]>>({});
+
   useEffect(() => {
-    // Fetch GL accounts for this firm
-    fetch(`/api/gl-accounts?firmId=${firmId}`)
-      .then(r => r.json())
-      .then(j => {
-        setAccounts(j.data ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    // Fetch GL accounts (cached per firm)
+    if (glCacheRef.current[firmId]) {
+      setAccounts(glCacheRef.current[firmId]);
+      setLoading(false);
+    } else {
+      fetch(`/api/gl-accounts?firmId=${firmId}`)
+        .then(r => r.json())
+        .then(j => {
+          const data = j.data ?? [];
+          glCacheRef.current[firmId] = data;
+          setAccounts(data);
+          setLoading(false);
+        })
+        .catch(() => setLoading(false));
+    }
 
     // Fetch current firm defaults from firms/details
     fetch('/api/firms/details')
