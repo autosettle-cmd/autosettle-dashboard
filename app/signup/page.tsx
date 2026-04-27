@@ -8,7 +8,7 @@ interface Firm {
   name: string;
 }
 
-type PageState = "idle" | "loading" | "success";
+type PageState = "idle" | "loading" | "verify" | "verifying" | "success";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
@@ -24,6 +24,12 @@ export default function SignupPage() {
   const [pageState, setPageState] = useState<PageState>("idle");
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Verification
+  const [userId, setUserId] = useState("");
+  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -88,11 +94,83 @@ export default function SignupPage() {
         return;
       }
 
-      setPageState("success");
+      setUserId(data.data.userId);
+      setPageState("verify");
+      startCooldown();
     } catch {
       setError("Something went wrong. Please try again.");
       setPageState("idle");
     }
+  }
+
+  // ─── Code input handling ───────────────────────────────────────────────
+  function handleCodeChange(index: number, value: string) {
+    if (!/^\d*$/.test(value)) return;
+    const newCode = [...code];
+    newCode[index] = value.slice(-1);
+    setCode(newCode);
+    if (value && index < 5) codeRefs.current[index + 1]?.focus();
+    if (value && index === 5 && newCode.every((d) => d)) verifyCode(newCode.join(""));
+  }
+  function handleCodeKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !code[index] && index > 0) codeRefs.current[index - 1]?.focus();
+  }
+  function handleCodePaste(e: React.ClipboardEvent) {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted.length === 6) {
+      setCode(pasted.split(""));
+      codeRefs.current[5]?.focus();
+      verifyCode(pasted);
+    }
+  }
+
+  async function verifyCode(codeStr: string) {
+    setError("");
+    setPageState("verifying");
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, code: codeStr }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setError(data.error || "Invalid code");
+        setCode(["", "", "", "", "", ""]);
+        codeRefs.current[0]?.focus();
+        setPageState("verify");
+        return;
+      }
+      setPageState("success");
+    } catch {
+      setError("Verification failed. Please try again.");
+      setPageState("verify");
+    }
+  }
+
+  function startCooldown() {
+    setResendCooldown(60);
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; });
+    }, 1000);
+  }
+
+  async function handleResend() {
+    if (resendCooldown > 0) return;
+    setError("");
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, action: "resend" }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error || "Failed to resend"); return; }
+      startCooldown();
+      setCode(["", "", "", "", "", ""]);
+      codeRefs.current[0]?.focus();
+    } catch { setError("Failed to resend. Please try again."); }
   }
 
   const inputClass =
@@ -158,10 +236,10 @@ export default function SignupPage() {
                     </svg>
                   </div>
                   <h2 className="text-white text-[26px] font-extrabold tracking-tight mb-2">
-                    Account created
+                    Email verified!
                   </h2>
                   <p className="text-white/35 text-title-sm leading-relaxed mb-8 max-w-xs mx-auto">
-                    Your account has been created. Please wait for your admin to approve your access. You will be notified once approved.
+                    Your account has been created. Please wait for your admin to approve your access before you can log in.
                   </p>
                   <a
                     href="/login"
@@ -173,6 +251,48 @@ export default function SignupPage() {
                     Back to sign in
                   </a>
                 </div>
+              </div>
+            ) : (pageState === "verify" || pageState === "verifying") ? (
+              <div className="text-center" key="verify">
+                <div className="mb-6">
+                  <h2 className="text-white text-[26px] font-extrabold tracking-tight mb-1.5">
+                    Verify your email
+                  </h2>
+                  <p className="text-white/35 text-title-sm">
+                    We sent a 6-digit code to <span className="text-white/60">{email}</span>
+                  </p>
+                </div>
+                <div className="flex justify-center gap-2.5 mb-6" onPaste={handleCodePaste}>
+                  {code.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { codeRefs.current[i] = el; }}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleCodeChange(i, e.target.value)}
+                      onKeyDown={(e) => handleCodeKeyDown(i, e)}
+                      disabled={pageState === "verifying"}
+                      className="w-12 h-14 text-center text-xl font-bold text-white bg-white/[0.04] border border-white/[0.08] focus:outline-none focus:ring-2 focus:ring-[rgba(var(--primary-rgb),0.4)] focus:bg-white/[0.06] transition-all disabled:opacity-40"
+                    />
+                  ))}
+                </div>
+                {pageState === "verifying" && (
+                  <p className="text-white/40 text-sm mb-4">Verifying...</p>
+                )}
+                {error && (
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <p style={{ color: "var(--reject-red)" }} className="text-sm">{error}</p>
+                  </div>
+                )}
+                <button
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0}
+                  className="text-white/40 hover:text-white/70 text-sm transition-colors disabled:cursor-not-allowed"
+                >
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+                </button>
               </div>
             ) : (
               <div className="form-stagger" key="signup">

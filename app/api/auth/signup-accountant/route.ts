@@ -21,16 +21,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Password must be at least 8 characters' }, { status: 400 });
   }
 
-  // Check email uniqueness
+  // Check email — allow re-signup if rejected
   const existingEmail = await prisma.user.findUnique({ where: { email } });
   if (existingEmail) {
-    return NextResponse.json({ data: null, error: 'An account with this email already exists' }, { status: 409 });
+    if (existingEmail.status === 'rejected') {
+      // Delete rejected user + their inactive firm so they can re-signup
+      if (existingEmail.firm_id) {
+        const firm = await prisma.firm.findUnique({ where: { id: existingEmail.firm_id }, select: { is_active: true } });
+        if (firm && !firm.is_active) {
+          await prisma.employee.deleteMany({ where: { firm_id: existingEmail.firm_id } });
+          await prisma.user.delete({ where: { id: existingEmail.id } });
+          await prisma.firm.delete({ where: { id: existingEmail.firm_id } });
+        } else {
+          await prisma.user.delete({ where: { id: existingEmail.id } });
+        }
+      } else {
+        await prisma.user.delete({ where: { id: existingEmail.id } });
+      }
+    } else {
+      return NextResponse.json({ data: null, error: 'An account with this email already exists' }, { status: 409 });
+    }
   }
 
-  // Check phone uniqueness
+  // Check phone uniqueness — skip if it belonged to a deleted rejected user
   const existingPhone = await prisma.employee.findUnique({ where: { phone } });
   if (existingPhone) {
-    return NextResponse.json({ data: null, error: 'An account with this phone number already exists' }, { status: 409 });
+    // Check if linked to an active user
+    const linkedUser = await prisma.user.findFirst({ where: { employee_id: existingPhone.id, status: { not: 'rejected' } } });
+    if (linkedUser) {
+      return NextResponse.json({ data: null, error: 'An account with this phone number already exists' }, { status: 409 });
+    }
+    // Orphaned employee from rejected signup — delete it
+    await prisma.employee.delete({ where: { id: existingPhone.id } });
   }
 
   try {

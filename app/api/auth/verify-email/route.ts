@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      id: true, email: true, name: true, status: true, firm_id: true,
+      id: true, email: true, name: true, role: true, status: true, firm_id: true,
       verification_code: true, verification_expires: true,
     },
   });
@@ -83,39 +83,54 @@ export async function POST(request: NextRequest) {
 
   // ─── Activate account ─────────────────────────────────────────────────
   try {
+    const isAccountant = user.role === 'accountant';
+
     await prisma.$transaction(async (tx) => {
-      // Activate user
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          status: 'active',
-          is_active: true,
-          verification_code: null,
-          verification_expires: null,
-        },
-      });
-
-      // Activate firm
-      if (user.firm_id) {
-        await tx.firm.update({
-          where: { id: user.firm_id },
-          data: { is_active: true },
+      if (isAccountant) {
+        // Accountant: fully activate — can log in immediately
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            status: 'active',
+            is_active: true,
+            verification_code: null,
+            verification_expires: null,
+          },
         });
 
-        // Link accountant to firm
-        await tx.accountantFirm.create({
-          data: { user_id: user.id, firm_id: user.firm_id },
-        });
+        // Activate firm
+        if (user.firm_id) {
+          await tx.firm.update({
+            where: { id: user.firm_id },
+            data: { is_active: true },
+          });
 
-        // COA, fiscal year, and firm details are set up by the accountant
-        // via the onboarding setup wizard after first login
+          // Link accountant to firm
+          await tx.accountantFirm.create({
+            data: { user_id: user.id, firm_id: user.firm_id },
+          });
+        }
+      } else {
+        // Employee/Admin: email verified but still pending admin approval
+        await tx.user.update({
+          where: { id: user.id },
+          data: {
+            verification_code: null,
+            verification_expires: null,
+            // Status stays pending_onboarding — admin must approve
+          },
+        });
       }
     });
 
-    // TODO: Set up billing/trial period for firm
+    // TODO: Set up billing/trial period for accountant firms
+
+    const message = isAccountant
+      ? 'Email verified! You can now log in.'
+      : 'Email verified! Please wait for your admin to approve your access.';
 
     return NextResponse.json({
-      data: { message: 'Email verified! You can now log in.' },
+      data: { message, role: user.role },
       error: null,
     });
   } catch (err) {

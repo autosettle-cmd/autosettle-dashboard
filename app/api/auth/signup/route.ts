@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { sendVerificationCode } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
+
+function generateCode(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -16,15 +21,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Password must be at least 8 characters' }, { status: 400 });
   }
 
-  // Check email uniqueness
+  // Check email — allow re-signup if rejected
   const existingEmail = await prisma.user.findUnique({ where: { email } });
   if (existingEmail) {
-    return NextResponse.json({ data: null, error: 'An account with this email already exists' }, { status: 409 });
+    if (existingEmail.status === 'rejected') {
+      // Delete rejected user so they can re-signup
+      await prisma.user.delete({ where: { id: existingEmail.id } });
+    } else {
+      return NextResponse.json({ data: null, error: 'An account with this email already exists' }, { status: 409 });
+    }
   }
 
-  // Check phone uniqueness in User table (via employee link)
+  // Check phone uniqueness in User table (via employee link) — skip rejected
   const existingPhoneUser = await prisma.user.findFirst({
-    where: { employee: { phone } },
+    where: { employee: { phone }, status: { not: 'rejected' } },
   });
   if (existingPhoneUser) {
     return NextResponse.json({ data: null, error: 'An account with this phone number already exists' }, { status: 409 });
@@ -41,28 +51,39 @@ export async function POST(request: NextRequest) {
     let employee = await prisma.employee.findUnique({ where: { phone } });
 
     if (!employee) {
-      // Create new employee
       employee = await prisma.employee.create({
         data: { name, phone, email, firm_id: firmId },
       });
     }
 
-    // Create user
     const passwordHash = await hash(password, 10);
-    await prisma.user.create({
+    const code = generateCode();
+    const codeHash = await hash(code, 10);
+
+    const user = await prisma.user.create({
       data: {
         email,
         password_hash: passwordHash,
         name,
         role: 'employee',
         status: 'pending_onboarding',
+        is_active: false,
         firm_id: firmId,
         employee_id: employee.id,
+        verification_code: codeHash,
+        verification_expires: new Date(Date.now() + 15 * 60 * 1000),
       },
     });
 
+    // Send verification email
+    try {
+      await sendVerificationCode(email, code, name);
+    } catch (emailErr) {
+      console.error('[signup] Failed to send verification email:', emailErr);
+    }
+
     return NextResponse.json({
-      data: { message: 'Account created successfully' },
+      data: { userId: user.id, message: 'Verification code sent to your email' },
       error: null,
     }, { status: 201 });
   } catch (err: unknown) {
