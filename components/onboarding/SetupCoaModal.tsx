@@ -47,6 +47,7 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
 
   // Upload
   const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedFileName, setSelectedFileName] = useState('');
   const [parsedAccounts, setParsedAccounts] = useState<ParsedAccount[] | null>(null);
   const [removedIndices, setRemovedIndices] = useState<Set<number>>(new Set());
 
@@ -310,19 +311,29 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
                   <>
                     <p className="text-sm text-[var(--text-secondary)]">Upload a PDF of your chart of accounts. AI will extract and structure the accounts for your review.</p>
 
-                    <div className="border-2 border-dashed border-[#C0C4C8] p-6 text-center">
+                    <div className={`border-2 border-dashed p-6 text-center ${selectedFileName ? 'border-[var(--primary)] bg-blue-50/30' : 'border-[#C0C4C8]'}`}>
                       <input
                         ref={fileRef}
                         type="file"
                         accept=".pdf"
                         className="hidden"
                         id="coa-upload"
-                        onChange={() => setError('')}
+                        onChange={(e) => { setError(''); setSelectedFileName(e.target.files?.[0]?.name || ''); }}
                       />
                       <label htmlFor="coa-upload" className="cursor-pointer">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-[var(--text-secondary)] mb-2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                        <p className="text-sm font-medium text-[var(--text-primary)]">Click to select PDF</p>
-                        <p className="text-xs text-[var(--text-secondary)] mt-1">Chart of Accounts listing from any accounting software</p>
+                        {selectedFileName ? (
+                          <>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                            <p className="text-sm font-semibold text-[var(--primary)]">{selectedFileName}</p>
+                            <p className="text-xs text-[var(--text-muted)] mt-1">Click to change file</p>
+                          </>
+                        ) : (
+                          <>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-[var(--text-secondary)] mb-2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                            <p className="text-sm font-medium text-[var(--text-primary)]">Click to select PDF</p>
+                            <p className="text-xs text-[var(--text-secondary)] mt-1">Chart of Accounts listing from any accounting software</p>
+                          </>
+                        )}
                       </label>
                     </div>
 
