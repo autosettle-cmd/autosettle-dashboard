@@ -311,39 +311,59 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
                   <>
                     <p className="text-sm text-[var(--text-secondary)]">Upload a PDF of your chart of accounts. AI will extract and structure the accounts for your review.</p>
 
-                    <div className={`border-2 border-dashed p-6 text-center ${selectedFileName ? 'border-[var(--primary)] bg-blue-50/30' : 'border-[#C0C4C8]'}`}>
-                      <input
-                        ref={fileRef}
-                        type="file"
-                        accept=".pdf"
-                        className="hidden"
-                        id="coa-upload"
-                        onChange={(e) => { setError(''); setSelectedFileName(e.target.files?.[0]?.name || ''); }}
-                      />
-                      <label htmlFor="coa-upload" className="cursor-pointer">
-                        {selectedFileName ? (
-                          <>
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
-                            <p className="text-sm font-semibold text-[var(--primary)]">{selectedFileName}</p>
-                            <p className="text-xs text-[var(--text-muted)] mt-1">Click to change file</p>
-                          </>
-                        ) : (
-                          <>
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-[var(--text-secondary)] mb-2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                            <p className="text-sm font-medium text-[var(--text-primary)]">Click to select PDF</p>
-                            <p className="text-xs text-[var(--text-secondary)] mt-1">Chart of Accounts listing from any accounting software</p>
-                          </>
-                        )}
-                      </label>
-                    </div>
+                    {loading ? (
+                      <div className="py-8 text-center space-y-4">
+                        <svg className="animate-spin h-8 w-8 mx-auto text-[var(--primary)]" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-semibold text-[var(--text-primary)]">Extracting accounts from PDF...</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1">AI is reading and structuring your chart of accounts</p>
+                        </div>
+                        {/* Indeterminate progress bar */}
+                        <div className="w-full h-1.5 bg-[var(--surface-header)] overflow-hidden">
+                          <div className="h-full bg-[var(--primary)] animate-pulse" style={{ width: '60%', animation: 'indeterminate 1.5s ease-in-out infinite' }} />
+                        </div>
+                        <style>{`@keyframes indeterminate { 0% { margin-left: -30%; width: 30%; } 50% { margin-left: 20%; width: 60%; } 100% { margin-left: 100%; width: 30%; } }`}</style>
+                      </div>
+                    ) : (
+                      <>
+                        <div className={`border-2 border-dashed p-6 text-center ${selectedFileName ? 'border-[var(--primary)] bg-blue-50/30' : 'border-[#C0C4C8]'}`}>
+                          <input
+                            ref={fileRef}
+                            type="file"
+                            accept=".pdf"
+                            className="hidden"
+                            id="coa-upload"
+                            onChange={(e) => { setError(''); setSelectedFileName(e.target.files?.[0]?.name || ''); }}
+                          />
+                          <label htmlFor="coa-upload" className="cursor-pointer">
+                            {selectedFileName ? (
+                              <>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+                                <p className="text-sm font-semibold text-[var(--primary)]">{selectedFileName}</p>
+                                <p className="text-xs text-[var(--text-muted)] mt-1">Click to change file</p>
+                              </>
+                            ) : (
+                              <>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto text-[var(--text-secondary)] mb-2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                                <p className="text-sm font-medium text-[var(--text-primary)]">Click to select PDF</p>
+                                <p className="text-xs text-[var(--text-secondary)] mt-1">Chart of Accounts listing from any accounting software</p>
+                              </>
+                            )}
+                          </label>
+                        </div>
 
-                    <button
-                      onClick={handleUploadParse}
-                      disabled={loading}
-                      className="btn-thick-navy w-full py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {loading ? 'Parsing PDF...' : 'Parse PDF'}
-                    </button>
+                        <button
+                          onClick={handleUploadParse}
+                          disabled={!selectedFileName}
+                          className="btn-thick-navy w-full py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Parse PDF
+                        </button>
+                      </>
+                    )}
                   </>
                 ) : (
                   <>
