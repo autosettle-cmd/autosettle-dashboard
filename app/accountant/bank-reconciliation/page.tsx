@@ -563,7 +563,14 @@ export default function AccountantBankReconciliationPage() {
                             const pct = s.total > 0 ? Math.round((resolved / s.total) * 100) : 0;
                             const isComplete = s.unmatched === 0;
                             return (
-                              <tr key={s.id} onClick={() => router.push(`/accountant/bank-reconciliation/${s.id}`)}
+                              <tr key={s.id} onClick={() => {
+                                const glMapping = bankGlMap[key];
+                                if (!glMapping?.gl_account_id) {
+                                  alert('Please assign a GL account to this bank account before opening statements. Click the "No GL assigned" badge above.');
+                                  return;
+                                }
+                                router.push(`/accountant/bank-reconciliation/${s.id}`);
+                              }}
                                 className={`ds-table-row cursor-pointer ${idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'} ${isComplete ? 'hover:bg-green-50/40' : 'hover:bg-amber-50/40'}`}>
                                 <td data-col="Period" className="px-6 py-2.5">
                                   <p className="text-body-md font-medium text-[var(--text-primary)] tabular-nums">{formatDate(s.statement_date)}</p>
