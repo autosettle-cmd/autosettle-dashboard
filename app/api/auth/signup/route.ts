@@ -21,20 +21,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'Password must be at least 8 characters' }, { status: 400 });
   }
 
-  // Check email — allow re-signup if rejected
+  // Check email — allow re-signup if rejected or still pending (failed verification)
   const existingEmail = await prisma.user.findUnique({ where: { email } });
   if (existingEmail) {
-    if (existingEmail.status === 'rejected') {
-      // Delete rejected user so they can re-signup
+    if (existingEmail.status === 'rejected' || existingEmail.status === 'pending_onboarding') {
+      // Delete old signup so they can start fresh
       await prisma.user.delete({ where: { id: existingEmail.id } });
     } else {
       return NextResponse.json({ data: null, error: 'An account with this email already exists' }, { status: 409 });
     }
   }
 
-  // Check phone uniqueness in User table (via employee link) — skip rejected
+  // Check phone uniqueness in User table (via employee link) — skip rejected/pending
   const existingPhoneUser = await prisma.user.findFirst({
-    where: { employee: { phone }, status: { not: 'rejected' } },
+    where: { employee: { phone }, status: { notIn: ['rejected', 'pending_onboarding'] } },
   });
   if (existingPhoneUser) {
     return NextResponse.json({ data: null, error: 'An account with this phone number already exists' }, { status: 409 });
