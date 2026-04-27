@@ -35,6 +35,7 @@ const TYPE_BADGE: Record<string, string> = {
 export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: SetupCoaModalProps) {
   const [tab, setTab] = useState<Tab>('template');
   const [loading, setLoading] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -160,14 +161,35 @@ export default function SetupCoaModal({ firmId, firms, onComplete, onClose }: Se
     { key: 'upload', label: 'Upload PDF', icon: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' },
   ];
 
+  // Minimized floating bar (when user clicks outside during loading)
+  if (minimized) {
+    return (
+      <div
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--primary)] text-white px-5 py-3 shadow-2xl flex items-center gap-3 cursor-pointer animate-in"
+        onClick={() => setMinimized(false)}
+      >
+        <svg className="animate-spin h-4 w-4 flex-shrink-0" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <span className="text-sm font-semibold">Extracting Chart of Accounts...</span>
+        <span className="text-xs text-white/50">Click to expand</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={() => { if (loading) setMinimized(true); else onClose(); }}>
       <div className="bg-white shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-[var(--primary)] px-5 py-4 flex items-center justify-between">
           <h2 className="text-base font-bold text-white uppercase tracking-wide">Chart of Accounts Setup</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+          <button onClick={() => { if (loading) setMinimized(true); else onClose(); }} className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+            {loading ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            )}
           </button>
         </div>
 
