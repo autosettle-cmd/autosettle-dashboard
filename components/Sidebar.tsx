@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+// Link replaced with <a> + handleNavClick for press-then-navigate pattern
 import { brand } from '@/config/branding';
 import { useFirm } from '@/contexts/FirmContext';
 import GlobalSearch from '@/components/GlobalSearch';
