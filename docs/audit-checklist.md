@@ -705,3 +705,47 @@ Invoice, SalesInvoice, Claim, Payment, BankStatement use soft deletes (30-day gr
 - `POST /api/deleted-records/restore` — restores a record (checks SalesInvoice unique constraint)
 
 **Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 18. Document Type Auto-Detection & Wrong-Doc Blocking
+
+Every upload page must classify documents before processing and block/warn on wrong types.
+
+### Blocking Matrix
+
+| Upload to | Invoice | Receipt | Bank Statement |
+|-----------|---------|---------|----------------|
+| **Invoices page** | ✅ accept | ⚠ warn | ❌ block (400) |
+| **Claims page** | ⚠ warn | ✅ accept | ❌ block (400) |
+| **Bank Recon page** | ❌ block (400) | ❌ block (400) | ✅ accept |
+
+### Server-Side Classification
+- `classifyPDF()` and `classifyImage()` in `lib/whatsapp/gemini.ts` — cheap 16-token Gemini call
+- Runs BEFORE expensive extraction or parsing
+- OCR endpoint: `getDocTypeBlockError()` in `app/api/ocr/extract/route.ts`
+- Bank recon endpoints: `classifyPDF()` in both `app/api/bank-reconciliation/upload/route.ts` and admin version
+
+### 4-Layer Doc Type Detection (Invoices page)
+1. **Gemini AI** — firm name in prompt, returns `docType: PI|SI|CN|DN|PV|OR`
+2. **Supplier cross-check** — vendor matches existing supplier → PI/CN; vendor matches firm → SI/DN
+3. **Amount/keyword fallback** — negative amount → CN; "CREDIT NOTE:" → CN; "DEBIT NOTE:" → DN
+4. **Default** → PI
+
+### Upload Paths (14 total across 6 files)
+| File | Paths | Context |
+|------|-------|---------|
+| `InvoicesPageContent.tsx` | 4 | none |
+| `ClaimsPageContent.tsx` | 4 | `"claim"` |
+| `employee/dashboard/page.tsx` | 2 | `"claim"` |
+| `employee/claims/page.tsx` | 2 | `"claim"` |
+| `bank-reconciliation/upload` | 1 | server |
+| `admin/bank-reconciliation/upload` | 1 | server |
+
+All must check `!res.ok` before `res.json()`.
+
+### Schema
+- `Invoice.doc_subtype`: `null` (PI/PV) or `'credit_note'` (CN)
+- `SalesInvoice.doc_subtype`: `null` (SI/OR) or `'debit_note'` (DN)
+
+**Status:** ✅ Implemented (2026-04-28)
