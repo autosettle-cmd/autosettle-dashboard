@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
       include: {
         buyer: { select: { id: true, name: true } },
         category: { select: { name: true } },
+        glAccount: { select: { account_code: true, name: true } },
         items: { orderBy: { sort_order: 'asc' } },
         paymentAllocations: {
           select: { id: true, amount: true },
@@ -80,6 +81,7 @@ export async function GET(request: NextRequest) {
     category_id: inv.category_id,
     category_name: inv.category?.name ?? null,
     gl_account_id: inv.gl_account_id,
+    gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
     approval: inv.approval,
     lhdn_status: inv.lhdn_status,
     items: inv.items.map((item) => ({

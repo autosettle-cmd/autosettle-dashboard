@@ -1287,7 +1287,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           thumbnail_url: null,
           notes: si.notes ?? null,
           gl_account_id: si.gl_account_id ?? null,
-          gl_account_label: null,
+          gl_account_label: si.gl_account_label ?? null,
           contra_gl_account_id: null,
           contra_gl_account_label: null,
           supplier_default_gl_id: null,
