@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { auditLog } from '@/lib/audit';
 import { createJournalEntry, findOpenPeriod } from '@/lib/journal-entries';
+import { uploadFileForFirm } from '@/lib/google-drive';
+import { resolveSupplier } from '@/lib/supplier-resolver';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,6 +83,7 @@ export async function GET(request: NextRequest) {
     amount_paid: inv.amount_paid.toString(),
     payment_status: inv.payment_status,
     notes: inv.notes,
+    doc_subtype: inv.doc_subtype,
     supplier_id: inv.supplier_id,
     buyer_name: inv.buyer.name,
     firm_name: inv.firm.name,
@@ -118,6 +121,15 @@ export async function POST(request: NextRequest) {
   const firmIds = await getAccountantFirmIds(session.user.id);
 
   try {
+    // Detect if request is FormData (upload-originated SI/DN/OR) vs JSON (manual SI creation)
+    const contentType = request.headers.get('content-type') || '';
+    const isFormData = contentType.includes('multipart/form-data');
+
+    if (isFormData) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return handleFormDataUpload(request, session as any, firmIds);
+    }
+
     const body = await request.json();
 
     const { firm_id, supplier_id, invoice_number, issue_date, due_date, currency, notes, items, category_id, gl_account_id, contra_gl_account_id } = body;
@@ -289,5 +301,146 @@ export async function POST(request: NextRequest) {
       { data: null, error: 'Failed to create sales invoice' },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * Handle FormData uploads for SI/DN/OR — documents uploaded via OCR flow.
+ * Creates a SalesInvoice with a single auto-generated line item from the OCR total.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleFormDataUpload(
+  request: NextRequest,
+  session: any,
+  firmIds: string[] | null
+) {
+  try {
+    const formData = await request.formData();
+    const firmId = formData.get('firm_id') as string | null;
+    const vendorName = formData.get('vendor_name') as string | null;
+    const supplierIdParam = formData.get('supplier_id') as string | null;
+    const invoiceNumber = formData.get('invoice_number') as string | null;
+    const issueDate = formData.get('issue_date') as string | null;
+    const dueDate = formData.get('due_date') as string | null;
+    const totalAmountStr = formData.get('total_amount') as string | null;
+    const notes = formData.get('notes') as string | null;
+    const docSubtype = formData.get('doc_subtype') as string | null;
+    const categoryId = formData.get('category_id') as string | null;
+    const file = formData.get('file') as File | null;
+    const isBatch = formData.get('batch') === 'true';
+
+    if (!firmId || !vendorName || !issueDate || !totalAmountStr) {
+      return NextResponse.json({ data: null, error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (firmIds && !firmIds.includes(firmId)) {
+      return NextResponse.json({ data: null, error: 'No access to this firm' }, { status: 403 });
+    }
+
+    const totalAmount = parseFloat(totalAmountStr);
+
+    // Resolve supplier (buyer/customer) — same logic as invoice upload
+    let supplierId = supplierIdParam || null;
+    if (!supplierId && vendorName) {
+      const resolved = await resolveSupplier(vendorName, firmId);
+      supplierId = resolved.supplierId;
+    }
+    if (!supplierId) {
+      // Create new supplier for this buyer
+      const newSupplier = await prisma.supplier.create({
+        data: { firm_id: firmId, name: vendorName },
+      });
+      supplierId = newSupplier.id;
+    }
+
+    // Upload file to Google Drive
+    let fileUrl: string | null = null;
+    let fileDownloadUrl: string | null = null;
+    if (file) {
+      try {
+        const firm = await prisma.firm.findUniqueOrThrow({ where: { id: firmId }, select: { name: true } });
+        const uploaded = await uploadFileForFirm(file, firmId, firm.name, 'invoices');
+        fileUrl = uploaded.fileUrl;
+        fileDownloadUrl = uploaded.downloadUrl;
+      } catch (err) {
+        console.warn('Google Drive upload failed, creating sales invoice without file URLs:', err);
+      }
+    }
+
+    // Get uploader employee — use first employee in the firm
+    const uploaderEmployee = await prisma.employee.findFirst({
+      where: { firm_id: firmId },
+      orderBy: { created_at: 'asc' },
+      select: { id: true },
+    });
+
+    // Auto-generate invoice number if not provided
+    let resolvedInvoiceNumber = invoiceNumber || '';
+    if (!resolvedInvoiceNumber) {
+      const prefix = docSubtype === 'debit_note' ? 'DN' : 'SI';
+      const count = await prisma.salesInvoice.count({ where: { firm_id: firmId, invoice_number: { startsWith: `${prefix}-` } } });
+      resolvedInvoiceNumber = `${prefix}-${String(count + 1).padStart(3, '0')}`;
+    }
+
+    const salesInvoice = await prisma.salesInvoice.create({
+      data: {
+        firm_id: firmId,
+        supplier_id: supplierId,
+        created_by: uploaderEmployee?.id || null,
+        invoice_number: resolvedInvoiceNumber,
+        issue_date: new Date(issueDate),
+        due_date: dueDate ? new Date(dueDate) : null,
+        subtotal: totalAmount,
+        tax_amount: 0,
+        total_amount: totalAmount,
+        payment_status: 'unpaid',
+        amount_paid: 0,
+        notes: notes || null,
+        doc_subtype: docSubtype || null,
+        category_id: categoryId || null,
+        approval: isBatch ? 'pending_approval' : 'approved',
+        file_url: fileUrl,
+        file_download_url: fileDownloadUrl,
+        items: {
+          create: [{
+            description: vendorName,
+            quantity: 1,
+            unit_price: totalAmount,
+            discount: 0,
+            tax_rate: 0,
+            tax_amount: 0,
+            line_total: totalAmount,
+            sort_order: 0,
+          }],
+        },
+      },
+      include: {
+        buyer: { select: { id: true, name: true } },
+        firm: { select: { name: true } },
+      },
+    });
+
+    await auditLog({
+      firmId,
+      tableName: 'SalesInvoice',
+      recordId: salesInvoice.id,
+      action: 'create',
+      newValues: { invoice_number: resolvedInvoiceNumber, total_amount: totalAmount, supplier_id: supplierId, doc_subtype: docSubtype },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
+
+    return NextResponse.json({
+      data: {
+        id: salesInvoice.id,
+        invoice_number: salesInvoice.invoice_number,
+        total_amount: salesInvoice.total_amount.toString(),
+        buyer_name: salesInvoice.buyer.name,
+      },
+      error: null,
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating sales invoice (FormData):', error);
+    return NextResponse.json({ data: null, error: 'Failed to create sales invoice' }, { status: 500 });
   }
 }

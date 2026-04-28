@@ -86,6 +86,7 @@ export default function EmployeeDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [modalError, setModalError] = useState('');
+  const [ocrWarning, setOcrWarning] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
   const [ocrScanning, setOcrScanning] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -176,6 +177,7 @@ export default function EmployeeDashboard() {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
     setModalError('');
+    setOcrWarning('');
     setModalSaving(false);
     setShowModal(true);
 
@@ -188,11 +190,19 @@ export default function EmployeeDashboard() {
         fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = 'OCR extraction failed';
+        try { const j = await res.json(); msg = j.error || msg; } catch { /* ignore */ }
+        setModalError(msg);
+        setOcrScanning(false);
+        return;
+      }
       const json = await res.json();
 
-      if (res.ok && json.fields) {
+      if (json.fields) {
         const f = json.fields;
         if (json.documentType === 'invoice') {
+          setOcrWarning('This looks like an invoice. If you paid this out of pocket, continue to claim reimbursement.');
           if (f.issueDate) setModalDate(f.issueDate);
           if (f.vendor) setModalMerchant(f.vendor);
           if (f.totalAmount) setModalAmount(String(f.totalAmount));
@@ -232,11 +242,19 @@ export default function EmployeeDashboard() {
         fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = 'OCR extraction failed';
+        try { const j = await res.json(); msg = j.error || msg; } catch { /* ignore */ }
+        setModalError(msg);
+        setOcrScanning(false);
+        return;
+      }
       const json = await res.json();
 
-      if (res.ok && json.fields) {
+      if (json.fields) {
         const f = json.fields;
         if (json.documentType === 'invoice') {
+          setOcrWarning('This looks like an invoice. If you paid this out of pocket, continue to claim reimbursement.');
           if (f.issueDate) setModalDate(f.issueDate);
           if (f.vendor) setModalMerchant(f.vendor);
           if (f.totalAmount) setModalAmount(String(f.totalAmount));
@@ -268,6 +286,7 @@ export default function EmployeeDashboard() {
 
     setModalSaving(true);
     setModalError('');
+    setOcrWarning('');
 
     try {
       const fd = new FormData();
@@ -512,6 +531,11 @@ export default function EmployeeDashboard() {
               {modalError && (
                 <div className="mb-4 bg-[#FFDAD6] p-3 inset-shadow">
                   <p className="text-sm text-[#93000A]">{modalError}</p>
+                </div>
+              )}
+              {ocrWarning && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 p-3">
+                  <p className="text-sm text-amber-700">{ocrWarning}</p>
                 </div>
               )}
 

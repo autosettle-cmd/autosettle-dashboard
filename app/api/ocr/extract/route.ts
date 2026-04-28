@@ -9,11 +9,76 @@ import {
   extractWithGeminiInvoice,
   extractInvoiceFromPDF,
   classifyDocument,
+  classifyPDF,
+  classifyImage,
 } from "@/lib/whatsapp/gemini";
 import { parseGeminiOutput, parseGeminiOutputMultiple, parseGeminiInvoiceOutput } from "@/lib/whatsapp/parser";
 import { prisma } from "@/lib/prisma";
+import { InvoiceDocType } from "@/lib/whatsapp/gemini";
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Check if detected document type is wrong for the upload context.
+ * Returns error message if blocked, null if allowed.
+ *
+ * | Context     | Accept           | Block                    |
+ * |-------------|------------------|--------------------------|
+ * | "claim"     | receipt          | bank_statement, invoice  |
+ * | "invoice"   | invoice, receipt | bank_statement           |
+ * | null        | invoice, receipt | bank_statement           |
+ */
+function getDocTypeBlockError(detectedType: string, context: string | null): string | null {
+  if (detectedType === 'bank_statement') {
+    return 'This is a bank statement. Please upload it on the Bank Recon page instead.';
+  }
+  return null;
+}
+
+/**
+ * Layer 2: Supplier cross-check — structural signal overrides Gemini guess.
+ * If vendor matches an existing supplier → lean PI/CN.
+ * If vendor matches the firm name → lean SI/DN.
+ */
+function applySupplierCrossCheck(
+  geminiDocType: InvoiceDocType,
+  vendor: string,
+  firmName: string,
+  supplierNames: string[]
+): InvoiceDocType {
+  if (!vendor || !firmName) return geminiDocType;
+
+  const vendorLower = vendor.toLowerCase().trim();
+  const firmLower = firmName.toLowerCase().trim();
+
+  // Fuzzy match: check if vendor name overlaps significantly with firm name
+  const firmWords = firmLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'inc', 'llc', 'co', 'the'].includes(w));
+  const vendorWords = vendorLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'inc', 'llc', 'co', 'the'].includes(w));
+
+  const firmMatchesVendor = firmWords.length > 0 && firmWords.every(w => vendorLower.includes(w));
+  const vendorMatchesFirm = vendorWords.length > 0 && vendorWords.every(w => firmLower.includes(w));
+  const isFirmAsVendor = firmMatchesVendor || vendorMatchesFirm;
+
+  // If vendor IS the firm → this is an outgoing doc (SI/DN)
+  if (isFirmAsVendor) {
+    if (geminiDocType === 'PI') return 'SI';
+    if (geminiDocType === 'CN') return 'DN'; // firm issued a credit note = debit note
+    return geminiDocType; // already SI/DN/PV/OR
+  }
+
+  // If vendor matches a known supplier → this is an incoming doc (PI/CN)
+  const matchesSupplier = supplierNames.some(sn => {
+    const snLower = sn.toLowerCase().trim();
+    return vendorLower.includes(snLower) || snLower.includes(vendorLower);
+  });
+  if (matchesSupplier) {
+    if (geminiDocType === 'SI') return 'PI';
+    if (geminiDocType === 'DN') return 'CN';
+    return geminiDocType; // already PI/CN/PV/OR
+  }
+
+  return geminiDocType;
+}
 
 /**
  * POST /api/ocr/extract
@@ -41,6 +106,18 @@ export async function POST(req: NextRequest) {
       ? JSON.parse(categoriesRaw) as string[]
       : [];
 
+    // Look up firm name + existing suppliers for doc type detection (Layers 1 & 2)
+    let firmName = '';
+    let supplierNames: string[] = [];
+    if (firmId) {
+      const [firm, suppliers] = await Promise.all([
+        prisma.firm.findUnique({ where: { id: firmId }, select: { name: true } }),
+        prisma.supplier.findMany({ where: { firm_id: firmId }, select: { name: true } }),
+      ]);
+      firmName = firm?.name ?? '';
+      supplierNames = suppliers.map(s => s.name);
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let buffer: Buffer = Buffer.from(await file.arrayBuffer()) as any;
     const fileName = file.name.toLowerCase();
@@ -61,27 +138,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (isPDF) {
-      // PDF → send directly to Gemini (native PDF reading)
-      const { documentType, raw } = await extractInvoiceFromPDF(buffer, categories);
+      // Step 1: Quick classification — block wrong document types early
+      const pdfType = await classifyPDF(buffer);
+      console.error('[OCR classify] PDF type:', pdfType, 'context:', context, 'file:', file.name);
+      const blockError = getDocTypeBlockError(pdfType, context);
+      if (blockError) {
+        return NextResponse.json({ error: blockError }, { status: 400 });
+      }
 
-      if (documentType === "bank_statement") {
-        if (context === "claim") {
-          // Claims context: force re-extract as receipt (bank transfer receipts)
-          const mimeType = "application/pdf";
-          const receiptRaw = await extractFromImage(buffer, mimeType, categories);
-          const fields = parseGeminiOutputMultiple(receiptRaw);
-          return NextResponse.json({ documentType: "receipt", fields: fields[0] });
-        }
-        return NextResponse.json({
-          documentType: "bank_statement",
-          fields: null,
-          message: "This appears to be a bank statement, not a receipt or invoice.",
-        });
+      // Step 2: Full extraction (classification passed)
+      const { documentType, raw } = await extractInvoiceFromPDF(buffer, categories, firmName);
+
+      // Double-check: full extraction may also detect bank_statement
+      const fullBlockError = getDocTypeBlockError(documentType, context);
+      if (fullBlockError) {
+        return NextResponse.json({ error: fullBlockError }, { status: 400 });
       }
 
       if (documentType === "invoice") {
         const fields = parseGeminiInvoiceOutput(raw);
-        return NextResponse.json({ documentType: "invoice", fields });
+        const docType = applySupplierCrossCheck(fields.docType, fields.vendor, firmName, supplierNames);
+        return NextResponse.json({ documentType: "invoice", docType, fields: { ...fields, docType } });
       }
 
       // Receipt
@@ -89,8 +166,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ documentType: "receipt", fields: allFields[0] });
     }
 
-    // Step 1: Quick multimodal count — how many receipts in the image?
+    // Step 1: Quick classification for images — block wrong document types early
     const mimeType = isHEIC ? "image/jpeg" : file.type || "image/jpeg";
+    const imgType = await classifyImage(buffer, mimeType);
+    const imgBlockError = getDocTypeBlockError(imgType, context);
+    if (imgBlockError) {
+      return NextResponse.json({ error: imgBlockError }, { status: 400 });
+    }
+
+    // Step 2: Quick multimodal count — how many receipts in the image?
     const receiptCount = await countReceiptsInImage(buffer, mimeType);
 
     if (receiptCount > 1) {
@@ -112,9 +196,10 @@ export async function POST(req: NextRequest) {
     const documentType = await classifyDocument(normalised);
 
     if (documentType === "invoice") {
-      const geminiRaw = await extractWithGeminiInvoice(normalised, categories);
+      const geminiRaw = await extractWithGeminiInvoice(normalised, categories, firmName);
       const fields = parseGeminiInvoiceOutput(geminiRaw);
-      return NextResponse.json({ documentType: "invoice", fields });
+      const docType = applySupplierCrossCheck(fields.docType, fields.vendor, firmName, supplierNames);
+      return NextResponse.json({ documentType: "invoice", docType, fields: { ...fields, docType } });
     }
 
     const geminiRaw = await extractWithGemini(normalised, categories);

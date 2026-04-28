@@ -69,6 +69,7 @@ interface InvoiceRow {
   approval: 'pending_approval' | 'approved' | 'not_approved';
   rejection_reason: string | null;
   lines: InvoiceLineRow[];
+  doc_subtype?: string | null;
   /** Discriminator: 'purchase' for Invoice, 'sales' for SalesInvoice */
   _type?: 'purchase' | 'sales';
 }
@@ -106,11 +107,17 @@ export interface InvoicesPageConfig {
 const TYPE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
   PI: { label: 'PI', color: '#234B6E', bg: '#E3EDF6' },
   SI: { label: 'SI', color: '#0E6027', bg: '#DEF2E4' },
+  CN: { label: 'CN', color: '#9A3412', bg: '#FEE2E2' },
+  DN: { label: 'DN', color: '#4338CA', bg: '#E0E7FF' },
   PV: { label: 'PV', color: '#7C3A00', bg: '#FEF0DB' },
   OR: { label: 'OR', color: '#5C2D91', bg: '#EEDDF9' },
 };
 
 function getInvoiceTypeBadge(row: InvoiceRow): { label: string; color: string; bg: string } | null {
+  // Check doc_subtype first (CN/DN)
+  if (row.doc_subtype === 'credit_note') return TYPE_BADGE.CN;
+  if (row.doc_subtype === 'debit_note') return TYPE_BADGE.DN;
+  // Then check invoice_number prefix
   const num = row.invoice_number ?? '';
   const prefix = num.split('-')[0];
   if (TYPE_BADGE[prefix]) return TYPE_BADGE[prefix];
@@ -347,9 +354,11 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     category_id: '',
     payment_terms: '',
     notes: '',
+    doc_type: 'PI' as 'PI' | 'SI' | 'CN' | 'DN' | 'PV' | 'OR',
   });
   const [newInvFile, setNewInvFile] = useState<File | null>(null);
   const [ocrScanning, setOcrScanning] = useState(false);
+  const [wrongDocType, setWrongDocType] = useState('');
   const [pvMatch, setPvMatch] = useState<{ id: string; invoice_number: string; vendor_name_raw: string; total_amount: string; issue_date: string } | null>(null);
   const [pvAttaching, setPvAttaching] = useState(false);
   const [newInvGlAccounts, setNewInvGlAccounts] = useState<{ id: string; account_code: string; name: string; account_type: string }[]>([]);
@@ -371,6 +380,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     payment_terms: string;
     notes: string;
     supplier_id: string;
+    doc_type: 'PI' | 'SI' | 'CN' | 'DN' | 'PV' | 'OR';
     ocrDone: boolean;
     ocrError: string;
     selected: boolean;
@@ -495,17 +505,35 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
       // Trigger OCR scan
       setOcrScanning(true);
+      setWrongDocType('');
       try {
         const fd = new FormData();
         fd.append('file', file);
         fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        if (targetFirmId) fd.append('firm_id', targetFirmId);
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        if (!res.ok) {
+          let msg = 'OCR extraction failed';
+          try { const j = await res.json(); msg = j.error || j.message || msg; } catch { /* ignore */ }
+          setWrongDocType(msg);
+          return;
+        }
         const json = await res.json();
-        if (res.ok && json.fields) {
+
+        // Receipt warning
+        if (json.documentType === 'receipt' && !json.docType) {
+          setDepositWarning(`This looks like a receipt, not an invoice. You may want to upload it on the <a href="${config.linkPrefix}/receipts" style="color:var(--primary);text-decoration:underline;font-weight:600">Receipts page</a> instead.`);
+        }
+
+        if (json.fields) {
           const f = json.fields;
           if (config.role === 'accountant') {
             setNewInv((prev) => {
               const updates = { ...prev, firm_id: targetFirmId };
+              // Set doc_type from OCR auto-detection
+              if (json.docType && ['PI', 'SI', 'CN', 'DN', 'PV', 'OR'].includes(json.docType)) {
+                updates.doc_type = json.docType;
+              }
               if (json.documentType === 'invoice') {
                 if (f.vendor) updates.vendor_name = f.vendor;
                 if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
@@ -555,6 +583,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           } else {
             // Admin OCR handling
             const updates: typeof newInv = { ...newInv };
+            if (json.docType && ['PI', 'SI', 'CN', 'DN', 'PV', 'OR'].includes(json.docType)) {
+              updates.doc_type = json.docType;
+            }
             if (json.documentType === 'invoice') {
               if (f.vendor) updates.vendor_name = f.vendor;
               if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
@@ -597,6 +628,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     const items: BatchItem[] = droppedFiles.map((file, i) => ({
       _id: `${Date.now()}-${i}`, file, vendor_name: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0],
       due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', supplier_id: '',
+      doc_type: 'PI' as const,
       ocrDone: false, ocrError: '', selected: true, dupMessage: '',
     }));
     setShowBatchReview(true);
@@ -625,19 +657,35 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         const ocrFd = new FormData();
         ocrFd.append('file', item.file);
         ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
+        if (targetFirmId) ocrFd.append('firm_id', targetFirmId);
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        // Server returns 400 for bank statements
+        if (!ocrRes.ok) {
+          let msg = 'OCR failed';
+          try { const j = await ocrRes.json(); msg = j.error || msg; } catch { /* ignore */ }
+          updateItem(item._id, { ocrDone: true, ocrError: msg, selected: false });
+          return;
+        }
         const ocrJson = await ocrRes.json();
         const updates: Partial<BatchItem> = { ocrDone: true };
-        if (ocrRes.ok && ocrJson.fields) {
+        // Receipt → warn in notes but still allow
+        if (ocrJson.documentType === 'receipt' && !ocrJson.docType) {
+          updates.notes = '⚠ This looks like a receipt, not an invoice';
+        }
+        if (ocrJson.fields) {
           const f = ocrJson.fields;
           const isInvoice = ocrJson.documentType === 'invoice';
+          // Set doc_type from OCR auto-detection
+          if (ocrJson.docType && ['PI', 'SI', 'CN', 'DN', 'PV', 'OR'].includes(ocrJson.docType)) {
+            updates.doc_type = ocrJson.docType;
+          }
           updates.vendor_name = (isInvoice ? f.vendor : f.merchant) || '';
           updates.invoice_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
           updates.issue_date = (isInvoice ? f.issueDate : f.date) || item.issue_date;
           updates.due_date = (isInvoice ? f.dueDate : '') || '';
           updates.total_amount = String(isInvoice ? f.totalAmount : f.amount) || '';
           updates.payment_terms = (isInvoice ? f.paymentTerms : '') || '';
-          updates.notes = f.notes || '';
+          if (!updates.notes) updates.notes = f.notes || '';
           if (f.category) {
             const match = catSnapshot.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) updates.category_id = match.id;
@@ -661,7 +709,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
     // Capture values for worker closure
     const submitFirmId = newInv.firm_id || getTargetFirmId();
-    const apiUrl = config.apiInvoices;
+    const piApiUrl = config.apiInvoices;
+    const siApiUrl = config.apiSalesInvoices || '/api/sales-invoices';
     const role = config.role;
 
     batch.startSubmit({
@@ -681,7 +730,12 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         if (item.notes) fd.append('notes', item.notes);
         if (item.supplier_id) fd.append('supplier_id', item.supplier_id);
         fd.append('batch', 'true');
-        const res = await fetch(apiUrl, { method: 'POST', body: fd });
+        // Set doc_subtype based on doc_type
+        if (item.doc_type === 'CN') fd.append('doc_subtype', 'credit_note');
+        if (item.doc_type === 'DN') fd.append('doc_subtype', 'debit_note');
+        // Route to correct API
+        const targetApi = ['SI', 'DN', 'OR'].includes(item.doc_type) ? siApiUrl : piApiUrl;
+        const res = await fetch(targetApi, { method: 'POST', body: fd });
         if (res.ok) {
           return { name: item.file.name, ok: true, msg: 'Uploaded' };
         } else {
@@ -708,17 +762,37 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       const file = files[0];
       setNewInvFile(file);
       setOcrScanning(true);
+      setNewInvError('');
+      setDepositWarning('');
+      setWrongDocType('');
       try {
         const fd = new FormData();
         fd.append('file', file);
         fd.append('categories', JSON.stringify(categories.map((c) => c.name)));
+        const ocrFirmId = newInv.firm_id || getTargetFirmId();
+        if (ocrFirmId) fd.append('firm_id', ocrFirmId);
 
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        if (!res.ok) {
+          let msg = 'OCR extraction failed';
+          try { const j = await res.json(); msg = j.error || j.message || msg; } catch { /* ignore */ }
+          setWrongDocType(msg);
+          return;
+        }
         const json = await res.json();
+
+        // Receipt → amber warning with redirect link
+        if (res.ok && json.documentType === 'receipt' && !json.docType) {
+          setDepositWarning(`This looks like a receipt, not an invoice. You may want to upload it on the <a href="${config.linkPrefix}/receipts" style="color:var(--primary);text-decoration:underline;font-weight:600">Receipts page</a> instead.`);
+        }
 
         if (res.ok && json.fields) {
           const f = json.fields;
           const updates: typeof newInv = { ...newInv };
+          // Set doc_type from OCR auto-detection
+          if (json.docType && ['PI', 'SI', 'CN', 'DN', 'PV', 'OR'].includes(json.docType)) {
+            updates.doc_type = json.docType;
+          }
           if (json.documentType === 'invoice') {
             if (f.vendor) updates.vendor_name = f.vendor;
             if (f.invoiceNumber) updates.invoice_number = f.invoiceNumber;
@@ -782,7 +856,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           }
         }
       } catch (err) {
-        console.error('OCR extraction failed:', err);
+        const msg = err instanceof Error ? err.message : String(err);
+        setWrongDocType(msg);
       } finally {
         setOcrScanning(false);
       }
@@ -805,6 +880,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     const bItems: BatchItem[] = fileList.map((file, i) => ({
       _id: `${Date.now()}-${i}`, file, vendor_name: '', invoice_number: '', issue_date: new Date().toISOString().split('T')[0],
       due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', supplier_id: '',
+      doc_type: 'PI' as const,
       ocrDone: false, ocrError: '', selected: true, dupMessage: '',
     }));
     setShowBatchReview(true);
@@ -831,19 +907,32 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         const ocrFd = new FormData();
         ocrFd.append('file', item.file);
         ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
+        if (targetFirmId) ocrFd.append('firm_id', targetFirmId);
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        if (!ocrRes.ok) {
+          let msg = 'OCR failed';
+          try { const j = await ocrRes.json(); msg = j.error || msg; } catch { /* ignore */ }
+          updateItem(item._id, { ocrDone: true, ocrError: msg, selected: false });
+          return;
+        }
         const ocrJson = await ocrRes.json();
         const updates: Partial<BatchItem> = { ocrDone: true };
-        if (ocrRes.ok && ocrJson.fields) {
+        if (ocrJson.documentType === 'receipt' && !ocrJson.docType) {
+          updates.notes = '⚠ This looks like a receipt, not an invoice';
+        }
+        if (ocrJson.fields) {
           const f = ocrJson.fields;
           const isInvoice = ocrJson.documentType === 'invoice';
+          if (ocrJson.docType && ['PI', 'SI', 'CN', 'DN', 'PV', 'OR'].includes(ocrJson.docType)) {
+            updates.doc_type = ocrJson.docType;
+          }
           updates.vendor_name = (isInvoice ? f.vendor : f.merchant) || '';
           updates.invoice_number = (isInvoice ? f.invoiceNumber : f.receiptNumber) || '';
           updates.issue_date = (isInvoice ? f.issueDate : f.date) || item.issue_date;
           updates.due_date = (isInvoice ? f.dueDate : '') || '';
           updates.total_amount = String(isInvoice ? f.totalAmount : f.amount) || '';
           updates.payment_terms = (isInvoice ? f.paymentTerms : '') || '';
-          updates.notes = f.notes || '';
+          if (!updates.notes) updates.notes = f.notes || '';
           if (f.category) {
             const match = catSnapshot.find((c) => c.name.toLowerCase() === f.category.toLowerCase());
             if (match) updates.category_id = match.id;
@@ -890,15 +979,21 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         if (newInvExpenseGlId) fd.append('gl_account_id', newInvExpenseGlId);
         if (newInvContraGlId) fd.append('contra_gl_account_id', newInvContraGlId);
       }
+      // Set doc_subtype based on doc_type
+      if (newInv.doc_type === 'CN') fd.append('doc_subtype', 'credit_note');
 
-      const res = await fetch(config.apiInvoices, { method: 'POST', body: fd });
+      // Route to correct API based on doc_type
+      const apiUrl = ['SI', 'DN', 'OR'].includes(newInv.doc_type) ? (config.apiSalesInvoices || '/api/sales-invoices') : config.apiInvoices;
+      if (newInv.doc_type === 'DN') fd.append('doc_subtype', 'debit_note');
+
+      const res = await fetch(apiUrl, { method: 'POST', body: fd });
       const j = await res.json();
       if (!res.ok) { setNewInvError(j.error || 'Failed to create invoice'); return; }
 
       setShowNewInvoice(false);
       setDepositWarning('');
       setPvMatch(null);
-      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', supplier_link_status: 'unmatched', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', supplier_link_status: 'unmatched', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', doc_type: 'PI' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
       setNewInvContraGlId('');
@@ -923,7 +1018,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       setShowNewInvoice(false);
       setDepositWarning('');
       setPvMatch(null);
-      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', supplier_link_status: 'unmatched', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '' });
+      setNewInv({ firm_id: '', vendor_name: '', supplier_id: '', supplier_link_status: 'unmatched', invoice_number: '', issue_date: new Date().toISOString().split('T')[0], due_date: '', total_amount: '', category_id: '', payment_terms: '', notes: '', doc_type: 'PI' });
       setNewInvFile(null);
       setNewInvExpenseGlId('');
       setNewInvContraGlId('');
@@ -1217,7 +1312,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     approvalFilter, setApprovalFilter,
   } = useFilters({ initialStatus, initialDateRange: '' });
   const [paymentFilter, setPaymentFilter] = useState(initialPayment);
-  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(['PI', 'SI', 'PV', 'OR']));
+  const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set(['PI', 'SI', 'CN', 'DN', 'PV', 'OR']));
   const toggleType = (t: string) => setActiveTypes(prev => {
     const next = new Set(prev);
     if (next.has(t)) next.delete(t); else next.add(t);
@@ -1294,6 +1389,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           supplier_default_contra_gl_id: null,
           approval: si.approval,
           rejection_reason: null,
+          doc_subtype: si.doc_subtype ?? null,
           lines: [],
           _type: 'sales' as const,
         }));
@@ -1413,7 +1509,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
             {/* Type toggle checkboxes — physical keycap style */}
             <div className="flex items-center gap-1.5">
-              {(['PI', 'SI', 'PV', 'OR'] as const).map((t) => {
+              {(['PI', 'SI', 'CN', 'DN', 'PV', 'OR'] as const).map((t) => {
                 const b = TYPE_BADGE[t];
                 const on = activeTypes.has(t);
                 return (
@@ -1689,7 +1785,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           setNewInvContraGlId={setNewInvContraGlId}
           handleInvFileChange={handleInvFileChange}
           submitNewInvoice={submitNewInvoice}
-          onClose={() => { setShowNewInvoice(false); setPvMatch(null); }}
+          wrongDocType={wrongDocType}
+          onClose={() => { setShowNewInvoice(false); setPvMatch(null); setWrongDocType(''); }}
           pvMatch={pvMatch}
           pvAttaching={pvAttaching}
           attachToPV={attachToPV}
@@ -1758,7 +1855,26 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                     <p className="text-xs text-[var(--reject-red)] font-medium">{item.dupMessage}</p>
                   )}
                   {item.ocrDone && !item.dupMessage && (
-                    <div className="grid grid-cols-4 gap-2" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT') e.stopPropagation(); }}>
+                    <div className="space-y-2" onClick={(e) => { if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'SELECT' || (e.target as HTMLElement).tagName === 'BUTTON') e.stopPropagation(); }}>
+                      {/* Doc type selector row */}
+                      <div className="flex items-center gap-0.5">
+                        <span className="text-[9px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mr-1">Type</span>
+                        {(['PI', 'SI', 'CN', 'DN', 'PV', 'OR'] as const).map((t) => {
+                          const active = item.doc_type === t;
+                          const badge = TYPE_BADGE[t];
+                          return (
+                            <button key={t} type="button"
+                              onClick={() => setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, doc_type: t } : it))}
+                              className={`px-1.5 py-1 text-[9px] font-bold uppercase tracking-wider transition-all duration-100 btn-texture ${active ? 'type-toggle-on' : 'type-toggle-off'}`}
+                              style={{
+                                '--tt-bg': active ? badge.bg : undefined,
+                                '--tt-color': active ? badge.color : undefined,
+                              } as React.CSSProperties}
+                            >{t}</button>
+                          );
+                        })}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
                       <div>
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor</label>
                         <input value={item.vendor_name} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, vendor_name: v } : it)); }} className={`input-recessed w-full text-xs${item.vendor_name ? ' auto-suggested' : ''}`} />
@@ -1801,6 +1917,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                         <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Notes</label>
                         <input value={item.notes} onChange={(e) => { const v = e.target.value; setBatchItems(prev => prev.map(it => it._id === item._id ? { ...it, notes: v } : it)); }} className={`input-recessed w-full text-xs${item.notes ? ' auto-suggested' : ''}`} placeholder="Phone number, account details, etc." />
                       </div>
+                    </div>
                     </div>
                   )}
                 </div>

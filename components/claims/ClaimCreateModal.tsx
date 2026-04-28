@@ -42,6 +42,7 @@ export interface ClaimCreateModalProps {
   selectedFile: File | null;
   previewUrl: string | null;
   modalError: string;
+  ocrWarning?: string;
   modalSaving: boolean;
   ocrScanning: boolean;
   fileInputRef: RefObject<HTMLInputElement>;
@@ -92,6 +93,7 @@ export default function ClaimCreateModal({
   selectedFile,
   previewUrl,
   modalError,
+  ocrWarning,
   modalSaving,
   ocrScanning,
   fileInputRef,
@@ -142,6 +144,11 @@ export default function ClaimCreateModal({
         {modalError && (
           <div className="mb-4 bg-[var(--reject-red)]/10 p-3">
             <p className="text-sm text-[var(--reject-red)]">{modalError}</p>
+          </div>
+        )}
+        {ocrWarning && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 p-3">
+            <p className="text-sm text-amber-700">{ocrWarning}</p>
           </div>
         )}
 

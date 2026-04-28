@@ -118,6 +118,7 @@ export async function GET(request: NextRequest) {
     file_url: inv.file_url,
     thumbnail_url: inv.thumbnail_url,
     notes: inv.notes,
+    doc_subtype: inv.doc_subtype,
     submitted_via: inv.submitted_via,
     gl_account_id: inv.gl_account_id,
     gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
     const glAccountId = formData.get('gl_account_id') as string | null;
     const contraGlAccountId = formData.get('contra_gl_account_id') as string | null;
     const isBatch = formData.get('batch') === 'true';
+    const docSubtype = formData.get('doc_subtype') as string | null; // 'credit_note' for CN
     const file = formData.get('file') as File | null;
 
     if (!firmId || !vendorName || !issueDate || !totalAmountStr) {
@@ -357,6 +359,7 @@ export async function POST(request: NextRequest) {
               due_date: computedDueDate ? new Date(computedDueDate) : null,
               payment_terms: paymentTerms || null,
               notes: notes || null,
+              doc_subtype: docSubtype || null,
               total_amount: totalAmount,
               category_id: resolvedCategoryId!,
               gl_account_id: glAccountId || null,
@@ -424,6 +427,7 @@ export async function POST(request: NextRequest) {
             due_date: computedDueDate ? new Date(computedDueDate) : null,
             payment_terms: paymentTerms || null,
             notes: notes || null,
+            doc_subtype: docSubtype || null,
             total_amount: totalAmount,
             category_id: resolvedCategoryId!,
             gl_account_id: glAccountId || null,

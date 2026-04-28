@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { parseBankStatementPDF } from '@/lib/bank-pdf-parser';
+import { classifyPDF } from '@/lib/whatsapp/gemini';
 import { autoMatchTransactions } from '@/lib/bank-reconciliation';
 import { deduplicateTransactions, findOverlappingStatements, computePeriodRange } from '@/lib/bank-dedup';
 import { uploadToDriveForFirm, getDriveViewUrl } from '@/lib/google-drive';
@@ -30,8 +31,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data: null, error: 'File must be a PDF' }, { status: 400 });
   }
 
-  let result;
   const buffer = Buffer.from(await file.arrayBuffer());
+
+  // Quick classification — block non-bank-statement documents
+  const pdfType = await classifyPDF(buffer);
+  if (pdfType !== 'bank_statement') {
+    const typeLabel = pdfType === 'invoice' ? 'an invoice' : 'a receipt';
+    return NextResponse.json({ data: null, error: `This looks like ${typeLabel}, not a bank statement. Please upload it on the ${pdfType === 'invoice' ? 'Invoices' : 'Receipts'} page instead.` }, { status: 400 });
+  }
+
+  let result;
   try {
     result = await parseBankStatementPDF(buffer, password || undefined);
   } catch (e) {

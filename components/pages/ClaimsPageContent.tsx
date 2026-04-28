@@ -189,6 +189,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
   const [selectedFile, setSelectedFile]         = useState<File | null>(null);
   const [previewUrl, setPreviewUrl]             = useState<string | null>(null);
   const [modalError, setModalError]             = useState('');
+  const [ocrWarning, setOcrWarning]             = useState('');
   const [modalSaving, setModalSaving]           = useState(false);
   const [successMsg, setSuccessMsg]             = useState('');
   const [ocrScanning, setOcrScanning]           = useState(false);
@@ -344,6 +345,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       setMileageDistance('');
       setMileagePurpose('');
       setModalError('');
+      setOcrWarning('');
       setModalSaving(false);
       setShowModal(true);
 
@@ -378,9 +380,17 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         }
 
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        if (!res.ok) {
+          let msg = 'OCR extraction failed';
+          try { const j = await res.json(); msg = j.error || msg; } catch { /* ignore */ }
+          setModalError(msg);
+          setSelectedFile(null);
+          setOcrScanning(false);
+          return;
+        }
         const json = await res.json();
 
-        if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+        if (json.multipleReceipts && json.receipts?.length > 1) {
           // Multiple receipts in one image — switch to batch review
           setShowModal(false);
           setOcrScanning(false);
@@ -417,9 +427,10 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           return;
         }
 
-        if (res.ok && json.fields) {
+        if (json.fields) {
           const f = json.fields;
           if (json.documentType === 'invoice') {
+            setOcrWarning('This looks like an invoice. If you paid this out of pocket, continue to claim reimbursement.');
             if (f.issueDate) setModalDate(f.issueDate);
             if (f.vendor) setModalMerchant(f.vendor);
             if (f.totalAmount) setModalAmount(String(f.totalAmount));
@@ -492,9 +503,15 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
         ocrFd.append('context', 'claim');
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        if (!ocrRes.ok) {
+          let msg = 'OCR failed';
+          try { const j = await ocrRes.json(); msg = j.error || msg; } catch { /* ignore */ }
+          updateItem(item._id, { ocrDone: true, ocrError: msg, selected: false });
+          return;
+        }
         const ocrJson = await ocrRes.json();
         const updates: Partial<BatchClaimItem> = { ocrDone: true };
-        if (ocrRes.ok && ocrJson.fields) {
+        if (ocrJson.fields) {
           const f = ocrJson.fields;
           const isInvoice = ocrJson.documentType === 'invoice';
           updates.merchant = (isInvoice ? f.vendor : f.merchant) || '';
@@ -895,9 +912,17 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         fd.append('context', 'claim');
 
         const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+        if (!res.ok) {
+          let msg = 'OCR extraction failed';
+          try { const j = await res.json(); msg = j.error || msg; } catch { /* ignore */ }
+          setModalError(msg);
+          setSelectedFile(null);
+          setOcrScanning(false);
+          return;
+        }
         const json = await res.json();
 
-        if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+        if (json.multipleReceipts && json.receipts?.length > 1) {
           setShowModal(false);
           setOcrScanning(false);
           const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }, ridx: number) => {
@@ -926,9 +951,10 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           return;
         }
 
-        if (res.ok && json.fields) {
+        if (json.fields) {
           const f = json.fields;
           if (json.documentType === 'invoice') {
+            setOcrWarning('This looks like an invoice. If you paid this out of pocket, continue to claim reimbursement.');
             if (f.issueDate) setModalDate(f.issueDate);
             if (f.vendor) setModalMerchant(f.vendor);
             if (f.totalAmount) setModalAmount(String(f.totalAmount));
@@ -991,9 +1017,15 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         ocrFd.append('categories', JSON.stringify(catSnapshot.map((c) => c.name)));
         ocrFd.append('context', 'claim');
         const ocrRes = await fetch('/api/ocr/extract', { method: 'POST', body: ocrFd });
+        if (!ocrRes.ok) {
+          let msg = 'OCR failed';
+          try { const j = await ocrRes.json(); msg = j.error || msg; } catch { /* ignore */ }
+          updateItem(item._id, { ocrDone: true, ocrError: msg, selected: false });
+          return;
+        }
         const ocrJson = await ocrRes.json();
         const updates: Partial<BatchClaimItem> = { ocrDone: true };
-        if (ocrRes.ok && ocrJson.fields) {
+        if (ocrJson.fields) {
           const f = ocrJson.fields;
           const isInvoiceDoc = ocrJson.documentType === 'invoice';
           updates.merchant = (isInvoiceDoc ? f.vendor : f.merchant) || '';
@@ -1362,6 +1394,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
           selectedFile={selectedFile}
           previewUrl={previewUrl}
           modalError={modalError}
+          ocrWarning={ocrWarning}
           modalSaving={modalSaving}
           ocrScanning={ocrScanning}
           fileInputRef={fileInputRef}

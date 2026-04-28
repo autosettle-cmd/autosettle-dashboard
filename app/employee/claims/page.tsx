@@ -114,6 +114,7 @@ export default function EmployeeClaimsPage() {
   const [selectedFile, setSelectedFile]     = useState<File | null>(null);
   const [previewUrl, setPreviewUrl]         = useState<string | null>(null);
   const [modalError, setModalError]         = useState('');
+  const [ocrWarning, setOcrWarning]         = useState('');
   const [modalSaving, setModalSaving]       = useState(false);
   const [successMsg, setSuccessMsg]         = useState('');
   const [ocrScanning, setOcrScanning]       = useState(false);
@@ -218,6 +219,7 @@ export default function EmployeeClaimsPage() {
     setMileageDistance('');
     setMileagePurpose('');
     setModalError('');
+    setOcrWarning('');
     setModalSaving(false);
     setShowModal(true);
   };
@@ -239,9 +241,16 @@ export default function EmployeeClaimsPage() {
         fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = 'OCR extraction failed';
+        try { const j = await res.json(); msg = j.error || msg; } catch { /* ignore */ }
+        setModalError(msg);
+        setOcrScanning(false);
+        return;
+      }
       const json = await res.json();
 
-      if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+      if (json.multipleReceipts && json.receipts?.length > 1) {
         setShowModal(false);
         setOcrScanning(false);
         const items: BatchClaimItem[] = json.receipts.map((r: { date?: string; merchant?: string; amount?: number; receiptNumber?: string; category?: string; notes?: string }, ridx: number) => {
@@ -272,6 +281,7 @@ export default function EmployeeClaimsPage() {
       if (res.ok && json.fields) {
         const f = json.fields;
         if (json.documentType === 'invoice') {
+          setOcrWarning('This looks like an invoice. If you paid this out of pocket, continue to claim reimbursement.');
           if (f.issueDate) setModalDate(f.issueDate);
           if (f.vendor) setModalMerchant(f.vendor);
           if (f.totalAmount) setModalAmount(String(f.totalAmount));
@@ -317,6 +327,7 @@ export default function EmployeeClaimsPage() {
 
     setModalSaving(true);
     setModalError('');
+    setOcrWarning('');
 
     try {
       const fd = new FormData();
@@ -421,6 +432,7 @@ export default function EmployeeClaimsPage() {
     setMileageDistance('');
     setMileagePurpose('');
     setModalError('');
+    setOcrWarning('');
     setModalSaving(false);
     setShowModal(true);
 
@@ -433,9 +445,16 @@ export default function EmployeeClaimsPage() {
         fd.append('context', 'claim');
 
       const res = await fetch('/api/ocr/extract', { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = 'OCR extraction failed';
+        try { const j = await res.json(); msg = j.error || msg; } catch { /* ignore */ }
+        setModalError(msg);
+        setOcrScanning(false);
+        return;
+      }
       const json = await res.json();
 
-      if (res.ok && json.multipleReceipts && json.receipts?.length > 1) {
+      if (json.multipleReceipts && json.receipts?.length > 1) {
         // Multiple receipts in one image — switch to batch review
         setShowModal(false);
         setOcrScanning(false);
@@ -467,6 +486,7 @@ export default function EmployeeClaimsPage() {
       if (res.ok && json.fields) {
         const f = json.fields;
         if (json.documentType === 'invoice') {
+          setOcrWarning('This looks like an invoice. If you paid this out of pocket, continue to claim reimbursement.');
           if (f.issueDate) setModalDate(f.issueDate);
           if (f.vendor) setModalMerchant(f.vendor);
           if (f.totalAmount) setModalAmount(String(f.totalAmount));
@@ -649,6 +669,11 @@ export default function EmployeeClaimsPage() {
               {modalError && (
                 <div className="mb-4 bg-[#FFDAD6] p-3 inset-shadow">
                   <p className="text-sm font-medium text-[#93000A]">{modalError}</p>
+                </div>
+              )}
+              {ocrWarning && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 p-3">
+                  <p className="text-sm text-amber-700">{ocrWarning}</p>
                 </div>
               )}
 

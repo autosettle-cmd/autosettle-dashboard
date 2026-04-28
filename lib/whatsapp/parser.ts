@@ -1,4 +1,4 @@
-import { GeminiExtractionResult, GeminiInvoiceResult } from "./gemini";
+import { GeminiExtractionResult, GeminiInvoiceResult, InvoiceDocType } from "./gemini";
 
 function cleanGeminiJson(raw: string): string {
   let cleaned = raw
@@ -94,6 +94,7 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
     totalAmount: 0,
     category: "",
     notes: "",
+    docType: "PI",
     confidence: "LOW",
   };
 
@@ -119,6 +120,15 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
     const notes = String(parsed.notes || "");
     const totalAmount = Number(parsed.totalAmount);
 
+    // Layer 1: Gemini docType (default PI)
+    const validDocTypes: InvoiceDocType[] = ['PI', 'SI', 'CN', 'DN', 'PV', 'OR'];
+    let docType: InvoiceDocType = validDocTypes.includes(parsed.docType) ? parsed.docType : 'PI';
+
+    // Layer 3: Amount/keyword fallback corrections
+    if (docType === 'PI' && totalAmount < 0) docType = 'CN';
+    if (notes.toUpperCase().startsWith('CREDIT NOTE:') && docType !== 'CN') docType = 'CN';
+    if (notes.toUpperCase().startsWith('DEBIT NOTE:') && docType !== 'DN') docType = 'DN';
+
     // Post-process: detect if notes mention a deposit — informational notice
     let depositWarning: string | undefined;
     const depositMatch = notes.match(/deposit[^.]*?(?:RM\s?)?(\d[\d,]*(?:\.\d{2})?)/i);
@@ -140,6 +150,7 @@ export function parseGeminiInvoiceOutput(raw: string): GeminiInvoiceResult {
       totalAmount,
       category: String(parsed.category || ""),
       notes,
+      docType,
       confidence: ["HIGH", "MEDIUM", "LOW"].includes(parsed.confidence)
         ? parsed.confidence
         : "LOW",

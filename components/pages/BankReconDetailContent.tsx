@@ -1002,18 +1002,18 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                           <td className="px-2 py-2.5 text-right">
                             {txn.recon_status === 'unmatched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before matching' : undefined} className={`btn-thick-navy text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Match</button>
+                                <button onClick={(e) => { e.stopPropagation(); openMatchModal(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before matching' : 'Match'} className={`btn-thick-green text-label-sm w-9 py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>✓</button>
                               </div>
                             )}
                             {txn.recon_status === 'matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before reviewing' : undefined} className={`btn-thick-amber text-label-sm w-[70px] py-1.5 text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Review</button>
-                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); setPreviewTxn(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before reviewing' : 'Review'} className={`btn-thick-amber text-label-sm w-[70px] py-1.5 text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Review</button>
+                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : 'Unmatch'} className={`btn-thick-red text-label-sm w-9 py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>✕</button>
                               </div>
                             )}
                             {txn.recon_status === 'manually_matched' && (
                               <div className="flex gap-1 justify-end">
-                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : undefined} className={`btn-thick-red text-label-sm w-[70px] py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>Unmatch</button>
+                                <button onClick={(e) => { e.stopPropagation(); requestUnmatch(txn); }} disabled={matchingBlocked} title={matchingBlocked ? 'Fix balance mismatch before unmatching' : 'Unmatch'} className={`btn-thick-red text-label-sm w-9 py-1.5 text-white text-center ${matchingBlocked ? 'opacity-50 cursor-not-allowed' : ''}`}>✕</button>
                               </div>
                             )}
                           </td>

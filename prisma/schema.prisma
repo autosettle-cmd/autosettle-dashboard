@@ -397,6 +397,7 @@ model Invoice {
   approval            ApprovalStatus       @default(pending_approval)
   rejection_reason    String?
   notes               String?
+  doc_subtype         String?              // 'credit_note' for CN, null for regular PI/PV
   created_at          DateTime             @default(now())
   updated_at          DateTime             @updatedAt
   deleted_at          DateTime?
@@ -555,6 +556,7 @@ model SalesInvoice {
   payment_status       InvoicePaymentStatus @default(unpaid)
   amount_paid          Decimal              @default(0) @db.Decimal(10, 2)
   notes                String?
+  doc_subtype          String?              // 'debit_note' for DN, null for regular SI/OR
   category_id          String?
   gl_account_id        String?
   approval             ApprovalStatus       @default(pending_approval)

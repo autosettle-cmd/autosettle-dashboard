@@ -8,6 +8,33 @@
 - [ ] Add AbortController to ~15 components with unguarded fetch useEffects
 - [ ] Add onDelete rules to 42 schema relations — Cascade for firm FKs, SetNull for optional refs
 
+### Testing
+- [ ] Build full UI click-through user journey tests (upload → OCR → bank recon match → confirm → unmatch)
+- [ ] Add 2 remaining destructive path tests (delete claim with payments, delete invoice with bank match)
+- [ ] Add 4 permission matrix tests (cross-firm, employee isolation, firm scoping, platform owner)
+- [ ] Add 3 visual snapshot tests (bank recon match modal, delete blocker modal, deleted items page)
+- [ ] **Doc type detection e2e tests** — needs sample files in `tests/e2e/fixtures/` (Jeff to provide):
+  - [ ] Invoice page: drag-drop PI → detects PI, fields auto-fill, type toggle correct
+  - [ ] Invoice page: drag-drop SI → detects SI, type toggle switches
+  - [ ] Invoice page: drag-drop bank statement → overlay error, Submit disabled
+  - [ ] Invoice page: drag-drop receipt → amber warning, fields fill
+  - [ ] Invoice page: drag-drop CN → detects CN, negative amount
+  - [ ] Invoice page: batch upload mixed (PI + bank statement) → bank statements error + deselected
+  - [ ] Invoice page: override type toggle PI→SI → submits to SalesInvoice
+  - [ ] Invoice page: Contra GL "+ Add new account" → vendor name auto-fills
+  - [ ] Claims page: upload receipt → normal flow
+  - [ ] Claims page: upload bank statement → error, file cleared
+  - [ ] Claims page: upload invoice → amber warning "paid out of pocket", can submit
+  - [ ] Claims page: batch bank statements → red error per item, deselected
+  - [ ] Employee dashboard: upload bank statement → error
+  - [ ] Employee dashboard: upload invoice → amber warning
+  - [ ] Employee claims: upload bank statement → error
+  - [ ] Employee claims: upload invoice → amber warning
+  - [ ] Employee claims: multi-receipt image → batch review (no regression)
+  - [ ] Bank recon: upload invoice PDF → error "looks like an invoice"
+  - [ ] Bank recon: upload receipt PDF → error "looks like a receipt"
+  - [ ] Bank recon: upload bank statement → normal parsing flow
+
 ---
 
 ## Questions for accountant (DS Plus)

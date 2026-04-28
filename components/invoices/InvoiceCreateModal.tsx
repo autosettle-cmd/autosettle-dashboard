@@ -22,6 +22,8 @@ interface SupplierOption {
   default_contra_gl_account_id?: string | null;
 }
 
+type DocType = 'PI' | 'SI' | 'CN' | 'DN' | 'PV' | 'OR';
+
 interface NewInvState {
   firm_id: string;
   vendor_name: string;
@@ -34,7 +36,17 @@ interface NewInvState {
   category_id: string;
   payment_terms: string;
   notes: string;
+  doc_type: DocType;
 }
+
+const DOC_TYPE_BADGES: Record<DocType, { label: string; color: string; bg: string; desc: string }> = {
+  PI: { label: 'PI', color: '#234B6E', bg: '#E3EDF6', desc: 'Purchase Invoice' },
+  SI: { label: 'SI', color: '#0E6027', bg: '#DEF2E4', desc: 'Sales Invoice' },
+  CN: { label: 'CN', color: '#9A3412', bg: '#FEE2E2', desc: 'Credit Note' },
+  DN: { label: 'DN', color: '#4338CA', bg: '#E0E7FF', desc: 'Debit Note' },
+  PV: { label: 'PV', color: '#7C3A00', bg: '#FEF0DB', desc: 'Payment Voucher' },
+  OR: { label: 'OR', color: '#5C2D91', bg: '#EEDDF9', desc: 'Official Receipt' },
+};
 
 interface InvoiceCreateModalConfig {
   role: 'accountant' | 'admin';
@@ -70,6 +82,7 @@ export interface InvoiceCreateModalProps {
   pvAttaching?: boolean;
   attachToPV?: () => void;
   dismissPvMatch?: () => void;
+  wrongDocType?: string;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -102,6 +115,7 @@ export default function InvoiceCreateModal({
   pvAttaching,
   attachToPV,
   dismissPvMatch,
+  wrongDocType,
 }: InvoiceCreateModalProps) {
 
   const [supplierSearch, setSupplierSearch] = useState('');
@@ -168,8 +182,40 @@ export default function InvoiceCreateModal({
                   )}
                 </div>
 
+                {/* Error/warning messages — shown immediately after file upload */}
+                {newInvError && <p className="text-sm text-[var(--reject-red)] bg-red-50 border border-red-200 px-3 py-2">{newInvError}</p>}
+                {depositWarning && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2" dangerouslySetInnerHTML={{ __html: depositWarning }} />}
+
+                {/* Document type selector — auto-suggested by OCR, user can override */}
                 <div>
-                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Vendor Name *</label>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Document Type</label>
+                  <div className="flex gap-1 mt-1">
+                    {(['PI', 'SI', 'CN', 'DN', 'PV', 'OR'] as DocType[]).map((t) => {
+                      const b = DOC_TYPE_BADGES[t];
+                      const active = newInv.doc_type === t;
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setNewInv({ ...newInv, doc_type: t })}
+                          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-100 btn-texture ${active ? 'type-toggle-on' : 'type-toggle-off'}`}
+                          style={{
+                            '--tt-bg': active ? b.bg : undefined,
+                            '--tt-color': active ? b.color : undefined,
+                          } as React.CSSProperties}
+                          title={b.desc}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                    {['SI', 'DN', 'OR'].includes(newInv.doc_type) ? 'Customer / Buyer *' : 'Vendor Name *'}
+                  </label>
                   <input
                     ref={vendorInputRef}
                     type="text"
@@ -302,6 +348,7 @@ export default function InvoiceCreateModal({
                         preferredType="Liability"
                         defaultType="Liability"
                         defaultBalance="Credit"
+                        suggestedName={newInv.vendor_name}
                         onAccountCreated={(a) => setNewInvGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
                       />
                     </div>
@@ -355,15 +402,13 @@ export default function InvoiceCreateModal({
                   </div>
                 )}
 
-                {depositWarning && <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2">{depositWarning}</p>}
-                {newInvError && <p className="text-sm text-[var(--reject-red)] bg-red-50 border border-red-200 px-3 py-2">{newInvError}</p>}
               </div>
 
               {/* Footer */}
               <div className="flex gap-3 px-5 py-4 bg-[var(--surface-low)] flex-shrink-0">
                 <button
                   onClick={submitNewInvoice}
-                  disabled={newInvSubmitting || ocrScanning}
+                  disabled={newInvSubmitting || ocrScanning || !!wrongDocType}
                   className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
@@ -382,7 +427,7 @@ export default function InvoiceCreateModal({
               const url = URL.createObjectURL(newInvFile!);
               const isPdf = newInvFile!.type === 'application/pdf' || newInvFile!.name.toLowerCase().endsWith('.pdf');
               return (
-                <div className="w-1/2 flex flex-col min-h-0">
+                <div className="w-1/2 flex flex-col min-h-0 relative">
                   <div className="flex-1 overflow-y-auto bg-[var(--surface-low)]">
                     {isPdf ? (
                       <iframe src={`${url}#toolbar=0&navpanes=0`} className="w-full h-full min-h-[400px]" title="Invoice preview" />
@@ -393,6 +438,18 @@ export default function InvoiceCreateModal({
                       </div>
                     )}
                   </div>
+                  {/* Error overlay — covers preview when wrong document type detected */}
+                  {wrongDocType && (
+                    <div className="absolute inset-0 bg-[#070E1B]/80 flex items-center justify-center z-10">
+                      <div className="bg-white p-8 max-w-[320px] text-center space-y-4">
+                        <div className="w-14 h-14 mx-auto rounded-full bg-red-50 flex items-center justify-center">
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--reject-red)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                        </div>
+                        <p className="text-sm font-semibold text-[var(--text-primary)]">{wrongDocType}</p>
+                        <button onClick={onClose} className="btn-thick-red px-6 py-2 text-sm font-semibold w-full">Close</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
