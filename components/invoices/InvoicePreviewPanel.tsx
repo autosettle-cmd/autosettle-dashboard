@@ -784,6 +784,7 @@ export default function InvoicePreviewPanel({
                               if (!res.ok) {
                                 setAttachWarnings([json.error || 'Failed to attach generated PDF']);
                               } else {
+                                setPreviewInvoice({ ...previewInvoice, file_url: json.data?.file_url ?? null, thumbnail_url: json.data?.thumbnail_url ?? previewInvoice.thumbnail_url });
                                 refresh();
                               }
                             } catch {

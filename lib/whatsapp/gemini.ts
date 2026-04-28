@@ -47,7 +47,16 @@ function getAuthClient(): GoogleAuth {
 const GEMINI_TIMEOUT_MS = 30_000; // 30s per attempt
 const GEMINI_MAX_RETRIES = 2;     // up to 3 total attempts
 
-async function getGeminiUrl(): Promise<{ url: string; token: string }> {
+async function getGeminiUrl(): Promise<{ url: string; token: string; useApiKey: boolean }> {
+  // Prefer free Google AI Studio API key (no billing required)
+  const aiApiKey = process.env.GOOGLE_AI_API_KEY;
+  if (aiApiKey) {
+    const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${aiApiKey}`;
+    return { url, token: '', useApiKey: true };
+  }
+
+  // Fallback to Vertex AI (requires billing)
   const projectId = process.env.VERTEX_PROJECT_ID!;
   const location = process.env.VERTEX_LOCATION || "asia-southeast1";
   const model = process.env.VERTEX_MODEL || "gemini-1.5-flash";
@@ -55,14 +64,17 @@ async function getGeminiUrl(): Promise<{ url: string; token: string }> {
   const auth = getAuthClient();
   const client = await auth.getClient();
   const tokenResult = await client.getAccessToken();
-  return { url, token: tokenResult.token! };
+  return { url, token: tokenResult.token!, useApiKey: false };
 }
 
 async function geminiCall(
   body: Record<string, unknown>,
   label: string,
 ): Promise<{ json: Record<string, unknown>; text: string }> {
-  const { url, token } = await getGeminiUrl();
+  const { url, token, useApiKey } = await getGeminiUrl();
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (!useApiKey) headers["Authorization"] = `Bearer ${token}`;
 
   for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
     const controller = new AbortController();
@@ -71,10 +83,7 @@ async function geminiCall(
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
         body: JSON.stringify(body),
         signal: controller.signal,
       });

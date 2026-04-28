@@ -316,6 +316,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       ? (config.firmId || (firms.length === 1 ? firms[0].id : ''))
       : '';
     if (isAccountant && !targetFirmId) {
+      window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
       alert('Please select a firm before uploading.');
       return;
     }
@@ -961,6 +962,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
 
     // Multiple files — switch to batch review
     if (isAccountant && !modalFirmId) {
+      window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
       setModalError('Please select a firm before batch uploading.');
       return;
     }

@@ -19,16 +19,27 @@ export async function GET(request: NextRequest) {
     const firmId = searchParams.get('firmId');
     const scope = firmScope(firmIds, firmId);
 
-    const [claim, receipt, mileage, claimPending, receiptPending, mileagePending] = await Promise.all([
-      prisma.claim.count({ where: { ...scope, type: 'claim' } }),
-      prisma.claim.count({ where: { ...scope, type: 'receipt' } }),
-      prisma.claim.count({ where: { ...scope, type: 'mileage' } }),
-      prisma.claim.count({ where: { ...scope, type: 'claim', approval: 'pending_approval' } }),
-      prisma.claim.count({ where: { ...scope, type: 'receipt', approval: 'pending_approval' } }),
-      prisma.claim.count({ where: { ...scope, type: 'mileage', approval: 'pending_approval' } }),
-    ]);
+    // Single groupBy replaces 6 separate count queries
+    const grouped = await prisma.claim.groupBy({
+      by: ['type', 'approval'],
+      where: scope,
+      _count: true,
+    });
 
-    return NextResponse.json({ data: { claim, receipt, mileage, claimPending, receiptPending, mileagePending }, error: null });
+    const count = (type: string, approval?: string) =>
+      grouped.filter(g => g.type === type && (!approval || g.approval === approval)).reduce((s, g) => s + g._count, 0);
+
+    return NextResponse.json({
+      data: {
+        claim: count('claim'),
+        receipt: count('receipt'),
+        mileage: count('mileage'),
+        claimPending: count('claim', 'pending_approval'),
+        receiptPending: count('receipt', 'pending_approval'),
+        mileagePending: count('mileage', 'pending_approval'),
+      },
+      error: null,
+    });
   } catch (err) {
     console.error('[API Error]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

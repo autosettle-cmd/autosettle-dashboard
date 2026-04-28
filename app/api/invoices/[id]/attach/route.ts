@@ -168,6 +168,8 @@ export async function PATCH(
       success: true,
       warnings,
       invoice_number: ocrInvoiceNumber || invoice.invoice_number,
+      file_url: fileUrl,
+      thumbnail_url: thumbnailUrl,
     },
     error: null,
   });

@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     summary.salesInvoices = salesInvoices.length;
 
     const total = Object.values(summary).reduce((a, b) => a + b, 0);
-    console.log(`[hard-delete-expired] Purged ${total} records:`, summary);
+    console.info(`[hard-delete-expired] Purged ${total} records:`, summary);
 
     return NextResponse.json({ ok: true, purged: summary, cutoff: cutoff.toISOString() });
   } catch (err) {

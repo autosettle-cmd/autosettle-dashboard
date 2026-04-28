@@ -79,5 +79,5 @@ export async function PATCH(
     },
   });
 
-  return NextResponse.json({ data: { success: true, warnings: [] }, error: null });
+  return NextResponse.json({ data: { success: true, warnings: [], file_url: fileUrl, thumbnail_url: thumbnailUrl }, error: null });
 }

@@ -9,10 +9,7 @@
 - [ ] Add onDelete rules to 42 schema relations — Cascade for firm FKs, SetNull for optional refs
 
 ### Medium
-- [ ] Add 3 missing DB indexes — SalesInvoiceItem `[sales_invoice_id]`, Period date indexes, MessageLog `[received_at]`
-- [ ] Merge claims/counts 6 queries into single groupBy
-- [ ] Extract hardcoded `take: 100` to shared constant
-- [ ] Remove console.log from prod code (cron, lisa.ts)
+- [ ] Extract hardcoded `take: 100` to shared constant (low priority — only 11 uses)
 
 ### Low Priority
 - [ ] Consolidate claims/stats + claims/counts into single endpoint
@@ -30,29 +27,10 @@
 - [ ] Consider: zip file upload via WhatsApp, or multi-image message handling
 - [ ] Each file goes through normal OCR → pending_review flow
 
-## Multi-select invoices for bulk actions
-- [ ] Admin invoices: add checkboxes on each row for multi-select
-- [ ] Accountant invoices: same
-- [ ] Bulk actions bar: delete selected, approve selected, reject selected
-- [ ] Select all / deselect all toggle
-- Affects: `app/admin/invoices/page.tsx`, `app/accountant/invoices/page.tsx`
 
-## Fix: Show error when uploading without selecting a firm
-- [ ] Bank Recon: show "Please select a firm" error if user clicks Upload & Parse without choosing a firm
-- [ ] Invoices: same
-- [ ] Claims: same
-
-## Fix: OCR auto-fill not working on Vercel (Gemini billing required)
-- [ ] Enable billing on Google Cloud project `drive-uploader-485013`: https://console.developers.google.com/billing/enable?project=drive-uploader-485013
-- [ ] After billing enabled, verify invoice/claim OCR auto-fill works on deployed app
-- [ ] Consider: add Google Vision API fallback for OCR when Gemini is unavailable (Vision uses API key, no billing needed)
-- Root cause: Invoice/claim OCR always uses Gemini (Vertex AI), which requires billing. Bank recon works because regex parser handles it without Gemini.
-
-## Fix: Upload modal should auto-select firm from sidebar filter
-- [ ] Bank Recon upload modal: pre-fill firm from `firmFilter` (sidebar selector) so accountant doesn't have to select again
-- [ ] Invoice upload modal: same — use sidebar firm as default
-- [ ] Claims upload modal: same
-- Affects: `app/accountant/bank-reconciliation/page.tsx`, `app/accountant/invoices/page.tsx`, `app/accountant/claims/page.tsx`
+## Fix: OCR auto-fill not working on Vercel
+- [ ] Add `GOOGLE_AI_API_KEY` env var on Vercel (get from https://aistudio.google.com/apikey)
+- [ ] Verify invoice/claim OCR auto-fill works on deployed app
 
 ## Bank Statement Parser: Add regex for more bank formats
 - [ ] OCBC — upload sample statement, build regex parser in `lib/bank-pdf-parser.ts`

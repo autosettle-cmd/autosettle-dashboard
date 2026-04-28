@@ -196,7 +196,12 @@ export default function AccountantBankReconciliationPage() {
 
   const handleUpload = async () => {
     const files = fileRef.current?.files;
-    if (!files || files.length === 0 || !uploadFirmId) return;
+    if (!files || files.length === 0) return;
+    if (!uploadFirmId) {
+      window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
+      setUploadError('Please select a firm before uploading.');
+      return;
+    }
 
     setUploading(true);
     setUploadError('');
@@ -292,6 +297,7 @@ export default function AccountantBankReconciliationPage() {
     const targetFirmId = firmFilter || (firms.length === 1 ? firms[0].id : '');
     if (!targetFirmId) {
       window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
+      alert('Please select a firm before uploading.');
       return;
     }
 

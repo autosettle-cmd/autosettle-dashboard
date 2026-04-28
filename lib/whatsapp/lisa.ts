@@ -239,7 +239,7 @@ async function executeToolCall(
   session: SessionData | null
 ): Promise<void> {
   const { name, args } = functionCall;
-  console.log(`[Lisa] Tool call: ${name}(${JSON.stringify(args)})`);
+  console.info(`[Lisa] Tool call: ${name}(${JSON.stringify(args)})`);
 
   switch (name) {
     case "send_message": {
@@ -317,7 +317,7 @@ async function executeToolCall(
       const sessionId = args.session_id as string;
       if (sessionId) {
         await deleteSession(sessionId);
-        console.log(`[Lisa] Session ${sessionId} deleted`);
+        console.info(`[Lisa] Session ${sessionId} deleted`);
       }
       break;
     }

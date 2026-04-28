@@ -463,6 +463,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
     const targetFirmId = getTargetFirmId();
     if (config.role === 'accountant' && !targetFirmId) {
+      window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
       alert('Please select a firm before uploading.');
       return;
     }
@@ -790,6 +791,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
     // Multiple files — batch upload
     if (config.role === 'accountant' && !newInv.firm_id) {
+      window.dispatchEvent(new CustomEvent('highlight-firm-selector'));
       setNewInvError('Please select a firm before batch uploading.');
       return;
     }
@@ -1432,7 +1434,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               <button
                 onClick={() => {
                   setShowNewInvoice(true);
-                  if (config.firms && config.firms.length === 1) setNewInv(prev => ({ ...prev, firm_id: config.firms![0].id }));
+                  const prefillFirmId = config.firmId || (config.firms?.length === 1 ? config.firms[0].id : '');
+                  if (prefillFirmId) setNewInv(prev => ({ ...prev, firm_id: prefillFirmId }));
                 }}
                 disabled={batchScanning || batchSubmitting || !firmSetupReady}
                 className="btn-thick-navy px-4 py-2 text-sm font-semibold disabled:opacity-50"
@@ -1458,38 +1461,69 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           {/* Load More */}
           <LoadMoreBanner hasMore={hasMore} totalCount={totalCount} loadedCount={invoices.length} loading={loading} onLoadAll={() => { setTakeLimit(totalCount); setRefreshKey((k) => k + 1); }} />
 
-          {/* Batch action bar (accountant only) */}
-          {config.showApproval && selectedRows.length > 0 && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-[var(--primary)]/5 flex-shrink-0">
-              <span className="text-body-sm font-medium text-[var(--text-primary)]">{selectedRows.length} selected</span>
-              <button
-                onClick={() => {
-                  const missingGl = selectedRows.filter(r => !r.gl_account_id && !r.supplier_default_gl_id);
-                  const missingContra = selectedRows.filter(r => !r.contra_gl_account_id && !r.supplier_default_contra_gl_id);
-                  const warnings: string[] = [];
-                  if (missingGl.length > 0) warnings.push(`${missingGl.length} invoice(s) have no Expense GL — will use firm default if available.`);
-                  if (missingContra.length > 0) warnings.push(`${missingContra.length} invoice(s) have no Contra GL — will use firm default Trade Payables.`);
-                  if (warnings.length > 0) {
-                    if (!confirm(`Batch Approve — GL Defaults\n\n${warnings.join('\n')}\n\nProceed with batch approval?`)) return;
-                  }
-                  batchAction(selectedRows.map((r) => r.id), 'approve');
-                }}
-                className="btn-thick-green text-sm px-4 py-1.5"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => setRejectModal({ open: true, invoiceIds: selectedRows.map((r) => r.id), reason: '' })}
-                className="btn-thick-red text-sm px-4 py-1.5"
-              >
-                Reject
-              </button>
-              <button
-                onClick={() => setSelectedRows([])}
-                className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-              >
-                Clear
-              </button>
+          {/* Bulk action bar */}
+          {selectedRows.length > 0 && (
+            <div className="sticky bottom-0 z-20 flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-header)] border-t-2 border-[var(--primary)] flex-shrink-0 shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+              <span className="text-body-sm font-bold text-[var(--text-primary)]">{selectedRows.length} selected</span>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Delete ${selectedRows.length} invoice(s)? This will be recoverable for 30 days.`)) return;
+                    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
+                    let failed = 0;
+                    for (const row of selectedRows) {
+                      try {
+                        const res = await fetch(config.apiDelete, {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ invoiceId: row.id }),
+                        });
+                        if (!res.ok) failed++;
+                      } catch { failed++; }
+                    }
+                    if (failed > 0) alert(`${failed} invoice(s) could not be deleted (may have blockers).`);
+                    setSelectedRows([]);
+                    setPreviewInvoice(null);
+                    refresh();
+                    requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
+                  }}
+                  className="btn-thick-red text-sm px-4 py-1.5"
+                >
+                  Delete
+                </button>
+                {config.showApproval && (
+                  <>
+                    <button
+                      onClick={() => {
+                        const missingGl = selectedRows.filter(r => !r.gl_account_id && !r.supplier_default_gl_id);
+                        const missingContra = selectedRows.filter(r => !r.contra_gl_account_id && !r.supplier_default_contra_gl_id);
+                        const warnings: string[] = [];
+                        if (missingGl.length > 0) warnings.push(`${missingGl.length} invoice(s) have no Expense GL — will use firm default if available.`);
+                        if (missingContra.length > 0) warnings.push(`${missingContra.length} invoice(s) have no Contra GL — will use firm default Trade Payables.`);
+                        if (warnings.length > 0) {
+                          if (!confirm(`Batch Approve — GL Defaults\n\n${warnings.join('\n')}\n\nProceed with batch approval?`)) return;
+                        }
+                        batchAction(selectedRows.map((r) => r.id), 'approve');
+                      }}
+                      className="btn-approve text-sm px-4 py-1.5"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => setRejectModal({ open: true, invoiceIds: selectedRows.map((r) => r.id), reason: '' })}
+                      className="btn-thick-red text-sm px-4 py-1.5"
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => setSelectedRows([])}
+                  className="btn-thick-white text-sm px-4 py-1.5"
+                >
+                  Clear
+                </button>
+              </div>
             </div>
           )}
 
@@ -1510,7 +1544,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                         invoice={inv}
                         onClick={() => setPreviewInvoice(inv)}
                         selected={isSelected}
-                        onSelect={config.showApproval ? () => toggleSelectOne(inv) : undefined}
+                        onSelect={() => toggleSelectOne(inv)}
                       />
                     );
                   })}
@@ -1541,10 +1575,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                 <table className="w-full">
                   <thead>
                     <tr className="text-left">
-                      {config.showApproval && (
-                        <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-10"><input type="checkbox" className="ds-table-checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
-                      )}
-                      <th className={`${config.showApproval ? 'px-3' : 'px-5'} py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none`} onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] w-10"><input type="checkbox" className="ds-table-checkbox" checked={pagedInvoices.length > 0 && pagedInvoices.every((inv) => selectedRows.some((r) => r.id === inv.id))} onChange={toggleSelectAll} /></th>
+                      <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('issue_date')}>Issue Date{sortIndicator('issue_date')}</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('vendor_name_raw')}>Vendor{sortIndicator('vendor_name_raw')}</th>
                       <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('invoice_number')}>Invoice #{sortIndicator('invoice_number')}</th>
                       {config.showFirmColumn && !config.firmId && <th className="px-3 py-2.5 text-xs font-label uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer select-none" onClick={() => toggleSort('firm_name')}>Firm{sortIndicator('firm_name')}</th>}
@@ -1566,12 +1598,10 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                         onClick={() => setPreviewInvoice(inv)}
                         className={`text-body-sm cursor-pointer hover:bg-[var(--surface-header)] transition-colors ${isSelected ? 'bg-blue-50/40' : idx % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`}
                       >
-                        {config.showApproval && (
-                          <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
-                            <input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
-                          </td>
-                        )}
-                        <td data-col="Issue Date" className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-[var(--text-secondary)] tabular-nums`}>{formatDateDot(inv.issue_date)}</td>
+                        <td className="px-3 py-3 w-10" onClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" className="ds-table-checkbox" checked={isSelected} onChange={() => toggleSelectOne(inv)} />
+                        </td>
+                        <td data-col="Issue Date" className="px-3 py-3 text-[var(--text-secondary)] tabular-nums">{formatDateDot(inv.issue_date)}</td>
                         <td data-col="Vendor" className="px-3 py-3 text-[var(--text-primary)] font-medium">
                           {(() => { const badge = getInvoiceTypeBadge(inv); return badge ? <span className="inline-block text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 mr-1.5 align-middle" style={{ color: badge.color, background: badge.bg }}>{badge.label}</span> : null; })()}
                           {inv.vendor_name_raw}
@@ -1598,8 +1628,8 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
                   </tbody>
                   <tfoot className="sticky bottom-0 z-10">
                     <tr className="border-t-2 border-[var(--surface-highest)]">
-                      {config.showApproval && <td className="bg-[var(--surface-header)]" />}
-                      <td className={`${config.showApproval ? 'px-3' : 'px-5'} py-3 text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)] bg-[var(--surface-header)]`}>
+                      <td className="bg-[var(--surface-header)]" />
+                      <td className="px-3 py-3 text-xs font-label font-bold uppercase tracking-widest text-[var(--text-secondary)] bg-[var(--surface-header)]">
                         {filteredInvoices.length} item{filteredInvoices.length !== 1 ? 's' : ''}
                       </td>
                       <td className="bg-[var(--surface-header)]" />

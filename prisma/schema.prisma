@@ -535,6 +535,7 @@ model MessageLog {
 
   @@index([employee_id])
   @@index([phone, employee_id])
+  @@index([received_at])
 }
 
 // ─── Sales Invoicing (Issued) ────────────────────────────────────────────────
@@ -607,6 +608,8 @@ model SalesInvoiceItem {
   sort_order        Int      @default(0)
 
   salesInvoice      SalesInvoice @relation(fields: [sales_invoice_id], references: [id], onDelete: Cascade)
+
+  @@index([sales_invoice_id])
 }
 
 model SalesPaymentAllocation {
@@ -844,6 +847,7 @@ model Period {
 
   @@unique([fiscal_year_id, period_number])
   @@index([fiscal_year_id, status])
+  @@index([start_date, end_date])
 }
 
 // ─── Audit Trail ────────────────────────────────────────────────────────────

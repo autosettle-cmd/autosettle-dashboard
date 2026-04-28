@@ -13,16 +13,26 @@ export async function GET() {
     }
     const firmId = session.user.firm_id;
 
-    const [claim, receipt, mileage, claimPending, receiptPending, mileagePending] = await Promise.all([
-      prisma.claim.count({ where: { firm_id: firmId, type: 'claim' } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'receipt' } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'mileage' } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'claim', status: 'pending_review' } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'receipt', status: 'pending_review' } }),
-      prisma.claim.count({ where: { firm_id: firmId, type: 'mileage', status: 'pending_review' } }),
-    ]);
+    const grouped = await prisma.claim.groupBy({
+      by: ['type', 'status'],
+      where: { firm_id: firmId },
+      _count: true,
+    });
 
-    return NextResponse.json({ data: { claim, receipt, mileage, claimPending, receiptPending, mileagePending }, error: null });
+    const count = (type: string, status?: string) =>
+      grouped.filter(g => g.type === type && (!status || g.status === status)).reduce((s, g) => s + g._count, 0);
+
+    return NextResponse.json({
+      data: {
+        claim: count('claim'),
+        receipt: count('receipt'),
+        mileage: count('mileage'),
+        claimPending: count('claim', 'pending_review'),
+        receiptPending: count('receipt', 'pending_review'),
+        mileagePending: count('mileage', 'pending_review'),
+      },
+      error: null,
+    });
   } catch (err) {
     console.error('[API] admin/claims/counts GET error:', err);
     return NextResponse.json({ data: null, error: 'Internal server error' }, { status: 500 });
