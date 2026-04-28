@@ -603,9 +603,78 @@ Admin statements/[id] API must return the exact same data shape as the accountan
 
 ---
 
+## 38. API Try-Catch Coverage
+
+Every API route handler must be wrapped in try-catch with proper error responses (`500` with message).
+
+**Status:** ✅ 100% coverage (96/96 routes) as of 2026-04-28. Was 38% missing before this session.
+
+---
+
+## 39. Bounded findMany Queries
+
+Every `prisma.*.findMany()` call must have an explicit `take` limit to prevent unbounded result sets.
+
+### Limits by context
+- **Operational list APIs** (invoices, claims, etc.): `take: DEFAULT_PAGE_SIZE` (100, from `lib/constants.ts`)
+- **Report/export APIs** (GL, trial balance): `take: 500`
+- **Batch/internal APIs** (cron, migration): `take: 1000`
+
+### Constant
+`DEFAULT_PAGE_SIZE = 100` exported from `lib/constants.ts` — use this instead of hardcoding `100`.
+
+**Status:** ✅ All 7 previously-unbounded routes fixed (2026-04-28)
+
+---
+
+## 40. Dead Endpoint Cleanup
+
+Unused API endpoints must be deleted, not left in the codebase.
+
+### Removed (2026-04-28)
+- `app/api/claims/stats/route.ts` — replaced by sidebar-counts
+- `app/api/claims/counts/route.ts` — replaced by sidebar-counts
+- `app/api/admin/claims/stats/route.ts` — replaced by sidebar-counts
+- `app/api/admin/claims/counts/route.ts` — replaced by sidebar-counts
+
+### Optimized
+- `sidebar-counts` claims query: 6 separate queries → single `groupBy`
+
+---
+
+## 41. Playwright E2E Test Suite
+
+108 Playwright tests covering:
+- 14 visual snapshots
+- 4 user journeys (claim lifecycle, invoice lifecycle, bank recon, payment allocation)
+- 3 destructive path tests (delete, restore, cascade)
+- Page load tests for all roles
+- JV integrity checks
+- Permission boundary tests
+
+**Status:** ✅ 108 tests passing (2026-04-28)
+
+---
+
+## 42. Restore Dedup Guard
+
+When restoring a soft-deleted record, the restore API checks if a duplicate document was re-uploaded while the original was in the deleted state. If a live record with the same file hash or invoice number exists, restore is blocked with an error message.
+
+**Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 43. OCR Fallback API Key
+
+If the primary Gemini API key fails or is missing, OCR falls back to `GOOGLE_AI_API_KEY` env var (Google AI Studio free tier, no billing required).
+
+**Status:** ✅ Implemented (2026-04-28)
+
+---
+
 ## 36. Soft Delete System
 
-Invoice, SalesInvoice, Claim, Payment use soft deletes (30-day grace period).
+Invoice, SalesInvoice, Claim, Payment, BankStatement use soft deletes (30-day grace period).
 
 ### Architecture
 - `deleted_at DateTime?` + `deleted_by String?` on each model

@@ -211,6 +211,8 @@ Line items for sales invoices. CASCADE delete with parent.
 | line_total | Decimal(10,2) | |
 | sort_order | Int | Default 0 |
 
+**Indexes:** SalesInvoiceItem(sales_invoice_id)
+
 ---
 
 ## Accounting Foundation
@@ -265,6 +267,8 @@ Line items for sales invoices. CASCADE delete with parent.
 | period_number | Int | 1-12 |
 | status | Enum | open / closed / locked |
 
+**Indexes:** Period(start_date, end_date)
+
 ---
 
 ## Bank Reconciliation
@@ -283,6 +287,8 @@ Line items for sales invoices. CASCADE delete with parent.
 | balance_override | Boolean (false) | User acknowledged balance mismatch |
 | balance_override_by | String? | User ID who overrode |
 | balance_override_at | DateTime? | When override was set |
+| deleted_at | DateTime? | Soft-delete timestamp (30-day grace) |
+| deleted_by | String? | User ID who soft-deleted |
 
 ### BankTransaction
 | Field | Type | Notes |
@@ -396,6 +402,8 @@ Logs all WhatsApp messages for debugging.
 | media_url | String? | |
 | created_at | DateTime | |
 
+**Indexes:** MessageLog(received_at)
+
 ### OcrLog
 Tracks OCR processing results for analytics and debugging.
 
@@ -440,3 +448,5 @@ BankStatement ← BankTransaction (cascade) ← BankTransactionInvoice (cascade)
 
 See [`/docs/entity-cascade.md`](/docs/entity-cascade.md) for full cascade and delete rules.
 See [`/docs/jv-rules.md`](/docs/jv-rules.md) for JV creation and reversal rules.
+
+Last verified: 2026-04-28

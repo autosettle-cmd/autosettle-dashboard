@@ -82,12 +82,14 @@ Multi-level suggestion system for pre-filling GL fields:
 
 | Action | Required GLs | Error if Missing |
 |--------|-------------|------------------|
-| Invoice approval | Expense GL + Contra GL (Trade Payables) | "Invoice has no GL account. Select one before approving." |
+| Invoice approval | Expense GL (`gl_account_id`) + Contra GL (`contra_gl_account_id`, Trade Payables) | "Invoice has no GL account. Select one before approving." |
 | Sales invoice approval | Revenue GL + Contra GL (Trade Receivables) | "Sales invoice has no GL account assigned." |
 | Bank recon match (payment voucher) | Bank GL + Expense GL | "Bank account '{name}' has no GL account mapped. Go to Bank Recon → Manage Accounts." |
 | Bank recon match (official receipt) | Bank GL + Income GL | Same as above |
 | Bank recon match (claim) | Bank GL + Claims Payable GL | Same as above |
 | Bank recon claim match | Bank GL + Expense GL | "Bank account has no GL account mapped." |
+
+**Batch approval:** The `/api/invoices/batch` endpoint also enforces GL prerequisites — each invoice in a batch approve must have both `gl_account_id` and `contra_gl_account_id` provided in the request body. Invoices missing either GL are skipped with an error in the batch response.
 
 **Error messages must tell the user exactly what's missing and where to fix it.**
 
@@ -229,3 +231,5 @@ Every JV is validated at creation:
 | Use `firmIds ?? []` in JV queries | Super-admin (null) would see zero JVs instead of all |
 | Create JV without idempotency check | Duplicate JVs for same source corrupt the GL |
 | Reverse a JV that's already reversed | Check `reversed_by_id` before reversing |
+
+Last verified: 2026-04-28

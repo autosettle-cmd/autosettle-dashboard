@@ -90,7 +90,17 @@ Use this form to verify every data path in the app. For each flow, check if the 
 | GL accounts correct? | Expense from invoice `gl_account_id`, contra from supplier default or firm default | [ ] | |
 | Supplier default GL learned on first approval? | `supplier.default_gl_account_id` saved | [ ] | |
 
-### 4c. Invoice Payment
+### 4c. Invoice Multi-Select Bulk Actions
+| Step | Expected | Correct? | Notes / Changes Needed |
+|------|----------|----------|----------------------|
+| Checkbox column on invoices table | Select individual rows or "select all" | [ ] | |
+| Bulk bar appears at bottom | Shows count + Approve / Reject / Delete buttons | [ ] | |
+| Bulk approve | All selected invoices approved (with GL validation per item) | [ ] | |
+| Bulk reject | All selected invoices rejected | [ ] | |
+| Bulk delete | All selected invoices soft-deleted | [ ] | |
+| Firm setup guard on upload | Blocks upload if COA or fiscal year incomplete | [ ] | |
+
+### 4d. Invoice Payment
 | Step | Expected | Correct? | Notes / Changes Needed |
 |------|----------|----------|----------------------|
 | Payment allocated to invoice | PaymentAllocation created, recalcInvoicePayment | [ ] | |
@@ -287,4 +297,4 @@ Use this form to verify every data path in the app. For each flow, check if the 
 ---
 
 *Generated: 2026-04-15*
-*Last updated: ___________*
+*Last verified: 2026-04-28*
