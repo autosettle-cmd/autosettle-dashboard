@@ -314,12 +314,37 @@ function AccountantSignupInner() {
               <div>
                 <div className="mb-8">
                   <h1 className="text-white text-[26px] font-extrabold tracking-tight mb-1.5">
-                    {inviteToken ? "Join your team" : "Create your firm"}
+                    {inviteToken ? "Join your team" : "Create account"}
                   </h1>
                   <p className="text-white/35 text-title-sm">
-                    {inviteToken ? "Complete your account to get started" : "Sign up as an accountant to manage clients"}
+                    {inviteToken ? "Complete your account to get started" : "Choose your role to get started"}
                   </p>
                 </div>
+
+                {/* Role selector */}
+                {!inviteToken && (
+                  <div className="flex gap-2 mb-6">
+                    {(['Employee', 'Admin', 'Accountant'] as const).map((r) => {
+                      const isAccountant = r === 'Accountant';
+                      return (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => {
+                            if (!isAccountant) window.location.href = '/signup';
+                          }}
+                          className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-all duration-200 border ${
+                            isAccountant
+                              ? 'bg-white/10 border-white/20 text-white'
+                              : 'bg-white/[0.03] border-white/[0.06] text-white/30 hover:text-white/50 hover:border-white/10'
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                   {!inviteToken && (<>

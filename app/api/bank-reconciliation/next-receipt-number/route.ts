@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ data: null, error: 'firmId required' }, { status: 400 });
     }
 
-    const existing = await prisma.salesInvoice.findMany({
-      where: { firm_id: firmId, invoice_number: { startsWith: 'OR-' } },
+    const existing = await prisma.invoice.findMany({
+      where: { firm_id: firmId, type: 'sales', invoice_number: { startsWith: 'OR-' } },
       select: { invoice_number: true },
       orderBy: { created_at: 'desc' },
       take: 200,
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     let maxNum = 0;
     for (const inv of existing) {
-      const m = inv.invoice_number.match(/OR-(\d+)/);
+      const m = (inv.invoice_number ?? '').match(/OR-(\d+)/);
       if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
     }
 

@@ -8,7 +8,7 @@ import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
-type ModelType = 'invoice' | 'salesInvoice' | 'claim' | 'payment' | 'bankStatement';
+type ModelType = 'invoice' | 'claim' | 'payment' | 'bankStatement';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'model and id are required' }, { status: 400 });
     }
 
-    const validModels: ModelType[] = ['invoice', 'salesInvoice', 'claim', 'payment', 'bankStatement'];
+    const validModels: ModelType[] = ['invoice', 'claim', 'payment', 'bankStatement'];
     if (!validModels.includes(model)) {
       return NextResponse.json({ error: 'Invalid model type' }, { status: 400 });
     }
@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     // Verify the record exists and is soft-deleted
     const selectFields: any = { id: true, firm_id: true, deleted_at: true };
     if (model === 'invoice') Object.assign(selectFields, { invoice_number: true, file_hash: true });
-    if (model === 'salesInvoice') Object.assign(selectFields, { invoice_number: true });
     if (model === 'claim') Object.assign(selectFields, { receipt_number: true, file_hash: true });
 
     const record = await (prismaUnfiltered as any)[model].findUnique({
@@ -70,17 +69,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (model === 'salesInvoice') {
-      const existing = await prismaUnfiltered.salesInvoice.findFirst({
-        where: { firm_id: record.firm_id, invoice_number: record.invoice_number, deleted_at: null, id: { not: id } },
-      });
-      if (existing) {
-        return NextResponse.json({
-          error: `Cannot restore — invoice number ${record.invoice_number} is already in use.`,
-        }, { status: 409 });
-      }
-    }
-
     if (model === 'claim' && (record.receipt_number || record.file_hash)) {
       const where: any = { firm_id: record.firm_id, deleted_at: null, id: { not: id } };
       if (record.file_hash) where.file_hash = record.file_hash;
@@ -103,7 +91,6 @@ export async function POST(request: NextRequest) {
 
     const tableNameMap: Record<ModelType, string> = {
       invoice: 'Invoice',
-      salesInvoice: 'SalesInvoice',
       claim: 'Claim',
       payment: 'Payment',
       bankStatement: 'BankStatement',

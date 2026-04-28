@@ -77,48 +77,16 @@ export async function getClaimBlockers(claimIds: string[]): Promise<DeleteBlocke
   return blockers;
 }
 
-export async function getSalesInvoiceBlockers(id: string): Promise<DeleteBlocker[]> {
-  const blockers: DeleteBlocker[] = [];
-
-  const invoice = await prisma.salesInvoice.findUnique({
-    where: { id },
-    select: { approval: true },
-  });
-  if (!invoice) return blockers;
-
-  if (invoice.approval === 'approved') {
-    blockers.push({ label: 'Approved', detail: 'Revert approval first' });
-  }
-
-  const [allocCount, bankTxnCount] = await Promise.all([
-    prisma.salesPaymentAllocation.count({ where: { sales_invoice_id: id } }),
-    prisma.bankTransaction.count({ where: { matched_sales_invoice_id: id } }),
-  ]);
-
-  if (allocCount > 0) {
-    blockers.push({ label: `${allocCount} payment allocation${allocCount > 1 ? 's' : ''}`, detail: 'Remove allocations first' });
-  }
-  if (bankTxnCount > 0) {
-    blockers.push({ label: `${bankTxnCount} bank transaction match${bankTxnCount > 1 ? 'es' : ''}`, detail: 'Unmatch from bank recon first' });
-  }
-
-  return blockers;
-}
-
 export async function getPaymentBlockers(paymentId: string): Promise<DeleteBlocker[]> {
   const blockers: DeleteBlocker[] = [];
 
-  const [allocCount, salesAllocCount, receiptCount] = await Promise.all([
+  const [allocCount, receiptCount] = await Promise.all([
     prisma.paymentAllocation.count({ where: { payment_id: paymentId } }),
-    prisma.salesPaymentAllocation.count({ where: { payment_id: paymentId } }),
     prisma.paymentReceipt.count({ where: { payment_id: paymentId } }),
   ]);
 
   if (allocCount > 0) {
     blockers.push({ label: `${allocCount} invoice allocation${allocCount > 1 ? 's' : ''}`, detail: 'Remove allocations first' });
-  }
-  if (salesAllocCount > 0) {
-    blockers.push({ label: `${salesAllocCount} sales invoice allocation${salesAllocCount > 1 ? 's' : ''}`, detail: 'Remove allocations first' });
   }
   if (receiptCount > 0) {
     blockers.push({ label: `${receiptCount} claim link${receiptCount > 1 ? 's' : ''}`, detail: 'Remove claim links first' });
@@ -200,35 +168,6 @@ export async function softDeleteClaims(
   }
 
   return { deleted: claims.length };
-}
-
-export async function softDeleteSalesInvoice(
-  id: string,
-  firmId: string,
-  userId: string,
-  userName: string | null
-): Promise<SoftDeleteResult> {
-  const invoice = await prisma.salesInvoice.findUnique({
-    where: { id },
-    select: { invoice_number: true, supplier_id: true, total_amount: true, payment_status: true },
-  });
-  if (!invoice) return { deleted: 0 };
-
-  const blockers = await getSalesInvoiceBlockers(id);
-  if (blockers.length > 0) return { deleted: 0, blockers };
-
-  await prisma.salesInvoice.update({
-    where: { id },
-    data: { deleted_at: new Date(), deleted_by: userId },
-  });
-
-  await auditLog({
-    firmId, tableName: 'SalesInvoice', recordId: id, action: 'soft_delete',
-    oldValues: { invoice_number: invoice.invoice_number, supplier_id: invoice.supplier_id, total_amount: invoice.total_amount.toString(), payment_status: invoice.payment_status },
-    userId, userName,
-  });
-
-  return { deleted: 1 };
 }
 
 export async function softDeletePayment(

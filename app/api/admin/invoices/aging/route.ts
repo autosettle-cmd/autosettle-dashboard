@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 interface SupplierBucket {
   supplier_id: string;
-  supplier_name: string;
+  supplier_name: string | null;
   days0_30: number;
   days31_60: number;
   days61_90: number;
@@ -22,8 +22,8 @@ interface SupplierBucket {
     amount_paid: string;
     balance: string;
     payment_status: string;
-    category_name: string;
-    vendor_name_raw: string;
+    category_name: string | null;
+    vendor_name_raw: string | null;
     bucket: string;
   }[];
 }
@@ -37,10 +37,11 @@ export async function GET() {
     const firmId = session.user.firm_id;
     const now = new Date();
 
-    // Get all unpaid/partially paid invoices with supplier info
+    // Get all unpaid/partially paid purchase invoices with supplier info (AP aging)
     const invoices = await prisma.invoice.findMany({
       where: {
         firm_id: firmId,
+        type: 'purchase',
         payment_status: { not: 'paid' },
       },
       select: {
@@ -109,7 +110,7 @@ export async function GET() {
         amount_paid: inv.amount_paid.toString(),
         balance: balance.toFixed(2),
         payment_status: inv.payment_status,
-        category_name: inv.category.name,
+        category_name: inv.category?.name ?? null,
         vendor_name_raw: inv.vendor_name_raw,
         bucket,
       });

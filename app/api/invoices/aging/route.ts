@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 interface SupplierBucket {
   supplier_id: string;
-  supplier_name: string;
+  supplier_name: string | null;
   days0_30: number;
   days31_60: number;
   days61_90: number;
@@ -23,8 +23,8 @@ interface SupplierBucket {
     amount_paid: string;
     balance: string;
     payment_status: string;
-    category_name: string;
-    vendor_name_raw: string;
+    category_name: string | null;
+    vendor_name_raw: string | null;
     bucket: string;
   }[];
 }
@@ -39,12 +39,14 @@ export async function GET(request: NextRequest) {
     const firmIds = await getAccountantFirmIds(session.user.id);
     const { searchParams } = new URL(request.url);
     const firmId = searchParams.get('firmId');
+    const type = searchParams.get('type') || 'purchase'; // default to purchase (AP aging)
 
     const now = new Date();
 
     const invoices = await prisma.invoice.findMany({
       where: {
         ...firmScope(firmIds, firmId),
+        type,
         payment_status: { not: 'paid' },
       },
       select: {
@@ -111,7 +113,7 @@ export async function GET(request: NextRequest) {
         amount_paid: inv.amount_paid.toString(),
         balance: balance.toFixed(2),
         payment_status: inv.payment_status,
-        category_name: inv.category.name,
+        category_name: inv.category?.name ?? null,
         vendor_name_raw: inv.vendor_name_raw,
         bucket,
       });

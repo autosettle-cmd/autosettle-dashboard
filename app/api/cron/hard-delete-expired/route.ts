@@ -70,25 +70,7 @@ export async function GET(request: NextRequest) {
     }
     summary.invoices = invoices.length;
 
-    // 4. Sales Invoices
-    const salesInvoices = await prismaUnfiltered.salesInvoice.findMany({
-      where: { deleted_at: { lt: cutoff, not: null } },
-      select: { id: true, file_url: true },
-    });
-    for (const si of salesInvoices) {
-      deleteFileFromDrive(si.file_url).catch(() => {});
-    }
-    if (salesInvoices.length > 0) {
-      await prismaUnfiltered.salesInvoiceItem.deleteMany({
-        where: { sales_invoice_id: { in: salesInvoices.map(s => s.id) } },
-      });
-      await prismaUnfiltered.salesInvoice.deleteMany({
-        where: { id: { in: salesInvoices.map(s => s.id) } },
-      });
-    }
-    summary.salesInvoices = salesInvoices.length;
-
-    // 5. Bank Statements
+    // 4. Bank Statements
     const bankStatements = await prismaUnfiltered.bankStatement.findMany({
       where: { deleted_at: { lt: cutoff, not: null } },
       select: { id: true, file_url: true },

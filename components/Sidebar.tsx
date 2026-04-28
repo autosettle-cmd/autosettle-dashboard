@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLogout } from '@/lib/use-logout';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { brand } from '@/config/branding';
 import { useFirm } from '@/contexts/FirmContext';
@@ -49,7 +49,7 @@ const ACCOUNTANT_NAV = [
   { label: 'Categories',      href: '/accountant/categories',           icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z' },
   { label: 'Accounting', icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
     children: [
-      { label: 'Journal Entries', href: '/accountant/journal-entries' },
+      { label: 'Ledger Entry', href: '/accountant/journal-entries' },
       { label: 'General Ledger',  href: '/accountant/general-ledger' },
       { label: 'Trial Balance',   href: '/accountant/trial-balance' },
       { label: 'Profit & Loss',   href: '/accountant/profit-loss' },
@@ -89,6 +89,7 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
   const { data: session } = useSession();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const handleLogout = useLogout();
   const nav = NAV_MAP[role] ?? [];
   const { firms, firmId, setFirmId } = useFirm();
@@ -98,10 +99,17 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
   const [firmHighlight, setFirmHighlight] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
 
-  // Close mobile sidebar on navigation
-  const onNavClick = useCallback(() => {
-    if (mobile) close();
-  }, [mobile, close]);
+  // Press-then-navigate: show button press animation, then navigate after 150ms
+  const handleNavClick = useCallback((e: React.MouseEvent<HTMLElement>, href: string) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.classList.add('active');
+    setTimeout(() => {
+      el.classList.remove('active');
+      if (mobile) close();
+      router.push(href);
+    }, 150);
+  }, [mobile, close, router]);
 
   // Close mobile sidebar when route changes
   useEffect(() => {
@@ -224,6 +232,26 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
         </p>
       </div>
 
+      {/* Search */}
+      <div className="px-3 pt-3 pb-1">
+        <button
+          onClick={() => setShowSearch(true)}
+          className="w-full flex items-center gap-3 px-3 py-2 text-xs tracking-tight text-white/70 hover:text-white transition-all cursor-pointer"
+          style={{
+            background: 'rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '6px',
+            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2), 0 1px 0 rgba(255,255,255,0.05)',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.3-4.3" />
+          </svg>
+          <span className="flex-1 text-left">Search…</span>
+          <kbd className="text-[9px] text-white/30 font-mono border border-white/10 rounded px-1 py-0.5">⌘K</kbd>
+        </button>
+      </div>
+
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-1.5 overflow-y-auto">
         {nav.map((item) => {
@@ -262,9 +290,9 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
                             <path d="M2 1 L2 5 L8 5" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                             <path d="M6 3 L8 5 L6 7" stroke="white" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                           </svg>
-                          <Link
+                          <a
                             href={child.href}
-                            onClick={onNavClick}
+                            onClick={(e) => handleNavClick(e, child.href)}
                             className={`relative flex-1 flex items-center py-1 px-2.5 text-[11px] tracking-tight transition-all btn-thick-sidebar ${
                               active ? 'btn-thick-sidebar-active' : ''
                             }`}
@@ -273,7 +301,7 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
                             {child.countKey && counts[child.countKey] > 0 && (
                               <span className="sidebar-badge">{counts[child.countKey]}</span>
                             )}
-                          </Link>
+                          </a>
                         </div>
                       );
                     })}
@@ -287,10 +315,10 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
           const active = isActive(href);
           const badgeCount = countKey ? (counts[countKey] ?? 0) : 0;
           return (
-            <Link
+            <a
               key={href}
               href={href}
-              onClick={onNavClick}
+              onClick={(e) => handleNavClick(e, href)}
               className={`relative flex items-center gap-3 px-3 py-1.5 text-xs tracking-tight transition-all btn-thick-sidebar ${
                 active ? 'btn-thick-sidebar-active' : ''
               }`}
@@ -302,7 +330,7 @@ function SidebarInner({ role, mobile = false }: { role: 'admin' | 'accountant' |
               {badgeCount > 0 && (
                 <span className="sidebar-badge">{badgeCount}</span>
               )}
-            </Link>
+            </a>
           );
         })}
       </nav>

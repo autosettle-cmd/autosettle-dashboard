@@ -7,7 +7,7 @@ import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 import { formatRM } from '@/lib/formatters';
-import SearchButton from '@/components/SearchButton';
+
 
 type BatchResult = { name: string; ok: boolean; msg: string };
 
@@ -359,7 +359,7 @@ export default function AccountantBankReconciliationPage() {
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Bank Reconciliation</h1>
           <div className="flex items-center gap-3">
-            {!uploading && <SearchButton />}
+
             <button onClick={() => setShowUpload(true)} disabled={uploading} className="btn-thick-navy px-3 py-1.5 text-body-md font-medium disabled:opacity-50">
               Upload Statement
             </button>

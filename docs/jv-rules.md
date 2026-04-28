@@ -21,7 +21,7 @@ Hard guardrails for JV creation, reversal, and GL resolution. These rules are no
 |-------------|---------|-----------|-------|--------|
 | `claim_approval` | **Legacy only** — no longer created. Claims get JV at bank recon instead. | claim.id | — | — |
 | `invoice_posting` | Accountant approves purchase invoice | invoice.id | Expense GL (or line-item GLs) | Trade Payables GL |
-| `sales_invoice_posting` | Accountant approves sales invoice | sales_invoice.id | Trade Receivables GL | Revenue GL |
+| `sales_invoice_posting` | Accountant approves sales invoice (Invoice with `type: 'sales'`) | invoice.id | Trade Receivables GL | Revenue GL |
 | `bank_recon` | Bank transaction matched/confirmed | bank_transaction.id | Varies by transaction type (see below) |
 | `year_end_close` | Fiscal year closed | fiscal_year.id | Revenue/Expense accounts → Retained Earnings |
 | `manual` | Accountant creates manual JV | journal_entry.id | User-defined | User-defined |
@@ -119,7 +119,7 @@ Used by:
 - Invoice delete/revert → `reverseJVsForSource('invoice_posting', invoiceId)`
 - Bank unmatch → `reverseJVsForSource('bank_recon', bankTransactionId)`
 - FY reopen → `reverseJVsForSource('year_end_close', fiscalYearId)`
-- Sales invoice revert → `reverseJVsForSource('sales_invoice_posting', salesInvoiceId)`
+- Sales invoice revert → `reverseJVsForSource('sales_invoice_posting', invoiceId)` (same Invoice table, `type: 'sales'`)
 
 ### When Reversals Happen
 | User Action | JV Reversed |
@@ -232,4 +232,4 @@ Every JV is validated at creation:
 | Create JV without idempotency check | Duplicate JVs for same source corrupt the GL |
 | Reverse a JV that's already reversed | Check `reversed_by_id` before reversing |
 
-Last verified: 2026-04-28
+Last verified: 2026-04-29

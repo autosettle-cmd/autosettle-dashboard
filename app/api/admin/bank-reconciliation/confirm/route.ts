@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     for (const txn of txns) {
       const hasClaims = claimsByTxnId.has(txn.id);
       const hasInvoiceAllocs = allocationsByTxnId.has(txn.id);
-      if (!hasInvoiceAllocs && !txn.matched_sales_invoice_id && !hasClaims && !txn.matched_payment_id) {
+      if (!hasInvoiceAllocs && !txn.matched_invoice_id && !hasClaims && !txn.matched_payment_id) {
         errors.push(`Transaction ${txn.description} has no matched payment.`);
       }
     }
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Batch pre-fetch related data
     const invoiceIds = Array.from(new Set(invoiceAllocations.map(a => a.invoice_id)));
-    const salesInvoiceIds = txns.map(t => t.matched_sales_invoice_id).filter(Boolean) as string[];
+    const salesInvoiceIds = txns.map(t => t.matched_invoice_id).filter(Boolean) as string[];
 
     const bankAccountKey = (t: typeof txns[0]) => `${firmId}|${t.bankStatement.bank_name}|${t.bankStatement.account_number ?? ''}`;
     const bankAccountKeys = Array.from(new Map(txns.map(t => [bankAccountKey(t), {
@@ -98,9 +98,9 @@ export async function POST(request: NextRequest) {
         where: { id: { in: invoiceIds } },
         select: { id: true, total_amount: true, amount_paid: true, vendor_name_raw: true, supplier: { select: { default_contra_gl_account_id: true } } },
       }) : [],
-      salesInvoiceIds.length > 0 ? prisma.salesInvoice.findMany({
-        where: { id: { in: salesInvoiceIds } },
-        select: { id: true, total_amount: true, amount_paid: true, buyer: { select: { name: true } } },
+      salesInvoiceIds.length > 0 ? prisma.invoice.findMany({
+        where: { id: { in: salesInvoiceIds }, type: 'sales' },
+        select: { id: true, total_amount: true, amount_paid: true, supplier: { select: { name: true } } },
       }) : [],
       prisma.firm.findUnique({ where: { id: firmId }, select: { default_trade_payables_gl_id: true, default_trade_receivables_gl_id: true } }),
       Promise.all(bankAccountKeys.map(k => prisma.bankAccount.findUnique({
@@ -173,16 +173,16 @@ export async function POST(request: NextRequest) {
       }
 
       // Confirm sales invoice match
-      if (txn.matched_sales_invoice_id) {
-        const si = salesInvoiceMap.get(txn.matched_sales_invoice_id);
+      if (txn.matched_invoice_id) {
+        const si = salesInvoiceMap.get(txn.matched_invoice_id);
         if (si) {
           const receivablesGlId = firm?.default_trade_receivables_gl_id;
           if (!receivablesGlId) { errors.push('No Trade Receivables GL configured'); continue; }
           const newPaid = Number(si.amount_paid) + txnAmount;
-          await prisma.salesInvoice.update({ where: { id: si.id }, data: { amount_paid: newPaid, payment_status: newPaid >= Number(si.total_amount) ? 'paid' : 'partially_paid' } });
+          await prisma.invoice.update({ where: { id: si.id }, data: { amount_paid: newPaid, payment_status: newPaid >= Number(si.total_amount) ? 'paid' : 'partially_paid' } });
           await createJournalEntry({
             firmId, postingDate: txn.transaction_date,
-            description: `Bank recon — ${si.buyer?.name ?? 'Customer'}`,
+            description: `Bank recon — ${si.supplier?.name ?? 'Customer'}`,
             sourceType: 'bank_recon', sourceId: txn.id, voucherPrefix: 'OR',
             lines: [
               { glAccountId: bankGlId, debitAmount: txnAmount, creditAmount: 0, description: txn.bankStatement.bank_name },
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Legacy: Payment-based match
-      if (txn.matched_payment_id && (!txnAllocations || txnAllocations.length === 0) && !txn.matched_sales_invoice_id && (!txnClaims || txnClaims.length === 0)) {
+      if (txn.matched_payment_id && (!txnAllocations || txnAllocations.length === 0) && !txn.matched_invoice_id && (!txnClaims || txnClaims.length === 0)) {
         const { createBankReconJV } = await import('@/lib/bank-recon-jv');
         await createBankReconJV(txn.id, txn.matched_payment_id, firmId, session.user.id);
       }

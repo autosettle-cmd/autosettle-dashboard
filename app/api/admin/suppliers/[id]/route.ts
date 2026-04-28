@@ -20,34 +20,6 @@ export async function GET(
       where: { id },
       include: {
         aliases: { orderBy: { created_at: 'asc' } },
-        invoices: {
-          include: {
-            category: { select: { name: true } },
-            paymentAllocations: {
-              include: {
-                payment: {
-                  select: {
-                    id: true, payment_date: true, reference: true, amount: true,
-                    receipts: { select: { payment_id: true, claim_id: true } },
-                  },
-                },
-              },
-            },
-          },
-          orderBy: { issue_date: 'desc' },
-        },
-        salesInvoices: {
-          include: {
-            paymentAllocations: {
-              include: {
-                payment: {
-                  select: { id: true, payment_date: true, reference: true, amount: true },
-                },
-              },
-            },
-          },
-          orderBy: { issue_date: 'desc' },
-        },
       },
     });
 
@@ -55,8 +27,42 @@ export async function GET(
       return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
     }
 
+    // Fetch purchase and sales invoices separately with type filter
+    const [purchaseInvoicesRaw, salesInvoicesRaw] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { supplier_id: id, type: 'purchase' },
+        include: {
+          category: { select: { name: true } },
+          paymentAllocations: {
+            include: {
+              payment: {
+                select: {
+                  id: true, payment_date: true, reference: true, amount: true,
+                  receipts: { select: { payment_id: true, claim_id: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { issue_date: 'desc' },
+      }),
+      prisma.invoice.findMany({
+        where: { supplier_id: id, type: 'sales' },
+        include: {
+          paymentAllocations: {
+            include: {
+              payment: {
+                select: { id: true, payment_date: true, reference: true, amount: true },
+              },
+            },
+          },
+        },
+        orderBy: { issue_date: 'desc' },
+      }),
+    ]);
+
     // Batch-fetch all claim details referenced by payment receipts
-    const allClaimIds = supplier.invoices.flatMap((inv) =>
+    const allClaimIds = purchaseInvoicesRaw.flatMap((inv) =>
       inv.paymentAllocations.flatMap((a) => a.payment.receipts.map((r) => r.claim_id))
     );
     const claimMap = new Map<string, { id: string; merchant: string; receipt_number: string | null }>();
@@ -68,7 +74,7 @@ export async function GET(
       for (const c of claims) claimMap.set(c.id, c);
     }
 
-    const invoices = supplier.invoices.map((inv) => ({
+    const invoices = purchaseInvoicesRaw.map((inv) => ({
       id: inv.id,
       invoice_number: inv.invoice_number,
       issue_date: inv.issue_date,
@@ -77,7 +83,7 @@ export async function GET(
       amount_paid: inv.amount_paid.toString(),
       payment_status: inv.payment_status,
       status: inv.status,
-      category_name: inv.category.name,
+      category_name: inv.category?.name ?? '',
       supplier_link_status: inv.supplier_link_status,
       vendor_name_raw: inv.vendor_name_raw,
       description: inv.payment_terms,
@@ -100,7 +106,7 @@ export async function GET(
       })),
     }));
 
-    const salesInvoices = supplier.salesInvoices.map((sinv) => ({
+    const salesInvoices = salesInvoicesRaw.map((sinv) => ({
       id: sinv.id,
       invoice_number: sinv.invoice_number,
       issue_date: sinv.issue_date,

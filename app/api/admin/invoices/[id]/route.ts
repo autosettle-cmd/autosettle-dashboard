@@ -68,7 +68,7 @@ export async function PATCH(
       // Also confirm the alias for future auto-matching
       const inv = await prisma.invoice.findUnique({ where: { id }, select: { vendor_name_raw: true } });
       if (inv) {
-        const normalizedVendor = inv.vendor_name_raw.toLowerCase().trim();
+        const normalizedVendor = (inv.vendor_name_raw ?? '').toLowerCase().trim();
         await prisma.supplierAlias.upsert({
           where: { supplier_id_alias: { supplier_id: body.supplier_id, alias: normalizedVendor } },
           update: { is_confirmed: true },

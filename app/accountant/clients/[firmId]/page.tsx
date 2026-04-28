@@ -115,7 +115,8 @@ export default function FirmDetailPage() {
   // LHDN fields
   const [editTin, setEditTin]                   = useState('');
   const [editBrn, setEditBrn]                   = useState('');
-  const [editMsic, setEditMsic]                 = useState('');
+  const [editMsicCodes, setEditMsicCodes]       = useState<string[]>([]);
+  const [editMsicInput, setEditMsicInput]       = useState('');
   const [editSst, setEditSst]                   = useState('');
   const [editAddr1, setEditAddr1]               = useState('');
   const [editAddr2, setEditAddr2]               = useState('');
@@ -150,6 +151,13 @@ export default function FirmDetailPage() {
   const [editEmpEmail, setEditEmpEmail]   = useState('');
   const [editEmpError, setEditEmpError]   = useState('');
   const [editEmpSaving, setEditEmpSaving] = useState(false);
+
+  // Invite Accountant
+  const [showInviteAcct, setShowInviteAcct]   = useState(false);
+  const [inviteAcctEmail, setInviteAcctEmail] = useState('');
+  const [inviteAcctError, setInviteAcctError] = useState('');
+  const [inviteAcctSaving, setInviteAcctSaving] = useState(false);
+  const [inviteAcctSuccess, setInviteAcctSuccess] = useState('');
 
   // Collapsible sections
   const [adminsOpen, setAdminsOpen]       = useState(false);
@@ -228,6 +236,27 @@ export default function FirmDetailPage() {
   const refreshAdmins    = () => setAdminsKey((k) => k + 1);
   const refreshEmployees = () => setEmpKey((k) => k + 1);
   const refreshPending   = () => setPendingKey((k) => k + 1);
+  const refreshAccountants = () => { setAccountantsLoading(true); fetch(`/api/accountant/firms/${firmId}/accountants`).then(r => r.json()).then(j => { setAccountants(j.data ?? []); setAccountantsLoading(false); }).catch(() => setAccountantsLoading(false)); };
+
+  const inviteAccountant = async () => {
+    if (!inviteAcctEmail.trim()) { setInviteAcctError('Email is required'); return; }
+    setInviteAcctSaving(true);
+    setInviteAcctError('');
+    setInviteAcctSuccess('');
+    try {
+      const res = await fetch('/api/accountant/team/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteAcctEmail.trim(), firmIds: [firmId] }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setInviteAcctError(json.error || 'Failed to invite'); return; }
+      setInviteAcctSuccess(`Invite sent to ${inviteAcctEmail.trim()}`);
+      setInviteAcctEmail('');
+      refreshAccountants();
+    } catch { setInviteAcctError('Failed to send invite'); }
+    finally { setInviteAcctSaving(false); }
+  };
 
   const openEditPanel = () => {
     if (!firm) return;
@@ -238,7 +267,8 @@ export default function FirmDetailPage() {
     setEditPlan(firm.plan);
     setEditTin(firm.tin ?? '');
     setEditBrn(firm.brn ?? '');
-    setEditMsic(firm.msic_code ?? '');
+    setEditMsicCodes(firm.msic_code ? firm.msic_code.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+    setEditMsicInput('');
     setEditSst(firm.sst_registration_number ?? '');
     setEditAddr1(firm.address_line1 ?? '');
     setEditAddr2(firm.address_line2 ?? '');
@@ -265,7 +295,7 @@ export default function FirmDetailPage() {
           plan: editPlan,
           tin: editTin.trim(),
           brn: editBrn.trim(),
-          msic_code: editMsic.trim(),
+          msic_code: editMsicCodes.join(', '),
           sst_registration_number: editSst.trim(),
           address_line1: editAddr1.trim(),
           address_line2: editAddr2.trim(),
@@ -520,8 +550,12 @@ export default function FirmDetailPage() {
                         )}
                         {firm.msic_code && (
                           <div>
-                            <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">MSIC Code</p>
-                            <p className="text-sm text-[var(--text-primary)]">{firm.msic_code}</p>
+                            <p className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">MSIC Codes</p>
+                            <div className="flex flex-wrap gap-1">
+                              {firm.msic_code.split(',').map((c: string) => c.trim()).filter(Boolean).map((code: string) => (
+                                <span key={code} className="inline-block bg-[var(--surface-sunken)] text-sm text-[var(--text-primary)] px-2 py-0.5 rounded">{code}</span>
+                              ))}
+                            </div>
                           </div>
                         )}
                         {firm.sst_registration_number && (
@@ -668,7 +702,29 @@ export default function FirmDetailPage() {
                       <p className="text-title-sm font-semibold text-[var(--text-primary)]">Accountants</p>
                       {!accountantsLoading && <span className="badge-blue">{accountants.length}</span>}
                     </div>
+                    <button onClick={(e) => { e.stopPropagation(); setShowInviteAcct(!showInviteAcct); setAccountantsOpen(true); setInviteAcctError(''); setInviteAcctSuccess(''); }} className="btn-thick-navy text-xs font-medium px-3 py-1.5">
+                      Add Accountant
+                    </button>
                   </div>
+                  {accountantsOpen && showInviteAcct && (
+                    <div className="px-5 py-3 border-b border-[var(--outline-ghost)] bg-[var(--surface-low)]">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="email"
+                          value={inviteAcctEmail}
+                          onChange={(e) => setInviteAcctEmail(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') inviteAccountant(); }}
+                          className="input-recessed flex-1 text-sm"
+                          placeholder="Accountant email address..."
+                        />
+                        <button onClick={inviteAccountant} disabled={inviteAcctSaving} className="btn-approve text-xs font-medium px-3 py-1.5 disabled:opacity-40">
+                          {inviteAcctSaving ? 'Sending...' : 'Send Invite'}
+                        </button>
+                      </div>
+                      {inviteAcctError && <p className="text-xs text-[var(--reject-red)] mt-1.5">{inviteAcctError}</p>}
+                      {inviteAcctSuccess && <p className="text-xs text-[var(--match-green)] mt-1.5">{inviteAcctSuccess}</p>}
+                    </div>
+                  )}
                   {accountantsOpen && (
                     accountantsLoading ? (
                       <div className="px-5 py-6 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
@@ -804,12 +860,12 @@ export default function FirmDetailPage() {
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Registration Number</label>
-                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Registration Number *</label>
+                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-recessed w-full" placeholder="Company registration number" />
                 </div>
                 <div>
-                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Contact Email</label>
-                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
+                  <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Contact Email *</label>
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="firm@example.com" />
                 </div>
                 <div>
                   <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">Contact Phone</label>
@@ -838,15 +894,43 @@ export default function FirmDetailPage() {
                       <input type="text" value={editBrn} onChange={(e) => setEditBrn(e.target.value)} className="input-recessed w-full" placeholder="Business Reg No" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">MSIC Code</label>
-                      <input type="text" value={editMsic} onChange={(e) => setEditMsic(e.target.value)} className="input-recessed w-full" placeholder="5-digit code" />
+                  <div>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">MSIC Codes</label>
+                    <div className="input-recessed w-full flex flex-wrap gap-1 items-center min-h-[36px] px-2 py-1">
+                      {editMsicCodes.map((code) => (
+                        <span key={code} className="inline-flex items-center gap-1 bg-[var(--surface-sunken)] text-xs text-[var(--text-primary)] pl-2 pr-1 py-0.5 rounded">
+                          {code}
+                          <button type="button" onClick={() => setEditMsicCodes((prev) => prev.filter((c) => c !== code))} className="text-[var(--text-secondary)] hover:text-red-500 text-sm leading-none cursor-pointer">&times;</button>
+                        </span>
+                      ))}
+                      <input
+                        type="text"
+                        value={editMsicInput}
+                        onChange={(e) => setEditMsicInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',') && editMsicInput.trim()) {
+                            e.preventDefault();
+                            const code = editMsicInput.trim().replace(/,/g, '');
+                            if (code && !editMsicCodes.includes(code)) setEditMsicCodes((prev) => [...prev, code]);
+                            setEditMsicInput('');
+                          }
+                          if (e.key === 'Backspace' && !editMsicInput && editMsicCodes.length) {
+                            setEditMsicCodes((prev) => prev.slice(0, -1));
+                          }
+                        }}
+                        onBlur={() => {
+                          const code = editMsicInput.trim().replace(/,/g, '');
+                          if (code && !editMsicCodes.includes(code)) setEditMsicCodes((prev) => [...prev, code]);
+                          setEditMsicInput('');
+                        }}
+                        className="flex-1 min-w-[80px] bg-transparent outline-none text-sm placeholder:text-[var(--text-secondary)]"
+                        placeholder={editMsicCodes.length ? '' : '5-digit code, press Enter to add'}
+                      />
                     </div>
-                    <div>
-                      <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">SST Registration</label>
-                      <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
-                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest">SST Registration</label>
+                    <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                   </div>
                 </div>
               </div>

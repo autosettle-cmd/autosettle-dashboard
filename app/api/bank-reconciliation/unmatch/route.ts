@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (txn.matched_sales_invoice_id) {
-      const inv = await prisma.salesInvoice.findUnique({ where: { id: txn.matched_sales_invoice_id }, select: { amount_paid: true } });
+    if (txn.matched_invoice_id) {
+      const inv = await prisma.invoice.findUnique({ where: { id: txn.matched_invoice_id }, select: { amount_paid: true } });
       if (inv) {
         const newPaid = Math.max(0, Number(inv.amount_paid) - txnAmount);
-        await prisma.salesInvoice.update({ where: { id: txn.matched_sales_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
+        await prisma.invoice.update({ where: { id: txn.matched_invoice_id }, data: { amount_paid: newPaid, payment_status: newPaid <= 0 ? 'unpaid' : 'partially_paid' } });
       }
     }
     // Revert claims linked via join table + legacy FK
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     const updated = await prisma.bankTransaction.update({
       where: { id: bankTransactionId },
-      data: { matched_payment_id: null, matched_sales_invoice_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
+      data: { matched_payment_id: null, matched_invoice_id: null, recon_status: 'unmatched', matched_at: null, matched_by: null, notes: null },
     });
 
     return NextResponse.json({

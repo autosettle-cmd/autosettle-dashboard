@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
   if (byType['sales_invoice_posting']) {
     const sourceIds = byType['sales_invoice_posting'].map(j => j.source_id!);
-    const invs = await prisma.salesInvoice.findMany({ where: { id: { in: sourceIds } }, select: { id: true, approval: true } });
+    const invs = await prisma.invoice.findMany({ where: { id: { in: sourceIds }, type: 'sales' }, select: { id: true, approval: true } });
     const map = new Map(invs.map(i => [i.id, i]));
     for (const jv of byType['sales_invoice_posting']) {
       const inv = map.get(jv.source_id!);

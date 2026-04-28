@@ -42,7 +42,7 @@ interface BankTxn {
   } | null;
   matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null; allocation_amount?: string; contra_gl_account_id?: string | null; supplier_default_contra_gl_id?: string | null } | null;
   matched_invoice_allocations?: { invoice_id: string; invoice_number: string; vendor_name: string; total_amount: string; allocation_amount: string; issue_date: string }[];
-  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string; contra_gl_account_id?: string | null; file_url?: string | null; thumbnail_url?: string | null } | null;
+  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; vendor_name: string; contra_gl_account_id?: string | null; file_url?: string | null; thumbnail_url?: string | null } | null;
   matched_claims: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_id: string; employee_name: string; category_name: string }[];
 }
 
@@ -298,7 +298,16 @@ export default function BankReconPreviewModal({
           </div>
         )}
         <div className="h-12 flex items-center justify-between px-5 flex-shrink-0" style={{ backgroundColor: 'var(--primary)' }}>
-          <h2 className="text-white font-bold text-xs uppercase tracking-widest">Transaction Details</h2>
+          <h2 className="text-white font-bold text-xs uppercase tracking-widest">{(() => {
+            const num = txn.matched_invoice?.invoice_number || '';
+            if (num.startsWith('PV-')) return 'Payment Voucher';
+            if (num.startsWith('OR-')) return 'Official Receipt';
+            if (num.startsWith('MYCN') || num.startsWith('CN-')) return 'Credit Note';
+            if (num.startsWith('MYDN') || num.startsWith('DN-')) return 'Debit Note';
+            if (txn.matched_claims?.length) return 'Claim Reimbursement';
+            if (txn.matched_invoice) return 'Invoice Payment';
+            return 'Transaction Details';
+          })()}</h2>
           <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg></button>
         </div>
 
@@ -334,7 +343,23 @@ export default function BankReconPreviewModal({
             {hasInvoices && txn.matched_invoice && (
               <div className="border-t border-[#E0E3E5] pt-3 space-y-3">
                 <div>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Invoice</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">Matched Invoice</p>
+                    {(() => {
+                      const num = txn.matched_invoice!.invoice_number || '';
+                      const badges: Record<string, { label: string; bg: string; color: string }> = {
+                        'PV': { label: 'PV', bg: '#E8D5E0', color: '#7B4A6B' },
+                        'OR': { label: 'OR', bg: '#D5E0E8', color: '#4A6B7B' },
+                        'PI': { label: 'PI', bg: '#D5DBE8', color: '#3D4F7A' },
+                        'SI': { label: 'SI', bg: '#DBE8D5', color: '#4A7A3D' },
+                        'CN': { label: 'CN', bg: '#E8E0D5', color: '#7A6B3D' },
+                        'DN': { label: 'DN', bg: '#E8D5D5', color: '#7A3D3D' },
+                      };
+                      const prefix = num.startsWith('PV-') ? 'PV' : num.startsWith('OR-') ? 'OR' : num.startsWith('MYCN') ? 'CN' : num.startsWith('MYDN') ? 'DN' : num.startsWith('MYSI') ? 'SI' : 'PI';
+                      const b = badges[prefix];
+                      return <span className="text-[9px] font-bold px-1.5 py-0.5 uppercase tracking-wider" style={{ background: b.bg, color: b.color }}>{b.label}</span>;
+                    })()}
+                  </div>
                   <p className="text-sm font-medium text-[var(--text-primary)]">{txn.matched_invoice.vendor_name}</p>
                   <p className="text-xs text-[var(--text-secondary)]">{txn.matched_invoice.invoice_number} · {formatDate(txn.matched_invoice.issue_date)}</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums mt-0.5">{formatRM(txn.matched_invoice.allocation_amount ?? txn.matched_invoice.total_amount)}</p>
@@ -396,7 +421,7 @@ export default function BankReconPreviewModal({
               <div className="border-t border-[#E0E3E5] pt-3 space-y-3">
                 <div>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Matched Sales Invoice</p>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{txn.matched_sales_invoice.buyer_name}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{txn.matched_sales_invoice.vendor_name}</p>
                   <p className="text-xs text-[var(--text-secondary)]">{txn.matched_sales_invoice.invoice_number} · {formatDate(txn.matched_sales_invoice.issue_date)}</p>
                   <p className="text-sm font-semibold text-[var(--text-primary)] tabular-nums mt-0.5">{formatRM(txn.matched_sales_invoice.total_amount)}</p>
                 </div>
@@ -412,7 +437,7 @@ export default function BankReconPreviewModal({
                       preferredType="Liability"
                       defaultType="Liability"
                       defaultBalance="Credit"
-                      suggestedName={txn.matched_sales_invoice.buyer_name}
+                      suggestedName={txn.matched_sales_invoice.vendor_name}
                       disabled={txn.recon_status === 'manually_matched'}
                       onAccountCreated={(a) => setGlAccounts(prev => [...prev, a].sort((x, y) => x.account_code.localeCompare(y.account_code)))}
                     />
@@ -424,7 +449,7 @@ export default function BankReconPreviewModal({
                   const amt = txn.matched_sales_invoice!.total_amount;
                   const contraLabel = selectedCreditGl && glAccounts.length > 0
                     ? `${glAccounts.find(a => a.id === selectedCreditGl)?.account_code ?? ''} — ${glAccounts.find(a => a.id === selectedCreditGl)?.name ?? ''}`
-                    : `Trade Receivables — ${txn.matched_sales_invoice!.buyer_name}`;
+                    : `Trade Receivables — ${txn.matched_sales_invoice!.vendor_name}`;
                   return (
                     <div className="border border-[#E0E3E5] p-2">
                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Journal Entry Preview</p>
@@ -525,7 +550,7 @@ export default function BankReconPreviewModal({
                             voucher_number: inv?.invoice_number ?? si?.invoice_number ?? '',
                             issue_date: inv?.issue_date ?? si?.issue_date ?? txn.transaction_date,
                             firm_name: statement?.bank_name ?? '',
-                            vendor_name: inv?.vendor_name ?? si?.buyer_name ?? txn.description,
+                            vendor_name: inv?.vendor_name ?? si?.vendor_name ?? txn.description,
                             total_amount: inv?.total_amount ?? si?.total_amount ?? (txn.debit || txn.credit || '0'),
                             category_name: '',
                             gl_account_label: statement?.bank_gl_label ?? null,
@@ -539,7 +564,7 @@ export default function BankReconPreviewModal({
                           const fd = new FormData();
                           fd.append('file', file);
                           fd.append('generated', 'true');
-                          const apiPath = canGeneratePV ? `/api/invoices/${invoiceId}/attach` : `/api/sales-invoices/${invoiceId}/attach`;
+                          const apiPath = `/api/invoices/${invoiceId}/attach`;
                           const res = await fetch(apiPath, { method: 'PATCH', body: fd });
                           if (res.ok) { onClose(); onRefresh?.(); }
                         }}
@@ -615,11 +640,11 @@ export default function BankReconPreviewModal({
           ? `${contraGl.account_code} — ${contraGl.name}`
           : txn.debit
             ? `Trade Payables — ${mi?.vendor_name ?? 'Unknown'}`
-            : `Trade Receivables — ${msi?.buyer_name ?? 'Unknown'}`;
+            : `Trade Receivables — ${msi?.vendor_name ?? 'Unknown'}`;
         const matchLabel = mi
           ? `${mi.vendor_name} — ${mi.invoice_number}`
           : msi
-            ? `${msi.buyer_name} — ${msi.invoice_number}`
+            ? `${msi.vendor_name} — ${msi.invoice_number}`
             : hasClaims
               ? `${txn.matched_payment?.supplier_name ?? 'Claim reimbursement'}`
               : 'Bank transaction';

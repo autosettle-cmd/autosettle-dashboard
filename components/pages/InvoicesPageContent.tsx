@@ -3,6 +3,7 @@
 // Sales invoices are now merged into the main table (no separate tab)
 import LoadMoreBanner from '@/components/LoadMoreBanner';
 import { useBatchProcess } from '@/contexts/BatchProcessContext';
+import { useToast } from '@/contexts/ToastContext';
 import { StatusCell, PaymentCell, LinkCell } from '@/components/table/StatusBadge';
 import { Suspense, useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
@@ -17,7 +18,7 @@ import DeleteBlockerModal from '@/components/DeleteBlockerModal';
 const InvoiceCreateModal = dynamic(() => import('@/components/invoices/InvoiceCreateModal'));
 const InvoiceRejectModal = dynamic(() => import('@/components/invoices/InvoiceRejectModal'));
 const InvoicePreviewPanel = dynamic(() => import('@/components/invoices/InvoicePreviewPanel'));
-import SearchButton from '@/components/SearchButton';
+
 import MobileInvoiceCard from '@/components/mobile/MobileInvoiceCard';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -70,8 +71,8 @@ interface InvoiceRow {
   rejection_reason: string | null;
   lines: InvoiceLineRow[];
   doc_subtype?: string | null;
-  /** Discriminator: 'purchase' for Invoice, 'sales' for SalesInvoice */
-  _type?: 'purchase' | 'sales';
+  /** Invoice type: 'purchase' or 'sales' (from API) */
+  type: 'purchase' | 'sales';
 }
 
 interface SupplierOption {
@@ -87,7 +88,6 @@ interface SupplierOption {
 export interface InvoicesPageConfig {
   role: 'accountant' | 'admin';
   apiInvoices: string;
-  apiSalesInvoices?: string;
   apiBatch: string;
   apiDelete: string;
   apiCategories: string;
@@ -121,7 +121,7 @@ function getInvoiceTypeBadge(row: InvoiceRow): { label: string; color: string; b
   const num = row.invoice_number ?? '';
   const prefix = num.split('-')[0];
   if (TYPE_BADGE[prefix]) return TYPE_BADGE[prefix];
-  if (row._type === 'sales') return TYPE_BADGE.SI;
+  if (row.type === 'sales') return TYPE_BADGE.SI;
   return TYPE_BADGE.PI;
 }
 
@@ -163,6 +163,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
   const tableScrollRef = useRef<HTMLDivElement>(null);
 
+  // Resolve the correct API endpoint for an invoice
+  const apiUrlFor = (inv: InvoiceRow) => `${config.apiInvoices}/${inv.id}`;
+
   // Cache GL accounts, categories, and accounting settings per firm (don't change mid-session)
   const glCacheRef = useRef<Record<string, {
     glAccounts: { id: string; account_code: string; name: string; account_type: string }[];
@@ -191,6 +194,19 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         body: JSON.stringify({ invoiceIds, action, ...(reason && { reason }), ...(glAccountId && { gl_account_id: glAccountId }), ...(contraGlId && { contra_gl_account_id: contraGlId }) }),
       });
       if (res.ok) {
+        const actionLabel = action === 'approve' ? 'Approved' : action === 'reject' ? 'Rejected' : 'Reverted';
+        // Build rich toast detail from affected invoices
+        const affected = invoiceIds.map(id => invoices.find(i => i.id === id) || (previewInvoice?.id === id ? previewInvoice : null)).filter(Boolean);
+        const detailLines = affected.map(inv => {
+          if (!inv) return '';
+          const parts = [inv.invoice_number || inv.vendor_name_raw || 'Invoice', `RM ${Number(inv.total_amount).toLocaleString('en-MY', { minimumFractionDigits: 2 })}`];
+          if (action === 'approve') {
+            const gl = glAccountId ? glAccounts.find(a => a.id === glAccountId) : (inv.gl_account_id ? glAccounts.find(a => a.id === inv.gl_account_id) : null);
+            if (gl) parts.push(`DR: ${gl.account_code}`);
+          }
+          return parts.join(' · ');
+        });
+        showToast('success', `${actionLabel} ${invoiceIds.length} invoice${invoiceIds.length > 1 ? 's' : ''}`, detailLines.join('\n'));
         refresh();
         requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
         setSelectedRows([]);
@@ -212,7 +228,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         }
       } else {
         const json = await res.json().catch(() => ({ error: 'Unknown error' }));
-        alert(json.error || `Failed to ${action}`);
+        showToast('error', `Failed to ${action}`, json.error);
       }
     } catch (e) { console.error(e); }
   };
@@ -269,7 +285,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     if (!previewInvoice) return;
     setLineSaving(true);
     try {
-      const res = await fetch(`${config.apiInvoices}/${previewInvoice.id}`, {
+      const res = await fetch(`${apiUrlFor(previewInvoice)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -318,7 +334,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     if (!previewInvoice) return;
     setLineSaving(true);
     try {
-      const res = await fetch(`${config.apiInvoices}/${previewInvoice.id}`, {
+      const res = await fetch(`${apiUrlFor(previewInvoice)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lines: [] }),
@@ -388,6 +404,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   }
   // Batch process context (scan/submit loops + overlay live here, survive navigation)
   const batch = useBatchProcess();
+  const { showToast } = useToast();
   const batchItems = batch.items as BatchItem[];
   const setBatchItems = batch.setItems as (updater: (prev: BatchItem[]) => BatchItem[]) => void;
   const batchScanning = batch.job.phase === 'scanning';
@@ -425,6 +442,18 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       batch.dismiss();
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for "expand" click from the minimized batch toast
+  useEffect(() => {
+    const handler = () => {
+      if (batch.job.phase === 'scan_done' && batchItems.length > 0) {
+        setShowBatchReview(true);
+        batch.dismiss();
+      }
+    };
+    window.addEventListener('batch-scan-expand', handler);
+    return () => window.removeEventListener('batch-scan-expand', handler);
+  }, [batch, batchItems]);
 
   // When submit completes via context, convert results to batchWarning and refresh
   useEffect(() => {
@@ -568,13 +597,42 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
               if (supplierMatch?.default_gl_account_id) {
                 setNewInvExpenseGlId(supplierMatch.default_gl_account_id);
-                if (supplierMatch?.default_contra_gl_account_id) setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
+              }
+              if (supplierMatch?.default_contra_gl_account_id) {
+                setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
               } else {
+                // Fallback: alias lookup, then vendor name match against Liability GLs, then firm default
                 fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(vLower)}&firmId=${targetFirmId}`)
                   .then(r => r.json())
                   .then(j => {
                     if (j.data?.default_gl_account_id) setNewInvExpenseGlId(prev => prev || j.data.default_gl_account_id);
-                    if (j.data?.default_contra_gl_account_id) setNewInvContraGlId(prev => prev || j.data.default_contra_gl_account_id);
+                    if (j.data?.default_contra_gl_account_id) {
+                      setNewInvContraGlId(prev => prev || j.data.default_contra_gl_account_id);
+                    } else {
+                      // Name match against Liability GLs
+                      const vendorClean = vLower.replace(/[^a-z0-9\s]/g, '').trim();
+                      const vendorStripped = vendorClean.replace(/\s+/g, '');
+                      const vendorWords = vendorClean.split(/\s+/).filter((w: string) => w.length > 2 && !['sdn', 'bhd', 'plt'].includes(w));
+                      const liabilityGls = newInvGlAccounts.filter((g) => g.account_type === 'Liability');
+                      let nameMatch = liabilityGls.find((g) => {
+                        const glStripped = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return glStripped.length > 2 && (vendorStripped.includes(glStripped) || glStripped.includes(vendorStripped));
+                      });
+                      if (!nameMatch && vendorWords.length >= 2) {
+                        nameMatch = liabilityGls.find((g) => {
+                          const glLower = g.name.toLowerCase();
+                          const hits = vendorWords.filter((w: string) => glLower.includes(w));
+                          return hits.length >= 2;
+                        });
+                      }
+                      if (nameMatch) {
+                        setNewInvContraGlId(nameMatch.id);
+                      } else {
+                        // Firm default trade payables
+                        const cached = glCacheRef.current[targetFirmId];
+                        if (cached?.firmDefaultContra) setNewInvContraGlId(prev => prev || cached.firmDefaultContra);
+                      }
+                    }
                   })
                   .catch(() => {});
               }
@@ -709,8 +767,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
     // Capture values for worker closure
     const submitFirmId = newInv.firm_id || getTargetFirmId();
-    const piApiUrl = config.apiInvoices;
-    const siApiUrl = config.apiSalesInvoices || '/api/sales-invoices';
+    const apiUrl = config.apiInvoices;
     const role = config.role;
 
     batch.startSubmit({
@@ -733,9 +790,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
         // Set doc_subtype based on doc_type
         if (item.doc_type === 'CN') fd.append('doc_subtype', 'credit_note');
         if (item.doc_type === 'DN') fd.append('doc_subtype', 'debit_note');
-        // Route to correct API
-        const targetApi = ['SI', 'DN', 'OR'].includes(item.doc_type) ? siApiUrl : piApiUrl;
-        const res = await fetch(targetApi, { method: 'POST', body: fd });
+        // Set invoice type (sales for SI/DN/OR, purchase for PI/CN/PV)
+        if (['SI', 'DN', 'OR'].includes(item.doc_type)) fd.append('type', 'sales');
+        const res = await fetch(apiUrl, { method: 'POST', body: fd });
         if (res.ok) {
           return { name: item.file.name, ok: true, msg: 'Uploaded' };
         } else {
@@ -842,13 +899,39 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
               const supplierMatch = firmSuppliers.find((s) => s.name.toLowerCase() === vLower);
               if (supplierMatch?.default_gl_account_id) {
                 setNewInvExpenseGlId(supplierMatch.default_gl_account_id);
-                if (supplierMatch?.default_contra_gl_account_id) setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
+              }
+              if (supplierMatch?.default_contra_gl_account_id) {
+                setNewInvContraGlId(supplierMatch.default_contra_gl_account_id);
               } else {
                 fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(vLower)}&firmId=${targetFirm}`)
                   .then(r => r.json())
                   .then(j => {
                     if (j.data?.default_gl_account_id) setNewInvExpenseGlId(prev => prev || j.data.default_gl_account_id);
-                    if (j.data?.default_contra_gl_account_id) setNewInvContraGlId(prev => prev || j.data.default_contra_gl_account_id);
+                    if (j.data?.default_contra_gl_account_id) {
+                      setNewInvContraGlId(prev => prev || j.data.default_contra_gl_account_id);
+                    } else {
+                      const vendorClean = vLower.replace(/[^a-z0-9\s]/g, '').trim();
+                      const vendorStripped = vendorClean.replace(/\s+/g, '');
+                      const vendorWords = vendorClean.split(/\s+/).filter((w: string) => w.length > 2 && !['sdn', 'bhd', 'plt'].includes(w));
+                      const liabilityGls = newInvGlAccounts.filter((g) => g.account_type === 'Liability');
+                      let nameMatch = liabilityGls.find((g) => {
+                        const glStripped = g.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        return glStripped.length > 2 && (vendorStripped.includes(glStripped) || glStripped.includes(vendorStripped));
+                      });
+                      if (!nameMatch && vendorWords.length >= 2) {
+                        nameMatch = liabilityGls.find((g) => {
+                          const glLower = g.name.toLowerCase();
+                          const hits = vendorWords.filter((w: string) => glLower.includes(w));
+                          return hits.length >= 2;
+                        });
+                      }
+                      if (nameMatch) {
+                        setNewInvContraGlId(nameMatch.id);
+                      } else {
+                        const cached = glCacheRef.current[targetFirm];
+                        if (cached?.firmDefaultContra) setNewInvContraGlId(prev => prev || cached.firmDefaultContra);
+                      }
+                    }
                   })
                   .catch(() => {});
               }
@@ -981,15 +1064,16 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       }
       // Set doc_subtype based on doc_type
       if (newInv.doc_type === 'CN') fd.append('doc_subtype', 'credit_note');
-
-      // Route to correct API based on doc_type
-      const apiUrl = ['SI', 'DN', 'OR'].includes(newInv.doc_type) ? (config.apiSalesInvoices || '/api/sales-invoices') : config.apiInvoices;
       if (newInv.doc_type === 'DN') fd.append('doc_subtype', 'debit_note');
+      // Set invoice type (sales for SI/DN/OR, purchase for PI/CN/PV)
+      if (['SI', 'DN', 'OR'].includes(newInv.doc_type)) fd.append('type', 'sales');
+      const apiUrl = config.apiInvoices;
 
       const res = await fetch(apiUrl, { method: 'POST', body: fd });
       const j = await res.json();
       if (!res.ok) { setNewInvError(j.error || 'Failed to create invoice'); return; }
 
+      showToast('success', 'Invoice submitted', j.data?.invoice_number || '');
       setShowNewInvoice(false);
       setDepositWarning('');
       setPvMatch(null);
@@ -1095,7 +1179,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
       // If resolved contra is the firm's generic default, still try name matching for a supplier-specific sub-account
       if (!resolvedContra || resolvedContra === firmDefaultContra) {
-        const vendorLower = previewInvoice.vendor_name_raw.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+        const vendorLower = (previewInvoice.vendor_name_raw || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
         const vendorStripped = vendorLower.replace(/\s+/g, '');
         const vendorWords = vendorLower.split(/\s+/).filter(w => w.length > 2 && !['sdn', 'bhd', 'plt', 'sdn bhd'].includes(w));
         const liabilityGls = glData.filter((g) => g.account_type === 'Liability');
@@ -1119,7 +1203,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     };
 
     // Only alias lookup is per-invoice — GL/categories/settings are cached per firm
-    const aliasFetch = fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw.toLowerCase().trim())}&firmId=${firmId}`).then(r => r.json()).catch(() => ({ data: null }));
+    const aliasFetch = previewInvoice.vendor_name_raw
+      ? fetch(`/api/suppliers/by-alias?alias=${encodeURIComponent(previewInvoice.vendor_name_raw.toLowerCase().trim())}&firmId=${firmId}`).then(r => r.json()).catch(() => ({ data: null }))
+      : Promise.resolve({ data: null });
 
     if (cached) {
       // Firm data already cached — only fetch alias (per-invoice)
@@ -1193,7 +1279,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       if (config.showGlFields && selectedGlAccountId) {
         body.gl_account_id = selectedGlAccountId;
       }
-      const res = await fetch(`${config.apiInvoices}/${previewInvoice.id}`, {
+      const res = await fetch(`${apiUrlFor(previewInvoice)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -1225,12 +1311,15 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     try {
       const body: Record<string, string> = { status: 'reviewed' };
       if (glAccountId) body.gl_account_id = glAccountId;
-      const res = await fetch(`${config.apiInvoices}/${id}`, {
+      const inv = previewInvoice && previewInvoice.id === id ? previewInvoice : invoices.find(i => i.id === id);
+      const url = inv ? apiUrlFor(inv) : `${config.apiInvoices}/${id}`;
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (res.ok) {
+        showToast('success', 'Marked as reviewed', previewInvoice ? `${previewInvoice.invoice_number || previewInvoice.vendor_name_raw} · RM ${Number(previewInvoice.total_amount).toLocaleString('en-MY', { minimumFractionDigits: 2 })}` : undefined);
         refresh();
         if (previewInvoice) {
           const glMatch = glAccountId ? glAccounts.find(a => a.id === glAccountId) : null;
@@ -1247,7 +1336,9 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
 
   const confirmSupplier = async (invoiceId: string, supplierId: string) => {
     try {
-      const res = await fetch(`${config.apiInvoices}/${invoiceId}`, {
+      const inv = previewInvoice && previewInvoice.id === invoiceId ? previewInvoice : invoices.find(i => i.id === invoiceId);
+      const url = inv ? apiUrlFor(inv) : `${config.apiInvoices}/${invoiceId}`;
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ supplier_id: supplierId, supplier_link_status: 'confirmed' }),
@@ -1274,9 +1365,10 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       const json = await res.json();
       if (!res.ok) {
         if (json.blockers?.length) { setDeleteBlockers(json.blockers); return; }
-        alert(json.error || 'Failed to delete');
+        showToast('error', 'Failed to delete', json.error);
         return;
       }
+      showToast('success', 'Invoice deleted');
       setPreviewInvoice(null); refresh();
     } catch (e) { console.error(e); }
   };
@@ -1337,73 +1429,19 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     if (paymentFilter)   p.set('paymentStatus', paymentFilter);
     if (takeLimit)       p.set('take',          String(takeLimit));
 
-    // Sales invoices params (subset — no status filter, sales invoices don't have review status)
-    const sp = new URLSearchParams();
-    if (config.firmId) sp.set('firmId', config.firmId);
-    if (from)          sp.set('dateFrom', from);
-    if (to)            sp.set('dateTo', to);
-    if (paymentFilter) sp.set('paymentStatus', paymentFilter);
-    if (takeLimit)     sp.set('take', String(takeLimit));
-
-    Promise.all([
-      fetch(`${config.apiInvoices}?${p}`, { signal: controller.signal }).then(r => r.json()),
-      config.apiSalesInvoices
-        ? fetch(`${config.apiSalesInvoices}?${sp}`, { signal: controller.signal }).then(r => r.json())
-        : Promise.resolve({ data: [] }),
-    ])
-      .then(([purchaseJson, salesJson]) => {
-        const purchaseRows: InvoiceRow[] = (purchaseJson.data ?? []).map((inv: InvoiceRow) => ({ ...inv, _type: 'purchase' as const }));
-
-        // Normalize SalesInvoice rows into InvoiceRow shape
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const salesRows: InvoiceRow[] = (salesJson.data ?? []).map((si: any) => ({
-          id: si.id,
-          vendor_name_raw: si.buyer_name ?? '',
-          invoice_number: si.invoice_number,
-          issue_date: si.issue_date,
-          due_date: si.due_date ?? null,
-          payment_terms: null,
-          subtotal: si.subtotal,
-          tax_amount: si.tax_amount,
-          total_amount: si.total_amount,
-          amount_paid: si.amount_paid,
-          category_name: si.category_name ?? '',
-          category_id: si.category_id ?? '',
-          status: 'reviewed' as const,
-          payment_status: si.payment_status,
-          supplier_id: si.supplier_id ?? null,
-          supplier_name: si.buyer_name ?? null,
-          supplier_link_status: 'confirmed' as const,
-          uploader_name: '',
-          firm_name: si.firm_name ?? '',
-          firm_id: si.firm_id ?? '',
-          confidence: 'HIGH',
-          file_url: null,
-          thumbnail_url: null,
-          notes: si.notes ?? null,
-          gl_account_id: si.gl_account_id ?? null,
-          gl_account_label: si.gl_account_label ?? null,
-          contra_gl_account_id: null,
-          contra_gl_account_label: null,
-          supplier_default_gl_id: null,
-          supplier_default_contra_gl_id: null,
-          approval: si.approval,
-          rejection_reason: null,
-          doc_subtype: si.doc_subtype ?? null,
-          lines: [],
-          _type: 'sales' as const,
-        }));
-
-        const merged = [...purchaseRows, ...salesRows].sort((a, b) => new Date(b.issue_date).getTime() - new Date(a.issue_date).getTime());
-        setInvoices(merged);
-        setHasMore(purchaseJson.hasMore ?? false);
-        setTotalCount((purchaseJson.totalCount ?? 0) + (salesJson.data?.length ?? 0));
+    fetch(`${config.apiInvoices}?${p}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then((json) => {
+        const rows: InvoiceRow[] = json.data ?? [];
+        setInvoices(rows);
+        setHasMore(json.hasMore ?? false);
+        setTotalCount(json.totalCount ?? 0);
         setLoading(false);
       })
       .catch((e) => { if ((e as Error).name !== 'AbortError') { console.error(e); setLoading(false); } });
 
     return () => controller.abort();
-  }, [config.firmsLoaded, config.firmId, config.apiInvoices, config.apiSalesInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, refreshKey, takeLimit]);
+  }, [config.firmsLoaded, config.firmId, config.apiInvoices, dateRange, customFrom, customTo, statusFilter, paymentFilter, refreshKey, takeLimit]);
 
   // Auto-open preview from ?preview=id (global search navigation)
   const previewParam = pageSearchParams.get('preview');
@@ -1427,7 +1465,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
   const approvalFiltered = config.showApproval && approvalFilter
     ? invoices.filter((inv) => inv.approval === approvalFilter)
     : invoices;
-  const allTypesActive = activeTypes.size === 4;
+  const allTypesActive = activeTypes.size === 6;
   const filteredInvoices = allTypesActive
     ? approvalFiltered
     : approvalFiltered.filter((inv) => {
@@ -1467,7 +1505,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           <div className="h-16 flex items-center justify-between pl-14 pr-6">
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Invoices</h1>
             <div className="flex items-center gap-3">
-              {!batchScanning && !batchSubmitting && <SearchButton />}
+
               {config.role === 'admin' && !batchScanning && !batchSubmitting && (
                 <Link href="/admin/suppliers" className="text-body-sm font-medium hover:underline transition-colors" style={{ color: 'var(--primary)' }}>
                   Aging Report &rarr;
@@ -2032,6 +2070,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
           setRejectModal={setRejectModal}
           deleteInvoice={deleteInvoice}
           refresh={refresh}
+          invoiceApiUrl={apiUrlFor(previewInvoice)}
           onPrev={(() => {
             const idx = sortedInvoices.findIndex(i => i.id === previewInvoice.id);
             return idx > 0 ? () => setPreviewInvoice(sortedInvoices[idx - 1]) : undefined;

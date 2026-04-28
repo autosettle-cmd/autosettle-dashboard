@@ -65,21 +65,21 @@ export async function POST(request: NextRequest) {
       } else if (jv.source_type === 'bank_recon') {
         const txn = await prisma.bankTransaction.findUnique({
           where: { id: sid },
-          select: { recon_status: true, matched_payment_id: true, matched_sales_invoice_id: true, matchedClaims: { select: { id: true }, take: 1 }, invoiceAllocations: { select: { id: true }, take: 1 } },
+          select: { recon_status: true, matched_payment_id: true, matched_invoice_id: true, matchedClaims: { select: { id: true }, take: 1 }, invoiceAllocations: { select: { id: true }, take: 1 } },
         });
         exists = !!txn;
         if (txn) {
           const isMatched = txn.recon_status === 'manually_matched' || txn.recon_status === 'matched';
           // Also check that the matched entity still exists
-          const hasLinkedEntity = !!(txn.matched_payment_id || txn.matched_sales_invoice_id || txn.matchedClaims.length > 0 || txn.invoiceAllocations.length > 0);
+          const hasLinkedEntity = !!(txn.matched_payment_id || txn.matched_invoice_id || txn.matchedClaims.length > 0 || txn.invoiceAllocations.length > 0);
           statusOk = isMatched && hasLinkedEntity;
         } else {
           statusOk = false;
         }
       } else if (jv.source_type === 'sales_invoice_posting') {
-        const inv = await prisma.salesInvoice.findUnique({ where: { id: sid }, select: { approval: true } });
+        const inv = await prisma.invoice.findUnique({ where: { id: sid }, select: { approval: true, type: true } });
         exists = !!inv;
-        statusOk = inv?.approval === 'approved';
+        statusOk = inv?.approval === 'approved' && inv?.type === 'sales';
       } else {
         // Unknown source type — skip
         continue;

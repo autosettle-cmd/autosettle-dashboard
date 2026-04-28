@@ -238,7 +238,7 @@ export async function GET() {
           due_date: inv.due_date,
           total_amount: inv.total_amount.toString(),
           amount_paid: inv.amount_paid.toString(),
-          category_name: inv.category.name,
+          category_name: inv.category?.name ?? 'Uncategorized',
           status: inv.status,
           payment_status: inv.payment_status,
           supplier_name: inv.supplier?.name ?? null,

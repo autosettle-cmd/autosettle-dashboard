@@ -35,45 +35,29 @@ export async function GET(request: NextRequest) {
     const results: any[] = [];
 
     // Fetch all types or a specific type
-    const types = typeParam ? [typeParam] : ['invoice', 'salesInvoice', 'claim', 'payment', 'bankStatement'];
+    const types = typeParam ? [typeParam] : ['invoice', 'claim', 'payment', 'bankStatement'];
 
     if (types.includes('invoice')) {
       const invoices = await prismaUnfiltered.invoice.findMany({
         where: deletedWhere,
         select: {
-          id: true, firm_id: true, vendor_name_raw: true, invoice_number: true,
+          id: true, firm_id: true, type: true, vendor_name_raw: true, invoice_number: true,
           total_amount: true, deleted_at: true, deleted_by: true,
           firm: { select: { name: true } },
+          supplier: { select: { name: true } },
         },
         orderBy: { deleted_at: 'desc' },
         take: 200,
       });
       for (const inv of invoices) {
+        const typeLabel = inv.type === 'sales' ? 'Sales Invoice' : 'Invoice';
+        const desc = inv.type === 'sales'
+          ? `${inv.supplier?.name ?? ''} #${inv.invoice_number}`
+          : inv.vendor_name_raw + (inv.invoice_number ? ` #${inv.invoice_number}` : '');
         results.push({
-          id: inv.id, type: 'Invoice', firmId: inv.firm_id, firmName: inv.firm.name,
-          description: inv.vendor_name_raw + (inv.invoice_number ? ` #${inv.invoice_number}` : ''),
+          id: inv.id, type: typeLabel, firmId: inv.firm_id, firmName: inv.firm.name,
+          description: desc,
           amount: inv.total_amount.toString(), deletedAt: inv.deleted_at, deletedBy: inv.deleted_by,
-        });
-      }
-    }
-
-    if (types.includes('salesInvoice')) {
-      const salesInvoices = await prismaUnfiltered.salesInvoice.findMany({
-        where: deletedWhere,
-        select: {
-          id: true, firm_id: true, invoice_number: true, total_amount: true,
-          deleted_at: true, deleted_by: true,
-          firm: { select: { name: true } },
-          buyer: { select: { name: true } },
-        },
-        orderBy: { deleted_at: 'desc' },
-        take: 200,
-      });
-      for (const si of salesInvoices) {
-        results.push({
-          id: si.id, type: 'Sales Invoice', firmId: si.firm_id, firmName: si.firm.name,
-          description: `${si.buyer.name} #${si.invoice_number}`,
-          amount: si.total_amount.toString(), deletedAt: si.deleted_at, deletedBy: si.deleted_by,
         });
       }
     }

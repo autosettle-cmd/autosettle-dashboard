@@ -25,7 +25,7 @@ export async function GET(
           id: true, transaction_date: true, description: true, reference: true,
           cheque_number: true, debit: true, credit: true, balance: true,
           recon_status: true, matched_at: true, notes: true,
-          matched_payment_id: true, matched_sales_invoice_id: true,
+          matched_payment_id: true, matched_invoice_id: true,
         },
         orderBy: [{ transaction_date: 'asc' }, { created_at: 'asc' }, { id: 'asc' }],
       },
@@ -38,7 +38,7 @@ export async function GET(
 
   const txnIds = statement.transactions.map(t => t.id);
   const paymentIds = statement.transactions.filter(t => t.matched_payment_id).map(t => t.matched_payment_id!);
-  const salesInvIds = statement.transactions.filter(t => t.matched_sales_invoice_id).map(t => t.matched_sales_invoice_id!);
+  const salesInvIds = statement.transactions.filter(t => t.matched_invoice_id).map(t => t.matched_invoice_id!);
 
   // Batch-load all related data in parallel
   const [invoiceAllocs, claimLinks, payments, salesInvoices] = await Promise.all([
@@ -62,9 +62,9 @@ export async function GET(
         receipts: { select: { claim: { select: { id: true, merchant: true, receipt_number: true, amount: true, claim_date: true, thumbnail_url: true, file_url: true, gl_account_id: true, glAccount: { select: { account_code: true, name: true } }, contra_gl_account_id: true, contraGlAccount: { select: { account_code: true, name: true } } } } } },
       },
     }) : [],
-    salesInvIds.length > 0 ? prisma.salesInvoice.findMany({
-      where: { id: { in: salesInvIds } },
-      select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true, gl_account_id: true, buyer: { select: { name: true } } },
+    salesInvIds.length > 0 ? prisma.invoice.findMany({
+      where: { id: { in: salesInvIds }, type: 'sales' },
+      select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true, gl_account_id: true, supplier: { select: { name: true } } },
     }) : [],
   ]);
 
@@ -141,7 +141,7 @@ export async function GET(
         const allocs = allocsByTxn.get(t.id) ?? [];
         const claims = claimsByTxn.get(t.id) ?? [];
         const pmt = t.matched_payment_id ? paymentMap.get(t.matched_payment_id) ?? null : null;
-        const salesInv = t.matched_sales_invoice_id ? salesInvMap.get(t.matched_sales_invoice_id) ?? null : null;
+        const salesInv = t.matched_invoice_id ? salesInvMap.get(t.matched_invoice_id) ?? null : null;
 
         let receipts = pmt?.receipts.map((r) => ({
           id: r.claim.id, merchant: r.claim.merchant, receipt_number: r.claim.receipt_number,
@@ -186,7 +186,7 @@ export async function GET(
           matched_sales_invoice: salesInv ? {
             id: salesInv.id, invoice_number: salesInv.invoice_number,
             total_amount: salesInv.total_amount.toString(), amount_paid: salesInv.amount_paid.toString(),
-            issue_date: salesInv.issue_date, buyer_name: salesInv.buyer?.name ?? 'Unknown',
+            issue_date: salesInv.issue_date, vendor_name: salesInv.supplier?.name ?? 'Unknown',
             file_url: salesInv.file_url ?? null, thumbnail_url: salesInv.thumbnail_url ?? null,
             contra_gl_account_id: salesInv.gl_account_id ?? null,
           } : null,

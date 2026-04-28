@@ -6,8 +6,8 @@ interface MatchResult {
 }
 
 /**
- * Auto-match bank transactions to approved invoices, sales invoices, and claims.
- * Direct FK links on BankTransaction — no Payment bridge records.
+ * Auto-match bank transactions to approved invoices (purchase & sales) and claims.
+ * Uses BankTransactionInvoice join table for invoice matches, direct FK for claims.
  *
  * Passes with decreasing confidence:
  *   Pass 1: Invoice number in bank description + exact amount
@@ -25,10 +25,11 @@ export async function autoMatchTransactions(
 
   if (bankTxns.length === 0) return { matched: 0, unmatched: 0 };
 
-  // Load approved unpaid supplier invoices
+  // Load approved unpaid supplier invoices (purchase type)
   const supplierInvoices = await prisma.invoice.findMany({
     where: {
       firm_id: firmId,
+      type: 'purchase',
       approval: 'approved',
       payment_status: { in: ['unpaid', 'partially_paid'] },
       // Exclude invoices already linked to a bank transaction
@@ -42,17 +43,18 @@ export async function autoMatchTransactions(
   });
 
   // Load approved unpaid sales invoices
-  const salesInvoices = await prisma.salesInvoice.findMany({
+  const salesInvoices = await prisma.invoice.findMany({
     where: {
       firm_id: firmId,
+      type: 'sales',
       approval: 'approved',
       payment_status: { in: ['unpaid', 'partially_paid'] },
-      bankTransactions: { none: {} },
+      bankTxnAllocations: { none: {} },
     },
     select: {
       id: true, invoice_number: true, total_amount: true, amount_paid: true,
-      issue_date: true,
-      buyer: { select: { name: true, aliases: { select: { alias: true } } } },
+      issue_date: true, vendor_name_raw: true,
+      supplier: { select: { name: true, aliases: { select: { alias: true } } } },
     },
   });
 
@@ -76,7 +78,7 @@ export async function autoMatchTransactions(
   const matchedInvoiceIds = new Set<string>();
   const matchedSalesInvoiceIds = new Set<string>();
   const matchedClaimIds = new Set<string>();
-  const updates: { txnId: string; data: { matched_sales_invoice_id?: string; notes?: string }; invoiceId?: string; invoiceAmount?: number }[] = [];
+  const updates: { txnId: string; data: { notes?: string }; invoiceId?: string; invoiceAmount?: number }[] = [];
   const claimUpdates: { txnId: string; claimId: string; claimAmount: number; notes: string }[] = [];
 
   // Helper: get remaining amount for an invoice
@@ -119,7 +121,8 @@ export async function autoMatchTransactions(
         const rem = remaining(inv.total_amount, inv.amount_paid);
         if (Math.abs(rem - txnAmount) > 0.01) continue;
         if (descLower.includes(inv.invoice_number.toLowerCase())) {
-          updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: inv.id, notes: `Pass 1: invoice# ${inv.invoice_number}` } });
+          const rem = remaining(inv.total_amount, inv.amount_paid);
+          updates.push({ txnId: txn.id, data: { notes: `Pass 1: invoice# ${inv.invoice_number}` }, invoiceId: inv.id, invoiceAmount: rem });
           matchedTxnIds.add(txn.id);
           matchedSalesInvoiceIds.add(inv.id);
           break;
@@ -170,7 +173,8 @@ export async function autoMatchTransactions(
         return Math.abs(inv.issue_date.getTime() - txnDate) <= DAY3;
       });
       if (candidates.length === 1) {
-        updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: candidates[0].id, notes: `Pass 2: amount+date` } });
+        const rem = remaining(candidates[0].total_amount, candidates[0].amount_paid);
+        updates.push({ txnId: txn.id, data: { notes: `Pass 2: amount+date` }, invoiceId: candidates[0].id, invoiceAmount: rem });
         matchedTxnIds.add(txn.id);
         matchedSalesInvoiceIds.add(candidates[0].id);
       }
@@ -215,10 +219,11 @@ export async function autoMatchTransactions(
         if (matchedSalesInvoiceIds.has(inv.id)) return false;
         const rem = remaining(inv.total_amount, inv.amount_paid);
         if (Math.abs(rem - txnAmount) > 0.01) return false;
-        return nameInDesc([inv.buyer?.name, ...(inv.buyer?.aliases?.map(a => a.alias) ?? [])], descLower);
+        return nameInDesc([inv.vendor_name_raw, inv.supplier?.name, ...(inv.supplier?.aliases?.map(a => a.alias) ?? [])], descLower);
       });
       if (candidates.length === 1) {
-        updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: candidates[0].id, notes: `Pass 3: name+amount` } });
+        const rem = remaining(candidates[0].total_amount, candidates[0].amount_paid);
+        updates.push({ txnId: txn.id, data: { notes: `Pass 3: name+amount` }, invoiceId: candidates[0].id, invoiceAmount: rem });
         matchedTxnIds.add(txn.id);
         matchedSalesInvoiceIds.add(candidates[0].id);
       }
@@ -259,7 +264,8 @@ export async function autoMatchTransactions(
         return Math.abs(remaining(inv.total_amount, inv.amount_paid) - txnAmount) <= 0.01;
       });
       if (candidates.length === 1) {
-        updates.push({ txnId: txn.id, data: { matched_sales_invoice_id: candidates[0].id, notes: `Pass 4: amount only` } });
+        const rem = remaining(candidates[0].total_amount, candidates[0].amount_paid);
+        updates.push({ txnId: txn.id, data: { notes: `Pass 4: amount only` }, invoiceId: candidates[0].id, invoiceAmount: rem });
         matchedTxnIds.add(txn.id);
         matchedSalesInvoiceIds.add(candidates[0].id);
       }

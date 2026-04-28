@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     const candidates = await prisma.invoice.findMany({
       where: {
         firm_id: firmId,
+        type: 'purchase',
         file_url: null,
         invoice_number: { startsWith: 'PV-' },
         total_amount: { gte: totalAmount - 0.01, lte: totalAmount + 0.01 },
@@ -68,8 +69,8 @@ export async function GET(request: NextRequest) {
     if (vendorName) {
       const vendorLower = vendorName.toLowerCase();
       const vendorMatch = candidates.find(c =>
-        c.vendor_name_raw.toLowerCase().includes(vendorLower) ||
-        vendorLower.includes(c.vendor_name_raw.toLowerCase())
+        c.vendor_name_raw?.toLowerCase().includes(vendorLower) ||
+        (c.vendor_name_raw && vendorLower.includes(c.vendor_name_raw.toLowerCase()))
       );
       if (vendorMatch) {
         return NextResponse.json({ data: { match: vendorMatch }, error: null });

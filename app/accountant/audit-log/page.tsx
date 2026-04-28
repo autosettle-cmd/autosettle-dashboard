@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
-import SearchButton from '@/components/SearchButton';
+
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -109,7 +109,6 @@ export default function AuditLogPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Audit Log</h1>
-          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture ledger-binding animate-in">

@@ -122,6 +122,14 @@ export default function InvoiceCreateModal({
   const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
   const hasPreview = !!newInvFile;
 
+  // Required fields validation
+  const missingFields: string[] = [];
+  if (!newInv.issue_date) missingFields.push('Issue Date');
+  if (!newInv.total_amount || newInv.total_amount === '0') missingFields.push('Total Amount');
+  if (config.showGlFields && !newInvExpenseGlId) missingFields.push('Expense GL');
+  if (config.showGlFields && !newInvContraGlId) missingFields.push('Contra GL');
+  const canSubmit = missingFields.length === 0;
+
   return (
     <>
       <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50" onClick={onClose} />
@@ -406,13 +414,21 @@ export default function InvoiceCreateModal({
 
               {/* Footer */}
               <div className="flex gap-3 px-5 py-4 bg-[var(--surface-low)] flex-shrink-0">
-                <button
-                  onClick={submitNewInvoice}
-                  disabled={newInvSubmitting || ocrScanning || !!wrongDocType}
-                  className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
-                </button>
+                <div className="flex-1 relative group/submit">
+                  <button
+                    onClick={submitNewInvoice}
+                    disabled={newInvSubmitting || ocrScanning || !!wrongDocType || !canSubmit}
+                    className="btn-thick-navy w-full py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {ocrScanning ? 'Scanning...' : newInvSubmitting ? 'Submitting...' : 'Submit Invoice'}
+                  </button>
+                  {!canSubmit && !ocrScanning && !newInvSubmitting && (
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#191C1E] text-white text-[11px] px-3 py-2 whitespace-nowrap opacity-0 pointer-events-none group-hover/submit:opacity-100 transition-opacity z-30 shadow-lg" style={{ borderRadius: '2px' }}>
+                      <span className="block font-bold text-[10px] uppercase tracking-wider text-white/50 mb-1">Required fields missing</span>
+                      {missingFields.map(f => <span key={f} className="block">• {f}</span>)}
+                    </span>
+                  )}
+                </div>
                 <button
                   onClick={onClose}
                   className="btn-thick-white flex-1 py-2.5 text-sm font-semibold"

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
-import SearchButton from '@/components/SearchButton';
+
 import { STATUS_CFG } from '@/lib/badge-config';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -208,7 +208,7 @@ export default function JournalEntriesPage() {
           <div className="h-16 flex items-center justify-between pl-14 pr-6">
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Journal Entries</h1>
             <div className="flex items-center gap-3">
-              <SearchButton />
+
               {(
                 <button
                   onClick={async () => {

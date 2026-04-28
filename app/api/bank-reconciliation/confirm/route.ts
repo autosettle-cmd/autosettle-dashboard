@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     for (const txn of txns) {
       const hasClaims = claimsByTxnId.has(txn.id);
       const hasInvoiceAllocs = allocationsByTxnId.has(txn.id);
-      if (!hasInvoiceAllocs && !txn.matched_sales_invoice_id && !hasClaims && !txn.matched_payment_id) {
+      if (!hasInvoiceAllocs && !txn.matched_invoice_id && !hasClaims && !txn.matched_payment_id) {
         errors.push(`Transaction ${txn.description} has no matched payment.`);
       }
     }
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     // ─── Batch pre-fetch all related data ────────────────────────────────
     const invoiceIds = Array.from(new Set(invoiceAllocations.map(a => a.invoice_id)));
-    const salesInvoiceIds = txns.map(t => t.matched_sales_invoice_id).filter(Boolean) as string[];
+    const salesInvoiceIds = txns.map(t => t.matched_invoice_id).filter(Boolean) as string[];
     const uniqueFirmIds = Array.from(new Set(txns.map(t => t.bankStatement.firm_id)));
 
     // Build unique bank account keys
@@ -110,9 +110,9 @@ export async function POST(request: NextRequest) {
           })
         : [],
       salesInvoiceIds.length > 0
-        ? prisma.salesInvoice.findMany({
-            where: { id: { in: salesInvoiceIds } },
-            select: { id: true, total_amount: true, amount_paid: true, buyer: { select: { name: true } } },
+        ? prisma.invoice.findMany({
+            where: { id: { in: salesInvoiceIds }, type: 'sales' },
+            select: { id: true, total_amount: true, amount_paid: true, supplier: { select: { name: true } } },
           })
         : [],
       prisma.firm.findMany({
@@ -222,8 +222,8 @@ export async function POST(request: NextRequest) {
       }
 
       // ─── Confirm sales invoice match ─────────────────────────────────────
-      if (txn.matched_sales_invoice_id) {
-        const salesInvoice = salesInvoiceMap.get(txn.matched_sales_invoice_id);
+      if (txn.matched_invoice_id) {
+        const salesInvoice = salesInvoiceMap.get(txn.matched_invoice_id);
         if (!salesInvoice) continue;
 
         const firm = firmMap.get(firmId);
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
         if (!receivablesGlId) { errors.push('No Trade Receivables GL configured'); continue; }
 
         const newPaid = Number(salesInvoice.amount_paid) + txnAmount;
-        await prisma.salesInvoice.update({
+        await prisma.invoice.update({
           where: { id: salesInvoice.id },
           data: { amount_paid: newPaid, payment_status: newPaid >= Number(salesInvoice.total_amount) ? 'paid' : 'partially_paid' },
         });
@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
         await createJournalEntry({
           firmId,
           postingDate: txn.transaction_date,
-          description: `Bank recon — ${salesInvoice.buyer?.name ?? 'Customer'}`,
+          description: `Bank recon — ${salesInvoice.supplier?.name ?? 'Customer'}`,
           sourceType: 'bank_recon',
           sourceId: txn.id,
           voucherPrefix: 'OR',
@@ -304,7 +304,7 @@ export async function POST(request: NextRequest) {
       }
 
       // ─── Legacy: confirm old Payment-based match ─────────────────────────
-      if (txn.matched_payment_id && (!txnAllocations || txnAllocations.length === 0) && !txn.matched_sales_invoice_id && (!txnClaims || txnClaims.length === 0)) {
+      if (txn.matched_payment_id && (!txnAllocations || txnAllocations.length === 0) && !txn.matched_invoice_id && (!txnClaims || txnClaims.length === 0)) {
         const { createBankReconJV } = await import('@/lib/bank-recon-jv');
         await createBankReconJV(txn.id, txn.matched_payment_id, firmId, session.user.id);
       }

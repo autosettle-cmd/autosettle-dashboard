@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recalcInvoicePayment, recalcClaimPayment } from '@/lib/payment-utils';
-import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
 import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
     reference?: string;
     notes?: string;
     allocations?: { invoice_id: string; amount: number }[];
-    sales_allocations?: { sales_invoice_id: string; amount: number }[];
+    sales_allocations?: { invoice_id: string; amount: number }[];
     claim_allocations?: { claim_id: string; amount: number }[];
     claim_ids?: string[];
     direction?: 'outgoing' | 'incoming';
@@ -118,12 +117,12 @@ export async function POST(request: NextRequest) {
     }
 
     for (const alloc of sales_allocations) {
-      const inv = await prisma.salesInvoice.findUnique({
-        where: { id: alloc.sales_invoice_id },
-        select: { total_amount: true, amount_paid: true, firm_id: true },
+      const inv = await prisma.invoice.findUnique({
+        where: { id: alloc.invoice_id },
+        select: { total_amount: true, amount_paid: true, firm_id: true, type: true },
       });
-      if (!inv || inv.firm_id !== firmId) {
-        return NextResponse.json({ data: null, error: `Sales invoice ${alloc.sales_invoice_id} not found` }, { status: 404 });
+      if (!inv || inv.firm_id !== firmId || inv.type !== 'sales') {
+        return NextResponse.json({ data: null, error: `Sales invoice ${alloc.invoice_id} not found` }, { status: 404 });
       }
       const balance = Number(inv.total_amount) - Number(inv.amount_paid);
       if (alloc.amount > balance + 0.01) {
@@ -156,9 +155,9 @@ export async function POST(request: NextRequest) {
         reference: reference || null,
         notes: notes || null,
         direction: 'incoming',
-        salesAllocations: {
+        allocations: {
           create: sales_allocations.map((a) => ({
-            sales_invoice_id: a.sales_invoice_id,
+            invoice_id: a.invoice_id,
             amount: a.amount,
           })),
         },
@@ -166,7 +165,7 @@ export async function POST(request: NextRequest) {
           create: claim_ids.map((cid) => ({ claim_id: cid })),
         } : undefined,
       },
-      include: { salesAllocations: true },
+      include: { allocations: true },
     });
 
     // Mark receipts as paid
@@ -175,7 +174,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const alloc of sales_allocations) {
-      await recalcSalesInvoicePayment(alloc.sales_invoice_id);
+      await recalcInvoicePayment(alloc.invoice_id);
     }
 
     await auditLog({
@@ -315,10 +314,7 @@ export async function GET(request: NextRequest) {
       employee: { select: { name: true } },
       receipts: { select: { payment_id: true, claim_id: true } },
       allocations: {
-        include: { invoice: { select: { invoice_number: true, vendor_name_raw: true } } },
-      },
-      salesAllocations: {
-        include: { salesInvoice: { select: { invoice_number: true, buyer: { select: { name: true } } } } },
+        include: { invoice: { select: { invoice_number: true, vendor_name_raw: true, type: true, supplier: { select: { name: true } } } } },
       },
     },
     orderBy: { payment_date: 'desc' },
@@ -352,16 +348,16 @@ export async function GET(request: NextRequest) {
         thumbnail_url: c?.thumbnail_url ?? null,
       };
     }),
-    allocations: p.allocations.map((a) => ({
+    allocations: p.allocations.filter((a) => a.invoice.type === 'purchase').map((a) => ({
       invoice_id: a.invoice_id,
       invoice_number: a.invoice.invoice_number,
       vendor_name: a.invoice.vendor_name_raw,
       amount: a.amount.toString(),
     })),
-    sales_allocations: p.salesAllocations.map((a) => ({
-      sales_invoice_id: a.sales_invoice_id,
-      invoice_number: a.salesInvoice.invoice_number,
-      buyer_name: a.salesInvoice.buyer.name,
+    sales_allocations: p.allocations.filter((a) => a.invoice.type === 'sales').map((a) => ({
+      invoice_id: a.invoice_id,
+      invoice_number: a.invoice.invoice_number,
+      buyer_name: a.invoice.supplier?.name ?? '',
       amount: a.amount.toString(),
     })),
   }));

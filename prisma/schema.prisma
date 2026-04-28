@@ -143,7 +143,6 @@ model Firm {
   claims          Claim[]
 
   invoices        Invoice[]
-  salesInvoices   SalesInvoice[]
   suppliers       Supplier[]
   payments        Payment[]
   categories             Category[]
@@ -178,7 +177,6 @@ model Employee {
   users         User[]
   claims        Claim[]
   invoices      Invoice[]
-  salesInvoices SalesInvoice[]
   messageLogs   MessageLog[]
   payments      Payment[]
 
@@ -235,7 +233,6 @@ model Category {
   firm           Firm?                @relation(fields: [firm_id], references: [id])
   claims         Claim[]
   invoices       Invoice[]
-  salesInvoices  SalesInvoice[]
   overrides      CategoryFirmOverride[]
 
   @@unique([firm_id, name])
@@ -348,7 +345,6 @@ model Supplier {
   defaultContraGlAccount GLAccount? @relation("SupplierContraGL", fields: [default_contra_gl_account_id], references: [id])
   aliases       SupplierAlias[]
   invoices      Invoice[]
-  salesInvoices SalesInvoice[]
   payments      Payment[]
 
   @@unique([firm_id, name])
@@ -371,19 +367,21 @@ model SupplierAlias {
 model Invoice {
   id                  String               @id @default(uuid())
   firm_id             String
-  uploaded_by         String
+  type                String               @default("purchase") // 'purchase' or 'sales'
+  uploaded_by         String?
   supplier_id         String?
   supplier_link_status SupplierLinkStatus  @default(unmatched)
-  vendor_name_raw     String
+  vendor_name_raw     String?
   invoice_number      String?
   issue_date          DateTime             @db.Date
   due_date            DateTime?            @db.Date
   payment_terms       String?
+  currency            String               @default("MYR")
   subtotal            Decimal?             @db.Decimal(10, 2)
   tax_amount          Decimal?             @db.Decimal(10, 2)
   total_amount        Decimal              @db.Decimal(10, 2)
-  category_id         String
-  confidence          Confidence
+  category_id         String?
+  confidence          Confidence?
   status              InvoiceStatus        @default(pending_review)
   payment_status      InvoicePaymentStatus @default(unpaid)
   amount_paid         Decimal              @default(0) @db.Decimal(10, 2)
@@ -391,28 +389,40 @@ model Invoice {
   file_download_url   String?
   thumbnail_url       String?
   file_hash           String?
-  submitted_via       SubmittedVia
+  submitted_via       SubmittedVia?
   gl_account_id            String?
   contra_gl_account_id     String?
   approval            ApprovalStatus       @default(pending_approval)
   rejection_reason    String?
   notes               String?
-  doc_subtype         String?              // 'credit_note' for CN, null for regular PI/PV
+  doc_subtype         String?              // 'credit_note' for CN, 'debit_note' for DN, null for regular PI/SI/PV/OR
+
+  // LHDN MyInvois fields (used by sales invoices)
+  lhdn_submission_uid  String?
+  lhdn_document_uuid   String?
+  lhdn_long_id         String?
+  lhdn_status          LhdnStatus?
+  lhdn_qr_url          String?
+  lhdn_submitted_at    DateTime?
+  lhdn_validated_at    DateTime?
+  lhdn_error           String?
+
   created_at          DateTime             @default(now())
   updated_at          DateTime             @updatedAt
   deleted_at          DateTime?
   deleted_by          String?
 
   firm     Firm      @relation(fields: [firm_id], references: [id])
-  uploader Employee  @relation(fields: [uploaded_by], references: [id])
+  uploader Employee? @relation(fields: [uploaded_by], references: [id])
   supplier            Supplier?            @relation(fields: [supplier_id], references: [id])
-  category            Category             @relation(fields: [category_id], references: [id])
+  category            Category?            @relation(fields: [category_id], references: [id])
   glAccount           GLAccount?           @relation("InvoiceExpenseGL", fields: [gl_account_id], references: [id])
   contraGlAccount     GLAccount?           @relation("InvoiceContraGL", fields: [contra_gl_account_id], references: [id])
   lines               InvoiceLine[]
   paymentAllocations  PaymentAllocation[]
   bankTxnAllocations  BankTransactionInvoice[]
   receiptLinks        InvoiceReceiptLink[]
+  bankTxnMatches      BankTransaction[] @relation("BankTxnMatchedInvoice")
 
   @@index([firm_id, status])
   @@index([firm_id, issue_date])
@@ -421,6 +431,9 @@ model Invoice {
   @@index([firm_id, payment_status])
   @@index([firm_id, approval])
   @@index([uploaded_by])
+  @@index([firm_id, type])
+  @@index([firm_id, lhdn_status])
+  @@index([firm_id, invoice_number])
 }
 
 model InvoiceLine {
@@ -429,6 +442,9 @@ model InvoiceLine {
   description    String
   quantity       Decimal  @default(1) @db.Decimal(10, 3)
   unit_price     Decimal  @db.Decimal(10, 2)
+  discount       Decimal  @default(0) @db.Decimal(10, 2)
+  tax_type       String?
+  tax_rate       Decimal  @default(0) @db.Decimal(5, 2)
   tax_amount     Decimal  @default(0) @db.Decimal(10, 2)
   line_total     Decimal  @db.Decimal(10, 2)
   gl_account_id  String?
@@ -459,7 +475,6 @@ model Payment {
   supplier         Supplier?                @relation(fields: [supplier_id], references: [id])
   employee         Employee?                @relation(fields: [employee_id], references: [id])
   allocations      PaymentAllocation[]
-  salesAllocations SalesPaymentAllocation[]
   receipts         PaymentReceipt[]
   bankTransactions BankTransaction[]
 
@@ -537,94 +552,6 @@ model MessageLog {
   @@index([employee_id])
   @@index([phone, employee_id])
   @@index([received_at])
-}
-
-// ─── Sales Invoicing (Issued) ────────────────────────────────────────────────
-
-model SalesInvoice {
-  id                   String               @id @default(uuid())
-  firm_id              String
-  supplier_id          String
-  created_by           String?
-  invoice_number       String
-  issue_date           DateTime             @db.Date
-  due_date             DateTime?            @db.Date
-  currency             String               @default("MYR")
-  subtotal             Decimal              @db.Decimal(10, 2)
-  tax_amount           Decimal              @default(0) @db.Decimal(10, 2)
-  total_amount         Decimal              @db.Decimal(10, 2)
-  payment_status       InvoicePaymentStatus @default(unpaid)
-  amount_paid          Decimal              @default(0) @db.Decimal(10, 2)
-  notes                String?
-  doc_subtype          String?              // 'debit_note' for DN, null for regular SI/OR
-  category_id          String?
-  gl_account_id        String?
-  approval             ApprovalStatus       @default(pending_approval)
-  file_url             String?
-  file_download_url    String?
-  thumbnail_url        String?
-  file_hash            String?
-
-  // LHDN MyInvois fields
-  lhdn_submission_uid  String?
-  lhdn_document_uuid   String?
-  lhdn_long_id         String?
-  lhdn_status          LhdnStatus           @default(draft)
-  lhdn_qr_url          String?
-  lhdn_submitted_at    DateTime?
-  lhdn_validated_at    DateTime?
-  lhdn_error           String?
-
-  created_at           DateTime             @default(now())
-  updated_at           DateTime             @updatedAt
-  deleted_at           DateTime?
-  deleted_by           String?
-
-  firm                 Firm                 @relation(fields: [firm_id], references: [id])
-  buyer                Supplier             @relation(fields: [supplier_id], references: [id])
-  creator              Employee?            @relation(fields: [created_by], references: [id])
-  category             Category?            @relation(fields: [category_id], references: [id])
-  glAccount            GLAccount?           @relation(fields: [gl_account_id], references: [id])
-  items                SalesInvoiceItem[]
-  paymentAllocations   SalesPaymentAllocation[]
-  bankTransactions     BankTransaction[]
-
-  @@index([firm_id, issue_date])
-  @@index([firm_id, lhdn_status])
-  @@index([firm_id, approval])
-  @@index([created_by])
-  @@index([firm_id, invoice_number])
-}
-
-model SalesInvoiceItem {
-  id                String   @id @default(uuid())
-  sales_invoice_id  String
-  description       String
-  quantity          Decimal  @db.Decimal(10, 3)
-  unit_price        Decimal  @db.Decimal(10, 2)
-  discount          Decimal  @default(0) @db.Decimal(10, 2)
-  tax_type          String?
-  tax_rate          Decimal  @default(0) @db.Decimal(5, 2)
-  tax_amount        Decimal  @default(0) @db.Decimal(10, 2)
-  line_total        Decimal  @db.Decimal(10, 2)
-  sort_order        Int      @default(0)
-
-  salesInvoice      SalesInvoice @relation(fields: [sales_invoice_id], references: [id], onDelete: Cascade)
-
-  @@index([sales_invoice_id])
-}
-
-model SalesPaymentAllocation {
-  id                String  @id @default(uuid())
-  payment_id        String
-  sales_invoice_id  String
-  amount            Decimal @db.Decimal(10, 2)
-
-  payment           Payment       @relation(fields: [payment_id], references: [id], onDelete: Cascade)
-  salesInvoice      SalesInvoice  @relation(fields: [sales_invoice_id], references: [id], onDelete: Cascade)
-
-  @@unique([payment_id, sales_invoice_id])
-  @@index([sales_invoice_id])
 }
 
 // ─── Bank Reconciliation ─────────────────────────────────────────────────────
@@ -729,7 +656,7 @@ model BankTransaction {
   balance            Decimal?    @db.Decimal(12, 2)
   recon_status       ReconStatus @default(unmatched)
   matched_payment_id       String?
-  matched_sales_invoice_id String?
+  matched_invoice_id       String?
   matched_at               DateTime?
   matched_by               String?
   notes                    String?
@@ -737,14 +664,14 @@ model BankTransaction {
 
   bankStatement      BankStatement @relation(fields: [bank_statement_id], references: [id], onDelete: Cascade)
   matchedPayment     Payment?      @relation(fields: [matched_payment_id], references: [id])
-  matchedSalesInvoice SalesInvoice? @relation(fields: [matched_sales_invoice_id], references: [id])
+  matchedInvoice      Invoice?      @relation("BankTxnMatchedInvoice", fields: [matched_invoice_id], references: [id])
   matchedClaims      Claim[]
   invoiceAllocations BankTransactionInvoice[]
   claimAllocations   BankTransactionClaim[]
 
   @@index([bank_statement_id, recon_status])
   @@index([bank_statement_id, transaction_date])
-  @@index([matched_sales_invoice_id])
+  @@index([matched_invoice_id])
   @@index([matched_payment_id])
 }
 
@@ -799,7 +726,6 @@ model GLAccount {
   claimsContra          Claim[]  @relation("ClaimContraGL")
   invoices              Invoice[] @relation("InvoiceExpenseGL")
   invoicesContra        Invoice[] @relation("InvoiceContraGL")
-  salesInvoices         SalesInvoice[]
   categoryFirmOverrides CategoryFirmOverride[]
   taxCodes              TaxCode[]
   journalLines          JournalLine[]

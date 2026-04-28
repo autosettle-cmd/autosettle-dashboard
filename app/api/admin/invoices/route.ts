@@ -23,9 +23,11 @@ export async function GET(request: NextRequest) {
   const overdue = searchParams.get('overdue');
   const search = searchParams.get('search');
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
+  const type = searchParams.get('type'); // 'purchase' | 'sales' | null (all)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scope: any = { firm_id: firmId };
+  if (type) scope.type = type;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dateFilter: any = {};
   if (dateFrom || dateTo) {
@@ -87,23 +89,25 @@ export async function GET(request: NextRequest) {
 
   const data = invoices.map((inv) => ({
     id: inv.id,
+    type: inv.type,
     vendor_name_raw: inv.vendor_name_raw,
     invoice_number: inv.invoice_number,
     issue_date: inv.issue_date,
     due_date: inv.due_date,
     payment_terms: inv.payment_terms,
+    currency: inv.currency,
     subtotal: inv.subtotal?.toString() ?? null,
     tax_amount: inv.tax_amount?.toString() ?? null,
     total_amount: inv.total_amount.toString(),
     amount_paid: inv.amount_paid.toString(),
-    category_name: inv.category.name,
+    category_name: inv.category?.name ?? null,
     category_id: inv.category_id,
     status: inv.status,
     payment_status: inv.payment_status,
     supplier_id: inv.supplier_id,
     supplier_name: inv.supplier?.name ?? null,
     supplier_link_status: inv.supplier_link_status,
-    uploader_name: inv.uploader.name,
+    uploader_name: inv.uploader?.name ?? null,
     confidence: inv.confidence,
     file_url: inv.file_url,
     thumbnail_url: inv.thumbnail_url,
@@ -155,18 +159,28 @@ export async function POST(request: NextRequest) {
     const glAccountId = formData.get('gl_account_id') as string | null;
     const contraGlAccountId = formData.get('contra_gl_account_id') as string | null;
     const isBatch = formData.get('batch') === 'true';
+    const invoiceType = (formData.get('type') as string | null) || 'purchase';
+    const currency = (formData.get('currency') as string | null) || 'MYR';
     const file = formData.get('file') as File | null;
 
-    if (!vendorName || !issueDate || !totalAmountStr) {
+    const isSalesInvoice = invoiceType === 'sales';
+
+    if (!issueDate || !totalAmountStr) {
       return NextResponse.json(
-        { data: null, error: 'Missing required fields: vendor_name, issue_date, total_amount' },
+        { data: null, error: 'Missing required fields: issue_date, total_amount' },
+        { status: 400 }
+      );
+    }
+    if (!isSalesInvoice && !vendorName) {
+      return NextResponse.json(
+        { data: null, error: 'Missing required field: vendor_name' },
         { status: 400 }
       );
     }
 
-    // Auto-assign "Miscellaneous" category if not provided
+    // Auto-assign "Miscellaneous" category if not provided (optional for sales invoices)
     let resolvedCategoryId = categoryId;
-    if (!resolvedCategoryId) {
+    if (!resolvedCategoryId && !isSalesInvoice) {
       const misc = await prisma.category.findFirst({ where: { name: 'Miscellaneous' }, select: { id: true } });
       if (!misc) {
         return NextResponse.json({ data: null, error: 'No default category found. Please select a category.' }, { status: 400 });
@@ -182,55 +196,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Supplier matching ──
-    let supplierId: string;
-    let linkStatus: 'auto_matched' | 'unmatched' | 'confirmed';
+    // ── Supplier matching (skip for sales invoices without vendor name) ──
+    let supplierId: string | null = null;
+    let linkStatus: 'auto_matched' | 'unmatched' | 'confirmed' = 'unmatched';
 
-    if (supplierIdParam) {
-      // User explicitly selected an existing supplier from the dropdown
-      supplierId = supplierIdParam;
-      linkStatus = 'confirmed';
-      // Add vendor name as alias if not already present
-      const normalizedVendor = vendorName.toLowerCase().trim();
-      const existingAlias = await prisma.supplierAlias.findFirst({
-        where: { alias: normalizedVendor, supplier_id: supplierIdParam },
-      });
-      if (!existingAlias) {
-        await prisma.supplierAlias.create({
-          data: { supplier_id: supplierIdParam, alias: normalizedVendor, is_confirmed: true },
-        }).catch(() => {}); // ignore if unique constraint fails
-      }
-    } else {
-      // No supplier selected — try alias matching, then create new
-      const normalizedVendor = vendorName.toLowerCase().trim();
-
-      const existingAlias = await prisma.supplierAlias.findFirst({
-        where: {
-          alias: normalizedVendor,
-          supplier: { firm_id: firmId },
-        },
-        include: { supplier: true },
-      });
-
-      if (existingAlias) {
-        supplierId = existingAlias.supplier_id;
-        linkStatus = existingAlias.is_confirmed ? 'confirmed' : 'auto_matched';
+    if (vendorName) {
+      if (supplierIdParam) {
+        // User explicitly selected an existing supplier from the dropdown
+        supplierId = supplierIdParam;
+        linkStatus = 'confirmed';
+        // Add vendor name as alias if not already present
+        const normalizedVendor = vendorName.toLowerCase().trim();
+        const existingAlias = await prisma.supplierAlias.findFirst({
+          where: { alias: normalizedVendor, supplier_id: supplierIdParam },
+        });
+        if (!existingAlias) {
+          await prisma.supplierAlias.create({
+            data: { supplier_id: supplierIdParam, alias: normalizedVendor, is_confirmed: true },
+          }).catch(() => {}); // ignore if unique constraint fails
+        }
       } else {
-        const newSupplier = await prisma.supplier.create({
-          data: {
-            firm_id: firmId,
-            name: vendorName,
-            aliases: {
-              create: {
-                alias: normalizedVendor,
-                is_confirmed: false,
+        // No supplier selected — try alias matching, then create new
+        const normalizedVendor = vendorName.toLowerCase().trim();
+
+        const existingAlias = await prisma.supplierAlias.findFirst({
+          where: {
+            alias: normalizedVendor,
+            supplier: { firm_id: firmId },
+          },
+          include: { supplier: true },
+        });
+
+        if (existingAlias) {
+          supplierId = existingAlias.supplier_id;
+          linkStatus = existingAlias.is_confirmed ? 'confirmed' : 'auto_matched';
+        } else {
+          const newSupplier = await prisma.supplier.create({
+            data: {
+              firm_id: firmId,
+              name: vendorName,
+              aliases: {
+                create: {
+                  alias: normalizedVendor,
+                  is_confirmed: false,
+                },
               },
             },
-          },
-        });
-        supplierId = newSupplier.id;
-        linkStatus = 'unmatched';
+          });
+          supplierId = newSupplier.id;
+          linkStatus = 'unmatched';
+        }
       }
+    } else if (supplierIdParam) {
+      supplierId = supplierIdParam;
+      linkStatus = 'confirmed';
     }
 
     // ── Calculate due date from payment terms if not provided ──
@@ -324,6 +343,7 @@ export async function POST(request: NextRequest) {
     const invoice = await prisma.invoice.create({
       data: {
         firm_id: firmId,
+        type: invoiceType,
         uploaded_by: employeeId,
         supplier_id: supplierId,
         supplier_link_status: linkStatus,
@@ -332,12 +352,13 @@ export async function POST(request: NextRequest) {
         issue_date: new Date(issueDate),
         due_date: computedDueDate ? new Date(computedDueDate) : null,
         payment_terms: paymentTerms || null,
+        currency,
         notes: notes || null,
         total_amount: totalAmount,
-        category_id: resolvedCategoryId!,
+        category_id: resolvedCategoryId || null,
         gl_account_id: glAccountId || null,
         contra_gl_account_id: contraGlAccountId || null,
-        confidence: 'HIGH',
+        confidence: isSalesInvoice ? undefined : 'HIGH',
         status: isBatch ? 'pending_review' : 'reviewed',
         payment_status: 'unpaid',
         amount_paid: 0,
@@ -355,12 +376,13 @@ export async function POST(request: NextRequest) {
 
     const data = {
       id: invoice.id,
+      type: invoice.type,
       vendor_name_raw: invoice.vendor_name_raw,
       invoice_number: invoice.invoice_number,
       issue_date: invoice.issue_date,
       due_date: invoice.due_date,
       total_amount: invoice.total_amount.toString(),
-      category_name: invoice.category.name,
+      category_name: invoice.category?.name ?? null,
       supplier_name: invoice.supplier?.name ?? null,
       supplier_link_status: invoice.supplier_link_status,
       status: invoice.status,

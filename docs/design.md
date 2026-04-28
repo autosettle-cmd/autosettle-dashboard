@@ -115,6 +115,43 @@ All interactive elements are styled as **physical keycaps** — square frustum s
 
 **Hover:** no animation — clean and professional
 
+**Press-then-act pattern:** When a button triggers navigation, state change, or any visual transition, the user must **see the press animation** before the action fires. Use a 150ms delay:
+```tsx
+onClick={(e) => {
+  e.currentTarget.classList.add('active');
+  setTimeout(() => doAction(), 150);
+}}
+```
+Without this, the action fires instantly on click and the user never sees the button press — it feels broken. Every `btn-thick-*` button that does something visible (redirect, open modal, change step) must use this pattern.
+
+**Applies to navigation too:** Sidebar nav links (`btn-thick-sidebar`) use the same pattern — `e.preventDefault()`, add `active` class, `setTimeout(() => router.push(href), 150)`. Never use bare `<Link>` for sidebar items; use `<a>` with press-then-navigate handler.
+
+### Submit Button Validation with Tooltip
+
+Submit/action buttons that require fields must be **disabled when required fields are missing**, with a hover tooltip listing what's missing:
+
+```tsx
+const missingFields: string[] = [];
+if (!issueDate) missingFields.push('Issue Date');
+if (!totalAmount) missingFields.push('Total Amount');
+if (!expenseGlId) missingFields.push('Expense GL');
+if (!contraGlId) missingFields.push('Contra GL');
+const canSubmit = missingFields.length === 0;
+
+// Button with tooltip
+<div className="relative group/submit">
+  <button disabled={!canSubmit} ...>Submit</button>
+  {!canSubmit && (
+    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[#191C1E] text-white text-[11px] px-3 py-2 opacity-0 group-hover/submit:opacity-100 transition-opacity z-30">
+      <span className="block font-bold text-[10px] uppercase text-white/50 mb-1">Required fields missing</span>
+      {missingFields.map(f => <span key={f} className="block">• {f}</span>)}
+    </span>
+  )}
+</div>
+```
+
+**Required fields for invoice submit:** Issue Date, Total Amount, Expense GL (Debit), Contra GL (Credit).
+
 ### Keywell Container
 Action button areas use `keywell-rimmed` class — a recessed slot that buttons sit inside:
 - **Background:** `linear-gradient(180deg, #D8DBDF 0%, #E4E6E8 4px, #EDEEF0 100%)` — darker at top (shadow from rim)
@@ -291,6 +328,12 @@ All dropdowns where users select from a list must be **searchable** — never us
 
 **When to use plain `<select>`:** Only for short fixed lists (Plan: Free/Paid, Status filter, Month picker). Never for entity lists that grow.
 
+### GL Defaults Modal (`SetupGlDefaultsModal`)
+Uses `GlAccountSelect` (navy keycap button with portal dropdown) for all four GL default fields. Each field specifies a `preferredType` so the dropdown shows the recommended account type first (e.g. Liability for Trade Payables, Asset for Trade Receivables). Users can still pick from any type if their COA has unconventional categorization.
+
+### Category Mapping Modal (`SetupCategoriesModal`)
+Uses `GlAccountSelect` for each category's GL mapping. Each row shows the category name with a `GlAccountSelect` dropdown to assign the GL account.
+
 **Existing components:**
 - `GlAccountSelect` — GL accounts with navy keycap style + portal dropdown
 - Supplier Account field — `input-recessed` with type-to-filter dropdown
@@ -351,7 +394,7 @@ Every `<td>` in data tables must have a `data-col` attribute with its column nam
 Universal search accessible from every page via a `btn-thick-navy` **SEARCH** button in the page header + **Cmd+K** shortcut.
 
 #### Architecture
-- **Button:** `SearchButton` component dispatches `open-global-search` event
+- **Sidebar search button:** A recessed input-like element in the sidebar (below the date bar) with search icon, "Search…" text, and ⌘K hint dispatches `open-global-search` event. The standalone `SearchButton` component is no longer imported in page headers (removed from all 28 pages).
 - **Sidebar** listens for the event + Cmd+K, renders `GlobalSearch` modal
 - **API:** `POST /api/search` — 5 parallel Prisma queries (claims, invoices, bank transactions, suppliers, employees), role-scoped
 - **Hook:** `useGlobalSearch` — 300ms debounce, AbortController, min 2 chars
@@ -535,7 +578,7 @@ Keycap-style navigation strips flanking preview modals. Same material as `btn-th
 - Click matched/suggested rows → preview modal; click unmatched rows → match modal directly
 - **Table must never rearrange after confirm/match/unmatch.** API sorts by `[transaction_date asc, created_at asc, id asc]` for deterministic order. Scroll position is saved before reload and restored after React re-render via `requestAnimationFrame`. Apply this pattern to all tables that reload data after an action.
 
-**Date display:** Today's date shown in sidebar only (between logo and nav), not in page headers. `SearchButton` has no date.
+**Date display:** Today's date shown in sidebar only (between logo and nav), not in page headers. Search is also in the sidebar (recessed input-style button below date bar), not in page headers.
 
 **Filter bars:** Plain date inputs (start + end) directly — no preset dropdown (This Month/Last Month/Custom). Default is all time. Entering a date auto-sets custom range.
 
@@ -724,6 +767,7 @@ Every button that creates or reverses a Journal Entry **must** show a confirmati
 |------|------|
 | `app/api/search/route.ts` | 5 parallel Prisma queries, role-scoped |
 | `components/GlobalSearch.tsx` | Modal UI, keyboard nav, result grouping |
+| `components/Sidebar.tsx` | Search button (recessed input-style) + Cmd+K listener |
 
 ### Entities Searched
 Claims, Invoices, Bank Transactions, Suppliers, Employees — all in parallel via `Promise.all()`, max 6 results per type.
@@ -769,3 +813,38 @@ All background upload, scan, parse, or long-running operations use the shared `c
 - Claims/receipts batch upload + OCR scan
 - COA PDF parsing (minimized state)
 - **Every new upload or long-running parse operation must use this**
+
+---
+
+## 18. Global Toast Notifications (`ToastContext`)
+
+All user-facing feedback (success, error, info) uses the shared `ToastContext` provider and `useToast()` hook. Never build custom notification UI.
+
+### Usage
+```tsx
+import { useToast } from '@/contexts/ToastContext';
+
+const { showToast } = useToast();
+showToast('success', 'Invoice submitted', 'PI-2026-0042');
+showToast('error', 'Failed to delete', json.error);
+showToast('info', 'Processing...', 'This may take a moment');
+```
+
+### Types
+- `success` — green icon (`var(--match-green)`)
+- `error` — red icon (`var(--reject-red)`)
+- `info` — blue icon (`var(--primary)`)
+
+### Behavior
+- Auto-dismisses after 4 seconds
+- Stacked in top-right corner
+- Supports optional `detail` string (second line, smaller text)
+- Dismissible via click
+
+### Rules
+- **Always use `showToast()`** for user feedback after API calls — never use `alert()` or inline error banners for transient feedback
+- Import from `@/contexts/ToastContext`
+
+---
+
+Last verified: 2026-04-29

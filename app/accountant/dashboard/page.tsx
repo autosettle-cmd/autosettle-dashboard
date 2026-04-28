@@ -8,7 +8,7 @@ import { usePageTitle } from '@/lib/use-page-title';
 import GlAccountSelect from '@/components/GlAccountSelect';
 import { useFirm } from '@/contexts/FirmContext';
 import StatCard from '@/components/StatCard';
-import SearchButton from '@/components/SearchButton';
+
 import type { InvoicesPageConfig } from '@/components/pages/InvoicesPageContent';
 
 const InvoicePreviewPanel = dynamic(() => import('@/components/invoices/InvoicePreviewPanel'));
@@ -75,6 +75,7 @@ interface ClaimRow {
 
 interface InvoiceRow {
   id: string;
+  type: 'purchase' | 'sales';
   vendor_name_raw: string;
   invoice_number: string | null;
   issue_date: string;
@@ -581,7 +582,6 @@ export default function AccountantDashboard() {
             {getGreeting()}{firstName ? `, ${firstName}` : ''}
           </h1>
           <div className="flex items-center gap-3">
-            <SearchButton />
           </div>
         </header>
 
@@ -1045,6 +1045,7 @@ export default function AccountantDashboard() {
           setRejectModal={setRejectModal}
           deleteInvoice={invoiceDelete}
           refresh={refresh}
+          invoiceApiUrl={`${invoiceConfig.apiInvoices}/${fullInvoice.id}`}
           onPrev={(() => {
             const idx = pendingInvoices.findIndex(i => i.id === fullInvoice.id);
             return idx > 0 ? () => { setPreviewInvoice(pendingInvoices[idx - 1]); setFullInvoice(null); } : undefined;

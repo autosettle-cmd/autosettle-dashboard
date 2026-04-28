@@ -36,8 +36,7 @@ orderBy: [{ primary_sort: 'asc' }, { created_at: 'asc' }, { id: 'asc' }]
 - `app/api/admin/bank-reconciliation/statements/[id]/route.ts` — ✅
 - `app/api/invoices/route.ts` — ✅ fixed 2026-04-24
 - `app/api/admin/invoices/route.ts` — ✅ fixed 2026-04-24
-- `app/api/sales-invoices/route.ts` — ✅ fixed 2026-04-24
-- `app/api/admin/sales-invoices/route.ts` — ✅ fixed 2026-04-24
+- `app/api/invoices/route.ts` (covers both purchase + sales) — ✅
 - `app/api/claims/route.ts` — ✅ fixed 2026-04-24
 - `app/api/admin/claims/route.ts` — ✅ fixed 2026-04-24
 - `app/api/journal-entries/route.ts` — ✅ fixed 2026-04-24
@@ -60,7 +59,7 @@ requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop
 - `BankReconDetailContent.tsx` — ✅ `doConfirm`, `advanceAfterMatch`
 - `InvoicesPageContent.tsx` — ✅ fixed 2026-04-24
 - `ClaimsPageContent.tsx` — ✅ fixed 2026-04-24
-- `SalesInvoicesContent.tsx` — ✅ fixed 2026-04-24
+- `SalesInvoicesContent.tsx` — REMOVED (merged into InvoicesPageContent)
 - Any component that reloads table data after an action
 
 ---
@@ -77,7 +76,7 @@ const glCacheRef = useRef<Record<string, { glAccounts, categories, firmDefaultCo
 
 **Check these components:**
 - `InvoicesPageContent.tsx` — ✅ applied
-- `SalesInvoicesContent.tsx` — ✅ fixed 2026-04-24
+- `SalesInvoicesContent.tsx` — REMOVED (merged into InvoicesPageContent)
 - `BankReconDetailContent.tsx` — ✅ fixed 2026-04-24 (receiptGlAccounts state cache)
 - `BankReconPreviewModal.tsx` — ✅ applied
 - `SuppliersPageContent.tsx` — ✅ fixed 2026-04-24 (glCacheRef added)
@@ -99,7 +98,7 @@ All data tables with an Amount column must have a sticky `<tfoot>` showing item 
 - `InvoicesPageContent.tsx` — ✅ applied (td bg fixed 2026-04-24)
 - `BankReconDetailContent.tsx` — ✅ applied (Total + Matched rows)
 - `ClaimsPageContent.tsx` — ✅ applied
-- `SalesInvoicesContent.tsx` — ✅ fixed 2026-04-24
+- `SalesInvoicesContent.tsx` — REMOVED (merged into InvoicesPageContent)
 - `app/accountant/journal-entries/page.tsx` — ✅ fixed 2026-04-24
 - `SuppliersPageContent.tsx` — ✅ fixed 2026-04-24
 
@@ -111,7 +110,7 @@ All clickable table rows must have `hover:bg-[var(--surface-header)] transition-
 
 **Check all pages with `<tr>` that have `onClick` + `cursor-pointer`.**
 
-- `SalesInvoicesContent.tsx` — ✅ fixed 2026-04-24 (was hardcoded #F2F4F6)
+- `SalesInvoicesContent.tsx` — REMOVED (merged into InvoicesPageContent) (was hardcoded #F2F4F6)
 
 ---
 
@@ -196,9 +195,9 @@ API `create-voucher` routes accept `category_id` as optional (nullable).
 
 ## 13. Unified Invoices Page
 
-Single page showing both purchase (Invoice) and sales (SalesInvoice) invoices:
+Single page showing all invoice types from the unified Invoice table:
 - No RECEIVED/ISSUED sub-items in sidebar — single "INVOICES" link
-- Fetches both APIs in parallel, normalizes SalesInvoice into InvoiceRow shape
+- Single API fetch with `type` filter (no dual-fetch merge needed)
 - Type toggle buttons (PI/SI/PV/OR) — physical keycap style, multi-select
 - Filter bar: plain date inputs (no preset dropdown), dropdowns for Status/Approval/Payment
 - Type toggles use CSS classes `type-toggle-on` / `type-toggle-off` with CSS custom properties
@@ -217,13 +216,13 @@ All interactive elements must follow the design system's physical keycap treatme
 
 ---
 
-## 15. Date Display in Sidebar Only
+## 15. Date Display & Search in Sidebar
 
-Today's date is shown in the sidebar (between logo and nav), NOT in page headers. `SearchButton` must NOT include a date display. The sidebar is shared across all pages, so one location covers everything.
+Today's date is shown in the sidebar (between logo and nav), NOT in page headers. The search button is also embedded in the sidebar (below the date bar), styled as a recessed input-like element with a search icon, "Search…" text, and ⌘K hint. The `GlobalSearch` modal opens via this sidebar button or the Cmd+K shortcut. `SearchButton.tsx` still exists but is no longer imported in any page header — all 28 page headers had it removed.
 
-**Check:** `components/SearchButton.tsx` should have no date. `components/Sidebar.tsx` should have the date div above the nav.
+**Check:** `components/Sidebar.tsx` should have the date div and search button above the nav. No page headers should import `SearchButton`.
 
-**Status:** ✅ Verified correct (2026-04-24)
+**Status:** ✅ Search moved to sidebar (2026-04-28)
 
 ---
 
@@ -235,14 +234,14 @@ Filter bars should show plain date inputs (start + end) directly — no "This Mo
 - `InvoicesPageContent.tsx` — ✅ plain date inputs
 - `app/accountant/journal-entries/page.tsx` — ✅ plain date inputs
 - `ClaimsPageContent.tsx` — ✅ fixed 2026-04-24 (FilterBar component updated)
-- `SalesInvoicesContent.tsx` — ✅ fixed 2026-04-24
+- `SalesInvoicesContent.tsx` — REMOVED (merged into InvoicesPageContent)
 - `FilterBar.tsx` — ✅ fixed 2026-04-24 (removed preset dropdown)
 
 ---
 
-## 17. Journal Entries Type Badges + Toggles
+## 17. Ledger Entry (Journal Entries) Type Badges + Toggles
 
-Same PI/SI/PV/OR/CR/JV badge and toggle pattern as invoices page:
+Sidebar label is "Ledger Entry" (route unchanged: `/accountant/journal-entries`). Same PI/SI/PV/OR/CR/JV badge and toggle pattern as invoices page:
 - Type badge next to voucher number (colored pill)
 - Type toggle keycap buttons replacing "All Sources" dropdown
 - Client-side filtering by voucher prefix
@@ -563,18 +562,17 @@ PV (Payment Voucher) and OR (Official Receipt) records without documents can gen
 
 ### Pattern
 - `lib/generate-voucher-pdf.ts` — client-side jsPDF, returns Blob
-- Blob uploaded via `/api/invoices/[id]/attach` (PV) or `/api/sales-invoices/[id]/attach` (OR)
+- Blob uploaded via `/api/invoices/[id]/attach` (PV + OR, all invoice types)
 - `generated=true` flag skips OCR and dedup checks
 - After upload, preview refreshes (or modal closes + refresh in bank recon)
 
 ### Files
 - `components/invoices/InvoicePreviewPanel.tsx` — generate button for PV/OR without file
 - `components/bank-recon/BankReconPreviewModal.tsx` — generate button for matched PV/OR
-- `app/api/invoices/[id]/attach/route.ts` — accepts PV + OR, `generated` flag
-- `app/api/sales-invoices/[id]/attach/route.ts` — new endpoint for OR records
+- `app/api/invoices/[id]/attach/route.ts` — accepts all invoice types (PV + OR), `generated` flag
 
 ### Schema
-- `SalesInvoice` now has `file_url`, `file_download_url`, `thumbnail_url`, `file_hash` fields
+- Invoice (all types) has `file_url`, `file_download_url`, `thumbnail_url`, `file_hash` fields
 
 **Status:** ✅ PV + OR generation working (2026-04-27)
 
@@ -586,18 +584,18 @@ When a GL account is chosen during PV/OR creation in bank recon, it must be save
 
 ### The Rule
 The `gl_account_id` field on Invoice (PV) and SalesInvoice (OR) stores the user-chosen GL. The bank recon preview expects `contra_gl_account_id` in the API response. The API must map:
-- **Invoice (PV):** `contra_gl_account_id ?? gl_account_id ?? supplier.default_contra_gl_account_id`
-- **SalesInvoice (OR):** `gl_account_id` returned as `contra_gl_account_id`
+- **Invoice (PV, type='purchase'):** `contra_gl_account_id ?? gl_account_id ?? supplier.default_contra_gl_account_id`
+- **Invoice (OR, type='sales'):** `gl_account_id` returned as `contra_gl_account_id`
 
 ### Files
-- `app/api/bank-reconciliation/statements/[id]/route.ts` — accountant: must return `matched_invoice`, `matched_sales_invoice`, `matched_claims` with GL fields
-- `app/api/admin/bank-reconciliation/statements/[id]/route.ts` — admin: must be at parity with accountant version (was missing matched_invoice + matched_sales_invoice entirely)
-- `app/api/bank-reconciliation/create-voucher/route.ts` — saves `gl_account_id` on Invoice
-- `app/api/bank-reconciliation/create-receipt/route.ts` — saves `gl_account_id` on SalesInvoice
+- `app/api/bank-reconciliation/statements/[id]/route.ts` — accountant: must return `matched_invoice`, `matched_claims` with GL fields (sales invoices accessed via `matched_invoice_id`)
+- `app/api/admin/bank-reconciliation/statements/[id]/route.ts` — admin: must be at parity with accountant version
+- `app/api/bank-reconciliation/create-voucher/route.ts` — saves `gl_account_id` on Invoice (type='purchase')
+- `app/api/bank-reconciliation/create-receipt/route.ts` — saves `gl_account_id` on Invoice (type='sales')
 - `components/bank-recon/BankReconPreviewModal.tsx` — reads `contra_gl_account_id` from API response
 
 ### Admin-Accountant Parity
-Admin statements/[id] API must return the exact same data shape as the accountant version: `matched_invoice`, `matched_invoice_allocations`, `matched_sales_invoice`, `matched_claims`, `matched_payment`.
+Admin statements/[id] API must return the exact same data shape as the accountant version: `matched_invoice`, `matched_invoice_allocations`, `matched_claims`, `matched_payment`. Sales invoice matches use `matched_invoice_id` pointing to the same Invoice table.
 
 **Status:** ✅ Fixed (2026-04-28) — admin brought to parity, GL fallback chain added
 
@@ -674,13 +672,13 @@ If the primary Gemini API key fails or is missing, OCR falls back to `GOOGLE_AI_
 
 ## 36. Soft Delete System
 
-Invoice, SalesInvoice, Claim, Payment, BankStatement use soft deletes (30-day grace period).
+Invoice (both purchase and sales types), Claim, Payment, BankStatement use soft deletes (30-day grace period). SalesInvoice model has been removed — all invoice types are in the unified Invoice table.
 
 ### Architecture
 - `deleted_at DateTime?` + `deleted_by String?` on each model
 - Prisma `$extends` in `lib/prisma.ts` auto-filters `WHERE deleted_at IS NULL` on all reads
 - `prismaUnfiltered` export bypasses the filter (restore API + hard-delete cron only)
-- SalesInvoice partial unique index: `WHERE deleted_at IS NULL` on `(firm_id, invoice_number)`
+- Invoice partial unique index: `WHERE deleted_at IS NULL` on `(firm_id, invoice_number)`
 - Shared cascade logic in `lib/soft-delete.ts`
 
 ### Behavior
@@ -690,8 +688,8 @@ Invoice, SalesInvoice, Claim, Payment, BankStatement use soft deletes (30-day gr
 - Hard-delete cron: `app/api/cron/hard-delete-expired/route.ts` (weekly, 30-day cutoff)
 
 ### Delete Endpoint Blockers (Phase 0 fix)
-- SalesInvoice delete checks `SalesPaymentAllocation` count
-- Payment delete checks both `PaymentAllocation` AND `SalesPaymentAllocation`
+- Invoice (sales) delete checks `PaymentAllocation` count
+- Payment delete checks `PaymentAllocation`
 - Claims delete checks `PaymentReceipt`
 
 ### Pages
@@ -745,7 +743,206 @@ Every upload page must classify documents before processing and block/warn on wr
 All must check `!res.ok` before `res.json()`.
 
 ### Schema
-- `Invoice.doc_subtype`: `null` (PI/PV) or `'credit_note'` (CN)
-- `SalesInvoice.doc_subtype`: `null` (SI/OR) or `'debit_note'` (DN)
+- `Invoice.doc_subtype`: `null` (PI/PV/SI/OR) or `'credit_note'` (CN) or `'debit_note'` (DN)
 
 **Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 44. Invoice API Must Return Full Fields for All Types
+
+The `/api/invoices` GET response must include ALL fields needed by the unified invoices page for both purchase and sales types:
+
+### GL fields
+- `supplier_default_gl_id` — from `supplier.default_gl_account_id`
+- `supplier_default_contra_gl_id` — from `supplier.default_contra_gl_account_id`
+
+The Prisma include must select `default_gl_account_id` and `default_contra_gl_account_id` from the supplier relation.
+
+### File fields
+- `file_url`, `file_download_url`, `thumbnail_url`
+
+Without these, document preview shows "No document available" for all DN/CN/SI.
+
+**Files to check:** `app/api/invoices/route.ts` (GET handler), `components/pages/InvoicesPageContent.tsx`
+
+**Status:** ✅ Fixed (2026-04-28)
+
+---
+
+## 45. GL Saved to Supplier on Sales Invoice Creation
+
+When a sales invoice (SI/DN/OR) is created with GL accounts, save them to the supplier for future auto-fill — same as purchase invoices already do.
+
+### Rule
+- If `gl_account_id` is provided and supplier has no `default_gl_account_id`, save it
+- If `contra_gl_account_id` is provided, save it as `default_contra_gl_account_id`
+
+**Why:** Without this, approving a DN/SI never teaches the supplier's default GL, so future invoices for the same supplier always have empty GL fields.
+
+**Files to check:** `app/api/invoices/route.ts` (POST handler — updates supplier for both purchase and sales types), `app/api/invoices/batch/route.ts` (batch approval handles both types)
+
+**Status:** ✅ Fixed (2026-04-28)
+
+---
+
+## 46. Contra GL Fallback Chain in Submit New Invoice Modal
+
+The "Submit New Invoice" OCR handler must use the same contra GL fallback chain as the preview panel:
+
+1. Supplier `default_contra_gl_account_id`
+2. Alias lookup (`/api/suppliers/by-alias`)
+3. Vendor name matching against Liability GL accounts (stripped/fuzzy)
+4. Firm default trade payables (`glCacheRef.current[firmId].firmDefaultContra`)
+
+### Two OCR paths
+Both must have the full chain:
+- **File input handler** — accountant single upload
+- **Drag-drop handler** — accountant drag-drop upload
+
+**Why:** Previously only checked steps 1-2, so suppliers without saved contra GL always showed "SELECT TRADE PAYABLES GL" even when a matching Liability GL account existed.
+
+**Files to check:** `components/pages/InvoicesPageContent.tsx` — search for `setNewInvContraGlId` calls and verify the fallback chain matches the preview panel's `resolveGl` function.
+
+**Status:** ✅ Fixed (2026-04-28)
+
+---
+
+## 47. Unified Invoice Table (SalesInvoice Merged into Invoice)
+
+The `SalesInvoice`, `SalesInvoiceItem`, and `SalesPaymentAllocation` models have been removed. All invoice types (PI, SI, CN, DN, PV, OR) now live in the single `Invoice` table.
+
+### Schema
+- `Invoice.type`: `'purchase'` (default) or `'sales'` — discriminator replacing the old table split
+- `Invoice.currency`: `String @default("MYR")` — was only on SalesInvoice
+- 8 LHDN fields added to Invoice (lhdn_submission_uid, lhdn_document_uuid, etc.)
+- `InvoiceLine` now has `discount`, `tax_type`, `tax_rate` (from SalesInvoiceItem)
+- `BankTransaction.matched_sales_invoice_id` renamed to `matched_invoice_id`
+- `PaymentAllocation` handles both purchase and sales allocations
+
+### API
+- Single `/api/invoices` endpoint with `type` query param filter
+- POST accepts `type: 'sales'` for SI/DN/OR creation
+- JV source type: `invoice_posting` for purchase, `sales_invoice_posting` for sales
+- `/api/sales-invoices` routes deleted entirely
+
+### Frontend
+- `InvoicesPageContent` uses single API fetch (no dual-fetch merge)
+- `InvoiceRow.type` replaces `_type` discriminator
+- `apiSalesInvoices` config removed
+- `SalesInvoicesContent.tsx` deleted
+
+### Invariants
+- Every query for purchase invoices must include `type: 'purchase'` (or omit type for all)
+- Every query for sales invoices must include `type: 'sales'`
+- Bank recon uses `matched_invoice_id` (not `matched_sales_invoice_id`)
+- Supplier relation is `supplier` (not `buyer`) for all invoice types
+- `vendor_name_raw`, `uploaded_by`, `category_id`, `confidence`, `submitted_via` are nullable (sales invoices don't have them)
+
+**Files to check:** `prisma/schema.prisma` (Invoice model), all `/api/invoices` routes, all `/api/bank-reconciliation` routes, `components/pages/InvoicesPageContent.tsx`
+
+**Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 48. GL Defaults Modal Must Use GlAccountSelect
+
+The GL Defaults setup modal (`SetupGlDefaultsModal`) must use `GlAccountSelect` — never plain `<select>` — for all 4 GL dropdowns.
+
+### Requirements
+- **Searchable** — user types to filter accounts
+- **All account types visible** — `preferredType` shows recommended type first, but all types accessible
+- **+ Add new account** — inline account creation without leaving the modal
+- **Portal dropdown** — uses `createPortal` so dropdown is never clipped by modal overflow
+
+### Props per field
+| Field | preferredType | defaultType | defaultBalance |
+|-------|--------------|-------------|----------------|
+| Trade Payables | Liability | Liability | Credit |
+| Staff Claims | Liability | Liability | Credit |
+| Trade Receivables | Asset | Asset | Debit |
+| Retained Earnings | Equity | Equity | Credit |
+
+**Why:** Plain `<select>` doesn't support search, can't show all account types grouped, and can't create new accounts inline. This is especially bad during onboarding when the COA might be incomplete.
+
+**Files to check:** `components/onboarding/SetupGlDefaultsModal.tsx` — must import and use `GlAccountSelect`, not `<select>`.
+
+**Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 49. Category → Account Mapping Must Use GlAccountSelect
+
+The Category → Account Mapping modal (`SetupCategoriesModal`) must use `GlAccountSelect` for every category row — never plain `<select>`.
+
+### Requirements
+- Title: "Category → Account Mapping" (not "GL Mapping")
+- Each row: category name + `GlAccountSelect` with `preferredType="Expense"`, all types visible
+- Searchable, with "+ Add new account" inline
+- Portal dropdown — must render above the scrollable table container
+
+**Why:** Same as #48 — plain `<select>` doesn't support search or inline account creation. With 19+ categories, users need to search quickly rather than scrolling through hundreds of GL accounts per row.
+
+**Files to check:** `components/onboarding/SetupCategoriesModal.tsx` — must use `GlAccountSelect`. `components/onboarding/SetupChecklist.tsx` — label must say "Category → Account Mapping".
+
+**Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 50. Press-Then-Act on All Physical Buttons
+
+Every `btn-thick-*` button that triggers a visible transition (navigation, modal open, step change) must show the press-down animation **before** the action fires. Without this the button feels broken — the action happens instantly and the user never sees the press.
+
+### Pattern
+```tsx
+onClick={(e) => {
+  e.currentTarget.classList.add('active');
+  setTimeout(() => doAction(), 150);
+}}
+```
+
+For navigation links (sidebar, role selector):
+```tsx
+<a href={href} onClick={(e) => {
+  e.preventDefault();
+  e.currentTarget.classList.add('active');
+  setTimeout(() => router.push(href), 150);
+}}>
+```
+
+### Where it applies
+- **Sidebar nav items** (`btn-thick-sidebar`) — never use bare `<Link>`, use `<a>` with press-then-navigate
+- **Signup role selector** — press then show form / redirect
+- **Any CTA button** (`btn-thick-navy`, `btn-thick-green`, etc.) that opens a modal, changes a step, or navigates
+- Does NOT apply to form submit buttons (those have loading states that handle feedback)
+
+### Files to check
+- `components/Sidebar.tsx` — all nav `<a>` elements must use `handleNavClick` with 150ms delay
+- `app/signup/page.tsx` — role buttons must use press-then-act
+- `app/signup/accountant/page.tsx` — role buttons must use press-then-act
+- Any new page adding `btn-thick-*` navigation buttons
+
+**Status:** ✅ Implemented (2026-04-28)
+
+---
+
+## 51. Invoice Submit Requires GL + Amount + Date
+
+The "Submit Invoice" button in `InvoiceCreateModal` must be **disabled** when required fields are missing. A hover tooltip on the disabled button lists what's missing.
+
+### Required fields
+- Issue Date
+- Total Amount (non-zero)
+- Expense GL (Debit) — when `config.showGlFields` is true
+- Contra GL (Credit) — when `config.showGlFields` is true
+
+### Pattern
+- Compute `missingFields` array from field state
+- `canSubmit = missingFields.length === 0`
+- Button `disabled={!canSubmit || submitting || scanning}`
+- Tooltip: `group/submit` wrapper with absolute-positioned tooltip showing bullet list of missing fields
+
+### Files to check
+- `components/invoices/InvoiceCreateModal.tsx` — submit button must check `canSubmit`
+
+**Status:** ✅ Implemented (2026-04-29)

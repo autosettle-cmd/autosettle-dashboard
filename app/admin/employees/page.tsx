@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTableSort } from '@/lib/use-table-sort';
 import { usePageTitle } from '@/lib/use-page-title';
-import SearchButton from '@/components/SearchButton';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface EmployeeRow {
@@ -308,7 +308,6 @@ export default function AdminEmployeesPage() {
 
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Employees</h1>
-          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-auto flex flex-col gap-4 p-8 pl-14 paper-texture animate-in">

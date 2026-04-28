@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [firmId, setFirmId] = useState("");
+  const [role, setRole] = useState<'employee' | 'admin' | null>(null);
   const [firmSearch, setFirmSearch] = useState("");
   const [firms, setFirms] = useState<Firm[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -301,9 +302,57 @@ export default function SignupPage() {
                     Create account
                   </h1>
                   <p className="text-white/35 text-title-sm">
-                    Sign up as an employee to get started
+                    {role ? `Signing up as ${role}` : 'Choose your role to get started'}
                   </p>
                 </div>
+
+                {/* Step 1: Role selection */}
+                {!role ? (
+                  <div className="flex flex-col gap-4">
+                    {([
+                      { key: 'employee' as const, label: 'Employee', desc: 'Submit claims & receipts', icon: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' },
+                      { key: 'admin' as const, label: 'Admin', desc: 'Manage your company', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197' },
+                    ]).map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        onMouseDown={(e) => { e.currentTarget.classList.add('active'); }}
+                        onClick={(e) => { const btn = e.currentTarget; btn.classList.add('active'); setTimeout(() => setRole(r.key), 150); }}
+                        className="btn-thick-navy w-full py-5 flex flex-col items-center gap-1.5 cursor-pointer"
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <path d={r.icon} /><circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <span className="text-sm font-bold uppercase tracking-widest">{r.label}</span>
+                        <span className="text-[10px] opacity-50">{r.desc}</span>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.currentTarget.classList.add('active'); }}
+                      onClick={(e) => { const btn = e.currentTarget; btn.classList.add('active'); setTimeout(() => { window.location.href = '/signup/accountant'; }, 150); }}
+                      className="btn-thick-navy w-full py-5 flex flex-col items-center gap-1.5 cursor-pointer"
+                    >
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                      <span className="text-sm font-bold uppercase tracking-widest">Accountant</span>
+                      <span className="text-[10px] opacity-50">Create & manage your firm</span>
+                    </button>
+                  </div>
+                ) : (
+                <>
+                {/* Back button */}
+                <button
+                  type="button"
+                  onClick={() => setRole(null)}
+                  className="flex items-center gap-1.5 text-white/30 hover:text-white/60 text-xs font-medium mb-4 transition-colors cursor-pointer"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m15 18-6-6 6-6" />
+                  </svg>
+                  Change role
+                </button>
 
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                   <div>
@@ -535,6 +584,8 @@ export default function SignupPage() {
                     )}
                   </button>
                 </form>
+                </>
+                )}
               </div>
             )}
           </div>
@@ -553,14 +604,6 @@ export default function SignupPage() {
               className="text-white/50 hover:text-white font-medium transition-colors duration-300 underline decoration-white/20 underline-offset-2 hover:decoration-white/50"
             >
               Sign in
-            </a>
-            <br />
-            <span className="text-white/15">Are you an accountant?{" "}</span>
-            <a
-              href="/signup/accountant"
-              className="text-white/50 hover:text-white font-medium transition-colors duration-300 underline decoration-white/20 underline-offset-2 hover:decoration-white/50"
-            >
-              Create your firm
             </a>
           </p>
         </div>

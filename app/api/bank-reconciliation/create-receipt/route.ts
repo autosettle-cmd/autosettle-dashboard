@@ -96,26 +96,28 @@ export async function POST(request: NextRequest) {
     // Generate OR number if no reference provided — OR-{seq} per-firm sequence
     let receiptNumber = reference;
     if (!receiptNumber) {
-      const existingOR = await prisma.salesInvoice.findMany({
-        where: { firm_id: firmId, invoice_number: { startsWith: 'OR-' } },
+      const existingOR = await prisma.invoice.findMany({
+        where: { firm_id: firmId, type: 'sales', invoice_number: { startsWith: 'OR-' } },
         select: { invoice_number: true },
         orderBy: { created_at: 'desc' },
         take: 200,
       });
       let maxNum = 0;
       for (const inv of existingOR) {
-        const m = inv.invoice_number.match(/OR-(\d+)/);
+        const m = (inv.invoice_number ?? '').match(/OR-(\d+)/);
         if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
       }
       receiptNumber = `OR-${String(maxNum + 1).padStart(3, '0')}`;
     }
 
-    // Create SalesInvoice record (official receipt = issued invoice, already paid)
-    const salesInvoice = await prisma.salesInvoice.create({
+    // Create Invoice record (official receipt = sales invoice, already paid)
+    const salesInvoice = await prisma.invoice.create({
       data: {
+        type: 'sales',
         firm_id: firmId,
         supplier_id: resolvedSupplierId,
-        created_by: session.user.employee_id || null,
+        uploaded_by: session.user.employee_id || null,
+        vendor_name_raw: merchant || 'Official Receipt',
         invoice_number: receiptNumber,
         issue_date: txn.transaction_date,
         subtotal: amount,
@@ -123,6 +125,7 @@ export async function POST(request: NextRequest) {
         total_amount: amount,
         amount_paid: amount,
         payment_status: 'paid',
+        status: 'reviewed',
         approval: 'approved',
         notes: notes || `Official receipt — ${merchant}`,
         category_id: category_id || null,
@@ -135,7 +138,7 @@ export async function POST(request: NextRequest) {
       where: { id: bankTransactionId },
       data: {
         recon_status: 'manually_matched',
-        matched_sales_invoice_id: salesInvoice.id,
+        matched_invoice_id: salesInvoice.id,
         matched_at: new Date(),
         matched_by: session.user.id,
         notes: notes || `Official receipt — ${supplier.name}${reference ? ` (${reference})` : ''}`,
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({
-      data: { recon_status: 'manually_matched', sales_invoice_id: salesInvoice.id },
+      data: { recon_status: 'manually_matched', invoice_id: salesInvoice.id },
       error: null,
     });
   } catch (err) {

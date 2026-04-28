@@ -128,7 +128,7 @@ export async function PATCH(
       }
 
       // Compare vendor
-      if (ocrResult.vendor && ocrResult.vendor.toLowerCase() !== invoice.vendor_name_raw.toLowerCase()) {
+      if (ocrResult.vendor && invoice.vendor_name_raw && ocrResult.vendor.toLowerCase() !== invoice.vendor_name_raw.toLowerCase()) {
         warnings.push(
           `OCR vendor "${ocrResult.vendor}" differs from recorded "${invoice.vendor_name_raw}"`
         );

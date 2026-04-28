@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import GlAccountSelect from '@/components/GlAccountSelect';
 
 interface GlAccount {
   id: string;
@@ -61,6 +62,11 @@ export default function SetupGlDefaultsModal({ firmId, onComplete, onClose }: Pr
       .catch(() => {});
   }, [firmId]);
 
+  const handleAccountCreated = (account: GlAccount) => {
+    setAccounts(prev => [...prev, account]);
+    glCacheRef.current[firmId] = [...(glCacheRef.current[firmId] ?? []), account];
+  };
+
   const handleSave = async () => {
     if (!tradePayables || !staffClaims) {
       setError('Trade Payables and Staff Claims Payable are required.');
@@ -90,11 +96,6 @@ export default function SetupGlDefaultsModal({ firmId, onComplete, onClose }: Pr
     finally { setSaving(false); }
   };
 
-  const liabilityAccounts = accounts.filter(a => a.account_type === 'Liability');
-  const assetAccounts = accounts.filter(a => a.account_type === 'Asset');
-  const equityAccounts = accounts.filter(a => a.account_type === 'Equity');
-
-  const selectClass = 'input-recessed w-full text-sm';
   const labelClass = 'block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1';
 
   return (
@@ -124,31 +125,59 @@ export default function SetupGlDefaultsModal({ firmId, onComplete, onClose }: Pr
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Trade Payables (Invoices) *</label>
-                <select value={tradePayables} onChange={e => setTradePayables(e.target.value)} className={selectClass}>
-                  <option value="">Select...</option>
-                  {liabilityAccounts.map(a => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                </select>
+                <GlAccountSelect
+                  value={tradePayables}
+                  onChange={setTradePayables}
+                  accounts={accounts}
+                  firmId={firmId}
+                  preferredType="Liability"
+                  defaultType="Liability"
+                  defaultBalance="Credit"
+                  onAccountCreated={handleAccountCreated}
+                  placeholder="Search liability accounts..."
+                />
               </div>
               <div>
                 <label className={labelClass}>Staff Claims Payable *</label>
-                <select value={staffClaims} onChange={e => setStaffClaims(e.target.value)} className={selectClass}>
-                  <option value="">Select...</option>
-                  {liabilityAccounts.map(a => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                </select>
+                <GlAccountSelect
+                  value={staffClaims}
+                  onChange={setStaffClaims}
+                  accounts={accounts}
+                  firmId={firmId}
+                  preferredType="Liability"
+                  defaultType="Liability"
+                  defaultBalance="Credit"
+                  onAccountCreated={handleAccountCreated}
+                  placeholder="Search liability accounts..."
+                />
               </div>
               <div>
                 <label className={labelClass}>Trade Receivables (Sales)</label>
-                <select value={tradeReceivables} onChange={e => setTradeReceivables(e.target.value)} className={selectClass}>
-                  <option value="">Select...</option>
-                  {assetAccounts.map(a => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                </select>
+                <GlAccountSelect
+                  value={tradeReceivables}
+                  onChange={setTradeReceivables}
+                  accounts={accounts}
+                  firmId={firmId}
+                  preferredType="Asset"
+                  defaultType="Asset"
+                  defaultBalance="Debit"
+                  onAccountCreated={handleAccountCreated}
+                  placeholder="Search asset accounts..."
+                />
               </div>
               <div>
                 <label className={labelClass}>Retained Earnings (Year-End)</label>
-                <select value={retainedEarnings} onChange={e => setRetainedEarnings(e.target.value)} className={selectClass}>
-                  <option value="">Select...</option>
-                  {equityAccounts.map(a => <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>)}
-                </select>
+                <GlAccountSelect
+                  value={retainedEarnings}
+                  onChange={setRetainedEarnings}
+                  accounts={accounts}
+                  firmId={firmId}
+                  preferredType="Equity"
+                  defaultType="Equity"
+                  defaultBalance="Credit"
+                  onAccountCreated={handleAccountCreated}
+                  placeholder="Search equity accounts..."
+                />
               </div>
             </div>
           )}

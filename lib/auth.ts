@@ -55,9 +55,16 @@ export const authOptions: NextAuthOptions = {
         token.firm_id = user.firm_id;
         token.employee_id = user.employee_id;
       }
+      // Validate user still exists in DB (prevents stale sessions after DB reset)
+      if (token.sub) {
+        const { prisma: db } = await import('@/lib/prisma');
+        const exists = await db.user.findUnique({ where: { id: token.sub }, select: { id: true } });
+        if (!exists) return { ...token, invalidated: true };
+      }
       return token;
     },
     async session({ session, token }) {
+      if (token?.invalidated) return { ...session, user: undefined as unknown as typeof session.user };
       if (token && session.user) {
         session.user.id = token.sub as string;
         session.user.role = token.role;

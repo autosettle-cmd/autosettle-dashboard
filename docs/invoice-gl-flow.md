@@ -120,6 +120,8 @@ Accountant only needs to verify, not re-select
 
 ## Sales Invoices (Receivables)
 
+Sales invoices now live in the same `Invoice` table with `type: 'sales'`. The supplier relation represents the buyer.
+
 ### JV Structure (reversed from purchase invoices)
 
 ```
@@ -132,7 +134,7 @@ CR  Revenue GL                   RM X,XXX.XX
 #### Revenue GL (Credit)
 
 ```
-1. salesInvoice.gl_account_id    (previously saved on this invoice)
+1. invoice.gl_account_id         (previously saved on this invoice, type='sales')
 2. category -> GL mapping        (category.gl_account_id)
 3. empty                         (accountant must select manually)
 ```
@@ -140,27 +142,24 @@ CR  Revenue GL                   RM X,XXX.XX
 #### Contra GL — Trade Receivables (Debit)
 
 ```
-1. salesInvoice.contra_gl_account_id   (previously saved)
-2. empty                                (accountant must select manually)
+1. invoice.contra_gl_account_id  (previously saved)
+2. empty                         (accountant must select manually)
 ```
 
 ### Current Gaps (TODO)
 
 | Gap | Purchase Invoice | Sales Invoice |
 |-----|-----------------|---------------|
-| **Supplier/customer learning** | Supplier learns GL on approval | No learning — manual every time |
+| **Supplier/customer learning** | Supplier learns GL on approval ✅ | Supplier learns GL on creation ✅ |
 | **Fuzzy name matching** | Matches vendor name against Liability GLs | Not implemented |
 | **Firm default contra GL** | Falls back to `default_trade_payables_gl_id` | `default_trade_receivables_gl_id` exists in schema but NOT used |
 | **Alias-based GL lookup** | Via `/api/suppliers/by-alias` | Not implemented |
-| **Transaction safety** | Transactional (invoice + JV + learning) | **NOT transactional — needs fix** |
-| **Auto-approve on upload** | Transactional if GL provided | JV created outside transaction |
+| **Transaction safety** | Transactional (invoice + JV + learning) | Same unified API — transactional ✅ |
 
 ### Planned Improvements
 
-1. **Transaction wrap** — same pattern as purchase invoices
-2. **Customer GL learning** — save Revenue GL + Trade Receivables to customer record on approval
-3. **Firm default fallback** — use `default_trade_receivables_gl_id` when no contra GL selected
-4. **Customer name matching** — fuzzy match buyer name against Asset GL account names
+1. **Firm default fallback** — use `default_trade_receivables_gl_id` when no contra GL selected
+2. **Customer name matching** — fuzzy match buyer name against Asset GL account names
 
 ---
 
@@ -200,7 +199,7 @@ CR  Revenue GL                   RM X,XXX.XX
 ### What They Are
 
 - **Payment Voucher (PV):** An Invoice record created from a bank recon **debit** transaction (money going out). Pre-approved, auto-paid, no document.
-- **Official Receipt (OR):** A SalesInvoice record created from a bank recon **credit** transaction (money coming in). Pre-approved, auto-paid, no document.
+- **Official Receipt (OR):** An Invoice record (`type: 'sales'`) created from a bank recon **credit** transaction (money coming in). Pre-approved, auto-paid, no document.
 
 Both are created when a bank transaction has no matching invoice — the accountant creates one inline to record the payment.
 
@@ -271,8 +270,11 @@ PV invoices with `file_url === null` show an amber "No doc" badge:
 | `components/invoices/InvoicePreviewPanel.tsx` | Approval confirmation modal with JV preview (shows line items when present) |
 
 ### Sales Invoices
+Sales invoices are now managed through the unified Invoice table (`type: 'sales'`) and the same API endpoints:
 | File | Role |
 |------|------|
-| `components/SalesInvoicesContent.tsx` | Sales invoice page, GL selection, approval actions |
-| `app/api/sales-invoices/route.ts` | Sales invoice creation + auto-approve (needs transaction wrap) |
-| `app/api/sales-invoices/batch/route.ts` | Batch sales invoice approval (needs transaction wrap) |
+| `components/pages/InvoicesPageContent.tsx` | Unified page — type toggle filters PI/SI/PV/OR/CN/DN |
+| `app/api/invoices/route.ts` | Handles both purchase and sales — POST with `type: 'sales'` for SI/DN/OR |
+| `app/api/invoices/batch/route.ts` | Batch approval handles both types |
+
+Last verified: 2026-04-29

@@ -33,7 +33,7 @@ const STEPS: { key: StepKey; label: string; description: string; optional?: bool
   { key: 'firmDetails', label: 'Firm Details', description: 'Name, registration number, and contact email' },
   { key: 'chartOfAccounts', label: 'Chart of Accounts', description: 'GL accounts, tax codes, and category mappings' },
   { key: 'glDefaults', label: 'GL Defaults', description: 'Set default contra accounts for invoices, claims, and year-end' },
-  { key: 'categories', label: 'Category → GL Mapping', description: 'Map categories to GL expense accounts for auto-suggestion' },
+  { key: 'categories', label: 'Category → Account Mapping', description: 'Map categories to GL expense accounts for auto-suggestion' },
   { key: 'fiscalYear', label: 'Fiscal Year', description: 'Create your first fiscal year with 12 monthly periods' },
   { key: 'admin', label: 'Add Admin', description: 'Create an admin user for this firm', optional: true },
 ];

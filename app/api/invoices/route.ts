@@ -27,9 +27,11 @@ export async function GET(request: NextRequest) {
   const overdue = searchParams.get('overdue');
   const search = searchParams.get('search');
   const takeParam = searchParams.get('take') ? parseInt(searchParams.get('take')!) : undefined;
+  const type = searchParams.get('type'); // 'purchase' | 'sales' | null (all)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scope: any = { ...firmScope(firmIds, firmId) };
+  if (type) scope.type = type;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dateFilter: any = {};
   if (dateFrom || dateTo) {
@@ -95,23 +97,25 @@ export async function GET(request: NextRequest) {
 
   const data = invoices.map((inv) => ({
     id: inv.id,
+    type: inv.type,
     vendor_name_raw: inv.vendor_name_raw,
     invoice_number: inv.invoice_number,
     issue_date: inv.issue_date,
     due_date: inv.due_date,
     payment_terms: inv.payment_terms,
+    currency: inv.currency,
     subtotal: inv.subtotal?.toString() ?? null,
     tax_amount: inv.tax_amount?.toString() ?? null,
     total_amount: inv.total_amount.toString(),
     amount_paid: inv.amount_paid.toString(),
-    category_name: inv.category.name,
+    category_name: inv.category?.name ?? null,
     category_id: inv.category_id,
     status: inv.status,
     payment_status: inv.payment_status,
     supplier_id: inv.supplier_id,
     supplier_name: inv.supplier?.name ?? null,
     supplier_link_status: inv.supplier_link_status,
-    uploader_name: inv.uploader.name,
+    uploader_name: inv.uploader?.name ?? null,
     firm_name: inv.firm.name,
     firm_id: inv.firm_id,
     confidence: inv.confidence,
@@ -169,19 +173,30 @@ export async function POST(request: NextRequest) {
     const contraGlAccountId = formData.get('contra_gl_account_id') as string | null;
     const isBatch = formData.get('batch') === 'true';
     const docSubtype = formData.get('doc_subtype') as string | null; // 'credit_note' for CN
+    const invoiceType = (formData.get('type') as string | null) || 'purchase'; // 'purchase' or 'sales'
+    const currency = (formData.get('currency') as string | null) || 'MYR';
     const file = formData.get('file') as File | null;
 
-    if (!firmId || !vendorName || !issueDate || !totalAmountStr) {
-      const missing = [!firmId && 'firm', !vendorName && 'vendor name', !issueDate && 'issue date', !totalAmountStr && 'total amount'].filter(Boolean);
+    const isSalesInvoice = invoiceType === 'sales';
+
+    if (!firmId || !issueDate || !totalAmountStr) {
+      const missing = [!firmId && 'firm', !issueDate && 'issue date', !totalAmountStr && 'total amount'].filter(Boolean);
       return NextResponse.json(
         { data: null, error: `Missing required fields: ${missing.join(', ')}` },
         { status: 400 }
       );
     }
+    // vendor_name required for purchase invoices
+    if (!isSalesInvoice && !vendorName) {
+      return NextResponse.json(
+        { data: null, error: 'Missing required field: vendor name' },
+        { status: 400 }
+      );
+    }
 
-    // Auto-assign "Miscellaneous" category if not provided
+    // Auto-assign "Miscellaneous" category if not provided (optional for sales invoices)
     let resolvedCategoryId = categoryId;
-    if (!resolvedCategoryId) {
+    if (!resolvedCategoryId && !isSalesInvoice) {
       const misc = await prisma.category.findFirst({ where: { name: 'Miscellaneous' }, select: { id: true } });
       if (!misc) {
         return NextResponse.json({ data: null, error: 'No default category found. Please select a category.' }, { status: 400 });
@@ -218,27 +233,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Supplier matching ──
-    let supplierId: string;
-    let linkStatus: 'auto_matched' | 'unmatched' | 'confirmed';
+    // ── Supplier matching (skip for sales invoices without vendor name) ──
+    let supplierId: string | null = null;
+    let linkStatus: 'auto_matched' | 'unmatched' | 'confirmed' = 'unmatched';
 
-    if (supplierIdParam) {
-      // User explicitly selected an existing supplier
+    if (vendorName) {
+      if (supplierIdParam) {
+        // User explicitly selected an existing supplier
+        supplierId = supplierIdParam;
+        linkStatus = 'confirmed';
+        const normalizedVendor = vendorName.toLowerCase().trim();
+        const existingAlias = await prisma.supplierAlias.findFirst({
+          where: { alias: normalizedVendor, supplier_id: supplierIdParam },
+        });
+        if (!existingAlias) {
+          await prisma.supplierAlias.create({
+            data: { supplier_id: supplierIdParam, alias: normalizedVendor, is_confirmed: true },
+          }).catch(() => {});
+        }
+      } else {
+        const resolved = await resolveSupplier(vendorName, firmId);
+        supplierId = resolved.supplierId;
+        linkStatus = resolved.linkStatus;
+      }
+    } else if (supplierIdParam) {
       supplierId = supplierIdParam;
       linkStatus = 'confirmed';
-      const normalizedVendor = vendorName.toLowerCase().trim();
-      const existingAlias = await prisma.supplierAlias.findFirst({
-        where: { alias: normalizedVendor, supplier_id: supplierIdParam },
-      });
-      if (!existingAlias) {
-        await prisma.supplierAlias.create({
-          data: { supplier_id: supplierIdParam, alias: normalizedVendor, is_confirmed: true },
-        }).catch(() => {});
-      }
-    } else {
-      const resolved = await resolveSupplier(vendorName, firmId);
-      supplierId = resolved.supplierId;
-      linkStatus = resolved.linkStatus;
     }
 
     // ── Calculate due date from payment terms if not provided ──
@@ -350,21 +370,23 @@ export async function POST(request: NextRequest) {
           const inv = await tx.invoice.create({
             data: {
               firm_id: firmId,
+              type: invoiceType,
               uploaded_by: uploaderEmployee.id,
               supplier_id: supplierId,
               supplier_link_status: supplierId ? 'confirmed' : linkStatus,
-              vendor_name_raw: vendorName,
+              vendor_name_raw: vendorName || null,
               invoice_number: invoiceNumber || null,
               issue_date: new Date(issueDate),
               due_date: computedDueDate ? new Date(computedDueDate) : null,
               payment_terms: paymentTerms || null,
+              currency,
               notes: notes || null,
               doc_subtype: docSubtype || null,
               total_amount: totalAmount,
-              category_id: resolvedCategoryId!,
+              category_id: resolvedCategoryId || null,
               gl_account_id: glAccountId || null,
               contra_gl_account_id: resolvedContraGlId || null,
-              confidence: 'HIGH',
+              confidence: isSalesInvoice ? undefined : 'HIGH',
               status: 'reviewed',
               approval: 'approved',
               payment_status: 'unpaid',
@@ -387,16 +409,16 @@ export async function POST(request: NextRequest) {
           await createJournalEntry({
             firmId,
             postingDate: new Date(issueDate),
-            description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${vendorName}`,
-            sourceType: 'invoice_posting',
+            description: `${isCreditNote ? 'Credit Note' : inv.category?.name ?? 'Sales'} — ${vendorName || 'Customer'}`,
+            sourceType: isSalesInvoice ? 'sales_invoice_posting' : 'invoice_posting',
             sourceId: inv.id,
             lines: isCreditNote
               ? [
                   { glAccountId: resolvedContraGlId!, debitAmount: absAmount, creditAmount: 0, description: 'Trade Payables (reversal)' },
-                  { glAccountId: glAccountId!, debitAmount: 0, creditAmount: absAmount, description: vendorName },
+                  { glAccountId: glAccountId!, debitAmount: 0, creditAmount: absAmount, description: vendorName || 'Customer' },
                 ]
               : [
-                  { glAccountId: glAccountId!, debitAmount: absAmount, creditAmount: 0, description: vendorName },
+                  { glAccountId: glAccountId!, debitAmount: absAmount, creditAmount: 0, description: vendorName || 'Customer' },
                   { glAccountId: resolvedContraGlId!, debitAmount: 0, creditAmount: absAmount, description: 'Trade Payables' },
                 ],
             createdBy: session.user.id,
@@ -418,22 +440,24 @@ export async function POST(request: NextRequest) {
       : await prisma.invoice.create({
           data: {
             firm_id: firmId,
+            type: invoiceType,
             uploaded_by: uploaderEmployee.id,
             supplier_id: supplierId,
             supplier_link_status: linkStatus,
-            vendor_name_raw: vendorName,
+            vendor_name_raw: vendorName || null,
             invoice_number: invoiceNumber || null,
             issue_date: new Date(issueDate),
             due_date: computedDueDate ? new Date(computedDueDate) : null,
             payment_terms: paymentTerms || null,
+            currency,
             notes: notes || null,
             doc_subtype: docSubtype || null,
             total_amount: totalAmount,
-            category_id: resolvedCategoryId!,
+            category_id: resolvedCategoryId || null,
             gl_account_id: glAccountId || null,
             contra_gl_account_id: resolvedContraGlId || null,
-            confidence: 'HIGH',
-            status: 'reviewed',
+            confidence: isSalesInvoice ? undefined : 'HIGH',
+            status: isSalesInvoice ? 'reviewed' : 'reviewed',
             approval: 'pending_approval',
             payment_status: 'unpaid',
             amount_paid: 0,
@@ -451,12 +475,13 @@ export async function POST(request: NextRequest) {
 
     const data = {
       id: invoice.id,
+      type: invoice.type,
       vendor_name_raw: invoice.vendor_name_raw,
       invoice_number: invoice.invoice_number,
       issue_date: invoice.issue_date,
       due_date: invoice.due_date,
       total_amount: invoice.total_amount.toString(),
-      category_name: invoice.category.name,
+      category_name: invoice.category?.name ?? null,
       supplier_name: invoice.supplier?.name ?? null,
       supplier_link_status: invoice.supplier_link_status,
       status: invoice.status,

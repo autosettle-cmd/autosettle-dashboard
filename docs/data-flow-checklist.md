@@ -113,17 +113,19 @@ Use this form to verify every data path in the app. For each flow, check if the 
 
 ## 5. SALES INVOICES (Accounts Receivable / Issued)
 
+Now stored in the unified `Invoice` table with `type: 'sales'`. Same API endpoints as purchase invoices.
+
 ### 5a. Sales Invoice Creation
 | Step | Expected | Correct? | Notes / Changes Needed |
 |------|----------|----------|----------------------|
-| Manual creation on Issued page | Status: `pending_approval` | [ ] | |
-| Created via Official Receipt (bank recon) | Status: `approved`, payment: `paid`, linked to bank txn | [ ] | |
+| Manual creation on Invoices page (SI toggle) | Invoice with `type: 'sales'`, status: `pending_approval` | [ ] | |
+| Created via Official Receipt (bank recon) | Invoice with `type: 'sales'`, status: `approved`, payment: `paid`, linked to bank txn | [ ] | |
 
 ### 5b. Sales Invoice Approval & Payment
 | Step | Expected | Correct? | Notes / Changes Needed |
 |------|----------|----------|----------------------|
-| Accountant approves sales invoice | JV created? | [ ] | |
-| Bank recon match to sales invoice | `matched_sales_invoice_id` set on BankTransaction | [ ] | |
+| Accountant approves sales invoice | JV created (`sales_invoice_posting`) | [ ] | |
+| Bank recon match to sales invoice | `matched_invoice_id` set on BankTransaction | [ ] | |
 | LHDN e-invoicing submission | Only if Phase 4 API connected | [ ] | |
 
 ---
@@ -142,7 +144,7 @@ Use this form to verify every data path in the app. For each flow, check if the 
 |------|----------|----------|----------------------|
 | Pass 1: Exact payment match | Debit txn → Payment by amount+date | [ ] | |
 | Pass 2: Invoice match | Debit txn → Invoice by amount | [ ] | |
-| Pass 3: Sales invoice match | Credit txn → SalesInvoice by amount | [ ] | |
+| Pass 3: Sales invoice match | Credit txn → Invoice (type='sales') by amount | [ ] | |
 | Pass 4: Receipt match | Credit txn → Receipt by amount | [ ] | |
 
 ### 6c. Manual Match — Invoices
@@ -163,8 +165,8 @@ Use this form to verify every data path in the app. For each flow, check if the 
 ### 6e. Official Receipt (Credit txn)
 | Step | Expected | Correct? | Notes / Changes Needed |
 |------|----------|----------|----------------------|
-| Create Official Receipt | **SalesInvoice** created (paid, approved) | [ ] | |
-| Bank txn linked | `matched_sales_invoice_id` = new SalesInvoice | [ ] | |
+| Create Official Receipt | **Invoice** (`type: 'sales'`) created (paid, approved) | [ ] | |
+| Bank txn linked | `matched_invoice_id` = new Invoice (type='sales') | [ ] | |
 | Receipt number auto-generated | OR-{PREFIX}-NNN based on supplier | [ ] | |
 | GL account auto-suggested | From supplier default_gl_account_id | [ ] | |
 | JV created | DR Bank GL / CR Income GL (user-selected) | [ ] | |
@@ -187,7 +189,7 @@ Use this form to verify every data path in the app. For each flow, check if the 
 |------|----------|----------|----------------------|
 | Unmatch invoice | BankTransactionInvoice deleted, JV reversed | [ ] | |
 | Unmatch claims | `matched_bank_txn_id` nulled, JV reversed | [ ] | |
-| Unmatch official receipt | SalesInvoice stays? Or deleted? JV reversed | [ ] | |
+| Unmatch official receipt | Invoice (type='sales') stays? Or deleted? JV reversed | [ ] | |
 | Unmatch payment voucher | Invoice stays? Or deleted? JV reversed | [ ] | |
 
 ### 6h. Exclude

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * POST /api/suppliers/merge
  * Merge sourceId supplier into targetId supplier.
- * Moves all invoices, payments, sales invoices, aliases. Deletes source.
+ * Moves all invoices, payments, aliases. Deletes source.
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -42,10 +42,9 @@ export async function POST(request: NextRequest) {
   }
 
   // Move all references from source → target
-  const [invoices, payments, salesInvoices] = await Promise.all([
+  const [invoices, payments] = await Promise.all([
     prisma.invoice.updateMany({ where: { supplier_id: sourceId }, data: { supplier_id: targetId } }),
     prisma.payment.updateMany({ where: { supplier_id: sourceId }, data: { supplier_id: targetId } }),
-    prisma.salesInvoice.updateMany({ where: { supplier_id: sourceId }, data: { supplier_id: targetId } }),
   ]);
 
   // Move aliases — add source's aliases to target (skip duplicates)
@@ -74,7 +73,6 @@ export async function POST(request: NextRequest) {
       merged: {
         invoices: invoices.count,
         payments: payments.count,
-        salesInvoices: salesInvoices.count,
         aliases: aliasesMoved,
       },
       target: target.name,

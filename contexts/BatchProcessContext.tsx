@@ -198,6 +198,9 @@ export function BatchProcessProvider({ children }: { children: ReactNode }) {
         total={job.total}
         returnPath={job.returnPath}
         done={job.phase === 'scan_done' || job.phase === 'submit_done'}
+        onExpand={job.phase === 'scan_done' ? () => {
+          window.dispatchEvent(new Event('batch-scan-expand'));
+        } : undefined}
         onCancel={job.phase === 'scanning' ? () => {
           if (typeof window !== 'undefined' && !confirm('Cancel scanning? Progress will be lost.')) return;
           cancel();

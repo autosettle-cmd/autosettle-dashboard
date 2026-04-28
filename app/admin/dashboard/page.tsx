@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import StatCard from '@/components/StatCard';
-import SearchButton from '@/components/SearchButton';
+
 import { PAYMENT_CFG, LINK_CFG, STATUS_CFG, APPROVAL_CFG } from '@/lib/badge-config';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -234,7 +234,6 @@ export default function AdminDashboard() {
             {firstName ? `${getGreeting()}, ${firstName}` : 'Dashboard'}
           </h1>
           <div className="flex items-center gap-3">
-            <SearchButton />
           </div>
         </header>
 

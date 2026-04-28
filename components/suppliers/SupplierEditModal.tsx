@@ -64,6 +64,7 @@ export interface SupplierEditModalProps {
   onRemoveAlias: (aliasId: string) => void;
   onSave: () => void;
   onMerged?: () => void;
+  onDelete?: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -94,6 +95,7 @@ export default function SupplierEditModal({
   onSave,
   mergeTargets,
   onMerged,
+  onDelete,
 }: SupplierEditModalProps) {
   const [showMerge, setShowMerge] = useState(false);
   const [mergeTargetId, setMergeTargetId] = useState('');
@@ -246,13 +248,20 @@ export default function SupplierEditModal({
           )}
         </div>
 
-        <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] flex gap-3">
-          <button onClick={onSave} disabled={editSaving} className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
-            {editSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-          <button onClick={onClose} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
-            Cancel
-          </button>
+        <div className="p-4 flex-shrink-0 bg-[var(--surface-low)] space-y-3">
+          <div className="flex gap-3">
+            <button onClick={onSave} disabled={editSaving} className="btn-thick-navy flex-1 py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed">
+              {editSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button onClick={onClose} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
+              Cancel
+            </button>
+          </div>
+          {onDelete && (
+            <button onClick={onDelete} className="btn-thick-red w-full py-2 text-xs font-semibold uppercase tracking-widest">
+              Delete Supplier
+            </button>
+          )}
         </div>
       </div>
     </div>

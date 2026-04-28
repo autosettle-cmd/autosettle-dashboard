@@ -60,7 +60,7 @@ interface BankTxn {
   matched_payment: MatchedPayment | null;
   matched_invoice: { id: string; invoice_number: string; vendor_name: string; total_amount: string; amount_paid: string; issue_date: string; file_url: string | null; thumbnail_url: string | null; allocation_amount?: string } | null;
   matched_invoice_allocations?: { invoice_id: string; invoice_number: string; vendor_name: string; total_amount: string; allocation_amount: string; issue_date: string }[];
-  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; buyer_name: string } | null;
+  matched_sales_invoice: { id: string; invoice_number: string; total_amount: string; amount_paid: string; issue_date: string; vendor_name: string; contra_gl_account_id?: string | null; file_url?: string | null; thumbnail_url?: string | null } | null;
   matched_claims: { id: string; merchant: string; amount: string; claim_date: string; receipt_number: string | null; file_url: string | null; thumbnail_url: string | null; employee_id: string; employee_name: string; category_name: string }[];
 }
 
@@ -403,12 +403,8 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       // Multi-invoice: call API once per invoice (API supports incremental allocation)
       if (invoiceIds && invoiceIds.length > 0) {
         for (const invId of invoiceIds) {
-          // Determine if this is a regular invoice or sales invoice from outstanding items
-          const outItem = outstandingItems.find(i => i.id === invId);
-          const isSales = outItem?.type === 'sales_invoice';
           const body: Record<string, unknown> = { bankTransactionId: matchingTxn.id };
-          if (isSales) body.salesInvoiceId = invId;
-          else body.invoiceId = invId;
+          body.invoiceId = invId;
           const res = await fetch(config.apiMatchItem, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -431,8 +427,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
       if (selectedClaimIds.size > 0) {
         body.claimIds = Array.from(selectedClaimIds);
       } else if (item) {
-        if (item.type === 'invoice') body.invoiceId = item.id;
-        else if (item.type === 'sales_invoice') body.salesInvoiceId = item.id;
+        if (item.type === 'invoice' || item.type === 'sales') body.invoiceId = item.id;
         else if (item.type === 'claim') body.claimIds = [item.id];
       }
 
@@ -677,7 +672,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
         const suppJ = await suppRes.json();
         const defaultGl = suppJ.data?.default_gl_account_id;
         if (defaultGl) { setVoucherData(prev => ({ ...prev, gl_account_id: prev.gl_account_id || defaultGl })); return; }
-        const invRes = await fetch(`/api/sales-invoices?supplierId=${supplierId}&take=1`);
+        const invRes = await fetch(`/api/invoices?supplierId=${supplierId}&type=sales&take=1`);
         const invJ = await invRes.json();
         const lastGl = (invJ.data ?? [])[0]?.gl_account_id;
         if (lastGl) setVoucherData(prev => ({ ...prev, gl_account_id: prev.gl_account_id || lastGl }));
@@ -1507,7 +1502,7 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
                       {hasSales && (
                         <li className="flex items-start gap-2">
                           <span className="text-[var(--reject-red)] font-bold mt-0.5">-</span>
-                          <span>Sales invoice {msi!.invoice_number ?? ''} — {msi!.buyer_name} — payment status reset</span>
+                          <span>Sales invoice {msi!.invoice_number ?? ''} — {msi!.vendor_name} — payment status reset</span>
                         </li>
                       )}
                       {hasClaims && (

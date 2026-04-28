@@ -14,7 +14,7 @@ import dynamic from 'next/dynamic';
 const ClaimCreateModal = dynamic(() => import('@/components/claims/ClaimCreateModal'));
 const ClaimPreviewPanel = dynamic(() => import('@/components/claims/ClaimPreviewPanel'));
 import { useBatchProcess } from '@/contexts/BatchProcessContext';
-import SearchButton from '@/components/SearchButton';
+
 import MobileClaimCard from '@/components/mobile/MobileClaimCard';
 import DeleteBlockerModal from '@/components/DeleteBlockerModal';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -250,6 +250,18 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
       batch.dismiss();
     }
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for "expand" click from the minimized batch toast
+  useEffect(() => {
+    const handler = () => {
+      if (batch.job.phase === 'scan_done' && batchItems.length > 0) {
+        setShowBatchReview(true);
+        batch.dismiss();
+      }
+    };
+    window.addEventListener('batch-scan-expand', handler);
+    return () => window.removeEventListener('batch-scan-expand', handler);
+  }, [batch, batchItems]);
 
   // When submit completes via context, convert results to batchWarning and refresh
   useEffect(() => {
@@ -1146,7 +1158,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
             <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">{claimTab === 'receipt' ? 'Receipts' : claimTab === 'mileage' ? 'Mileage' : 'Claims'}</h1>
             {isAccountant && <p className="text-[10px] font-label text-[var(--text-secondary)] uppercase tracking-widest">{formatDateDot(todayStr())}</p>}
           </div>
-          {!batchScanning && !batchSubmitting && <SearchButton />}
+
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 pt-8 px-8 pb-0 pl-14 paper-texture ledger-binding animate-in">

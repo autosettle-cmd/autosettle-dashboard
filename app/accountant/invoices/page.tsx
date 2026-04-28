@@ -11,7 +11,6 @@ export default function AccountantInvoicesPage() {
       config={{
         role: 'accountant',
         apiInvoices: '/api/invoices',
-        apiSalesInvoices: '/api/sales-invoices',
         apiBatch: '/api/invoices/batch',
         apiDelete: '/api/invoices/delete',
         apiCategories: '/api/categories',

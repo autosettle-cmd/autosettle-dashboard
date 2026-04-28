@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import GlAccountSelect from '@/components/GlAccountSelect';
 
 interface CategoryRow {
   id: string;
@@ -67,6 +68,13 @@ export default function SetupCategoriesModal({ firmId, onComplete, onClose }: Pr
     }).catch(() => setLoading(false));
   }, [firmId]);
 
+  const handleAccountCreated = (account: GlAccount) => {
+    setGlAccounts(prev => [...prev, account]);
+    if (cacheRef.current[firmId]) {
+      cacheRef.current[firmId].glAccounts = [...cacheRef.current[firmId].glAccounts, account];
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError('');
@@ -97,14 +105,13 @@ export default function SetupCategoriesModal({ firmId, onComplete, onClose }: Pr
     }
   };
 
-  const expenseAccounts = glAccounts.filter(a => a.account_type === 'Expense');
   const mappedCount = Object.values(glMap).filter(v => v).length;
 
   return (
     <div className="fixed inset-0 bg-[#070E1B]/40 backdrop-blur-[2px] z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white shadow-2xl w-full max-w-2xl flex flex-col animate-in" onClick={e => e.stopPropagation()}>
         <div className="bg-[var(--primary)] px-5 py-4 flex items-center justify-between">
-          <h2 className="text-base font-bold text-white uppercase tracking-wide">Category → GL Mapping</h2>
+          <h2 className="text-base font-bold text-white uppercase tracking-wide">Category → Account Mapping</h2>
           <button onClick={onClose} className="btn-thick-red w-7 h-7 !p-0" title="Close">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18" /><path d="M6 6l12 12" /></svg>
           </button>
@@ -140,16 +147,17 @@ export default function SetupCategoriesModal({ firmId, onComplete, onClose }: Pr
                         {cat.is_global && <span className="text-[9px] text-[var(--text-muted)] ml-1.5 uppercase">Global</span>}
                       </td>
                       <td className="px-4 py-2">
-                        <select
+                        <GlAccountSelect
                           value={glMap[cat.id] ?? ''}
-                          onChange={e => setGlMap(prev => ({ ...prev, [cat.id]: e.target.value }))}
-                          className="input-recessed w-full text-xs"
-                        >
-                          <option value="">Not mapped</option>
-                          {expenseAccounts.map(a => (
-                            <option key={a.id} value={a.id}>{a.account_code} — {a.name}</option>
-                          ))}
-                        </select>
+                          onChange={v => setGlMap(prev => ({ ...prev, [cat.id]: v }))}
+                          accounts={glAccounts}
+                          firmId={firmId}
+                          preferredType="Expense"
+                          defaultType="Expense"
+                          defaultBalance="Debit"
+                          onAccountCreated={handleAccountCreated}
+                          placeholder="Search accounts..."
+                        />
                       </td>
                     </tr>
                   ))}

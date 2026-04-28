@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
 import { formatRM } from '@/lib/formatters';
 import { PAYMENT_CFG } from '@/lib/badge-config';
-import SearchButton from '@/components/SearchButton';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -484,6 +484,22 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
     } catch (e) { console.error(e); }
   };
 
+  const deleteSupplier = async () => {
+    if (!editSupplier) return;
+    if (!confirm(`Delete "${editSupplier.name}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${config.apiSuppliers}/${editSupplier.id}`, { method: 'DELETE' });
+      const json = await res.json();
+      if (res.ok) {
+        if (json.message) alert(json.message);
+        setEditSupplier(null);
+        refresh();
+      } else {
+        alert(json.error || 'Delete failed');
+      }
+    } catch (e) { console.error(e); }
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -492,7 +508,6 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Suppliers</h1>
           <div className="flex items-center gap-3">
-            <SearchButton />
           </div>
         </header>
 
@@ -834,6 +849,7 @@ export default function SuppliersPageContent({ config }: { config: SuppliersPage
           onRemoveAlias={removeAlias}
           onSave={saveSupplier}
           onMerged={() => { setEditSupplier(null); setRefreshKey(k => k + 1); }}
+          onDelete={deleteSupplier}
         />
       )}
 

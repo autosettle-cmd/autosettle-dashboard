@@ -152,10 +152,10 @@ export async function POST(request: NextRequest) {
 
     // ─── Match to Sales Invoice (CREDIT / incoming) ──────────────────────
     if (salesInvoiceId) {
-      const salesInvoice = await prisma.salesInvoice.findUnique({
-        where: { id: salesInvoiceId },
+      const salesInvoice = await prisma.invoice.findFirst({
+        where: { id: salesInvoiceId, type: 'sales' },
         select: { id: true, firm_id: true, total_amount: true, amount_paid: true, invoice_number: true,
-          buyer: { select: { name: true } } },
+          supplier: { select: { name: true } } },
       });
       if (!salesInvoice || salesInvoice.firm_id !== firmId) {
         return NextResponse.json({ data: null, error: 'Sales invoice not found' }, { status: 404 });
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
       await prisma.bankTransaction.update({
         where: { id: bankTransactionId },
         data: {
-          matched_sales_invoice_id: salesInvoiceId,
+          matched_invoice_id: salesInvoiceId,
           recon_status: 'manually_matched',
           matched_at: new Date(),
           matched_by: session.user.id,
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 
       const newPaid = Number(salesInvoice.amount_paid) + payAmount;
       const total = Number(salesInvoice.total_amount);
-      await prisma.salesInvoice.update({
+      await prisma.invoice.update({
         where: { id: salesInvoiceId },
         data: {
           amount_paid: newPaid,
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
       await createJournalEntry({
         firmId,
         postingDate: txn.transaction_date,
-        description: `Bank recon — ${salesInvoice.buyer?.name ?? 'Customer'}`,
+        description: `Bank recon — ${salesInvoice.supplier?.name ?? 'Customer'}`,
         sourceType: 'bank_recon',
         sourceId: bankTransactionId,
         voucherPrefix: 'OR',

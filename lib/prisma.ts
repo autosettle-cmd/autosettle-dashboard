@@ -2,7 +2,7 @@ import { PrismaClient } from "@/generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-const SOFT_DELETE_MODELS = new Set(['Invoice', 'SalesInvoice', 'Claim', 'Payment', 'BankStatement']);
+const SOFT_DELETE_MODELS = new Set(['Invoice', 'Claim', 'Payment', 'BankStatement']);
 const READ_OPS = new Set(['findFirst', 'findMany', 'count', 'aggregate', 'groupBy']);
 
 const globalForPrisma = globalThis as unknown as {
@@ -73,3 +73,25 @@ globalForPrisma.prisma = prisma;
 
 // Unfiltered client — use ONLY in restore API and hard-delete cron
 export const prismaUnfiltered = baseClient;
+
+// ─── Auto-seed default categories on startup ────────────────────────────────
+const DEFAULT_CATEGORIES = [
+  'Advertising & Marketing', 'Automotive', 'Bank & Finance', 'Communication',
+  'Equipment & Hardware', 'Insurance', 'Meals & Entertainment', 'Merchandise & Inventory',
+  'Office Expenses', 'Professional Services', 'Rent & Facilities', 'Repairs & Maintenance',
+  'Software & SaaS', 'Staff Welfare', 'Taxes & Licenses', 'Training & Education',
+  'Travel & Transport', 'Utilities', 'Miscellaneous',
+];
+
+const globalSeed = globalThis as unknown as { _categoriesSeeded?: boolean };
+if (!globalSeed._categoriesSeeded) {
+  globalSeed._categoriesSeeded = true;
+  // Only seed on truly empty DB (no categories at all) — never re-add if user deleted some
+  baseClient.category.count().then(count => {
+    if (count === 0) {
+      Promise.all(DEFAULT_CATEGORIES.map(name => baseClient.category.create({ data: { name } })))
+        .then(() => console.log('[Seed] Created', DEFAULT_CATEGORIES.length, 'default categories'))
+        .catch(() => {});
+    }
+  }).catch(() => {});
+}

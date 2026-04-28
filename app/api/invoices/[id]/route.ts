@@ -38,15 +38,16 @@ export async function GET(
 
   return NextResponse.json({
     data: {
-      id: inv.id, vendor_name_raw: inv.vendor_name_raw, invoice_number: inv.invoice_number,
+      id: inv.id, type: inv.type, vendor_name_raw: inv.vendor_name_raw, invoice_number: inv.invoice_number,
       issue_date: inv.issue_date, due_date: inv.due_date, payment_terms: inv.payment_terms,
+      currency: inv.currency,
       subtotal: inv.subtotal?.toString() ?? null, tax_amount: inv.tax_amount?.toString() ?? null,
       total_amount: inv.total_amount.toString(), amount_paid: inv.amount_paid.toString(),
-      category_name: inv.category.name, category_id: inv.category_id,
+      category_name: inv.category?.name ?? null, category_id: inv.category_id,
       status: inv.status, payment_status: inv.payment_status,
       supplier_id: inv.supplier_id, supplier_name: inv.supplier?.name ?? null,
       supplier_link_status: inv.supplier_link_status,
-      uploader_name: inv.uploader.name, firm_name: inv.firm.name, firm_id: inv.firm_id,
+      uploader_name: inv.uploader?.name ?? null, firm_name: inv.firm.name, firm_id: inv.firm_id,
       confidence: inv.confidence, file_url: inv.file_url, thumbnail_url: inv.thumbnail_url,
       notes: inv.notes, gl_account_id: inv.gl_account_id,
       gl_account_label: inv.glAccount ? `${inv.glAccount.account_code} — ${inv.glAccount.name}` : null,
@@ -127,7 +128,7 @@ export async function PATCH(
 
     const inv = await prisma.invoice.findUnique({ where: { id }, select: { vendor_name_raw: true } });
     if (inv) {
-      const normalizedVendor = inv.vendor_name_raw.toLowerCase().trim();
+      const normalizedVendor = (inv.vendor_name_raw ?? '').toLowerCase().trim();
       await prisma.supplierAlias.upsert({
         where: { supplier_id_alias: { supplier_id: body.supplier_id, alias: normalizedVendor } },
         update: { is_confirmed: true },

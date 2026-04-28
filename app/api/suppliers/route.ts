@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         aliases: { select: { id: true, alias: true, is_confirmed: true } },
         defaultGlAccount: { select: { account_code: true, name: true } },
         defaultContraGlAccount: { select: { account_code: true, name: true } },
-        _count: { select: { invoices: true, salesInvoices: true } },
+        _count: { select: { invoices: true } },
       },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: takeParam || 100,
@@ -48,12 +48,12 @@ export async function GET(request: NextRequest) {
     ? await Promise.all([
         prisma.invoice.groupBy({
           by: ['supplier_id'],
-          where: { supplier_id: { in: supplierIds }, payment_status: { not: 'paid' } },
+          where: { supplier_id: { in: supplierIds }, type: 'purchase', payment_status: { not: 'paid' } },
           _sum: { total_amount: true, amount_paid: true },
         }),
         prisma.invoice.groupBy({
           by: ['supplier_id'],
-          where: { supplier_id: { in: supplierIds }, payment_status: { not: 'paid' }, due_date: { lt: new Date() } },
+          where: { supplier_id: { in: supplierIds }, type: 'purchase', payment_status: { not: 'paid' }, due_date: { lt: new Date() } },
           _sum: { total_amount: true, amount_paid: true },
         }),
         prisma.$queryRaw<Array<{ supplier_id: string; credit_balance: number }>>`
@@ -69,9 +69,9 @@ export async function GET(request: NextRequest) {
           WHERE p.supplier_id = ANY(${supplierIds})
           GROUP BY p.supplier_id
         `,
-        prisma.salesInvoice.groupBy({
+        prisma.invoice.groupBy({
           by: ['supplier_id'],
-          where: { supplier_id: { in: supplierIds }, payment_status: { not: 'paid' } },
+          where: { supplier_id: { in: supplierIds }, type: 'sales', payment_status: { not: 'paid' } },
           _sum: { total_amount: true, amount_paid: true },
         }),
       ])
@@ -99,7 +99,6 @@ export async function GET(request: NextRequest) {
     firm_id: s.firm_id,
     aliases: s.aliases,
     invoice_count: s._count.invoices,
-    sales_invoice_count: s._count.salesInvoices,
     total_outstanding: (outstandingMap.get(s.id) ?? 0).toFixed(2),
     overdue_amount: (overdueMap.get(s.id) ?? 0).toFixed(2),
     credit_balance: (creditMap.get(s.id) ?? 0).toFixed(2),

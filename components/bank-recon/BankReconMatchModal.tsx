@@ -409,8 +409,8 @@ export default function BankReconMatchModal({
     if (selectedClaimIds.size > 1) return `${selectedClaimIds.size} Expense Claims`;
     if (!selectedItem) return '';
     const found = outstandingItems.find((i) => i.id === selectedItem.id);
-    if (!found) return selectedItem.type === 'invoice' ? 'Invoice' : selectedItem.type === 'sales_invoice' ? 'Sales Invoice' : 'Claim';
-    const name = found.supplier_name || found.buyer_name || found.employee_name || found.merchant || found.name || '';
+    if (!found) return selectedItem.type === 'invoice' ? 'Invoice' : selectedItem.type === 'invoice' ? 'Invoice' : 'Claim';
+    const name = found.supplier_name || found.employee_name || found.merchant || found.name || '';
     const num = found.invoice_number || found.receipt_number || found.reference || '';
     return `${name}${num ? ` — ${num}` : ''}`;
   };
@@ -826,7 +826,7 @@ export default function BankReconMatchModal({
                                 SI: { label: 'SI', color: '#0E6027', bg: '#DEF2E4' },
                                 PI: { label: 'PI', color: '#234B6E', bg: '#E3EDF6' },
                               };
-                              const fallback = item.type === 'sales_invoice'
+                              const fallback = item.type === 'sales'
                                 ? { label: 'SI', color: '#0E6027', bg: '#DEF2E4' }
                                 : { label: 'PI', color: '#234B6E', bg: '#E3EDF6' };
                               const b = badges[prefix] ?? fallback;

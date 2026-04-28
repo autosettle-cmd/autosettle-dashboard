@@ -31,8 +31,6 @@ These are deleted automatically when parent is deleted:
 | `BankTransactionInvoice` | `BankTransaction` or `Invoice` | Bank-invoice links go with either |
 | `BankTransactionClaim` | `BankTransaction` or `Claim` | Bank-claim links go with either |
 | `BankTransaction` | `BankStatement` | Transactions go with statement |
-| `SalesInvoiceItem` | `SalesInvoice` | Items go with sales invoice |
-| `SalesPaymentAllocation` | `Payment` or `SalesInvoice` | Allocations go with either |
 | `AccountantFirm` | `User` or `Firm` | Assignment goes with either |
 | `CategoryFirmOverride` | `Category` | Override goes with category |
 
@@ -57,19 +55,22 @@ These are nulled out when parent is deleted:
 | **Delete blocker** | Has linked `PaymentReceipt` records (must remove payments first) |
 | **Delete cascade** | 1. Reverse `claim_approval` JVs (legacy cleanup) → 2. Delete `BankTransactionClaim` links + revert bank txn to `unmatched` + reverse `bank_recon` JVs → 3. Delete `InvoiceReceiptLink` records + recalc invoice `amount_paid` → 4. Hard delete claim |
 | **Edit approved** | Auto-reverts approval, reverses JVs, resets to `reviewed`/`pending_review` |
-| **Soft delete?** | No — hard delete only |
+| **Soft delete?** | Yes — `deleted_at` + `deleted_by` fields, 30-day grace period |
 | **Audit** | Logs old values (merchant, amount, status, approval) |
 
-### Invoice (Purchase)
+### Invoice (Unified — Purchase + Sales)
 
 | Rule | Detail |
 |------|--------|
 | **Can hard delete?** | Yes |
 | **Delete blocker** | None explicit — cascades handle everything |
-| **Delete cascade** | 1. Reverse `invoice_posting` JVs (if approved) → 2. Prisma cascades: `InvoiceLine`, `PaymentAllocation`, `BankTransactionInvoice`, `InvoiceReceiptLink` |
-| **Approval revert** | Changes `approved` → `pending_approval`, reverses `invoice_posting` JVs |
+| **Delete cascade (purchase)** | 1. Reverse `invoice_posting` JVs (if approved) → 2. Prisma cascades: `InvoiceLine`, `PaymentAllocation`, `BankTransactionInvoice`, `InvoiceReceiptLink` |
+| **Delete cascade (sales)** | 1. Reverse `sales_invoice_posting` JVs (if approved) → 2. Prisma cascades: `InvoiceLine`, `PaymentAllocation`, `BankTransaction.matched_invoice_id` set null |
+| **Approval revert (purchase)** | Changes `approved` → `pending_approval`, reverses `invoice_posting` JVs |
+| **Approval revert (sales)** | Changes `approved` → `pending_approval`, reverses `sales_invoice_posting` JVs |
 | **Edit when approved** | Blocked for financial fields (amount, GL, dates). Must revert approval first. |
 | **Line items** | Old lines deleted and recreated on edit. Totals recalculated from lines. |
+| **Type discriminator** | `type: 'purchase'` or `type: 'sales'` — determines JV source type and GL resolution chain |
 
 ### Payment
 
@@ -93,7 +94,7 @@ These are nulled out when parent is deleted:
 |------|--------|
 | **Can hard delete?** | Yes — cascades are comprehensive |
 | **Soft delete?** | Yes — `deleted_at` + `deleted_by` fields, 30-day grace period, restorable from Deleted Items page |
-| **Delete cascade (multi-step)** | 1. Revert ALL bank transaction matches (delete `BankTransactionInvoice`, `BankTransactionClaim`, clear `matched_sales_invoice_id`, revert claims to `unpaid`) → 2. Recalc all affected invoice `amount_paid` → 3. Clean up legacy auto-matched Payments + PaymentReceipts → 4. Reverse ALL `bank_recon` JVs for matched transactions → 5. Delete all `BankTransaction` records (Prisma cascade) → 6. Soft-delete statement |
+| **Delete cascade (multi-step)** | 1. Revert ALL bank transaction matches (delete `BankTransactionInvoice`, `BankTransactionClaim`, clear `matched_invoice_id`, revert claims to `unpaid`) → 2. Recalc all affected invoice `amount_paid` → 3. Clean up legacy auto-matched Payments + PaymentReceipts → 4. Reverse ALL `bank_recon` JVs for matched transactions → 5. Delete all `BankTransaction` records (Prisma cascade) → 6. Soft-delete statement |
 | **Partial success** | JV reversal errors are logged but don't block deletion. Returns HTTP 207 if reversal errors occur. |
 | **Balance override** | If parsed statement has balance mismatch, matching is blocked until user clicks "Override & Proceed" (`balance_override=true`, records user + timestamp). Override is an acknowledgement, not a fix. |
 | **Verification** | Upload stores `verification_issues` (JSON) from `verifyBankStatement()`. Errors block matching; warnings are informational. See `lib/bank-statement-verify.ts`. |
@@ -103,7 +104,7 @@ These are nulled out when parent is deleted:
 | Rule | Detail |
 |------|--------|
 | **Can hard delete?** | No — only deleted via parent BankStatement cascade |
-| **Unmatch (revert)** | POST to unmatch endpoint → 1. Reverse `bank_recon` JVs → 2. Delete `BankTransactionInvoice` + recalc invoice `amount_paid` → 3. Clear `matched_sales_invoice_id` + update sales invoice → 4. Delete `BankTransactionClaim` + clear claim `matched_bank_txn_id` + set claim `payment_status` to `unpaid` → 5. Delete legacy auto-matched Payment if notes contain "Auto-matched from receipt" → 6. Clear all match fields on transaction |
+| **Unmatch (revert)** | POST to unmatch endpoint → 1. Reverse `bank_recon` JVs → 2. Delete `BankTransactionInvoice` + recalc invoice `amount_paid` → 3. Clear `matched_invoice_id` + update sales invoice `amount_paid` → 4. Delete `BankTransactionClaim` + clear claim `matched_bank_txn_id` + set claim `payment_status` to `unpaid` → 5. Delete legacy auto-matched Payment if notes contain "Auto-matched from receipt" → 6. Clear all match fields on transaction |
 
 ### Journal Entry
 
@@ -119,9 +120,11 @@ These are nulled out when parent is deleted:
 
 | Rule | Detail |
 |------|--------|
-| **Can hard delete?** | No (no delete endpoint) |
-| **Soft delete** | Set `is_active = false` |
-| **Why no hard delete** | Referenced by invoices, payments, supplier aliases. Hard delete would orphan invoice history. |
+| **Can hard delete?** | Yes, but only when no linked invoices or payments exist |
+| **Delete blocker** | Has linked invoices (any type) or payments — blocked with error message |
+| **Delete endpoint** | `DELETE /api/suppliers/[id]` — hard delete only (no soft delete) |
+| **Soft deactivation** | Set `is_active = false` (preferred when supplier has history) |
+| **Cascade on delete** | `SupplierAlias` records cascade-deleted automatically |
 
 ### Employee
 
@@ -155,14 +158,6 @@ These are nulled out when parent is deleted:
 | **Close cascade** | 1. Create year-end closing JVs (zero out Revenue/Expense → post net to Retained Earnings, source: `year_end_close`) → 2. Close all periods → 3. Close FY |
 | **Reopen cascade** | 1. Reopen FY → 2. Reopen all non-locked periods → 3. Reverse `year_end_close` JVs |
 
-### Sales Invoice
-
-| Rule | Detail |
-|------|--------|
-| **Can hard delete?** | Yes (implied) |
-| **Delete cascade** | Prisma cascades: `SalesInvoiceItem`, `SalesPaymentAllocation` |
-| **Approval revert** | Reverses `sales_invoice_posting` JVs |
-
 ---
 
 ## amount_paid Calculation Rules
@@ -171,9 +166,9 @@ These are critical — getting them wrong causes GL drift.
 
 | Entity | Formula | Source of Truth |
 |--------|---------|----------------|
-| **Invoice** | `MAX(receipt_total, bank_recon_total)` where `receipt_total = SUM(InvoiceReceiptLink.amount)` and `bank_recon_total = SUM(BankTransactionInvoice.amount)` | Bank recon takes priority |
+| **Invoice (purchase)** | `MAX(receipt_total, bank_recon_total)` where `receipt_total = SUM(InvoiceReceiptLink.amount)` and `bank_recon_total = SUM(BankTransactionInvoice.amount)` | Bank recon takes priority |
+| **Invoice (sales)** | `SUM(PaymentAllocation.amount)` | Direct allocation via unified PaymentAllocation |
 | **Claim** | `SUM(PaymentReceipt.amount) + SUM(InvoiceReceiptLink.amount)` | Combined from both sources |
-| **Sales Invoice** | `SUM(SalesPaymentAllocation.amount)` | Direct allocation |
 
 The `recalcInvoicePaid()` function handles invoice recalculation from both receipt links AND bank recon allocations.
 
@@ -183,18 +178,16 @@ Three allocation join tables link payments to their targets:
 
 | Join Table | Links | Cascade |
 |-----------|-------|---------|
-| `PaymentAllocation` | Payment → Invoice | CASCADE both sides |
+| `PaymentAllocation` | Payment → Invoice (both purchase and sales) | CASCADE both sides |
 | `PaymentReceipt` | Payment → Claim | CASCADE both sides |
-| `SalesPaymentAllocation` | Payment → SalesInvoice | CASCADE both sides |
 
 **Recalc functions** (called after any allocation change):
 
 | Function | File | Formula |
 |----------|------|---------|
-| `recalcInvoicePaid()` | `lib/invoice-payment.ts` | `MIN(MAX(receipt_links, bank_recon_allocations), total_amount)` |
+| `recalcInvoicePaid()` | `lib/invoice-payment.ts` | Purchase: `MIN(MAX(receipt_links, bank_recon_allocations), total_amount)`. Sales: `SUM(PaymentAllocation.amount)` |
 | `recalcInvoicePayment()` | `lib/payment-utils.ts` | `SUM(PaymentAllocation.amount)` |
 | `recalcClaimPayment()` | `lib/payment-utils.ts` | `SUM(PaymentReceipt.amount) + SUM(InvoiceReceiptLink.amount)` |
-| `recalcSalesInvoicePayment()` | `lib/sales-payment-utils.ts` | `SUM(SalesPaymentAllocation.amount)` |
 
 **Payment status transitions** (same for all entities):
 - `unpaid`: amount_paid = 0
@@ -235,18 +228,18 @@ REVERT undoes in reverse order:
 
 | Entity | Hard Delete? | Blocker | Soft Delete? | JV Reversal? |
 |--------|-------------|---------|-------------|-------------|
-| Claim | Yes | PaymentReceipt exists | No | claim_approval (legacy) + bank_recon |
-| Invoice | Yes | None | No | invoice_posting |
+| Claim | Yes | PaymentReceipt exists | Yes (deleted_at) | claim_approval (legacy) + bank_recon |
+| Invoice (purchase) | Yes | None | Yes (deleted_at) | invoice_posting |
+| Invoice (sales) | Yes | None | Yes (deleted_at) | sales_invoice_posting |
 | Payment | Orphaned only | PaymentAllocation exists | No | bank_recon (if matched) |
 | PaymentAllocation | Yes | None | No | No (data cleanup) |
 | BankStatement | Yes | None (cascades) | Yes (deleted_at) | bank_recon (all txns) |
 | BankTransaction | No (via statement) | N/A | No | bank_recon (unmatch) |
 | JournalEntry | **NEVER** | — | Via reversal | Manual reverse |
-| Supplier | No | Has invoices | is_active | No |
+| Supplier | Yes (if no links) | Has invoices/payments | is_active / hard delete | No |
 | Employee | No | Has claims | is_active/reject | No |
 | GLAccount | With checks | JV/claims/invoices/children | is_active | No |
 | Category | Firm-only | None | Via override | No |
 | FiscalYear | No | — | Via close/reopen | year_end_close |
-| SalesInvoice | Yes | None | No | sales_invoice_posting |
 
-Last verified: 2026-04-28
+Last verified: 2026-04-29

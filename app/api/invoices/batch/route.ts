@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest) {
     const invoices = await prisma.invoice.findMany({
       where: { id: { in: invoiceIds }, ...scope },
       select: {
-        id: true, firm_id: true, total_amount: true, issue_date: true,
+        id: true, firm_id: true, type: true, total_amount: true, issue_date: true,
         gl_account_id: true, approval: true, vendor_name_raw: true, supplier_id: true,
         category: { select: { name: true } },
         supplier: { select: { id: true, default_gl_account_id: true, default_contra_gl_account_id: true } },
@@ -66,7 +66,7 @@ export async function PATCH(request: NextRequest) {
       for (const inv of invoices) {
         const contraGlId = contra_gl_account_id || inv.supplier?.default_contra_gl_account_id || firmDefaultsMap.get(inv.firm_id);
         if (!contraGlId) {
-          errors.push(`No Trade Payables GL for ${inv.vendor_name_raw}. Select a Contra GL (Credit) account before approving.`);
+          errors.push(`No Trade Payables GL for ${inv.vendor_name_raw ?? 'Unknown'}. Select a Contra GL (Credit) account before approving.`);
         }
       }
 
@@ -77,13 +77,13 @@ export async function PATCH(request: NextRequest) {
           const fallbackGl = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
           for (const line of inv.lines) {
             if (!line.gl_account_id && !fallbackGl) {
-              errors.push(`Line "${line.description}" on invoice from ${inv.vendor_name_raw} has no GL account. Assign GL accounts to all line items before approving.`);
+              errors.push(`Line "${line.description}" on invoice from ${inv.vendor_name_raw ?? 'Unknown'} has no GL account. Assign GL accounts to all line items before approving.`);
             }
           }
         } else {
           const expenseGlId = gl_account_id || inv.gl_account_id || inv.supplier?.default_gl_account_id;
           if (!expenseGlId) {
-            errors.push(`Invoice from ${inv.vendor_name_raw} (${inv.category.name}) has no GL account assigned. Assign a GL account before approving.`);
+            errors.push(`Invoice from ${inv.vendor_name_raw ?? 'Unknown'} (${inv.category?.name ?? 'Unknown'}) has no GL account assigned. Assign a GL account before approving.`);
           }
         }
       }
@@ -141,7 +141,7 @@ export async function PATCH(request: NextRequest) {
               glAccountId: glId,
               debitAmount: isCreditNote ? 0 : amt,
               creditAmount: isCreditNote ? amt : 0,
-              description: inv.vendor_name_raw,
+              description: inv.vendor_name_raw || 'Customer',
             }));
 
             const contraLine = {
@@ -156,19 +156,20 @@ export async function PATCH(request: NextRequest) {
             jvLines = isCreditNote
               ? [
                   { glAccountId: contraGlId!, debitAmount: amount, creditAmount: 0, description: 'Trade Payables (reversal)' },
-                  { glAccountId: expenseGlId!, debitAmount: 0, creditAmount: amount, description: inv.vendor_name_raw },
+                  { glAccountId: expenseGlId!, debitAmount: 0, creditAmount: amount, description: inv.vendor_name_raw || 'Customer' },
                 ]
               : [
-                  { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: inv.vendor_name_raw },
+                  { glAccountId: expenseGlId!, debitAmount: amount, creditAmount: 0, description: inv.vendor_name_raw || 'Customer' },
                   { glAccountId: contraGlId!, debitAmount: 0, creditAmount: amount, description: 'Trade Payables' },
                 ];
           }
 
+          const isSalesType = inv.type === 'sales';
           await createJournalEntry({
             firmId: inv.firm_id,
             postingDate: inv.issue_date,
-            description: `${isCreditNote ? 'Credit Note' : inv.category.name} — ${inv.vendor_name_raw}`,
-            sourceType: 'invoice_posting',
+            description: `${isCreditNote ? 'Credit Note' : inv.category?.name ?? 'Sales'} — ${inv.vendor_name_raw || 'Customer'}`,
+            sourceType: isSalesType ? 'sales_invoice_posting' : 'invoice_posting',
             sourceId: inv.id,
             lines: jvLines,
             createdBy: session.user.id,
@@ -226,7 +227,7 @@ export async function PATCH(request: NextRequest) {
       const approvedIds = invoices.filter((inv) => inv.approval === 'approved').map((inv) => inv.id);
       if (approvedIds.length > 0) {
         const jvs = await prisma.journalEntry.findMany({
-          where: { source_type: 'invoice_posting', source_id: { in: approvedIds }, status: 'posted', reversed_by_id: null },
+          where: { source_type: { in: ['invoice_posting', 'sales_invoice_posting'] }, source_id: { in: approvedIds }, status: 'posted', reversed_by_id: null },
           include: { lines: true },
         });
         for (const jv of jvs) {

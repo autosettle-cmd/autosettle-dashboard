@@ -7,6 +7,24 @@
 - [ ] Refactor 7 oversized components — InvoicesPageContent (1913), ClaimsPageContent (1630), BankReconDetailContent (1555), BankReconMatchModal (1506), InvoicePreviewPanel (1221)
 - [ ] Add AbortController to ~15 components with unguarded fetch useEffects
 - [ ] Add onDelete rules to 42 schema relations — Cascade for firm FKs, SetNull for optional refs
+- [ ] Roll out global toast notifications (`useToast`) to ALL action pages — currently only InvoicesPageContent. Pages needing toasts:
+  - [ ] BankReconDetailContent — confirm, unmatch, create PV/OR, exclude
+  - [ ] BankReconPreviewModal — confirm, unmatch
+  - [ ] ClaimsPageContent — approve, reject, revert, delete
+  - [ ] SuppliersPageContent — save, delete, merge
+  - [ ] DeletedItemsPage — restore, hard delete
+  - [ ] Journal entries — cleanup orphans
+  - [ ] Client details — save edit, add admin/employee/accountant
+  - [ ] Categories page — add, edit, delete
+  - Replace all remaining `alert()` calls with `showToast('error', ...)`
+
+### Documentation
+- [ ] Consolidate docs — audit-checklist.md has grown to 50+ items with redundancy against design.md, entity-cascade.md, jv-rules.md. Reorganize: design.md = UI patterns only, audit-checklist.md = verifiable rules only (no duplicated explanations), remove stale SalesInvoice references from all docs
+- [ ] Clean up MEMORY.md — many entries reference pre-merge state (SalesInvoice, sales-invoices routes). Update or remove stale memories
+
+### Tooling
+- [ ] Fix Postgres MCP tool to support write operations (currently read-only), or create a `/seed` skill that can insert data via API
+- [ ] Consider a `/db` skill that wraps common DB operations (seed categories, reset test data, check counts)
 
 ### Testing
 - [ ] Build full UI click-through user journey tests (upload → OCR → bank recon match → confirm → unmatch)

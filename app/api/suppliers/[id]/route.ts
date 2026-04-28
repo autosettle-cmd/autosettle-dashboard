@@ -44,15 +44,15 @@ export async function GET(
         },
       }),
       prisma.invoice.findMany({
-        where: { supplier_id: id },
+        where: { supplier_id: id, type: 'purchase' },
         include: {
           category: { select: { name: true } },
         },
         orderBy: { issue_date: 'desc' },
         take: DEFAULT_PAGE_SIZE,
       }),
-      prisma.salesInvoice.findMany({
-        where: { supplier_id: id },
+      prisma.invoice.findMany({
+        where: { supplier_id: id, type: 'sales' },
         select: {
           id: true, invoice_number: true, issue_date: true, due_date: true,
           total_amount: true, amount_paid: true, payment_status: true, notes: true,
@@ -76,7 +76,7 @@ export async function GET(
       amount_paid: inv.amount_paid.toString(),
       payment_status: inv.payment_status,
       status: inv.status,
-      category_name: inv.category.name,
+      category_name: inv.category?.name ?? '',
       supplier_link_status: inv.supplier_link_status,
       vendor_name_raw: inv.vendor_name_raw,
       description: inv.payment_terms,
@@ -227,6 +227,53 @@ export async function PATCH(
 
     const updated = await prisma.supplier.update({ where: { id }, data });
     return NextResponse.json({ data: updated, error: null });
+  } catch (err) {
+    console.error('[API Error]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'accountant') {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
+    const { id } = await params;
+
+    const access = await verifyAccess(session, id);
+    if (!access) {
+      return NextResponse.json({ data: null, error: 'Supplier not found' }, { status: 404 });
+    }
+
+    // Check for downstream links
+    const [invoiceCount, paymentCount] = await Promise.all([
+      prisma.invoice.count({ where: { supplier_id: id } }),
+      prisma.payment.count({ where: { supplier_id: id } }),
+    ]);
+
+    const hasLinks = invoiceCount > 0 || paymentCount > 0;
+
+    if (hasLinks) {
+      const links: string[] = [];
+      if (invoiceCount > 0) links.push(`${invoiceCount} invoice(s)`);
+      if (paymentCount > 0) links.push(`${paymentCount} payment(s)`);
+      return NextResponse.json({
+        data: null,
+        error: `Cannot delete supplier — linked to ${links.join(', ')}. Remove or reassign linked records first.`,
+      }, { status: 409 });
+    }
+
+    // Hard delete — no downstream links, safe to remove
+    await prisma.$transaction([
+      prisma.supplierAlias.deleteMany({ where: { supplier_id: id } }),
+      prisma.supplier.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ data: { deleted: true }, error: null });
   } catch (err) {
     console.error('[API Error]', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

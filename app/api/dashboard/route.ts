@@ -246,7 +246,7 @@ export async function GET(request: NextRequest) {
           due_date: inv.due_date,
           total_amount: inv.total_amount.toString(),
           amount_paid: inv.amount_paid.toString(),
-          category_name: inv.category.name,
+          category_name: inv.category?.name ?? 'Uncategorized',
           category_id: inv.category_id,
           status: inv.status,
           approval: inv.approval,

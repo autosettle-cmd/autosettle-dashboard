@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
-import SearchButton from '@/components/SearchButton';
+
 import { STATUS_CFG, APPROVAL_CFG, PAYMENT_CFG } from '@/lib/badge-config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -354,7 +354,6 @@ export default function EmployeeDashboard() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <SearchButton />
             <Link href="/employee/claims" className="btn-thick-navy px-5 py-3 flex items-center gap-2">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19" />

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePageTitle } from '@/lib/use-page-title';
 import { useFirm } from '@/contexts/FirmContext';
-import SearchButton from '@/components/SearchButton';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,7 +143,6 @@ export default function AdminsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between bg-white border-b border-[#E0E3E5] pl-14 pr-6">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Admins</h1>
-          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col paper-texture">

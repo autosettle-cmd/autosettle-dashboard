@@ -46,7 +46,30 @@ export async function PATCH(
   if (contactEmail !== undefined) data.contact_email = contactEmail || null;
   if (contactPhone !== undefined) data.contact_phone = contactPhone || null;
   if (plan !== undefined) data.plan = plan;
-  if (typeof is_active === 'boolean') data.is_active = is_active;
+  if (typeof is_active === 'boolean') {
+    // Block deactivation if firm has any data (invoices, claims, employees, suppliers)
+    if (is_active === false) {
+      const [invoiceCount, claimCount, employeeCount, supplierCount] = await Promise.all([
+        prisma.invoice.count({ where: { firm_id: id } }),
+        prisma.claim.count({ where: { firm_id: id } }),
+        prisma.employee.count({ where: { firm_id: id } }),
+        prisma.supplier.count({ where: { firm_id: id } }),
+      ]);
+      const hasData = invoiceCount > 0 || claimCount > 0 || employeeCount > 0 || supplierCount > 0;
+      if (hasData) {
+        const items: string[] = [];
+        if (invoiceCount > 0) items.push(`${invoiceCount} invoice(s)`);
+        if (claimCount > 0) items.push(`${claimCount} claim(s)`);
+        if (employeeCount > 0) items.push(`${employeeCount} employee(s)`);
+        if (supplierCount > 0) items.push(`${supplierCount} supplier(s)`);
+        return NextResponse.json({
+          data: null,
+          error: `Cannot deactivate — firm has ${items.join(', ')}. Clear all data before deactivating.`,
+        }, { status: 409 });
+      }
+    }
+    data.is_active = is_active;
+  }
 
   // LHDN fields
   if (tin !== undefined) data.tin = tin || null;

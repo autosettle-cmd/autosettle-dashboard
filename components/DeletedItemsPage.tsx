@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { usePageTitle } from '@/lib/use-page-title';
-import SearchButton from '@/components/SearchButton';
+
 
 interface DeletedRecord {
   id: string;
@@ -18,7 +18,6 @@ interface DeletedRecord {
 
 const TYPE_BADGES: Record<string, string> = {
   Invoice: 'badge-blue',
-  'Sales Invoice': 'badge-purple',
   Claim: 'badge-green',
   'Mileage Claim': 'badge-green',
   Receipt: 'badge-amber',
@@ -26,7 +25,7 @@ const TYPE_BADGES: Record<string, string> = {
   'Bank Statement': 'badge-navy',
 };
 
-const TYPE_OPTIONS = ['All', 'Invoice', 'Sales Invoice', 'Claim', 'Payment', 'Bank Statement'];
+const TYPE_OPTIONS = ['All', 'Invoice', 'Claim', 'Payment', 'Bank Statement'];
 
 function daysRemaining(deletedAt: string): number {
   const deleted = new Date(deletedAt);
@@ -83,7 +82,6 @@ export default function DeletedItemsPage({ showFirm = false }: Props) {
     try {
       const modelMap: Record<string, string> = {
         Invoice: 'invoice',
-        'Sales Invoice': 'salesInvoice',
         Claim: 'claim',
         'Mileage Claim': 'claim',
         Receipt: 'claim',
@@ -121,7 +119,6 @@ export default function DeletedItemsPage({ showFirm = false }: Props) {
       <div className="flex-1 flex flex-col overflow-hidden ledger-binding">
         <header className="h-16 flex-shrink-0 flex items-center justify-between px-6 pl-14 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Deleted Items</h1>
-          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-auto p-8 pl-14 space-y-6 paper-texture animate-in">

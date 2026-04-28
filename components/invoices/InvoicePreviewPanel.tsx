@@ -24,6 +24,7 @@ interface InvoiceLineRow {
 
 interface InvoiceRow {
   id: string;
+  type: 'purchase' | 'sales';
   vendor_name_raw: string;
   invoice_number: string | null;
   issue_date: string;
@@ -149,6 +150,9 @@ export interface InvoicePreviewPanelProps {
   deleteInvoice: (id: string) => void;
   refresh: () => void;
 
+  // Resolved API URL for this specific invoice (handles purchase vs sales routing)
+  invoiceApiUrl: string;
+
   // Navigation
   onPrev?: () => void;
   onNext?: () => void;
@@ -208,6 +212,7 @@ export default function InvoicePreviewPanel({
   setRejectModal,
   deleteInvoice,
   refresh,
+  invoiceApiUrl,
   onPrev,
   onNext,
 }: InvoicePreviewPanelProps) {
@@ -251,7 +256,7 @@ export default function InvoicePreviewPanel({
   const isPV = previewInvoice.invoice_number?.startsWith('PV-');
   const isOR = previewInvoice.invoice_number?.startsWith('OR-');
   const canAttach = (isPV || isOR) && !previewInvoice.file_url;
-  const attachApi = isOR ? `/api/sales-invoices/${previewInvoice.id}/attach` : `/api/invoices/${previewInvoice.id}/attach`;
+  const attachApi = `/api/invoices/${previewInvoice.id}/attach`;
 
   const handleAttachFile = async (file: File) => {
     setAttachingFile(true);
@@ -900,11 +905,11 @@ export default function InvoicePreviewPanel({
                       Edit
                     </button>
                   )}
-                  {previewInvoice.status === 'reviewed' && (
+                  {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
                     <button
                       onClick={async () => {
                         try {
-                          const res = await fetch(`${config.apiInvoices}/${previewInvoice.id}`, {
+                          const res = await fetch(`${invoiceApiUrl}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: 'pending_review' }),
@@ -977,11 +982,11 @@ export default function InvoicePreviewPanel({
                   >
                     Edit
                   </button>
-                  {previewInvoice.status === 'reviewed' && (
+                  {previewInvoice.status === 'reviewed' && previewInvoice.approval === 'pending_approval' && (
                     <button
                       onClick={async () => {
                         try {
-                          const res = await fetch(`${config.apiInvoices}/${previewInvoice.id}`, {
+                          const res = await fetch(`${invoiceApiUrl}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ status: 'pending_review' }),

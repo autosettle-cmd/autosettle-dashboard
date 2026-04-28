@@ -8,7 +8,6 @@ export default function AdminInvoicesPage() {
       config={{
         role: 'admin',
         apiInvoices: '/api/admin/invoices',
-        apiSalesInvoices: '/api/admin/sales-invoices',
         apiBatch: '/api/admin/invoices/batch',
         apiDelete: '/api/invoices/delete',
         apiCategories: '/api/admin/categories',

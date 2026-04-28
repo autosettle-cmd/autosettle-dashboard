@@ -165,6 +165,7 @@ export async function GET(request: NextRequest) {
       // CREDIT = money coming in → show sales invoices
       const salesWhere: Record<string, unknown> = {
         firm_id: firmId,
+        type: 'sales',
         approval: 'approved',
         payment_status: { in: ['unpaid', 'partially_paid'] },
       };
@@ -175,12 +176,12 @@ export async function GET(request: NextRequest) {
           salesWhere.total_amount = { gte: searchAmount, lt: searchAmount < 1 ? searchAmount + 1 : searchAmount * 10 < searchAmount + 10 ? searchAmount + 10 : Math.pow(10, Math.ceil(Math.log10(searchAmount + 1))) };
         } else {
           salesWhere.OR = [
-            { buyer: { name: { contains: search, mode: 'insensitive' } } },
+            { supplier: { name: { contains: search, mode: 'insensitive' } } },
             { invoice_number: { contains: search, mode: 'insensitive' } },
           ];
         }
       }
-      const salesInvoices = await prisma.salesInvoice.findMany({
+      const salesInvoices = await prisma.invoice.findMany({
         where: salesWhere,
         select: {
           id: true,
@@ -190,7 +191,7 @@ export async function GET(request: NextRequest) {
           issue_date: true,
           supplier_id: true,
           gl_account_id: true,
-          buyer: { select: { name: true } },
+          supplier: { select: { name: true } },
         },
         orderBy: { issue_date: 'desc' },
         take: DEFAULT_PAGE_SIZE,
@@ -200,7 +201,7 @@ export async function GET(request: NextRequest) {
         type: 'sales_invoice' as const,
         id: inv.id,
         reference: inv.invoice_number,
-        name: inv.buyer.name, // buyer name
+        name: inv.supplier?.name ?? 'Unknown', // customer/buyer name
         totalAmount: Number(inv.total_amount),
         remaining: Number(inv.total_amount) - Number(inv.amount_paid),
         date: inv.issue_date,

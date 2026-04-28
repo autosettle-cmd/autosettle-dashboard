@@ -28,7 +28,7 @@ export const dynamic = 'force-dynamic';
  * | "invoice"   | invoice, receipt | bank_statement           |
  * | null        | invoice, receipt | bank_statement           |
  */
-function getDocTypeBlockError(detectedType: string, context: string | null): string | null {
+function getDocTypeBlockError(detectedType: string, _context: string | null): string | null {
   if (detectedType === 'bank_statement') {
     return 'This is a bank statement. Please upload it on the Bank Recon page instead.';
   }

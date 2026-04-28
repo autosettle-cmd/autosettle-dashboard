@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/use-page-title';
-import SearchButton from '@/components/SearchButton';
+
 
 // ─── Team types ──────────────────────────────────────────────────────────────
 
@@ -74,7 +74,8 @@ export default function ClientsPage() {
   // LHDN fields
   const [editTin, setEditTin]                   = useState('');
   const [editBrn, setEditBrn]                   = useState('');
-  const [editMsic, setEditMsic]                 = useState('');
+  const [editMsicCodes, setEditMsicCodes]       = useState<string[]>([]);
+  const [editMsicInput, setEditMsicInput]       = useState('');
   const [editSst, setEditSst]                   = useState('');
   const [editAddr1, setEditAddr1]               = useState('');
   const [editAddr2, setEditAddr2]               = useState('');
@@ -97,14 +98,42 @@ export default function ClientsPage() {
   const [editMember, setEditMember]               = useState<TeamMember | null>(null);
   const [editMemberFirmIds, setEditMemberFirmIds] = useState<string[]>([]);
 
-  // Load firms
+  // Setup status per firm: firmId → list of missing steps
+  const [setupStatus, setSetupStatus] = useState<Record<string, string[]>>({});
+
+  // Load firms + setup status
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
     fetch('/api/firms/details')
       .then((r) => r.json())
-      .then((j) => { if (!cancelled) { setFirms(j.data ?? []); setLoading(false); } })
+      .then((j) => {
+        if (cancelled) return;
+        const data: FirmRow[] = j.data ?? [];
+        setFirms(data);
+        setLoading(false);
+
+        // Fetch setup status for each firm in parallel
+        Promise.all(data.map(f =>
+          fetch(`/api/accountant/firms/${f.id}/setup-status`).then(r => r.json()).catch(() => null)
+        )).then(results => {
+          if (cancelled) return;
+          const status: Record<string, string[]> = {};
+          data.forEach((f, i) => {
+            const d = results[i]?.data;
+            if (!d) return;
+            const missing: string[] = [];
+            if (!d.firmDetails?.complete) missing.push('Firm Details');
+            if (!d.chartOfAccounts?.complete) missing.push('Chart of Accounts');
+            if (!d.glDefaults?.complete) missing.push('GL Defaults');
+            if (!d.categories?.complete) missing.push('Category Mapping');
+            if (!d.fiscalYear?.complete) missing.push('Fiscal Year');
+            if (missing.length > 0) status[f.id] = missing;
+          });
+          setSetupStatus(status);
+        });
+      })
       .catch((e) => { console.error(e); if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -179,7 +208,8 @@ export default function ClientsPage() {
     setEditPlan(firm.plan);
     setEditTin(firm.tin ?? '');
     setEditBrn(firm.brn ?? '');
-    setEditMsic(firm.msic_code ?? '');
+    setEditMsicCodes(firm.msic_code ? firm.msic_code.split(',').map((s: string) => s.trim()).filter(Boolean) : []);
+    setEditMsicInput('');
     setEditSst(firm.sst_registration_number ?? '');
     setEditAddr1(firm.address_line1 ?? '');
     setEditAddr2(firm.address_line2 ?? '');
@@ -206,7 +236,7 @@ export default function ClientsPage() {
           plan: editPlan,
           tin: editTin.trim(),
           brn: editBrn.trim(),
-          msic_code: editMsic.trim(),
+          msic_code: editMsicCodes.join(', '),
           sst_registration_number: editSst.trim(),
           address_line1: editAddr1.trim(),
           address_line2: editAddr2.trim(),
@@ -279,7 +309,6 @@ export default function ClientsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-16 flex-shrink-0 flex items-center justify-between pl-14 pr-6 bg-white border-b border-[#E0E3E5]">
           <h1 className="text-xl font-bold tracking-tighter text-[var(--text-primary)]">Clients</h1>
-          <SearchButton />
         </header>
 
         <main className="flex-1 overflow-hidden flex flex-col gap-4 p-8 pl-14 paper-texture ledger-binding animate-in">
@@ -382,13 +411,26 @@ export default function ClientsPage() {
                     {firms.map((firm, i) => (
                       <tr key={firm.id} className={`group hover:bg-[var(--surface-header)] transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-[var(--surface-low)]' : 'bg-white'}`} onClick={() => window.location.href = `/accountant/clients/${firm.id}`}>
                         <td data-col="Firm Name" className="px-6 py-3 font-medium">
-                          <Link
-                            href={`/accountant/clients/${firm.id}`}
-                            className="text-[var(--primary)] hover:underline font-semibold transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {firm.name}
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/accountant/clients/${firm.id}`}
+                              className="text-[var(--primary)] hover:underline font-semibold transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {firm.name}
+                            </Link>
+                            {setupStatus[firm.id] && (
+                              <span className="relative group/tip">
+                                <span className="inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold bg-[var(--reject-red)] text-white" style={{ borderRadius: '2px' }}>!</span>
+                                <span className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-[#191C1E] text-white text-[11px] px-3 py-2 whitespace-nowrap opacity-0 pointer-events-none group-hover/tip:opacity-100 transition-opacity z-30 shadow-lg" style={{ borderRadius: '2px' }}>
+                                  <span className="block font-bold text-[10px] uppercase tracking-wider text-white/50 mb-1">Setup incomplete</span>
+                                  {setupStatus[firm.id].map(s => (
+                                    <span key={s} className="block">• {s}</span>
+                                  ))}
+                                </span>
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td data-col="Reg. Number" className="px-6 py-3 text-[var(--text-secondary)]">{firm.registration_number ?? '—'}</td>
                         <td data-col="Employees" className="px-6 py-3 text-[var(--text-primary)] font-medium text-right tabular-nums">{firm.employee_count}</td>
@@ -412,16 +454,21 @@ export default function ClientsPage() {
                               Edit
                             </button>
                             <button
-                              onClick={async () => {
+                              onClick={async (e) => {
+                                e.stopPropagation();
                                 try {
                                   const res = await fetch(`/api/firms/${firm.id}`, {
                                     method: 'PATCH',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ is_active: !firm.is_active }),
                                   });
-                                  if (res.ok) refresh();
-                                } catch (e) {
-                                  console.error(e);
+                                  if (res.ok) { refresh(); }
+                                  else {
+                                    const json = await res.json();
+                                    alert(json.error || 'Failed');
+                                  }
+                                } catch (e2) {
+                                  console.error(e2);
                                 }
                               }}
                               className="btn-thick-white text-xs font-medium px-3 py-1.5"
@@ -459,12 +506,12 @@ export default function ClientsPage() {
                   <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} className="input-recessed w-full" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Registration Number</label>
-                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Registration Number *</label>
+                  <input type="text" value={editRegNumber} onChange={(e) => setEditRegNumber(e.target.value)} className="input-recessed w-full" placeholder="Company registration number" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Email</label>
-                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
+                  <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Email *</label>
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="input-recessed w-full" placeholder="firm@example.com" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">Contact Phone</label>
@@ -493,15 +540,43 @@ export default function ClientsPage() {
                       <input type="text" value={editBrn} onChange={(e) => setEditBrn(e.target.value)} className="input-recessed w-full" placeholder="Business Reg No" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">MSIC Code</label>
-                      <input type="text" value={editMsic} onChange={(e) => setEditMsic(e.target.value)} className="input-recessed w-full" placeholder="5-digit code" />
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">MSIC Codes</label>
+                    <div className="input-recessed w-full flex flex-wrap gap-1 items-center min-h-[36px] px-2 py-1">
+                      {editMsicCodes.map((code) => (
+                        <span key={code} className="inline-flex items-center gap-1 bg-[var(--surface-sunken)] text-xs text-[var(--text-primary)] pl-2 pr-1 py-0.5 rounded">
+                          {code}
+                          <button type="button" onClick={() => setEditMsicCodes((prev) => prev.filter((c) => c !== code))} className="text-[var(--text-secondary)] hover:text-red-500 text-sm leading-none cursor-pointer">&times;</button>
+                        </span>
+                      ))}
+                      <input
+                        type="text"
+                        value={editMsicInput}
+                        onChange={(e) => setEditMsicInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.key === 'Enter' || e.key === ',') && editMsicInput.trim()) {
+                            e.preventDefault();
+                            const code = editMsicInput.trim().replace(/,/g, '');
+                            if (code && !editMsicCodes.includes(code)) setEditMsicCodes((prev) => [...prev, code]);
+                            setEditMsicInput('');
+                          }
+                          if (e.key === 'Backspace' && !editMsicInput && editMsicCodes.length) {
+                            setEditMsicCodes((prev) => prev.slice(0, -1));
+                          }
+                        }}
+                        onBlur={() => {
+                          const code = editMsicInput.trim().replace(/,/g, '');
+                          if (code && !editMsicCodes.includes(code)) setEditMsicCodes((prev) => [...prev, code]);
+                          setEditMsicInput('');
+                        }}
+                        className="flex-1 min-w-[80px] bg-transparent outline-none text-sm placeholder:text-[var(--text-secondary)]"
+                        placeholder={editMsicCodes.length ? '' : '5-digit code, press Enter to add'}
+                      />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">SST Registration</label>
-                      <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
-                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-label font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">SST Registration</label>
+                    <input type="text" value={editSst} onChange={(e) => setEditSst(e.target.value)} className="input-recessed w-full" placeholder="Optional" />
                   </div>
                 </div>
               </div>
