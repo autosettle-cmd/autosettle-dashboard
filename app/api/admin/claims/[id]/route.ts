@@ -11,61 +11,66 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
-    return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== 'admin' || !session.user.firm_id) {
+      return NextResponse.json({ data: null, error: 'Unauthorized' }, { status: 401 });
+    }
+    const firmId = session.user.firm_id;
+
+    const { id } = await params;
+
+    // Verify claim belongs to admin's firm
+    const claim = await prisma.claim.findUnique({
+      where: { id },
+    });
+
+    if (!claim) {
+      return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
+    }
+    if (claim.firm_id !== firmId) {
+      return NextResponse.json({ data: null, error: 'Not authorized for this claim' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    // Reverse JV if claim was approved (editing resets approval)
+    if (claim.approval === 'approved') {
+      await reverseJVsForSource('claim_approval', claim.id, session.user.id);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = {
+      status: 'pending_review',
+      approval: 'pending_approval',
+      gl_account_id: null,
+    };
+    if (body.claim_date !== undefined) data.claim_date = new Date(body.claim_date);
+    if (body.merchant !== undefined) data.merchant = body.merchant;
+    if (body.amount !== undefined) data.amount = body.amount;
+    if (body.category_id !== undefined) data.category_id = body.category_id;
+    if (body.receipt_number !== undefined) data.receipt_number = body.receipt_number || null;
+    if (body.description !== undefined) data.description = body.description || null;
+    if (body.employee_id !== undefined) data.employee_id = body.employee_id;
+
+    const updated = await prisma.claim.update({
+      where: { id },
+      data,
+    });
+
+    await auditLog({
+      firmId,
+      tableName: 'Claim',
+      recordId: id,
+      action: 'update',
+      oldValues: { status: claim!.status, approval: claim!.approval, amount: String(claim!.amount), category_id: claim!.category_id },
+      newValues: { status: updated.status, approval: updated.approval, amount: String(updated.amount), category_id: updated.category_id },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
+
+    return NextResponse.json({ data: updated, error: null });
+  } catch (err) {
+    console.error('[API Error]', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-  const firmId = session.user.firm_id;
-
-  const { id } = await params;
-
-  // Verify claim belongs to admin's firm
-  const claim = await prisma.claim.findUnique({
-    where: { id },
-  });
-
-  if (!claim) {
-    return NextResponse.json({ data: null, error: 'Claim not found' }, { status: 404 });
-  }
-  if (claim.firm_id !== firmId) {
-    return NextResponse.json({ data: null, error: 'Not authorized for this claim' }, { status: 403 });
-  }
-
-  const body = await request.json();
-  // Reverse JV if claim was approved (editing resets approval)
-  if (claim.approval === 'approved') {
-    await reverseJVsForSource('claim_approval', claim.id, session.user.id);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data: any = {
-    status: 'pending_review',
-    approval: 'pending_approval',
-    gl_account_id: null,
-  };
-  if (body.claim_date !== undefined) data.claim_date = new Date(body.claim_date);
-  if (body.merchant !== undefined) data.merchant = body.merchant;
-  if (body.amount !== undefined) data.amount = body.amount;
-  if (body.category_id !== undefined) data.category_id = body.category_id;
-  if (body.receipt_number !== undefined) data.receipt_number = body.receipt_number || null;
-  if (body.description !== undefined) data.description = body.description || null;
-  if (body.employee_id !== undefined) data.employee_id = body.employee_id;
-
-  const updated = await prisma.claim.update({
-    where: { id },
-    data,
-  });
-
-  await auditLog({
-    firmId,
-    tableName: 'Claim',
-    recordId: id,
-    action: 'update',
-    oldValues: { status: claim!.status, approval: claim!.approval, amount: String(claim!.amount), category_id: claim!.category_id },
-    newValues: { status: updated.status, approval: updated.approval, amount: String(updated.amount), category_id: updated.category_id },
-    userId: session.user.id,
-    userName: session.user.name,
-  });
-
-  return NextResponse.json({ data: updated, error: null });
 }

@@ -113,6 +113,7 @@ export default function BankReconPreviewModal({
   matchingDisabled,
 }: BankReconPreviewModalProps) {
   const [pressedDir, setPressedDir] = useState<'left' | 'right' | null>(null);
+  const [showConfirmJV, setShowConfirmJV] = useState(false);
   const [_attachingFile, setAttachingFile] = useState(false);
   const [_attachError, setAttachError] = useState('');
   const [_showAttachMenu, _setShowAttachMenu] = useState(false);
@@ -570,7 +571,7 @@ export default function BankReconPreviewModal({
               <div className="flex gap-2">
                 {txn.recon_status === 'matched' && (
                   <>
-                    <button onClick={() => { onConfirm([txn.id], selectedDebitGl || selectedCreditGl ? { debitGlId: selectedDebitGl || undefined, creditGlId: selectedCreditGl || undefined } : undefined); }} disabled={confirming || matchingDisabled} className={`btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-50 ${matchingDisabled ? 'cursor-not-allowed' : ''}`}>
+                    <button onClick={() => setShowConfirmJV(true)} disabled={confirming || matchingDisabled} className={`btn-thick-green flex-1 py-1.5 text-xs disabled:opacity-50 ${matchingDisabled ? 'cursor-not-allowed' : ''}`}>
                       Confirm
                     </button>
                     <button onClick={() => { onUnmatch(txn.id); onClose(); }} disabled={matchingDisabled} className={`btn-thick-red flex-1 py-1.5 text-xs ${matchingDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -599,6 +600,84 @@ export default function BankReconPreviewModal({
         </div>
       </div>
       </div>
+      {/* ═══ JV CONFIRMATION MODAL ═══ */}
+      {showConfirmJV && (() => {
+        const bankGl = statement?.bank_gl_label || 'Bank GL';
+        const mi = txn.matched_invoice;
+        const msi = txn.matched_sales_invoice;
+        const hasClaims = (txn.matched_payment?.receipts?.length ?? 0) > 0 || (txn.matched_claims?.length ?? 0) > 0;
+        const amt = mi?.allocation_amount ?? mi?.total_amount ?? msi?.total_amount ?? txn.debit ?? txn.credit ?? '0';
+        const contraGlId = txn.debit ? selectedDebitGl : selectedCreditGl;
+        const contraGl = contraGlId && glAccounts.length > 0
+          ? glAccounts.find(a => a.id === contraGlId)
+          : null;
+        const contraLabel = contraGl
+          ? `${contraGl.account_code} — ${contraGl.name}`
+          : txn.debit
+            ? `Trade Payables — ${mi?.vendor_name ?? 'Unknown'}`
+            : `Trade Receivables — ${msi?.buyer_name ?? 'Unknown'}`;
+        const matchLabel = mi
+          ? `${mi.vendor_name} — ${mi.invoice_number}`
+          : msi
+            ? `${msi.buyer_name} — ${msi.invoice_number}`
+            : hasClaims
+              ? `${txn.matched_payment?.supplier_name ?? 'Claim reimbursement'}`
+              : 'Bank transaction';
+
+        return (
+          <>
+            <div className="fixed inset-0 bg-[#070E1B]/50 backdrop-blur-[2px] z-[70]" onClick={() => setShowConfirmJV(false)} />
+            <div className="fixed inset-0 z-[71] flex items-center justify-center p-4">
+              <div className="bg-white shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="px-6 py-4 bg-[var(--match-green)]">
+                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">Confirm & Create</h3>
+                  <p className="text-xs text-white/80 mt-1">A Journal Entry will be posted with the following:</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="bg-[var(--surface-low)] p-3">
+                    <p className="text-sm text-[var(--text-secondary)]">{matchLabel}</p>
+                    <p className="text-lg font-bold text-[var(--text-primary)]">{formatRM(amt)}</p>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest bg-[var(--surface-low)]">
+                        <th className="px-3 py-2 text-left">Account</th>
+                        <th className="px-3 py-2 text-right w-24">Debit</th>
+                        <th className="px-3 py-2 text-right w-24">Credit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {txn.debit ? (
+                        <>
+                          <tr className="border-b border-[#E0E3E5]"><td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{contraLabel}</td><td className="px-3 py-2.5 text-right tabular-nums font-semibold">{formatRM(amt)}</td><td className="px-3 py-2.5 text-right text-[var(--text-muted)]">—</td></tr>
+                          <tr className="border-b border-[#E0E3E5]"><td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGl}</td><td className="px-3 py-2.5 text-right text-[var(--text-muted)]">—</td><td className="px-3 py-2.5 text-right tabular-nums font-semibold">{formatRM(amt)}</td></tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr className="border-b border-[#E0E3E5]"><td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{bankGl}</td><td className="px-3 py-2.5 text-right tabular-nums font-semibold">{formatRM(amt)}</td><td className="px-3 py-2.5 text-right text-[var(--text-muted)]">—</td></tr>
+                          <tr className="border-b border-[#E0E3E5]"><td className="px-3 py-2.5 text-[var(--text-primary)] font-medium">{contraLabel}</td><td className="px-3 py-2.5 text-right text-[var(--text-muted)]">—</td><td className="px-3 py-2.5 text-right tabular-nums font-semibold">{formatRM(amt)}</td></tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex gap-3 p-5 bg-[var(--surface-low)]">
+                  <button
+                    onClick={() => { setShowConfirmJV(false); onConfirm([txn.id], selectedDebitGl || selectedCreditGl ? { debitGlId: selectedDebitGl || undefined, creditGlId: selectedCreditGl || undefined } : undefined); }}
+                    disabled={confirming}
+                    className="btn-thick-green flex-1 py-2.5 text-sm font-semibold"
+                  >
+                    {confirming ? 'Confirming...' : 'Confirm & Create'}
+                  </button>
+                  <button onClick={() => setShowConfirmJV(false)} className="btn-thick-white flex-1 py-2.5 text-sm font-semibold">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </>
   );
 }

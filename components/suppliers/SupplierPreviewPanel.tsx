@@ -480,10 +480,16 @@ export default function SupplierPreviewPanel({
                             <span className="font-semibold text-amber-600 tabular-nums">{formatRM(op.amount)}</span>
                             <button
                               onClick={async () => {
-                                if (!confirm('Delete this payment and unlink its receipts?')) return;
+                                if (!confirm('Delete this payment? This will be recoverable for 30 days.')) return;
                                 try {
                                   const res = await fetch(`${apiPayments}/${op.id}`, { method: 'DELETE' });
-                                  if (res.ok) onRefreshInPlace();
+                                  if (res.ok) { onRefreshInPlace(); return; }
+                                  const json = await res.json();
+                                  if (json.blockers?.length) {
+                                    alert('Cannot delete:\n\n' + json.blockers.map((b: { label: string; detail: string }) => `• ${b.label} — ${b.detail}`).join('\n'));
+                                  } else {
+                                    alert(json.error || 'Failed to delete');
+                                  }
                                 } catch (err) { console.error(err); }
                               }}
                               className="text-[var(--reject-red)] hover:opacity-80 font-medium text-label-sm"

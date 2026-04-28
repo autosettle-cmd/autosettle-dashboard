@@ -16,6 +16,7 @@ export async function GET(_request: NextRequest) {
     where: { firm_id: session.user.firm_id },
     include: { glAccount: { select: { account_code: true, name: true } } },
     orderBy: { bank_name: 'asc' },
+    take: 100,
   });
 
   return NextResponse.json({

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recalcInvoicePaid } from '@/lib/invoice-payment';
 import { deleteFileFromDrive } from '@/lib/google-drive';
+import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -116,6 +117,16 @@ export async function DELETE(request: NextRequest) {
     await prisma.bankTransaction.deleteMany({ where: { bank_statement_id: statementId } });
     await prisma.bankStatement.delete({ where: { id: statementId } });
     deleteFileFromDrive(statement.file_url).catch(() => {});
+
+    await auditLog({
+      firmId: session.user.firm_id,
+      tableName: 'BankStatement',
+      recordId: statementId,
+      action: 'delete',
+      oldValues: { transactions: allTxns.length, file_url: statement.file_url },
+      userId: session.user.id,
+      userName: session.user.name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

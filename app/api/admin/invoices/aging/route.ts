@@ -57,6 +57,7 @@ export async function GET() {
         category: { select: { name: true } },
       },
       orderBy: { due_date: 'asc' },
+      take: 500, // Safety limit — paginate if data exceeds this
     });
 
     // Group by supplier and calculate aging buckets

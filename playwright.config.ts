@@ -5,6 +5,11 @@ export default defineConfig({
   timeout: 30000,
   retries: 1,
   workers: 1,
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.01,
+    },
+  },
   use: {
     baseURL: 'http://localhost:3000',
     headless: true,

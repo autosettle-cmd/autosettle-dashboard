@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       source_id: { not: null },
     },
     select: { id: true, source_id: true, source_type: true, voucher_number: true, description: true, reversed_by_id: true, reversal_of_id: true },
+    take: 1000, // Safety limit — batch operation
   });
 
   if (allJVs.length === 0) {

@@ -577,3 +577,62 @@ PV (Payment Voucher) and OR (Official Receipt) records without documents can gen
 - `SalesInvoice` now has `file_url`, `file_download_url`, `thumbnail_url`, `file_hash` fields
 
 **Status:** ✅ PV + OR generation working (2026-04-27)
+
+---
+
+## 37. Bank Recon GL Passthrough
+
+When a GL account is chosen during PV/OR creation in bank recon, it must be saved to the record AND returned correctly in the preview API so the Contra GL dropdown shows the right value.
+
+### The Rule
+The `gl_account_id` field on Invoice (PV) and SalesInvoice (OR) stores the user-chosen GL. The bank recon preview expects `contra_gl_account_id` in the API response. The API must map:
+- **Invoice (PV):** `contra_gl_account_id ?? gl_account_id ?? supplier.default_contra_gl_account_id`
+- **SalesInvoice (OR):** `gl_account_id` returned as `contra_gl_account_id`
+
+### Files
+- `app/api/bank-reconciliation/statements/[id]/route.ts` — accountant: must return `matched_invoice`, `matched_sales_invoice`, `matched_claims` with GL fields
+- `app/api/admin/bank-reconciliation/statements/[id]/route.ts` — admin: must be at parity with accountant version (was missing matched_invoice + matched_sales_invoice entirely)
+- `app/api/bank-reconciliation/create-voucher/route.ts` — saves `gl_account_id` on Invoice
+- `app/api/bank-reconciliation/create-receipt/route.ts` — saves `gl_account_id` on SalesInvoice
+- `components/bank-recon/BankReconPreviewModal.tsx` — reads `contra_gl_account_id` from API response
+
+### Admin-Accountant Parity
+Admin statements/[id] API must return the exact same data shape as the accountant version: `matched_invoice`, `matched_invoice_allocations`, `matched_sales_invoice`, `matched_claims`, `matched_payment`.
+
+**Status:** ✅ Fixed (2026-04-28) — admin brought to parity, GL fallback chain added
+
+---
+
+## 36. Soft Delete System
+
+Invoice, SalesInvoice, Claim, Payment use soft deletes (30-day grace period).
+
+### Architecture
+- `deleted_at DateTime?` + `deleted_by String?` on each model
+- Prisma `$extends` in `lib/prisma.ts` auto-filters `WHERE deleted_at IS NULL` on all reads
+- `prismaUnfiltered` export bypasses the filter (restore API + hard-delete cron only)
+- SalesInvoice partial unique index: `WHERE deleted_at IS NULL` on `(firm_id, invoice_number)`
+- Shared cascade logic in `lib/soft-delete.ts`
+
+### Behavior
+- On soft-delete: JV reversal + join table cleanup happens immediately (same as before)
+- Record hidden for 30 days, Drive files preserved for viewing
+- Restore → `pending_approval` (must re-approve for JVs)
+- Hard-delete cron: `app/api/cron/hard-delete-expired/route.ts` (weekly, 30-day cutoff)
+
+### Delete Endpoint Blockers (Phase 0 fix)
+- SalesInvoice delete checks `SalesPaymentAllocation` count
+- Payment delete checks both `PaymentAllocation` AND `SalesPaymentAllocation`
+- Claims delete checks `PaymentReceipt`
+
+### Pages
+- Accountant: `/accountant/deleted-items`
+- Admin: `/admin/deleted-items`
+- Platform: `/platform/deleted-items` (cross-firm)
+- All use shared `components/DeletedItemsPage.tsx`
+
+### API
+- `GET /api/deleted-records` — lists soft-deleted records (firm-scoped)
+- `POST /api/deleted-records/restore` — restores a record (checks SalesInvoice unique constraint)
+
+**Status:** ✅ Implemented (2026-04-28)

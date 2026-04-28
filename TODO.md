@@ -1,8 +1,25 @@
 # TODO
 
+## Code Quality (from /audit 2026-04-28, re-audited 2026-04-28)
+
+### High
+- [ ] Consolidate admin/accountant route duplication — 61 admin routes mirror accountant (~2000+ lines)
+- [ ] Refactor 7 oversized components — InvoicesPageContent (1913), ClaimsPageContent (1630), BankReconDetailContent (1555), BankReconMatchModal (1506), InvoicePreviewPanel (1221)
+- [ ] Add AbortController to ~15 components with unguarded fetch useEffects
+- [ ] Add onDelete rules to 42 schema relations — Cascade for firm FKs, SetNull for optional refs
+
+### Medium
+- [ ] Add 3 missing DB indexes — SalesInvoiceItem `[sales_invoice_id]`, Period date indexes, MessageLog `[received_at]`
+- [ ] Merge claims/counts 6 queries into single groupBy
+- [ ] Extract hardcoded `take: 100` to shared constant
+- [ ] Remove console.log from prod code (cron, lisa.ts)
+
+### Low Priority
+- [ ] Consolidate claims/stats + claims/counts into single endpoint
+
+---
+
 ## Questions for accountant (DS Plus)
-- [ ] Get COA from accountant — what GL codes does he use in SQL Accounting?
-- [ ] How to map categories to GL accounts for DS Plus?
 - [ ] Director (Lee Chia Wen) personal purchases — treat as claims or director's account/loan?
 - [ ] Which GL account for director's loan/advances?
 - [ ] Stationery folder: mix of Shopee invoices + receipt photos — should these be invoices or claims?
@@ -31,22 +48,11 @@
 - [ ] Consider: add Google Vision API fallback for OCR when Gemini is unavailable (Vision uses API key, no billing needed)
 - Root cause: Invoice/claim OCR always uses Gemini (Vertex AI), which requires billing. Bank recon works because regex parser handles it without Gemini.
 
-## Multi-receipt detection: extract multiple receipts from one photo
-- [ ] Update Gemini OCR prompt to detect and return an array of receipts when multiple are in one image
-- [ ] Update `extractWithGemini` in `lib/whatsapp/gemini.ts` to return array instead of single result
-- [ ] Dashboard batch upload: if OCR returns multiple receipts from one image, create a claim for each
-- [ ] WhatsApp flow: if multiple receipts detected, create multiple claims and confirm count to user
-- Common scenario: 3 receipts photographed side by side (TNG reload, toll, etc.)
-
 ## Fix: Upload modal should auto-select firm from sidebar filter
 - [ ] Bank Recon upload modal: pre-fill firm from `firmFilter` (sidebar selector) so accountant doesn't have to select again
 - [ ] Invoice upload modal: same — use sidebar firm as default
 - [ ] Claims upload modal: same
 - Affects: `app/accountant/bank-reconciliation/page.tsx`, `app/accountant/invoices/page.tsx`, `app/accountant/claims/page.tsx`
-
-## Fix: Audit log not recording bank statement deletion
-- [ ] Add `auditLog()` call in bank statement delete endpoint when a statement is deleted
-- Affects: `app/api/bank-reconciliation/statements/delete/route.ts` (or similar)
 
 ## Bank Statement Parser: Add regex for more bank formats
 - [ ] OCBC — upload sample statement, build regex parser in `lib/bank-pdf-parser.ts`

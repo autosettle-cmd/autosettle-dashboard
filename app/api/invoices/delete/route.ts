@@ -3,8 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
-import { auditLog } from '@/lib/audit';
-import { deleteFileFromDrive } from '@/lib/google-drive';
+import { softDeleteInvoice } from '@/lib/soft-delete';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +28,7 @@ export async function DELETE(request: NextRequest) {
 
     const invoice = await prisma.invoice.findUnique({
       where: { id: invoiceId },
-      select: { id: true, firm_id: true, vendor_name_raw: true, invoice_number: true, total_amount: true, status: true, approval: true, file_url: true },
+      select: { id: true, firm_id: true },
     });
 
     if (!invoice) {
@@ -48,30 +47,10 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Reverse JVs if invoice was approved
-    if (invoice.status === 'reviewed' || invoice.approval === 'approved') {
-      const { reverseJVsForSource } = await import('@/lib/journal-entries');
-      await reverseJVsForSource('invoice_posting', invoiceId, session.user.id);
+    const result = await softDeleteInvoice(invoiceId, invoice.firm_id, session.user.id, session.user.name);
+    if (result.blockers?.length) {
+      return NextResponse.json({ data: null, error: 'Cannot delete', blockers: result.blockers }, { status: 400 });
     }
-
-    await prisma.invoice.delete({ where: { id: invoiceId } });
-    // Clean up Google Drive file (non-blocking)
-    deleteFileFromDrive(invoice.file_url).catch(() => {});
-
-    await auditLog({
-      firmId: invoice.firm_id,
-      tableName: 'Invoice',
-      recordId: invoiceId,
-      action: 'delete',
-      oldValues: {
-        vendor: invoice.vendor_name_raw,
-        invoice_number: invoice.invoice_number,
-        total_amount: Number(invoice.total_amount),
-        status: invoice.status,
-      },
-      userId: session.user.id,
-      userName: session.user.name,
-    });
 
     return NextResponse.json({ data: { deleted: true }, error: null });
   } catch (error) {

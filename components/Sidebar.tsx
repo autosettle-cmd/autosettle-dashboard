@@ -30,6 +30,7 @@ const ADMIN_NAV = [
   { label: 'Fiscal Periods',    href: '/admin/fiscal-periods',    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
   { label: 'Tax Codes',          href: '/admin/tax-codes',          icon: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z' },
   { label: 'Audit Log',         href: '/admin/audit-log',         icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
+  { label: 'Deleted Items',    href: '/admin/deleted-items',     icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' },
 ];
 
 const ACCOUNTANT_NAV = [
@@ -58,6 +59,7 @@ const ACCOUNTANT_NAV = [
       { label: 'Chart of Accounts', href: '/accountant/chart-of-accounts' },
     ],
   },
+  { label: 'Deleted Items', href: '/accountant/deleted-items', icon: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' },
 ];
 
 const EMPLOYEE_NAV = [

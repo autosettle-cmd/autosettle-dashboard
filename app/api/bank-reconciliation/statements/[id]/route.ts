@@ -71,7 +71,7 @@ export async function GET(
     // Sales invoices (only for transactions that have them)
     salesInvIds.length > 0 ? prisma.salesInvoice.findMany({
       where: { id: { in: salesInvIds } },
-      select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true, buyer: { select: { name: true } } },
+      select: { id: true, invoice_number: true, total_amount: true, amount_paid: true, issue_date: true, file_url: true, thumbnail_url: true, gl_account_id: true, buyer: { select: { name: true } } },
     }) : [],
   ]);
 
@@ -182,7 +182,7 @@ export async function GET(
             total_amount: allocs[0].invoice.total_amount.toString(), amount_paid: allocs[0].invoice.amount_paid.toString(),
             issue_date: allocs[0].invoice.issue_date, file_url: allocs[0].invoice.file_url, thumbnail_url: allocs[0].invoice.thumbnail_url,
             allocation_amount: allocs[0].amount.toString(),
-            contra_gl_account_id: allocs[0].invoice.contra_gl_account_id ?? allocs[0].invoice.supplier?.default_contra_gl_account_id ?? null,
+            contra_gl_account_id: allocs[0].invoice.contra_gl_account_id ?? allocs[0].invoice.gl_account_id ?? allocs[0].invoice.supplier?.default_contra_gl_account_id ?? null,
             supplier_default_contra_gl_id: allocs[0].invoice.supplier?.default_contra_gl_account_id ?? null,
           } : null,
           matched_invoice_allocations: allocs.map(a => ({
@@ -196,6 +196,7 @@ export async function GET(
             total_amount: salesInv.total_amount.toString(), amount_paid: salesInv.amount_paid.toString(),
             issue_date: salesInv.issue_date, buyer_name: salesInv.buyer?.name ?? 'Unknown',
             file_url: salesInv.file_url ?? null, thumbnail_url: salesInv.thumbnail_url ?? null,
+            contra_gl_account_id: salesInv.gl_account_id ?? null,
           } : null,
           matched_claims: claims.map(c => ({
             id: c.id, merchant: c.merchant, amount: c.amount.toString(),

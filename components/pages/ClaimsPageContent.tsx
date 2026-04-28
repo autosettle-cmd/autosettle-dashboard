@@ -16,6 +16,7 @@ const ClaimPreviewPanel = dynamic(() => import('@/components/claims/ClaimPreview
 import { useBatchProcess } from '@/contexts/BatchProcessContext';
 import SearchButton from '@/components/SearchButton';
 import MobileClaimCard from '@/components/mobile/MobileClaimCard';
+import DeleteBlockerModal from '@/components/DeleteBlockerModal';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -794,9 +795,11 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
     }
   };
 
+  const [deleteBlockers, setDeleteBlockers] = useState<{ label: string; detail: string }[] | null>(null);
+
   const deleteClaims = async (claimIds: string[]) => {
     const count = claimIds.length;
-    if (!confirm(`Delete ${count} claim${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+    if (!confirm(`Delete ${count} claim${count !== 1 ? 's' : ''}? This will be recoverable for 30 days.`)) return;
     const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
     try {
       const res = await fetch(config.apiDelete, {
@@ -805,7 +808,11 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         body: JSON.stringify({ claimIds }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error || 'Failed to delete'); return; }
+      if (!res.ok) {
+        if (json.blockers?.length) { setDeleteBlockers(json.blockers); return; }
+        alert(json.error || 'Failed to delete');
+        return;
+      }
       refresh();
       requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
       setSelectedRows([]);
@@ -1616,6 +1623,7 @@ function ClaimsPageContent({ config }: { config: ClaimsPageConfig }) {
         />
       )}
 
+      {deleteBlockers && <DeleteBlockerModal blockers={deleteBlockers} onClose={() => setDeleteBlockers(null)} />}
 
     </>
   );

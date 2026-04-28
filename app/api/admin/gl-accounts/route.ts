@@ -15,6 +15,7 @@ export async function GET() {
     const accounts = await prisma.gLAccount.findMany({
       where: { firm_id: session.user.firm_id },
       orderBy: [{ account_code: 'asc' }],
+      take: 500, // Safety limit — paginate if data exceeds this
     });
 
     return NextResponse.json({ data: accounts, error: null, meta: { count: accounts.length } });

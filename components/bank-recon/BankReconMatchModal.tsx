@@ -416,8 +416,24 @@ export default function BankReconMatchModal({
   };
 
   const getContraLabel = () => {
-    if (isOutgoing) return 'Trade Payables / Expense GL';
-    return 'Trade Receivables / Income GL';
+    // Try to resolve actual GL from selected item(s)
+    const selectedIds = isOutgoing ? selectedInvoiceIds : (selectedInvoiceIds.size > 0 ? selectedInvoiceIds : selectedClaimIds);
+    if (selectedIds.size > 0) {
+      const items = outstandingItems.filter(i => selectedIds.has(i.id));
+      const glId = items[0]?.glAccountId;
+      if (glId) {
+        const gl = receiptGlAccounts.find(a => a.id === glId);
+        if (gl) return `${gl.account_code} — ${gl.name}`;
+      }
+    } else if (selectedItem) {
+      const found = outstandingItems.find(i => i.id === selectedItem.id);
+      const glId = found?.glAccountId;
+      if (glId) {
+        const gl = receiptGlAccounts.find(a => a.id === glId);
+        if (gl) return `${gl.account_code} — ${gl.name}`;
+      }
+    }
+    return isOutgoing ? 'Trade Payables / Expense GL' : 'Trade Receivables / Income GL';
   };
 
   return (

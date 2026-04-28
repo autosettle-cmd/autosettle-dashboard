@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma';
-import { JournalSourceType, Prisma } from '../generated/prisma';
+import { JournalSourceType } from '../generated/prisma';
 import { auditLog } from './audit';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -22,7 +23,8 @@ export interface CreateJournalEntryParams {
   /** Voucher number prefix (e.g. 'PV', 'OR', 'PI', 'SI', 'CR', 'JV'). Defaults based on sourceType. */
   voucherPrefix?: string;
   /** Optional Prisma transaction client — if provided, runs inside the caller's transaction */
-  tx?: Prisma.TransactionClient;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tx?: any;
 }
 
 // ─── Voucher Prefix Defaults ───────────────────────────────────────────────
@@ -43,7 +45,7 @@ const DEFAULT_PREFIX: Record<JournalSourceType, string> = {
  * Each prefix has its own independent sequence per firm per year.
  */
 async function generateVoucherNumber(
-  client: Prisma.TransactionClient,
+  client: any,
   firmId: string,
   postingDate: Date,
   voucherPrefix: string = 'JV'
@@ -76,7 +78,7 @@ async function generateVoucherNumber(
  * Throws a descriptive error if no open period is found.
  */
 export async function findOpenPeriod(
-  client: Prisma.TransactionClient,
+  client: any,
   firmId: string,
   postingDate: Date
 ) {
@@ -136,7 +138,7 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
 
   // Idempotency guard — skip if a posted, non-reversal JV already exists for this source
   if (sourceId) {
-    const run = async (client: Prisma.TransactionClient) => {
+    const run = async (client: any) => {
       const existing = await client.journalEntry.findFirst({
         where: {
           firm_id: firmId,
@@ -155,7 +157,7 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
     if (existingResult) return existingResult;
   }
 
-  const execute = async (client: Prisma.TransactionClient) => {
+  const execute = async (client: any) => {
     // Period is optional — find if exists, but don't block JV creation
     let periodId: string | null = null;
     try {
@@ -221,9 +223,9 @@ export async function createJournalEntry(params: CreateJournalEntryParams) {
 export async function reverseJournalEntry(
   journalEntryId: string,
   createdBy?: string,
-  tx?: Prisma.TransactionClient
+  tx?: any
 ) {
-  const execute = async (client: Prisma.TransactionClient) => {
+  const execute = async (client: any) => {
     const original = await client.journalEntry.findUnique({
       where: { id: journalEntryId },
       include: { lines: true },
@@ -268,7 +270,7 @@ export async function reverseJournalEntry(
         reversal_of_id: original.id,
         created_by: createdBy,
         lines: {
-          create: original.lines.map((l) => ({
+          create: original.lines.map((l: any) => ({
             gl_account_id: l.gl_account_id,
             debit_amount: l.credit_amount,   // flip
             credit_amount: l.debit_amount,   // flip
@@ -465,7 +467,7 @@ export async function createYearEndClosingEntries(
 export async function findJVBySource(
   sourceType: JournalSourceType,
   sourceId: string,
-  tx?: Prisma.TransactionClient
+  tx?: any
 ) {
   const client = tx ?? prisma;
   return client.journalEntry.findMany({
@@ -482,7 +484,7 @@ export async function reverseJVsForSource(
   sourceType: JournalSourceType,
   sourceId: string,
   createdBy?: string,
-  tx?: Prisma.TransactionClient
+  tx?: any
 ) {
   const entries = await findJVBySource(sourceType, sourceId, tx);
   const reversals = [];

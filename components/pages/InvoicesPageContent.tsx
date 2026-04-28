@@ -13,6 +13,7 @@ import { APPROVAL_CFG } from '@/lib/badge-config';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import DeleteBlockerModal from '@/components/DeleteBlockerModal';
 const InvoiceCreateModal = dynamic(() => import('@/components/invoices/InvoiceCreateModal'));
 const InvoiceRejectModal = dynamic(() => import('@/components/invoices/InvoiceRejectModal'));
 const InvoicePreviewPanel = dynamic(() => import('@/components/invoices/InvoicePreviewPanel'));
@@ -1163,15 +1164,23 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
     } catch (e) { console.error(e); }
   };
 
+  const [deleteBlockers, setDeleteBlockers] = useState<{ label: string; detail: string }[] | null>(null);
+
   const deleteInvoice = async (id: string) => {
-    if (!confirm('Delete this invoice? This cannot be undone.')) return;
+    if (!confirm('Delete this invoice? This will be recoverable for 30 days.')) return;
     try {
       const res = await fetch(config.apiDelete, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ invoiceId: id }),
       });
-      if (res.ok) { setPreviewInvoice(null); refresh(); }
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.blockers?.length) { setDeleteBlockers(json.blockers); return; }
+        alert(json.error || 'Failed to delete');
+        return;
+      }
+      setPreviewInvoice(null); refresh();
     } catch (e) { console.error(e); }
   };
 
@@ -1898,6 +1907,7 @@ function InvoicesPageContent({ config }: { config: InvoicesPageConfig }) {
       />
 
 
+      {deleteBlockers && <DeleteBlockerModal blockers={deleteBlockers} onClose={() => setDeleteBlockers(null)} />}
     </>
   );
 }

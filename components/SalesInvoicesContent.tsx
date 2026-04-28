@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTableSort } from '@/lib/use-table-sort';
 import GlAccountSelect from '@/components/GlAccountSelect';
+import DeleteBlockerModal from '@/components/DeleteBlockerModal';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -380,15 +381,21 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
 
   // ─── Delete invoice ──────────────────────────────────────────────────────────
 
+  const [deleteBlockers, setDeleteBlockers] = useState<{ label: string; detail: string }[] | null>(null);
+
   const deleteInvoice = async (id: string) => {
-    if (!confirm('Delete this sales invoice? This cannot be undone.')) return;
+    if (!confirm('Delete this sales invoice? This will be recoverable for 30 days.')) return;
     setDeleting(true);
     try {
       const res = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setPreview(null);
-        refresh();
+      const json = await res.json();
+      if (!res.ok) {
+        if (json.blockers?.length) { setDeleteBlockers(json.blockers); return; }
+        alert(json.error || 'Failed to delete');
+        return;
       }
+      setPreview(null);
+      refresh();
     } catch (e) {
       console.error(e);
     } finally {
@@ -946,6 +953,7 @@ export default function SalesInvoicesContent({ role }: { role: 'admin' | 'accoun
           </div>
         </>
       )}
+      {deleteBlockers && <DeleteBlockerModal blockers={deleteBlockers} onClose={() => setDeleteBlockers(null)} />}
     </div>
   );
 }

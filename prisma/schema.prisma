@@ -291,6 +291,8 @@ model Claim {
   matched_bank_txn_id    String?
   created_at       DateTime       @default(now())
   updated_at       DateTime       @updatedAt
+  deleted_at       DateTime?
+  deleted_by       String?
 
   firm     Firm     @relation(fields: [firm_id], references: [id])
   employee Employee @relation(fields: [employee_id], references: [id])
@@ -397,6 +399,8 @@ model Invoice {
   notes               String?
   created_at          DateTime             @default(now())
   updated_at          DateTime             @updatedAt
+  deleted_at          DateTime?
+  deleted_by          String?
 
   firm     Firm      @relation(fields: [firm_id], references: [id])
   uploader Employee  @relation(fields: [uploaded_by], references: [id])
@@ -447,6 +451,8 @@ model Payment {
   created_at   DateTime @default(now())
 
   direction   PaymentDirection    @default(outgoing)
+  deleted_at  DateTime?
+  deleted_by  String?
 
   firm             Firm                     @relation(fields: [firm_id], references: [id])
   supplier         Supplier?                @relation(fields: [supplier_id], references: [id])
@@ -568,6 +574,8 @@ model SalesInvoice {
 
   created_at           DateTime             @default(now())
   updated_at           DateTime             @updatedAt
+  deleted_at           DateTime?
+  deleted_by           String?
 
   firm                 Firm                 @relation(fields: [firm_id], references: [id])
   buyer                Supplier             @relation(fields: [supplier_id], references: [id])
@@ -582,7 +590,7 @@ model SalesInvoice {
   @@index([firm_id, lhdn_status])
   @@index([firm_id, approval])
   @@index([created_by])
-  @@unique([firm_id, invoice_number])
+  @@index([firm_id, invoice_number])
 }
 
 model SalesInvoiceItem {
@@ -646,6 +654,8 @@ enum AuditAction {
   create
   update
   delete
+  soft_delete
+  restore
 }
 
 enum ReconStatus {

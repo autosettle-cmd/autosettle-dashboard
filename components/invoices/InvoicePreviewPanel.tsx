@@ -251,6 +251,7 @@ export default function InvoicePreviewPanel({
   const isPV = previewInvoice.invoice_number?.startsWith('PV-');
   const isOR = previewInvoice.invoice_number?.startsWith('OR-');
   const canAttach = (isPV || isOR) && !previewInvoice.file_url;
+  const attachApi = isOR ? `/api/sales-invoices/${previewInvoice.id}/attach` : `/api/invoices/${previewInvoice.id}/attach`;
 
   const handleAttachFile = async (file: File) => {
     setAttachingFile(true);
@@ -258,7 +259,7 @@ export default function InvoicePreviewPanel({
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch(`/api/invoices/${previewInvoice.id}/attach`, {
+      const res = await fetch(attachApi, {
         method: 'PATCH',
         body: formData,
       });
@@ -736,10 +737,10 @@ export default function InvoicePreviewPanel({
                       </div>
                     ) : (
                       <label className="w-full max-w-xs cursor-pointer">
-                        <div className="border-2 border-dashed border-[var(--border-medium)] rounded-lg p-8 text-center hover:border-[var(--accent-blue)] hover:bg-[var(--bg-secondary)] transition-colors">
+                        <div className="btn-thick-white flex-col !normal-case p-8 text-center w-full">
                           <svg className="w-10 h-10 mx-auto mb-3 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>
                           <p className="text-sm font-medium text-[var(--text-primary)]">Attach Document</p>
-                          <p className="text-xs text-[var(--text-muted)] mt-1">PDF, JPG, or PNG</p>
+                          <p className="text-xs text-[var(--text-muted)] mt-1 font-normal">PDF, JPG, or PNG</p>
                         </div>
                         <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => { const f = e.target.files?.[0]; if (f) handleAttachFile(f); e.target.value = ''; }} />
                       </label>
@@ -778,7 +779,7 @@ export default function InvoicePreviewPanel({
                               const fd = new FormData();
                               fd.append('file', file);
                               fd.append('generated', 'true');
-                              const res = await fetch(`/api/invoices/${previewInvoice.id}/attach`, { method: 'PATCH', body: fd });
+                              const res = await fetch(attachApi, { method: 'PATCH', body: fd });
                               const json = await res.json();
                               if (!res.ok) {
                                 setAttachWarnings([json.error || 'Failed to attach generated PDF']);
@@ -791,7 +792,7 @@ export default function InvoicePreviewPanel({
                               setAttachingFile(false);
                             }
                           }}
-                          className="w-full max-w-xs border-2 border-[var(--outline-ghost)] p-4 text-center hover:border-[var(--primary)] hover:bg-[var(--surface-low)] transition-colors"
+                          className="btn-thick-white flex-col !normal-case w-full max-w-xs p-4 text-center"
                         >
                           <svg className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
                           <p className="text-sm font-medium text-[var(--text-primary)]">Generate {isPV ? 'Payment Voucher' : 'Official Receipt'}</p>
@@ -1001,17 +1002,17 @@ export default function InvoicePreviewPanel({
           </div>
           <div className="px-5 py-3 border-t border-[#E0E3E5] flex-shrink-0">
             {(() => {
-              const hasPayments = previewInvoice.payment_status !== 'unpaid';
-              const isApproved = config.showApproval && previewInvoice.approval === 'approved';
-              const blocked = hasPayments || isApproved;
-              const reason = hasPayments ? 'Remove payments/bank recon first' : 'Revert approval first';
-              return blocked ? (
+              const reasons: string[] = [];
+              if (config.showApproval && previewInvoice.approval === 'approved') reasons.push('Revert approval first');
+              if (previewInvoice.payment_status === 'paid') reasons.push('Unmatch from bank recon first');
+              else if (previewInvoice.payment_status === 'partially_paid') reasons.push('Remove payments/receipts first');
+              return reasons.length > 0 ? (
                 <div className="relative group inline-block">
                   <button disabled className="btn-thick-red text-xs px-3 py-1 font-medium" style={{ opacity: 0.4, cursor: 'not-allowed', color: 'var(--text-muted)', backgroundColor: 'var(--surface-header)' }}>
                     Delete
                   </button>
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--text-primary)] text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none">
-                    {reason}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-[var(--text-primary)] text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 pointer-events-none z-10">
+                    {reasons.map((r, i) => <div key={i}>{r}</div>)}
                   </div>
                 </div>
               ) : (

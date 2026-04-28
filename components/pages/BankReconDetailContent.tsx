@@ -717,7 +717,16 @@ export default function BankReconDetailContent({ config }: { config: BankReconDe
     });
     setUnmatchConfirmTxn(null);
     setUnmatching(false);
-    loadStatement();
+    // Reload and keep preview open on the now-unmatched txn
+    const scrollTop = tableScrollRef.current?.scrollTop ?? 0;
+    const stmtRes = await fetch(`${config.apiStatements}/${id}`);
+    const stmtJson = await stmtRes.json();
+    if (stmtJson.data) {
+      setStatement(stmtJson.data);
+      const updated = (stmtJson.data as StatementDetail).transactions.find((t: BankTxn) => t.id === txnId);
+      if (updated) setPreviewTxn(updated);
+      requestAnimationFrame(() => { if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop; });
+    }
   };
 
   const doRematch = async () => {

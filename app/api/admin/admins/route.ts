@@ -17,6 +17,7 @@ export async function GET() {
     where: { firm_id: firmId, role: 'admin' },
     select: { id: true, name: true, email: true, is_active: true, created_at: true },
     orderBy: { name: 'asc' },
+    take: 100,
   });
 
   return NextResponse.json({ data: admins, error: null, meta: { count: admins.length } });
