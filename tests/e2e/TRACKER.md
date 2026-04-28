@@ -11,7 +11,7 @@ Last updated: 2026-04-28
 | Round-Trip | 7 | 2026-04-28 | 7/7 PASS | GL passthrough, soft delete, blockers, JV integrity |
 | Lifecycle | 9 | 2026-04-28 | 9/9 PASS | Fixed selectors — all passing |
 
-| Destructive Path | 10 | 2026-04-28 | 10/10 PASS | Delete blockers, validation, blocker detail |
+| Destructive Path | 13 | 2026-04-28 | 10/10 PASS | Delete blockers, validation, blocker detail, dedup, empty submit |
 | Permissions | 10 | 2026-04-28 | 10/10 PASS | Role enforcement, firm scoping, page redirects |
 | Lifecycle API | 4 | 2026-04-28 | 4/4 PASS | Invoice/claim approve+revert, soft delete cycle, bank recon match+unmatch |
 
@@ -64,11 +64,11 @@ Last updated: 2026-04-28
 - [ ] Mileage claim lifecycle: submit → review → approve
 
 ### Destructive Path Tests (API-level)
-- [ ] Double-submit same invoice → dedup check blocks
+- [x] Double-submit same invoice → dedup check blocks (destructive-path.spec.ts — Destructive 3)
 - [ ] Delete claim with payments → blocker returned
 - [ ] Delete invoice with bank match → blocker returned
-- [ ] Delete payment with allocations → blocker returned
-- [ ] Submit empty claim form → validation error
+- [x] Delete payment with allocations → blocker returned (destructive-path.spec.ts — Destructive 3)
+- [x] Submit empty claim form → validation error (destructive-path.spec.ts — Destructive 3)
 
 ### Permission Matrix Tests (API-level)
 - [ ] Admin cannot access other firm's data
@@ -77,7 +77,8 @@ Last updated: 2026-04-28
 - [ ] Platform owner sees all firms
 
 ### Visual Snapshot Tests (future)
-- [ ] Invoice preview panel layout
+- [x] Invoice preview panel layout (data-flow.spec.ts — invoice-preview-modal.png)
+- [x] Receipt preview panel layout (data-flow.spec.ts — receipt-preview-modal.png)
 - [ ] Bank recon match modal layout
 - [ ] Delete blocker modal layout
 - [ ] Deleted Items page layout

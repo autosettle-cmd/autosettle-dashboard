@@ -57,10 +57,16 @@ test.describe('Lifecycle API 1: Invoice Approval & JV', () => {
     const jvBefore = await authFetch(page, `/api/journal-entries?firmId=${firmId}&take=500`);
     const jvCountBefore = (jvBefore.json?.data ?? []).length;
 
+    // Get GL accounts for approval
+    const glRes = await authFetch(page, `/api/gl-accounts?firmId=${firmId}`);
+    const glAccounts = glRes.json?.data ?? [];
+    const expenseGl = glAccounts.find((a: any) => a.account_type === 'Expense') ?? glAccounts[0];
+    const liabilityGl = glAccounts.find((a: any) => a.account_type === 'Liability') ?? glAccounts[1];
+
     // Approve the invoice
     const approveRes = await authFetch(page, '/api/invoices/batch', {
-      method: 'POST',
-      body: JSON.stringify({ invoiceIds: [candidate.id], action: 'approve' }),
+      method: 'PATCH',
+      body: JSON.stringify({ invoiceIds: [candidate.id], action: 'approve', gl_account_id: expenseGl?.id, contra_gl_account_id: liabilityGl?.id }),
     });
     expect(approveRes.status).toBe(200);
 
@@ -85,8 +91,8 @@ test.describe('Lifecycle API 1: Invoice Approval & JV', () => {
 
     // Revert approval
     const revertRes = await authFetch(page, '/api/invoices/batch', {
-      method: 'POST',
-      body: JSON.stringify({ invoiceIds: [candidate.id], action: 'revert_approval' }),
+      method: 'PATCH',
+      body: JSON.stringify({ invoiceIds: [candidate.id], action: 'revert' }),
     });
     expect(revertRes.status).toBe(200);
 

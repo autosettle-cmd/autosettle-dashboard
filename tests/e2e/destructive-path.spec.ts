@@ -175,10 +175,106 @@ test.describe('Destructive 2: Validation', () => {
 });
 
 // ============================================================
-// 3. BLOCKER COMPLETENESS — every blocker type is testable
+// 3. DEDUP & EMPTY SUBMIT — duplicate/invalid submissions rejected
 // ============================================================
 
-test.describe('Destructive 3: Blocker Detail', () => {
+test.describe('Destructive 3: Dedup & Empty Submit', () => {
+  const FIRM_ID = 'd591d195-db07-4225-a934-5a98d1238865';
+
+  test('Double-submit same invoice_number returns dedup error', async ({ page }) => {
+    await login(page, ACCOUNTANT);
+
+    // First, find an existing invoice to get its invoice_number
+    const listRes = await authFetch(page, `/api/invoices?firmId=${FIRM_ID}&take=50`);
+    const existing = (listRes.json?.data ?? []).find((i: any) => i.invoice_number);
+    if (!existing) {
+      test.info().annotations.push({ type: 'skip', description: 'No invoice with invoice_number found' });
+      return;
+    }
+
+    // Try to create an invoice with the same invoice_number via FormData
+    const result = await page.evaluate(async ({ firmId, invoiceNumber }) => {
+      const form = new FormData();
+      form.append('firm_id', firmId);
+      form.append('vendor_name', 'Test Vendor Dedup');
+      form.append('invoice_number', invoiceNumber);
+      form.append('issue_date', '2026-01-15');
+      form.append('total_amount', '100.00');
+
+      const res = await fetch('/api/invoices', { method: 'POST', body: form });
+      let json: any;
+      try { json = await res.json(); } catch { json = null; }
+      return { status: res.status, json };
+    }, { firmId: FIRM_ID, invoiceNumber: existing.invoice_number });
+
+    // Should return 409 with duplicate error
+    expect(result.status).toBe(409);
+    expect(result.json?.error).toContain('Duplicate');
+  });
+
+  test('Submit claim with missing required fields returns 400', async ({ page }) => {
+    await login(page, ACCOUNTANT);
+
+    // Submit claim with empty FormData (only firm_id, missing merchant/amount/date/category)
+    const result = await page.evaluate(async (firmId) => {
+      const form = new FormData();
+      form.append('firm_id', firmId);
+      form.append('type', 'claim');
+      // Missing: claim_date, merchant, amount, category_id
+
+      const res = await fetch('/api/claims', { method: 'POST', body: form });
+      let json: any;
+      try { json = await res.json(); } catch { json = null; }
+      return { status: res.status, json };
+    }, FIRM_ID);
+
+    expect(result.status).toBe(400);
+    expect(result.json?.error).toContain('Missing required fields');
+  });
+
+  test('Delete payment that has allocations returns blockers', async ({ page }) => {
+    await login(page, ACCOUNTANT);
+
+    // Find a payment that has allocations by checking each payment
+    const paymentsRes = await authFetch(page, `/api/payments?firmId=${FIRM_ID}&take=50`);
+    const payments = paymentsRes.json?.data ?? [];
+    if (payments.length === 0) {
+      test.info().annotations.push({ type: 'skip', description: 'No payments found' });
+      return;
+    }
+
+    // Try each payment until we find one with allocations (returns 400 with blockers)
+    let foundBlocked = false;
+    for (const payment of payments) {
+      const deleteRes = await authFetch(page, `/api/payments/${payment.id}`, { method: 'DELETE' });
+      if (deleteRes.status === 400 && deleteRes.json?.blockers?.length > 0) {
+        // Verify blocker structure
+        expect(deleteRes.json.blockers[0].label).toBeTruthy();
+        expect(deleteRes.json.blockers[0].detail).toBeTruthy();
+        expect(deleteRes.json.blockers[0].label).toContain('allocation');
+        foundBlocked = true;
+        break;
+      }
+      if (deleteRes.status === 200) {
+        // Oops, it deleted — restore it
+        await authFetch(page, '/api/deleted-records/restore', {
+          method: 'POST',
+          body: JSON.stringify({ model: 'payment', id: payment.id }),
+        });
+      }
+    }
+
+    if (!foundBlocked) {
+      test.info().annotations.push({ type: 'skip', description: 'No payment with allocations found to test blocker' });
+    }
+  });
+});
+
+// ============================================================
+// 4. BLOCKER COMPLETENESS — every blocker type is testable
+// ============================================================
+
+test.describe('Destructive 4: Blocker Detail', () => {
   test('Blockers include specific labels and details', async ({ page }) => {
     await login(page, ACCOUNTANT);
     const firmId = await getFirmId(page);
