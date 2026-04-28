@@ -113,10 +113,11 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Now safe to delete transactions and statement
-    await prisma.bankTransaction.deleteMany({ where: { bank_statement_id: statementId } });
-    await prisma.bankStatement.delete({ where: { id: statementId } });
-    deleteFileFromDrive(statement.file_url).catch(() => {});
+    // Soft-delete the statement (transactions stay for reference, filtered by Prisma $extends)
+    await prisma.bankStatement.update({
+      where: { id: statementId },
+      data: { deleted_at: new Date(), deleted_by: session.user.id },
+    });
 
     await auditLog({
       firmId: session.user.firm_id,

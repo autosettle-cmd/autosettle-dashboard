@@ -6,6 +6,7 @@ import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
 import { recalcInvoicePayment, recalcClaimPayment } from '@/lib/payment-utils';
 import { recalcSalesInvoicePayment } from '@/lib/sales-payment-utils';
 import { auditLog } from '@/lib/audit';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -321,7 +322,7 @@ export async function GET(request: NextRequest) {
       },
     },
     orderBy: { payment_date: 'desc' },
-    take: 100,
+    take: DEFAULT_PAGE_SIZE,
   });
 
   // Batch-fetch claim details for all receipts in one query

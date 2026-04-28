@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { hash } from 'bcryptjs';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export async function GET() {
     where: { firm_id: firmId, role: 'admin' },
     select: { id: true, name: true, email: true, is_active: true, created_at: true },
     orderBy: { name: 'asc' },
-    take: 100,
+    take: DEFAULT_PAGE_SIZE,
   });
 
   return NextResponse.json({ data: admins, error: null, meta: { count: admins.length } });

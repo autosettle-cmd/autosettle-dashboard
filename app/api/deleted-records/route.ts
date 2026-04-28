@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const results: any[] = [];
 
     // Fetch all types or a specific type
-    const types = typeParam ? [typeParam] : ['invoice', 'salesInvoice', 'claim', 'payment'];
+    const types = typeParam ? [typeParam] : ['invoice', 'salesInvoice', 'claim', 'payment', 'bankStatement'];
 
     if (types.includes('invoice')) {
       const invoices = await prismaUnfiltered.invoice.findMany({
@@ -118,6 +118,28 @@ export async function GET(request: NextRequest) {
           id: p.id, type: 'Payment', firmId: p.firm_id, firmName: p.firm.name,
           description: `${name}${p.reference ? ` (${p.reference})` : ''}`,
           amount: p.amount.toString(), deletedAt: p.deleted_at, deletedBy: p.deleted_by,
+        });
+      }
+    }
+
+    if (types.includes('bankStatement')) {
+      const statements = await prismaUnfiltered.bankStatement.findMany({
+        where: deletedWhere,
+        select: {
+          id: true, firm_id: true, bank_name: true, account_number: true,
+          statement_date: true, file_name: true,
+          deleted_at: true, deleted_by: true,
+          firm: { select: { name: true } },
+          _count: { select: { transactions: true } },
+        },
+        orderBy: { deleted_at: 'desc' },
+        take: 200,
+      });
+      for (const s of statements) {
+        results.push({
+          id: s.id, type: 'Bank Statement', model: 'bankStatement', firmId: s.firm_id, firmName: s.firm.name,
+          description: `${s.bank_name} ${s.account_number ?? ''} — ${s.file_name} (${s._count.transactions} txns)`,
+          amount: null, deletedAt: s.deleted_at, deletedBy: s.deleted_by,
         });
       }
     }

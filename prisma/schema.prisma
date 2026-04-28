@@ -704,6 +704,9 @@ model BankStatement {
   balance_override_by String?
   balance_override_at DateTime?
 
+  deleted_at   DateTime?
+  deleted_by   String?
+
   firm         Firm              @relation(fields: [firm_id], references: [id])
   uploader     User              @relation(fields: [uploaded_by], references: [id])
   transactions BankTransaction[]

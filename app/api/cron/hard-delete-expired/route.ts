@@ -88,6 +88,24 @@ export async function GET(request: NextRequest) {
     }
     summary.salesInvoices = salesInvoices.length;
 
+    // 5. Bank Statements
+    const bankStatements = await prismaUnfiltered.bankStatement.findMany({
+      where: { deleted_at: { lt: cutoff, not: null } },
+      select: { id: true, file_url: true },
+    });
+    for (const bs of bankStatements) {
+      deleteFileFromDrive(bs.file_url).catch(() => {});
+    }
+    if (bankStatements.length > 0) {
+      await prismaUnfiltered.bankTransaction.deleteMany({
+        where: { bank_statement_id: { in: bankStatements.map(s => s.id) } },
+      });
+      await prismaUnfiltered.bankStatement.deleteMany({
+        where: { id: { in: bankStatements.map(s => s.id) } },
+      });
+    }
+    summary.bankStatements = bankStatements.length;
+
     const total = Object.values(summary).reduce((a, b) => a + b, 0);
     console.info(`[hard-delete-expired] Purged ${total} records:`, summary);
 

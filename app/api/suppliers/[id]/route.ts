@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,7 @@ export async function GET(
           category: { select: { name: true } },
         },
         orderBy: { issue_date: 'desc' },
-        take: 100,
+        take: DEFAULT_PAGE_SIZE,
       }),
       prisma.salesInvoice.findMany({
         where: { supplier_id: id },
@@ -57,7 +58,7 @@ export async function GET(
           total_amount: true, amount_paid: true, payment_status: true, notes: true,
         },
         orderBy: { issue_date: 'desc' },
-        take: 100,
+        take: DEFAULT_PAGE_SIZE,
       }),
     ]);
     const supplier = supplierBase;

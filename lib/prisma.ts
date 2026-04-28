@@ -2,7 +2,7 @@ import { PrismaClient } from "@/generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-const SOFT_DELETE_MODELS = new Set(['Invoice', 'SalesInvoice', 'Claim', 'Payment']);
+const SOFT_DELETE_MODELS = new Set(['Invoice', 'SalesInvoice', 'Claim', 'Payment', 'BankStatement']);
 const READ_OPS = new Set(['findFirst', 'findMany', 'count', 'aggregate', 'groupBy']);
 
 const globalForPrisma = globalThis as unknown as {

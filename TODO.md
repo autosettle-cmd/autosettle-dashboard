@@ -8,12 +8,6 @@
 - [ ] Add AbortController to ~15 components with unguarded fetch useEffects
 - [ ] Add onDelete rules to 42 schema relations — Cascade for firm FKs, SetNull for optional refs
 
-### Medium
-- [ ] Extract hardcoded `take: 100` to shared constant (low priority — only 11 uses)
-
-### Low Priority
-- [ ] Consolidate claims/stats + claims/counts into single endpoint
-
 ---
 
 ## Questions for accountant (DS Plus)

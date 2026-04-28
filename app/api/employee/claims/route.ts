@@ -6,6 +6,7 @@ import { uploadFileForFirm } from '@/lib/google-drive';
 import { getFirmMileageRate, calculateMileageAmount } from '@/lib/mileage';
 import { checkClaimDuplicate } from '@/lib/claim-dedup';
 import { createHash } from 'crypto';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export async function GET() {
       category: { select: { name: true } },
     },
     orderBy: { claim_date: 'desc' },
-    take: 100,
+    take: DEFAULT_PAGE_SIZE,
   });
 
   const data = claims.map((c) => ({

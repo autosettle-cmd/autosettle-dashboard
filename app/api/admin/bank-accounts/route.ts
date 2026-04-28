@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export async function GET(_request: NextRequest) {
     where: { firm_id: session.user.firm_id },
     include: { glAccount: { select: { account_code: true, name: true } } },
     orderBy: { bank_name: 'asc' },
-    take: 100,
+    take: DEFAULT_PAGE_SIZE,
   });
 
   return NextResponse.json({

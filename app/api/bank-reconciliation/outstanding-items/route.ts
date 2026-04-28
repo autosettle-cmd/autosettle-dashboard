@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds } from '@/lib/accountant-firms';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
           file_url: true,
         },
         orderBy: { issue_date: 'desc' },
-        take: 100,
+        take: DEFAULT_PAGE_SIZE,
       });
 
       // 2. Reviewed employee claims not yet reimbursed
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
           thumbnail_url: true,
         },
         orderBy: { claim_date: 'desc' },
-        take: 100,
+        take: DEFAULT_PAGE_SIZE,
       });
 
       // Sort by closest amount match if amount provided
@@ -192,7 +193,7 @@ export async function GET(request: NextRequest) {
           buyer: { select: { name: true } },
         },
         orderBy: { issue_date: 'desc' },
-        take: 100,
+        take: DEFAULT_PAGE_SIZE,
       });
 
       const items = salesInvoices.map(inv => ({

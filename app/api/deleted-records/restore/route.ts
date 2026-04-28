@@ -8,7 +8,7 @@ import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
-type ModelType = 'invoice' | 'salesInvoice' | 'claim' | 'payment';
+type ModelType = 'invoice' | 'salesInvoice' | 'claim' | 'payment' | 'bankStatement';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'model and id are required' }, { status: 400 });
     }
 
-    const validModels: ModelType[] = ['invoice', 'salesInvoice', 'claim', 'payment'];
+    const validModels: ModelType[] = ['invoice', 'salesInvoice', 'claim', 'payment', 'bankStatement'];
     if (!validModels.includes(model)) {
       return NextResponse.json({ error: 'Invalid model type' }, { status: 400 });
     }
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       salesInvoice: 'SalesInvoice',
       claim: 'Claim',
       payment: 'Payment',
+      bankStatement: 'BankStatement',
     };
 
     await auditLog({

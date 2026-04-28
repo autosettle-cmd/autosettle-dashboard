@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getAccountantFirmIds, firmScope } from '@/lib/accountant-firms';
+import { DEFAULT_PAGE_SIZE } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
         firm: { select: { name: true } },
       },
       orderBy: { statement_date: 'desc' },
-      take: 100,
+      take: DEFAULT_PAGE_SIZE,
     });
 
     const statusCounts = await prisma.bankTransaction.groupBy({

@@ -23,9 +23,10 @@ const TYPE_BADGES: Record<string, string> = {
   'Mileage Claim': 'badge-green',
   Receipt: 'badge-amber',
   Payment: 'badge-gray',
+  'Bank Statement': 'badge-navy',
 };
 
-const TYPE_OPTIONS = ['All', 'Invoice', 'Sales Invoice', 'Claim', 'Payment'];
+const TYPE_OPTIONS = ['All', 'Invoice', 'Sales Invoice', 'Claim', 'Payment', 'Bank Statement'];
 
 function daysRemaining(deletedAt: string): number {
   const deleted = new Date(deletedAt);
@@ -87,6 +88,7 @@ export default function DeletedItemsPage({ showFirm = false }: Props) {
         'Mileage Claim': 'claim',
         Receipt: 'claim',
         Payment: 'payment',
+        'Bank Statement': 'bankStatement',
       };
       const res = await fetch('/api/deleted-records/restore', {
         method: 'POST',
