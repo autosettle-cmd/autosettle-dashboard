@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { recalcInvoicePaid } from '@/lib/invoice-payment';
-import { deleteFileFromDrive } from '@/lib/google-drive';
 import { auditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
